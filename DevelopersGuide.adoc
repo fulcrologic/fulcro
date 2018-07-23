@@ -4737,12 +4737,11 @@ In our example, we'll assume the delete is global (removes the item from the lis
   "Mutation: Delete an item from a list"
   [{:keys [id]}]
   (action [{:keys [state]}]
-    (letfn [(filter-item [list] (filterv #(not= (second %) id) list))]
-      (swap! state
-        (fn [s]
-          (-> s
-            (update :items dissoc id) ; remove the item from the db (optional)
-            (m/remove-ident* [:lists 1 :list/items] [:items id]))))))) ; remove the item from the list of idents
+    (swap! state
+      (fn [s]
+        (-> s
+          (update :items dissoc id) ; remove the item from the db (optional)
+          (m/remove-ident* [:lists 1 :list/items] [:items id])))))) ; remove the item from the list of idents
 ```
 
 The source of the components for this demo are below. Make note of the use of `computed`.

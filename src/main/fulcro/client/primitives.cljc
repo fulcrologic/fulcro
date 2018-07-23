@@ -3141,8 +3141,8 @@
   "DEPRECATED: Use fulcro.client.mutations/integrate-ident* in your mutations instead."
   [state ident & named-parameters]
   {:pre [(map? state)]}
-  (log/warn "This function has been been deprecated and will be removed in the future."
-            "Use fulcro.client.mutations/integrate-ident* in your mutations instead.")
+  (log/warn "integrate-ident is deprecated and will be removed in the future."
+            "Please use fulcro.client.mutations/integrate-ident* in your mutations instead.")
   (apply util/__integrate-ident-impl__ state ident named-parameters))
 
 (defn component-merge-query
@@ -3179,8 +3179,8 @@
 (defn integrate-ident!
   "DEPRECATED: Use fulcro.client.mutations/integrate-ident* in your mutations instead."
   [state ident & named-parameters]
-  (log/warn "This function has been been deprecated and will be removed in the future."
-            "Use fulcro.client.mutations/integrate-ident* in your mutations instead.")
+  (log/warn "integrate-ident! is deprecated and will be removed in the future."
+            "Please use fulcro.client.mutations/integrate-ident* in your mutations instead.")
   (assert (is-atom? state)
     "The state has to be an atom. Use 'integrate-ident' instead.")
   (apply swap! state util/__integrate-ident-impl__ ident named-parameters))

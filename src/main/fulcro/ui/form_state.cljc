@@ -561,7 +561,9 @@
               (apply dissoc s ks)))))
 
 (s/fdef delete-form-state*
-        :args (s/cat :state-map map? :entity-idents (s/* util/ident?))
+        :args (s/cat :state-map map?
+                     :entity-ident-or-idents (s/or :entity-ident util/ident?
+                                                   :entity-idents (s/coll-of util/ident?)))
         :ret map?)
 
 (defn pristine->entity*
