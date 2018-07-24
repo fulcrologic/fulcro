@@ -15,17 +15,22 @@
       :api/server-push (when push-handler (push-handler ?data))
       nil)))
 
-(defrecord Websockets [queue ready? channel-socket push-handler websockets-uri host state-callback global-error-callback transit-handlers req-params stop app auto-retry?]
+(defrecord Websockets [queue ready? channel-socket push-handler
+                       websockets-uri host state-callback
+                       global-error-callback transit-handlers
+                       req-params stop app auto-retry? sente-options]
   FulcroNetwork
   (send [this edn ok err] (async/go (async/>! queue {:this this :edn edn :ok ok :err err})))
   (start [this]
-    (let [{:keys [ch-recv state] :as cs} (sente/make-channel-socket! websockets-uri ; path on server
-                                           {:packer         (tp/make-packer transit-handlers)
-                                            :host           host
-                                            :type           :ws ; e/o #{:auto :ajax :ws}
-                                            :backoff-ms-fn  (fn [attempt] (min (* attempt 1000) 4000))
-                                            :params         req-params
-                                            :wrap-recv-evs? false})
+    (let [{:keys [ch-recv state] :as cs} (sente/make-channel-socket!
+                                          websockets-uri ; path on server
+                                          (merge {:packer         (tp/make-packer transit-handlers)
+                                                  :host           host
+                                                  :type           :ws ; e/o #{:auto :ajax :ws}
+                                                  :backoff-ms-fn  (fn [attempt] (min (* attempt 1000) 4000))
+                                                  :params         req-params
+                                                  :wrap-recv-evs? false}
+                                                 sente-options))
           message-received (make-event-handler push-handler)]
       (add-watch state ::ready (fn [a k o n]
                                  (if auto-retry?
@@ -81,10 +86,12 @@
       `state-callback` can be either a function, or an atom containing a function.
   - `global-error-callback` - A function (fn [resp] ...) that is called when returned status code from the server is not 200.
   - `auto-retry?` - A boolean (default false). If set to true any network disconnects will lead to infinite retries until
+  - `sente-options` - A map of options that is passed directly to the sente websocket channel construction (see sente docs).
   the network returns. All remote mutations should be idempotent.
   "
   ([] (make-websocket-networking {}))
-  ([{:keys [websockets-uri global-error-callback push-handler host req-params state-callback transit-handlers auto-retry?]}]
+  ([{:keys [websockets-uri global-error-callback push-handler host req-params
+            state-callback transit-handlers auto-retry? sente-options]}]
    (map->Websockets {:channel-socket        (atom nil)
                      :queue                 (async/chan)
                      :ready?                (atom false)
@@ -97,4 +104,5 @@
                      :transit-handlers      transit-handlers
                      :app                   (atom nil)
                      :stop                  (atom nil)
-                     :req-params            req-params})))
+                     :req-params            req-params
+                     :sente-options         sente-options})))
