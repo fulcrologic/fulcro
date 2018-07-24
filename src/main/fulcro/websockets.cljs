@@ -26,7 +26,7 @@
                                           websockets-uri ; path on server
                                           (merge {:packer         (tp/make-packer transit-handlers)
                                                   :host           host
-                                                  :type           :ws ; e/o #{:auto :ajax :ws}
+                                                  :type           :auto ; e/o #{:auto :ajax :ws}
                                                   :backoff-ms-fn  (fn [attempt] (min (* attempt 1000) 4000))
                                                   :params         req-params
                                                   :wrap-recv-evs? false}
