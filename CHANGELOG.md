@@ -12,6 +12,7 @@ small and tractable.
 - Added mutations/remove-ident* helper for removing idents from a list of idents in app state.
 - Added form-state/delete-form-state* for cleaning up data created by form-state.
 - Added sente-options argument to client side websockets, to mirror server side.
+- Sente channel socket type by default is now :auto, so it will fall back to ajax long polling if ws is not available.
 
 2.6.0
 -----
