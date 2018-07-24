@@ -82,12 +82,12 @@
   - `req-params` - Params for sente socket creation
   - `transit-handlers` - A map with optional :read and :write keys that given added sente packer.
   - `state-callback` (Optional) - Callback that runs when the websocket state of the websocket changes.
-      The function takes an old state parameter and a new state parameter (arity 2 function).
-      `state-callback` can be either a function, or an atom containing a function.
+                                  The function takes an old state parameter and a new state parameter (arity 2 function).
+                                  `state-callback` can be either a function, or an atom containing a function.
   - `global-error-callback` - A function (fn [resp] ...) that is called when returned status code from the server is not 200.
   - `auto-retry?` - A boolean (default false). If set to true any network disconnects will lead to infinite retries until
+                    the network returns. All remote mutations should be idempotent.
   - `sente-options` - A map of options that is passed directly to the sente websocket channel construction (see sente docs).
-  the network returns. All remote mutations should be idempotent.
   "
   ([] (make-websocket-networking {}))
   ([{:keys [websockets-uri global-error-callback push-handler host req-params
