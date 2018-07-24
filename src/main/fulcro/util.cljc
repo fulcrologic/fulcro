@@ -174,3 +174,40 @@
            (throw (ex-info "Dynamically loaded function not found. You forgot to add a dependency to your classpath."
                     {:sym fnsym})))))))
 
+
+(defn __integrate-ident-impl__
+  "DO NOT USE!
+
+  This logic is held here because it was originally in
+  fulcro.client.primitives, but we wanted to deprecate that, move it into
+  fulcro.client.mutations, and reference the mutations implementation from
+  primitives. However the mutations namespace already depends on the primitives
+  namespace. So we put the logic here and reference it from both places."
+  [state ident & named-parameters]
+  (let [actions (partition 2 named-parameters)]
+    (reduce (fn [state [command data-path]]
+              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
+                (case command
+                  :prepend (if (already-has-ident-at-path? data-path)
+                             state
+                             (do
+                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
+                               (update-in state data-path #(into [ident] %))))
+                  :append  (if (already-has-ident-at-path? data-path)
+                             state
+                             (do
+                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
+                               (update-in state data-path conj ident)))
+                  :replace (let [path-to-vector (butlast data-path)
+                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
+                                 index          (last data-path)
+                                 vector         (get-in state path-to-vector)]
+                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                             (when to-many?
+                               (do
+                                 (assert (vector? vector) "Path for replacement must be a vector")
+                                 (assert (number? index) "Path for replacement must end in a vector index")
+                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                             (assoc-in state data-path ident))
+                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
+      state actions)))

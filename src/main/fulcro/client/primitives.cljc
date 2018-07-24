@@ -3138,46 +3138,12 @@
     `(do (defsc ~t ~@args) ~t)))
 
 (defn integrate-ident
-  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
-  implementations as a general helper function.
-
-  The named parameters can be specified any number of times. They are:
-
-  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
-  the ident if that ident is already in the list.
-  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
-  the ident if that ident is already in the list.
-  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector."
+  "DEPRECATED: Use fulcro.client.mutations/integrate-ident* in your mutations instead."
   [state ident & named-parameters]
   {:pre [(map? state)]}
-  (let [actions (partition 2 named-parameters)]
-    (reduce (fn [state [command data-path]]
-              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
-                (case command
-                  :prepend (if (already-has-ident-at-path? data-path)
-                             state
-                             (do
-                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
-                               (update-in state data-path #(into [ident] %))))
-                  :append (if (already-has-ident-at-path? data-path)
-                            state
-                            (do
-                              (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
-                              (update-in state data-path conj ident)))
-                  :replace (let [path-to-vector (butlast data-path)
-                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
-                                 index          (last data-path)
-                                 vector         (get-in state path-to-vector)]
-                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
-                             (when to-many?
-                               (do
-                                 (assert (vector? vector) "Path for replacement must be a vector")
-                                 (assert (number? index) "Path for replacement must end in a vector index")
-                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
-                             (assoc-in state data-path ident))
-                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
-      state actions)))
+  (log/warn "integrate-ident is deprecated and will be removed in the future."
+            "Please use fulcro.client.mutations/integrate-ident* in your mutations instead.")
+  (apply util/__integrate-ident-impl__ state ident named-parameters))
 
 (defn component-merge-query
   "Calculates the query that can be used to pull (or merge) a component with an ident
@@ -3211,22 +3177,13 @@
                 :clj  clojure.lang.Atom) x))
 
 (defn integrate-ident!
-  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
-  implementations as a general helper function.
-
-  The named parameters can be specified any number of times. They are:
-
-  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
-  the ident if that ident is already in the list.
-  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
-  the ident if that ident is already in the list.
-  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector.
-  "
+  "DEPRECATED: Use fulcro.client.mutations/integrate-ident* in your mutations instead."
   [state ident & named-parameters]
+  (log/warn "integrate-ident! is deprecated and will be removed in the future."
+            "Please use fulcro.client.mutations/integrate-ident* in your mutations instead.")
   (assert (is-atom? state)
     "The state has to be an atom. Use 'integrate-ident' instead.")
-  (apply swap! state integrate-ident ident named-parameters))
+  (apply swap! state util/__integrate-ident-impl__ ident named-parameters))
 
 (defn merge-component
   "Given a state map of the application database, a component, and a tree of component-data: normalizes
@@ -3286,7 +3243,9 @@
           {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
       (merge! reconciler merge-data merge-query)
       (swap! state dissoc :fulcro/merge)
-      (apply integrate-ident! state ident named-parameters)
+      ;; Use utils until we make smaller namespaces, requiring mutations would
+      ;; cause circular dependency.
+      (apply util/__integrate-ident-impl__ state ident named-parameters)
       (p/queue! reconciler (conj data-path-keys ident))
       @state)))
 
