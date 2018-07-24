@@ -3243,7 +3243,9 @@
           {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
       (merge! reconciler merge-data merge-query)
       (swap! state dissoc :fulcro/merge)
-      (apply integrate-ident! state ident named-parameters)
+      ;; Use utils until we make smaller namespaces, requiring mutations would
+      ;; cause circular dependency.
+      (apply util/__integrate-ident-impl__ state ident named-parameters)
       (p/queue! reconciler (conj data-path-keys ident))
       @state)))
 
