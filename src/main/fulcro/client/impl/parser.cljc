@@ -337,7 +337,7 @@
                              @error (assoc key {:fulcro.client.primitives/error @error}))))))))]
          (cond->
            (reduce step (if (nil? target) {} []) query)
-           (nil? target) (path-meta path query)
+           (nil? target) (path-meta path query) ;; FIXME: Don't add meta twice...overhead
            replacement-root-path (substitute-root-path-for-ident replacement-root-path query)))))))
 
 (defn dispatch [_ k _] k)

@@ -12,7 +12,7 @@
     [fulcro.client :as fc]
     [fulcro.ui.forms :as f]
     [fulcro.ui.icons :as icons]
-    [fulcro.client.mutations :refer [defmutation]]
+    [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.network :as net]
     [fulcro.logging :as log]
     #?(:clj
@@ -311,11 +311,10 @@
      `file-id` is the ID of the file to cancel."
      [{:keys [upload-id file-id]}]
      (action [{:keys [state]}]
-       (let [remove-ident (fn [i v] (into [] (filter #(not= i %) v)))
-             files-path   (conj (file-upload-ident upload-id) :file-upload/files)]
+       (let [files-path   (conj (file-upload-ident upload-id) :file-upload/files)]
          (swap! state (fn [st] (-> st
                                  (update :file-upload-file/by-id dissoc file-id)
-                                 (update-in files-path (partial remove-ident (file-ident file-id))))))))
+                                 (m/remove-ident* (file-ident file-id) files-path))))))
      (file-upload [env] true)))
 
 #?(:cljs

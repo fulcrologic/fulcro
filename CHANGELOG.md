@@ -7,7 +7,12 @@ small and tractable.
 - (inc z) = additions, bug fixes, etc.
 
 2.6.0
------
+------
+- Deprecated prim/integrate-ident and prim/integrate-ident! and moved logic to muations/integrate-ident*.
+- Added mutations/remove-ident* helper for removing idents from a list of idents in app state.
+- Added form-state/delete-form-state* for cleaning up data created by form-state.
+- Added sente-options argument to client side websockets, to mirror server side.
+- Sente channel socket type by default is now :auto, so it will fall back to ajax long polling if ws is not available.
 - Updated so that using React 16.4 includes all lifecycle methods (UNSAFE, etc.), EXCEPT getDerivedStateFromProps
 - Changed how React state works with Fulcro in order to be compliant with new React 16 requirements.
 - State changes required a rewrite of rendering optimizations to prevent lifecycle bugs. May be slightly slower until I optimize one algorithm a bit.

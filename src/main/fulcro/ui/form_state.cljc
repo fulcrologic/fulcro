@@ -546,6 +546,26 @@
   :args (s/cat :state map? :entity-ident util/ident? :field (s/? keyword?))
   :ret map?)
 
+(defn delete-form-state*
+  "Removes copies of entities used by form-state logic."
+  [state-map entity-ident-or-idents]
+  (let [entity-idents (if (util/ident? entity-ident-or-idents)
+                       [entity-ident-or-idents]
+                       entity-ident-or-idents)
+
+        ks (mapv (fn [[t r]]
+                   {:table t :row r})
+                 entity-idents)]
+    (update state-map ::forms-by-ident
+            (fn [s]
+              (apply dissoc s ks)))))
+
+(s/fdef delete-form-state*
+        :args (s/cat :state-map map?
+                     :entity-ident-or-idents (s/or :entity-ident util/ident?
+                                                   :entity-idents (s/coll-of util/ident?)))
+        :ret map?)
+
 (defn pristine->entity*
   "Copy the pristine state over top of the originating entity of the given form. Meant to be used inside of a
   mutation. Recursively follows subforms in app state. Returns the new app state map.

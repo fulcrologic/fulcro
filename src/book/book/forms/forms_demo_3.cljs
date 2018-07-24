@@ -40,8 +40,10 @@
     (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number ""})
           person-ident [:people/by-id person]
           phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
-      (swap! state assoc-in phone-ident new-phone)
-      (prim/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
+      (swap! state (fn [s]
+                     (-> s
+                         (assoc-in phone-ident new-phone)
+                         (m/integrate-ident* phone-ident :append (conj person-ident :person/phone-numbers))))))))
 
 (defsc ValidatedPhoneForm [this form]
   {:initial-state (fn [params] (f/build-form this (or params {})))

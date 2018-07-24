@@ -58,4 +58,4 @@
   [query]
   (-> (clojure.walk/prewalk #(if (map? %) (dissoc % :params) %) (parser/query->ast query)) (parser/ast->expr true)))
 
-(def integrate-ident "DEPRECATED: Now defined in fulcro.client.primitives" prim/integrate-ident)
+(def integrate-ident "DEPRECATED: Now defined in fulcro.client.mutations/integrate-ident*" prim/integrate-ident)

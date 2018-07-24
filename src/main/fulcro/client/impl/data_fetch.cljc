@@ -1,5 +1,5 @@
 (ns fulcro.client.impl.data-fetch
-  (:require [fulcro.client.primitives :as prim :refer [integrate-ident]]
+  (:require [fulcro.client.primitives :as prim]
             [fulcro.client.impl.data-targeting :as targeting]
             [fulcro.util :as util]
             [fulcro.client.util :refer [force-render]]

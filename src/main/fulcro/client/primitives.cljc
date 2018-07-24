@@ -1,6 +1,6 @@
 (ns fulcro.client.primitives
   #?(:cljs (:require-macros fulcro.client.primitives))
-  (:refer-clojure :exclude #?(:clj  [deftype replace var? force]
+  (:refer-clojure :exclude #?(:clj [deftype replace var? force]
                               :cljs [var? key replace force]))
   (:require
     #?@(:clj  [clojure.main
@@ -10,24 +10,24 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
-    fulcro-css.css
-    [clojure.core.async :as async]
-    [clojure.set :as set]
-    [fulcro.history :as hist]
-    [fulcro.logging :as log]
-    [fulcro.tempid :as tempid]
-    [fulcro.transit :as transit]
-    [clojure.zip :as zip]
-    [fulcro.client.impl.data-targeting :as targeting]
-    [fulcro.client.impl.protocols :as p]
-    [fulcro.client.impl.parser :as parser]
-    [fulcro.util :as util]
-    [clojure.walk :refer [prewalk]]
-    [clojure.string :as str]
-    [clojure.spec.alpha :as s]
+               fulcro-css.css
+               [clojure.core.async :as async]
+               [clojure.set :as set]
+               [fulcro.history :as hist]
+               [fulcro.logging :as log]
+               [fulcro.tempid :as tempid]
+               [fulcro.transit :as transit]
+               [clojure.zip :as zip]
+               [fulcro.client.impl.data-targeting :as targeting]
+               [fulcro.client.impl.protocols :as p]
+               [fulcro.client.impl.parser :as parser]
+               [fulcro.util :as util]
+               [clojure.walk :refer [prewalk]]
+               [clojure.string :as str]
+               [clojure.spec.alpha :as s]
     #?(:clj
-       [clojure.future :refer :all])
-    [cognitect.transit :as t])
+               [clojure.future :refer :all])
+               [cognitect.transit :as t])
   #?(:clj
      (:import [java.io Writer])))
 
@@ -1661,16 +1661,18 @@
   that may still exist on the server (in truth we don't know its status, since it wasn't asked for, but we leave
   it as our 'best guess')"
   [target source]
-  (reduce (fn [acc [key new-value]]
-            (let [existing-value (get acc key)]
-              (cond
-                (or (= key ::tempids) (= key :tempids) (= key ::not-found)) acc
-                (= new-value ::not-found) (dissoc acc key)
-                (and (util/ident? new-value) (= ::not-found (second new-value))) acc
-                (leaf? new-value) (assoc acc key (sweep-one new-value))
-                (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
-                :else (assoc acc key (sweep new-value))))
-            ) target source))
+  (reduce
+    (fn [acc [key new-value]]
+      (let [existing-value (get acc key)]
+        (cond
+          (or (= key ::tempids) (= key :tempids) (= key ::not-found)) acc
+          (= new-value ::not-found) (dissoc acc key)
+          (and (util/ident? new-value) (= ::not-found (second new-value))) acc
+          (leaf? new-value) (assoc acc key (sweep-one new-value))
+          (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
+          :else (assoc acc key (sweep new-value)))))
+    target
+    source))
 
 (defn merge-handler
   "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
@@ -2076,10 +2078,8 @@
                       (let [root-query (get-query rctor (-> config :state deref))]
                         (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
                         (if-not (nil? root-query)
-                          (let [env          (to-env config)
-                                raw-props    ((:parser config) env root-query)
-                                current-time (get-current-time this)
-                                root-props   (add-basis-time root-query raw-props current-time)]
+                          (let [env        (to-env config)
+                                root-props ((:parser config) env root-query)]
                             (when (empty? root-props)
                               (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
                             (renderf root-props))
@@ -3140,46 +3140,12 @@
     `(do (defsc ~t ~@args) ~t)))
 
 (defn integrate-ident
-  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
-  implementations as a general helper function.
-
-  The named parameters can be specified any number of times. They are:
-
-  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
-  the ident if that ident is already in the list.
-  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
-  the ident if that ident is already in the list.
-  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector."
+  "DEPRECATED: Use fulcro.client.mutations/integrate-ident* in your mutations instead."
   [state ident & named-parameters]
   {:pre [(map? state)]}
-  (let [actions (partition 2 named-parameters)]
-    (reduce (fn [state [command data-path]]
-              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
-                (case command
-                  :prepend (if (already-has-ident-at-path? data-path)
-                             state
-                             (do
-                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
-                               (update-in state data-path #(into [ident] %))))
-                  :append (if (already-has-ident-at-path? data-path)
-                            state
-                            (do
-                              (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
-                              (update-in state data-path conj ident)))
-                  :replace (let [path-to-vector (butlast data-path)
-                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
-                                 index          (last data-path)
-                                 vector         (get-in state path-to-vector)]
-                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
-                             (when to-many?
-                               (do
-                                 (assert (vector? vector) "Path for replacement must be a vector")
-                                 (assert (number? index) "Path for replacement must end in a vector index")
-                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
-                             (assoc-in state data-path ident))
-                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
-      state actions)))
+  (log/warn "integrate-ident is deprecated and will be removed in the future."
+    "Please use fulcro.client.mutations/integrate-ident* in your mutations instead.")
+  (apply util/__integrate-ident-impl__ state ident named-parameters))
 
 (defn component-merge-query
   "Calculates the query that can be used to pull (or merge) a component with an ident
@@ -3213,22 +3179,13 @@
                 :clj  clojure.lang.Atom) x))
 
 (defn integrate-ident!
-  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
-  implementations as a general helper function.
-
-  The named parameters can be specified any number of times. They are:
-
-  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
-  the ident if that ident is already in the list.
-  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
-  the ident if that ident is already in the list.
-  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector.
-  "
+  "DEPRECATED: Use fulcro.client.mutations/integrate-ident* in your mutations instead."
   [state ident & named-parameters]
+  (log/warn "integrate-ident! is deprecated and will be removed in the future."
+    "Please use fulcro.client.mutations/integrate-ident* in your mutations instead.")
   (assert (is-atom? state)
     "The state has to be an atom. Use 'integrate-ident' instead.")
-  (apply swap! state integrate-ident ident named-parameters))
+  (apply swap! state util/__integrate-ident-impl__ ident named-parameters))
 
 (defn merge-component
   "Given a state map of the application database, a component, and a tree of component-data: normalizes
@@ -3288,7 +3245,9 @@
           {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
       (merge! reconciler merge-data merge-query)
       (swap! state dissoc :fulcro/merge)
-      (apply integrate-ident! state ident named-parameters)
+      ;; Use utils until we make smaller namespaces, requiring mutations would
+      ;; cause circular dependency.
+      (apply util/__integrate-ident-impl__ state ident named-parameters)
       (p/queue! reconciler (conj data-path-keys ident))
       @state)))
 

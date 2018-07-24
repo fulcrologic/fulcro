@@ -18,12 +18,11 @@
   "Mutation: Delete an item from a list"
   [{:keys [id]}]
   (action [{:keys [state]}]
-    (letfn [(filter-item [list] (filterv #(not= (second %) id) list))]
-      (swap! state
-        (fn [s]
-          (-> s
-            (update :items dissoc id)
-            (update-in [:lists 1 :list/items] filter-item)))))))
+    (swap! state
+      (fn [s]
+        (-> s
+          (update :items dissoc id)
+          (m/remove-ident* [:lists 1 :list/items] [:items id]))))))
 
 (defsc Item [this
              {:keys [item/id item/label] :as props}

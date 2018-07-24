@@ -117,6 +117,27 @@
       (get-in configured-db [:person/by-id 1 :ui/checked?]) => true
       (get-in configured-db [:phone/by-id 5 :ui/n]) => 22)))
 
+(specification "delete-form-state*"
+  (let [state-map     {:person/by-id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true
+                                         ::phone-numbers [[:phone/by-id 5]]}}
+                       :root-prop    99
+                       :phone/by-id  {5 {:db/id 5 ::phone-number "555-4444"
+                                         :ui/n  22}}}
+        configured-db (f/add-form-config* state-map Person [:person/by-id 1])]
+    (assertions
+      "Removes form states of multiple entity-idents"
+      (-> configured-db
+          (f/delete-form-state* [[:person/by-id 1]
+                                 [:phone/by-id 5]])
+          ::f/forms-by-ident)
+      => {}
+      "Removes form states of one entity-ident at a time"
+      (-> configured-db
+          (f/delete-form-state* [:person/by-id 1])
+          (f/delete-form-state* [:phone/by-id 5])
+          ::f/forms-by-ident)
+      => {})))
+
 (let [locale                                  {:db/id 22 ::country :US}
       locale                                  (f/add-form-config Locale locale)
       phone-numbers                           [{:db/id 2 ::phone-number "555-1212" ::locale locale} {:db/id 3 ::phone-number "555-1212"}]
