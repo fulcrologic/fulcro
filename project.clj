@@ -7,9 +7,9 @@
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
                  [org.clojure/clojurescript "1.10.339" :scope "provided"]
 
-                 [cljsjs/react "16.4.0-0"]
-                 [cljsjs/react-dom "16.4.0-0"]
-                 [cljsjs/react-dom-server "16.4.0-0"]
+                 [cljsjs/react "16.4.1-0"]
+                 [cljsjs/react-dom "16.4.1-0"]
+                 [cljsjs/react-dom-server "16.4.1-0"]
                  [com.cognitect/transit-clj "0.8.309"]
                  [com.cognitect/transit-cljs "0.8.256"]
                  [org.clojure/core.async "0.4.474"]
@@ -130,7 +130,7 @@
                                :optimizations :none}}]}
 
   :profiles {:book {:dependencies [[devcards "0.2.5" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.2.0-beta8" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.2.1" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "3.5.7-1"]
                                    [cljsjs/victory "0.9.0-0"]
                                    [hickory "0.7.1"]
