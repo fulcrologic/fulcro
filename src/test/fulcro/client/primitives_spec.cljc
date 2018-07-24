@@ -12,7 +12,7 @@
             [clojure.spec.gen.alpha :as gen]
             [clojure.spec.test.alpha :as check]
             [clojure.test.check.properties :as prop]
-            [fulcro.client.mutations :as m :refer [defmutation]]
+            [fulcro.client.mutations :as m :refer [defmutation integrate-ident*]]
             [fulcro.client.data-fetch :as df]
             [clojure.test.check :as tc]
             [clojure.spec.test.alpha :as check]
@@ -1663,10 +1663,24 @@
      (let [state (atom {})
            data  {}]
        (when-mocking
-         (prim/preprocess-merge s c d) => {:merge-data :the-data :merge-query :the-query}
-         (prim/integrate-ident! s i op args op args) => :ignore
+         (prim/preprocess-merge s c d) => (do
+                                            (assertions
+                                              "Runs the data through the preprocess merge step"
+                                              d => data)
+                                            {:merge-data :preprocessed-data :merge-query :the-query})
+         (util/__integrate-ident-impl__ s i op1 args1 op2 args2) => (do
+                                                                      (assertions
+                                                                        "Calls integrate-ident with appropriate args"
+                                                                        op1 => :append
+                                                                        op2 => :replace)
+                                                                      :ignore)
+
          (prim/get-ident c p) => [:table :id]
-         (prim/merge! r d q) => :ignore
+         (prim/merge! r d q) => (do
+                                  (assertions
+                                    "merges the preprocessed data (which sweeps marked missing data)"
+                                    d => :preprocessed-data)
+                                  :ignore)
          (prim/app-state r) => state
          (p/queue! r kw) => (assertions
                               "schedules re-rendering of all affected paths"
@@ -1715,41 +1729,41 @@
     (assertions
       "Can append to an existing vector"
       (-> state
-        (prim/integrate-ident [:table 3] :append [:a :path])
+        (integrate-ident* [:table 3] :append [:a :path])
         (get-in [:a :path]))
       => [[:table 2] [:table 3]]
 
       "(is a no-op if the ident is already there)"
       (-> state
-        (prim/integrate-ident [:table 3] :append [:a :path])
+        (integrate-ident* [:table 3] :append [:a :path])
         (get-in [:a :path]))
       => [[:table 2] [:table 3]]
 
       "Can prepend to an existing vector"
       (-> state
-        (prim/integrate-ident [:table 3] :prepend [:b :path])
+        (integrate-ident* [:table 3] :prepend [:b :path])
         (get-in [:b :path]))
       => [[:table 3] [:table 2]]
 
       "(is a no-op if already there)"
       (-> state
-        (prim/integrate-ident [:table 3] :prepend [:b :path])
+        (integrate-ident* [:table 3] :prepend [:b :path])
         (get-in [:b :path]))
       => [[:table 3] [:table 2]]
 
       "Can create/replace a to-one ident"
       (-> state
-        (prim/integrate-ident [:table 3] :replace [:d])
+        (integrate-ident* [:table 3] :replace [:d])
         (get-in [:d]))
       => [:table 3]
       (-> state
-        (prim/integrate-ident [:table 3] :replace [:c :path])
+        (integrate-ident* [:table 3] :replace [:c :path])
         (get-in [:c :path]))
       => [:table 3]
 
       "Can replace an existing to-many element in a vector"
       (-> state
-        (prim/integrate-ident [:table 3] :replace [:many :path 1])
+        (integrate-ident* [:table 3] :replace [:many :path 1])
         (get-in [:many :path]))
       => [[:table 99] [:table 3] [:table 77]])))
 
