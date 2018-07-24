@@ -11,6 +11,7 @@ small and tractable.
 - Deprecated prim/integrate-ident and prim/integrate-ident! and moved logic to muations/integrate-ident*.
 - Added mutations/remove-ident* helper for removing idents from a list of idents in app state.
 - Added form-state/delete-form-state* for cleaning up data created by form-state.
+- Added sente-options argument to client side websockets, to mirror server side.
 
 2.6.0
 -----
