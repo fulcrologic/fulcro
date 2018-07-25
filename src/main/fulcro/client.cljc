@@ -313,11 +313,9 @@
     #?(:cljs
        (doseq [r (keys networking)]
          (let [remote-net (get networking r)]
-           (if (implements? net/FulcroRemoteI remote-net)
-             (do
-               (net/abort remote-net abort-id)
-               (abort-items-on-queue (get send-queues r) abort-id))
-             (log/error "Cannot abort requests on remote " r ". It isn't a FulcroRemoteI."))))))
+           (when (implements? net/FulcroRemoteI remote-net)
+             (net/abort remote-net abort-id)
+             (abort-items-on-queue (get send-queues r) abort-id))))))
 
   (history [this] (prim/get-history reconciler))
   (reset-history! [this]
