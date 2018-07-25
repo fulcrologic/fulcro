@@ -3244,10 +3244,12 @@
           data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
           {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
       (merge! reconciler merge-data merge-query)
-      (swap! state dissoc :fulcro/merge)
-      ;; Use utils until we make smaller namespaces, requiring mutations would
-      ;; cause circular dependency.
-      (apply util/__integrate-ident-impl__ @state ident named-parameters)
+      (swap! state (fn [s]
+                     (as-> s st
+                       ;; Use utils until we make smaller namespaces, requiring mutations would
+                       ;; cause circular dependency.
+                       (apply util/__integrate-ident-impl__ st ident named-parameters)
+                       (dissoc st :fulcro/merge))))
       (p/queue! reconciler (conj data-path-keys ident))
       @state)))
 
