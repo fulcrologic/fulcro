@@ -349,7 +349,9 @@ default-malformed-response
    and generates a standard Fulcro-compatible response."
   [parser env query]
   (generate-response
-    (let [parse-result (try (raise-response (parser env query)) (catch Exception e e))]
+    (let [parse-result (try (raise-response (parser env query)) (catch Exception e
+                                                                  (.printStackTrace e System/err)
+                                                                  e))]
       (if (valid-response? parse-result)
         (merge {:status 200 :body parse-result} (augment-map parse-result))
         (process-errors parse-result)))))

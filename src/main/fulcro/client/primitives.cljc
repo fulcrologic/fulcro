@@ -1,6 +1,6 @@
 (ns fulcro.client.primitives
   #?(:cljs (:require-macros fulcro.client.primitives))
-  (:refer-clojure :exclude #?(:clj [deftype replace var? force]
+  (:refer-clojure :exclude #?(:clj  [deftype replace var? force]
                               :cljs [var? key replace force]))
   (:require
     #?@(:clj  [clojure.main
@@ -10,24 +10,24 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
-               fulcro-css.css
-               [clojure.core.async :as async]
-               [clojure.set :as set]
-               [fulcro.history :as hist]
-               [fulcro.logging :as log]
-               [fulcro.tempid :as tempid]
-               [fulcro.transit :as transit]
-               [clojure.zip :as zip]
-               [fulcro.client.impl.data-targeting :as targeting]
-               [fulcro.client.impl.protocols :as p]
-               [fulcro.client.impl.parser :as parser]
-               [fulcro.util :as util]
-               [clojure.walk :refer [prewalk]]
-               [clojure.string :as str]
-               [clojure.spec.alpha :as s]
+    fulcro-css.css
+    [clojure.core.async :as async]
+    [clojure.set :as set]
+    [fulcro.history :as hist]
+    [fulcro.logging :as log]
+    [fulcro.tempid :as tempid]
+    [fulcro.transit :as transit]
+    [clojure.zip :as zip]
+    [fulcro.client.impl.data-targeting :as targeting]
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.util :as util]
+    [clojure.walk :refer [prewalk]]
+    [clojure.string :as str]
+    [clojure.spec.alpha :as s]
     #?(:clj
-               [clojure.future :refer :all])
-               [cognitect.transit :as t])
+       [clojure.future :refer :all])
+    [cognitect.transit :as t])
   #?(:clj
      (:import [java.io Writer])))
 
@@ -191,6 +191,7 @@
     shouldComponentUpdate            [this next-props next-state]
     componentWillReceiveProps        [this next-props]
     componentWillUpdate              [this next-props next-state]
+    ;; TODO: snapshot
     componentDidUpdate               [this prev-props prev-state]
     componentWillMount               [this]
     componentDidMount                [this]
@@ -1975,6 +1976,8 @@
                   (conj acc c))))
       [] sorted-comps)))
 
+(declare class->any)
+
 (defn- optimal-render
   "Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
    to refresh the minimum number of components according to the UI depth and state. If it cannot do targeted updates then
@@ -1982,6 +1985,7 @@
   [reconciler refresh-queue render-root]
   (let [reconciler-state       (:state reconciler)
         {:keys [root render-props]} @reconciler-state
+        root                   (if (component? root) root (class->any reconciler root))
         config                 (:config reconciler)
         queued-components      (transduce
                                  (map #(p/key->components (:indexer config) %))
@@ -2003,31 +2007,32 @@
                                  mounted-components)
         env                    (assoc (to-env config) :reconciler reconciler)]
     #?(:cljs
-       (let [old-tree     (props root)
-             components   (dedup-components-by-path refreshable-components)
-             updated-tree (reduce
-                            (fn [tree c]
-                              (let [component-props (props c)
-                                    computed        (get-computed component-props)
-                                    target-path     (data-path c)
-                                    next-raw-props  (fulcro-ui->props env c)
-                                    force-root?     (or (not target-path) (= ::no-ident next-raw-props)) ; can't do optimized query
-                                    next-props      (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
-                                (if force-root?
-                                  (do
-                                    (when (not target-path)
-                                      (log/warn "Optimal render skipping optimizations because component does not have a target path" c))
-                                    (reduced nil))
-                                  (let []
-                                    (assoc-in tree target-path next-props)))))
-                            old-tree
-                            components)]
-         (if updated-tree
-           (render-props updated-tree)
-           (let [start (inst-ms (js/Date.))
-                 _     (render-root)
-                 end   (inst-ms (js/Date.))]
-             (if (> (- end start) 20) (log/warn "Root render took " (- end start) "ms"))))))))
+       (when root
+         (let [old-tree     (props root)
+               components   (dedup-components-by-path refreshable-components)
+               updated-tree (reduce
+                              (fn [tree c]
+                                (let [component-props (props c)
+                                      computed        (get-computed component-props)
+                                      target-path     (data-path c)
+                                      next-raw-props  (fulcro-ui->props env c)
+                                      force-root?     (or (not target-path) (= ::no-ident next-raw-props)) ; can't do optimized query
+                                      next-props      (when-not force-root? (fulcro.client.primitives/computed next-raw-props computed))]
+                                  (if force-root?
+                                    (do
+                                      (when (not target-path)
+                                        (log/warn "Optimal render skipping optimizations because component does not have a target path" c))
+                                      (reduced nil))
+                                    (let []
+                                      (assoc-in tree target-path next-props)))))
+                              old-tree
+                              components)]
+           (if updated-tree
+             (render-props updated-tree)
+             (let [start (inst-ms (js/Date.))
+                   _     (render-root)
+                   end   (inst-ms (js/Date.))]
+               (if (> (- end start) 20) (log/warn "Root render took " (- end start) "ms")))))))))
 
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
@@ -2359,7 +2364,6 @@
    {:pre [(or (component? x)
             (reconciler? x))
           (vector? tx)]}
-   (log/debug "running transaction: " tx)
    (let [tx (cond-> tx
               (and (component? x) (satisfies? Ident x))
               (annotate-mutations (get-ident x)))]
@@ -3244,10 +3248,12 @@
           data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
           {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
       (merge! reconciler merge-data merge-query)
-      (swap! state dissoc :fulcro/merge)
-      ;; Use utils until we make smaller namespaces, requiring mutations would
-      ;; cause circular dependency.
-      (apply util/__integrate-ident-impl__ state ident named-parameters)
+      (swap! state (fn [s]
+                     (as-> s st
+                       ;; Use utils until we make smaller namespaces, requiring mutations would
+                       ;; cause circular dependency.
+                       (apply util/__integrate-ident-impl__ st ident named-parameters)
+                       (dissoc st :fulcro/merge))))
       (p/queue! reconciler (conj data-path-keys ident))
       @state)))
 

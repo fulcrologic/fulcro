@@ -220,7 +220,6 @@
      (remote [{:keys [reconciler state ast]}]
        (let [history (-> reconciler (prim/get-history) deref)
              params  (assoc params :history history)]
-         (log/debug "Sending " (count (:history-steps history)) " history steps to the server.")
          (assoc ast :params params)))))
 
 (defn returning

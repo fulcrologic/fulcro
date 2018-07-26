@@ -7,7 +7,11 @@ small and tractable.
 - (inc z) = additions, bug fixes, etc.
 
 2.6.0
-------
+-----
+- BREAKING CHANGE: `set-state!` is now tied directly to React's setState, and in 16+ that
+  is merely a *suggestion* to set the state and update. React is allowed to defer it. If you
+  rely on reading state immediately after setting state, this may break things.
+- Added some additional error message cases to websocket support.
 - Deprecated prim/integrate-ident and prim/integrate-ident! and moved logic to muations/integrate-ident*.
 - Added mutations/remove-ident* helper for removing idents from a list of idents in app state.
 - Added form-state/delete-form-state* for cleaning up data created by form-state.

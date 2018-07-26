@@ -3,6 +3,7 @@
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.mutations :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
+    [goog.object :as gobj]
     [fulcro.client.dom :as dom]))
 
 (defn change-size*
@@ -52,10 +53,8 @@
 
 (defn render-hover-and-marker
   "Render the graphics in the canvas. Pass the component props and state. "
-  [props state]
-  (let [canvas             (:canvas state)
-        hover              (:coords state)
-        marker             (:marker props)
+  [canvas props coords]
+  (let [marker             (:marker props)
         size               (:size props)
         real-marker-coords (mapv (partial * size) marker)
         ; See HTML5 canvas docs
@@ -65,7 +64,7 @@
                              (.fillRect ctx 0 0 size size))
         drawHover          (fn []
                              (set! (.-strokeStyle ctx) "gray")
-                             (.strokeRect ctx (- (first hover) 5) (- (second hover) 5) 10 10))
+                             (.strokeRect ctx (- (first coords) 5) (- (second coords) 5) 10 10))
         drawMarker         (fn []
                              (set! (.-strokeStyle ctx) "red")
                              (.strokeRect ctx (- (first real-marker-coords) 5) (- (second real-marker-coords) 5) 10 10))]
@@ -78,21 +77,21 @@
 (defn place-marker
   "Update the marker in app state. Derives normalized coordinates, and updates the marker in application state."
   [child evt]
-  (prim/transact! child `[(update-marker
-                            {:coords ~(event->normalized-coords evt (prim/get-state child :canvas))})]))
+  (let [canvas (gobj/get child "canvas")]
+    (prim/transact! child `[(update-marker
+                              {:coords ~(event->normalized-coords evt canvas)})])))
 
 (defn hover-marker
   "Updates the hover location of a proposed marker using canvas coordinates. Hover location
    is stored in component local state (meaning that a low-level app database query will not
    run to do the render that responds to this change)"
   [child evt]
-  (let [current-state  (prim/get-state child)
-        updated-coords (event->dom-coords evt (:canvas current-state))
-        new-state      (assoc current-state :coords updated-coords)]
-    (prim/set-state! child new-state)
-    (render-hover-and-marker (prim/props child) new-state)))
+  (let [canvas         (gobj/get child "canvas")
+        updated-coords (event->dom-coords evt canvas)]
+    (prim/set-state! child {:coords updated-coords})
+    (render-hover-and-marker canvas (prim/props child) updated-coords)))
 
-(defsc Child [this {:keys [id size]}]
+(defsc Child [this {:keys [id size] :as props}]
   {:query          [:id :size :marker]
    :initial-state  (fn [_] {:id 0 :size 50 :marker [0.5 0.5]})
    :ident          (fn [] [:child/by-id id])
@@ -100,6 +99,8 @@
   ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical
   ; rendering within the canvas is done during event handling.
   ; size comes from props. Transactions on size will cause the canvas to resize in the DOM
+  (when-let [canvas (gobj/get this "canvas")]
+    (render-hover-and-marker canvas props (prim/get-state this :coords)))
   (dom/canvas {:width       (str size "px")
                :height      (str size "px")
                :onMouseDown (fn [evt] (place-marker this evt))
@@ -109,8 +110,8 @@
                ; (to help you manage memory leaks), then the new element
                :ref         (fn [r]
                               (when r
-                                (prim/update-state! this assoc :canvas r)
-                                (render-hover-and-marker (prim/props this) (prim/get-state this))))
+                                (gobj/set this "canvas" r)
+                                (render-hover-and-marker r props (prim/get-state this :coords))))
                :style       {:border "1px solid black"}}))
 
 (def ui-child (prim/factory Child))

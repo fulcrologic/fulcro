@@ -1,11 +1,12 @@
 (ns book.ui.d3-example
   (:require [fulcro.client.dom :as dom]
             cljsjs.d3
+            [goog.object :as gobj]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.primitives :as prim :refer [defsc]]))
 
-(defn render-squares [component props]
-  (let [svg       (-> js/d3 (.select (dom/node component)))
+(defn render-squares [dom-node props]
+  (let [svg       (-> js/d3 (.select dom-node))
         data      (clj->js (:squares props))
         selection (-> svg
                     (.selectAll "rect")
@@ -29,11 +30,16 @@
     false))
 
 (defsc D3Thing [this props]
-  {:componentDidMount         (fn [] (render-squares this (prim/props this)))
-   :shouldComponentUpdate     (fn [next-props next-state] false)
-   :componentWillReceiveProps (fn [props] (render-squares this props))}
+  {:componentDidMount     (fn []
+                            (when-let [dom-node (gobj/get this "svg")]
+                              (render-squares dom-node (prim/props this))))
+   :shouldComponentUpdate (fn [next-props next-state]
+                            (when-let [dom-node (gobj/get this "svg")]
+                              (render-squares dom-node next-props))
+                            false)}
   (dom/svg {:style   {:backgroundColor "rgb(240,240,240)"}
             :width   200 :height 200
+            :ref     (fn [r] (gobj/set this "svg" r))
             :viewBox "0 0 1000 1000"}))
 
 (def d3-thing (prim/factory D3Thing))

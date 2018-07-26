@@ -22,7 +22,7 @@
       (fn [s]
         (-> s
           (update :items dissoc id)
-          (m/remove-ident* [:lists 1 :list/items] [:items id]))))))
+          (m/remove-ident* [:items id] [:lists 1 :list/items]))))))
 
 (defsc Item [this
              {:keys [item/id item/label] :as props}

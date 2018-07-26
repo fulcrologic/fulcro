@@ -39,6 +39,8 @@
                            (if ?reply-fn
                              (?reply-fn result)
                              (log/error "Reply function missing on API call!")))
+      :chsk/bad-event (log/error "Corrupt message. Websocket client sent a corrupt message." event)
+      nil (log/error "Sente event handler received a nil event ID in event" event ". This indicates a corrupt websocket message from the client, or a failure in transit encode/decode.")
       (do :nothing-by-default))))
 
 (defn- is-wsrequest? [{:keys [websockets-uri]} {:keys [uri]}]

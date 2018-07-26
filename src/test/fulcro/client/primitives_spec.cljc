@@ -1671,9 +1671,11 @@
          (util/__integrate-ident-impl__ s i op1 args1 op2 args2) => (do
                                                                       (assertions
                                                                         "Calls integrate-ident with appropriate args"
+                                                                        (map? s) => true
+                                                                        i => [:table :id]
                                                                         op1 => :append
                                                                         op2 => :replace)
-                                                                      :ignore)
+                                                                      s)
 
          (prim/get-ident c p) => [:table :id]
          (prim/merge! r d q) => (do

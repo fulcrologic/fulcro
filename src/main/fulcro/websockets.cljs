@@ -47,24 +47,27 @@
         (if @ready?
           (let [{:keys [this edn ok err]} (async/<! queue)
                 {:keys [send-fn]} @channel-socket]
-            (send-fn [:fulcro.client/API edn] 30000
-              (fn process-response [resp]
-                (if (cb-success? resp)
-                  (let [{:keys [status body]} resp]
-                    (if (= 200 status)
-                      (ok body)
-                      (do
-                        (err body)
-                        (when global-error-callback
-                          (global-error-callback resp)))))
-                  (if auto-retry?
-                    (do
-                      ; retry...sente already does connection back-off, so probably don't need back-off here
-                      (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
-                    (let [body {:fulcro.server/error :network-disconnect}]
-                      (err body)
-                      (when global-error-callback
-                        (global-error-callback {:status 408 :body body}))))))))
+            (try
+              (send-fn [:fulcro.client/API edn] 30000
+               (fn process-response [resp]
+                 (if (cb-success? resp)
+                   (let [{:keys [status body]} resp]
+                     (if (= 200 status)
+                       (ok body)
+                       (do
+                         (err body)
+                         (when global-error-callback
+                           (global-error-callback resp)))))
+                   (if auto-retry?
+                     (do
+                       ; retry...sente already does connection back-off, so probably don't need back-off here
+                       (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
+                     (let [body {:fulcro.server/error :network-disconnect}]
+                       (err body)
+                       (when global-error-callback
+                         (global-error-callback {:status 408 :body body})))))))
+              (catch :default e
+                (log/error "Sente send failure!" e))))
           (do
             (log/info "Send attempted before channel ready...waiting")
             (async/<! (async/timeout 1000))))

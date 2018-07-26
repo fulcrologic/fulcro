@@ -25,7 +25,7 @@
      (dom/label :.col-sm-2 {:htmlFor name} label)
      (dom/div :.col-sm-10 (f/form-field comp form name))
      (when validation-message
-       (dom/div :.col-sm-offset-2.col-sm-10 {:className name} validation-message)))))
+       (dom/div :.col-sm-offset-2.col-sm-10 {:className (str name)} validation-message)))))
 
 (defmutation check-username-available
   "Sample mutation that simulates legal username check"
@@ -50,7 +50,7 @@
                    (f/on-form-change `check-username-available)
                    (f/text-input :person/name)
                    (f/integer-input :person/age)]}
-  (dom/div #js {:className "form-horizontal"}
+  (dom/div :.form-horizontal
     (field-with-label this props :person/name "Username:"
       (case name-status
         :duplicate (b/alert {:kind :warning}
