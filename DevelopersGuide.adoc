@@ -3017,12 +3017,15 @@ include::src/book/book/ui/focus_example.cljs[]
 ----
 
 NOTE: React documentation encourages a more functional form of `ref` (you supply a function instead of a string).
-This example could also cache that in component local state like this:
+This example could also cache that on the component like this:
 
 ```
+(ns app
+  (:require [goog.object :as gobj]))
+
 (defsc ClickToEditField [this {:keys [value editing?]}]
   ...
-     (dom/input {:ref (fn [r] (prim/set-state! this {:input r}))})
+     (dom/input {:ref (fn [r] (gobj/set this "input-ref" r))})
   ...
 ```
 
@@ -3087,7 +3090,8 @@ The other mechanism completely avoids this, and just asks React for an immediate
 
 In Fulcro 2.6 `set-state!` *is* a Fulcro wrapper of React's `setState`, but it let's you use cljs maps instead of
 js ones. The shallow merge described by React is honored as if you used an updater function (there is no need
-for an updater function). The `set-state!` also allows a callback to give you full React compatibility.
+for an updater function). The `set-state!` also allows a callback to give you full React compatibility. Note, however,
+that React 16's `setState` schedule a state update and render. It is not guaranteed to be immediate.
 
 The `update-state!` function in Fulcro is like Clojurescripts `swap!` function, and uses `set-state!` behind the
 scenes.
@@ -3098,7 +3102,7 @@ In older versions of Fulcro:
 just supply the map that will be merged. Use `update-state!` if you need more functional control.
 * `(react-set-state! this data)` - triggers a React render according to React's `setState` documentation.
 
-In this example we're using `set-state!`, and you can see it is still plenty fast!
+In this example we're using `set-state!`, and you can see it is still plenty fast (in 2.6 there is no difference)!
 
 ++++
 <div class="example" id="hover-example"> </div>
