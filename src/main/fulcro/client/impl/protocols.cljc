@@ -41,6 +41,11 @@
      (componentWillMount [this])
      (componentDidMount [this])
      (componentWillUnmount [this])
+     (getSnapshotBeforeUpdate [this pp ps])
+     (componentDidCatch [this err info])
+     (UNSAFE_componentWillMount [this])
+     (UNSAFE_componentWillReceiveProps [this next-props])
+     (UNSAFE_componentWillUpdate [this next-props next-state])
      (render [this])))
 
 (defprotocol ITxIntercept

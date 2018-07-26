@@ -7,7 +7,7 @@
     fulcro-css.css
     #?(:cljs [fulcro.client.dom :as dom]
        :clj
-    [fulcro.client.dom-server :as dom])
+             [fulcro.client.dom-server :as dom])
     [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client.primitives :as prim :refer [defsc]]))
@@ -32,6 +32,7 @@
   {:shouldComponentUpdate (fn [_ _] false)
    :css                   [[:.app-holder {:border  "2px solid grey"
                                           :padding "10px"}]]
+   :componentDidCatch     (fn [err info] #?(:cljs (js/console.error "App holder failed to start." err info)))
    :componentDidMount     (fn []
                             #?(:cljs (let [{:keys [app root]} (meta (prim/props this))]
                                        (if (and app root)
