@@ -107,7 +107,6 @@
                                      :parser parser})]
     (behavior "reports an error if an undefined multi-method is called."
       (when-mocking
-        (log/-log loc level & args) =1x=> :debug
         (log/-log loc level & args) =1x=> (assertions (first args) =fn=> #(str/starts-with? % "Unknown app state mutation"))
 
         (prim/transact! reconciler `[(not-a-real-transaction!)])))))
