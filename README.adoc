@@ -30,6 +30,8 @@ Fulcro has undergone a number of face-lifts over its lifetime.
 2.0 - 2.4:: No longer depends on Om Next. Public API is the same, except where improvements and fixes were needed.
 2.5:: Integrated co-located CSS for better support (e.g. localized-dom), made all server dependencies dynamic, rewrite of i18n. This
 version requires you to change a few i18n things if you were using it, and adds API to the DOM to make UI much more concise.
+2.6:: Changes for React 16. Changes in React led to a change in the underlying rendering refresh
+optimizations.
 
 == A Bare Bones Example
 
