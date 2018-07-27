@@ -2408,10 +2408,23 @@
 
 #?(:cljs
    (defn set-state!
-     "Shallow merge new-state in the the state of this component. Uses React setState and will trigger an refresh
-     according to React rules (see React dos for the version you're using). callback is as described in the React docs.
+     "Shallow merge new-state into the state of this component. This is asynchronous and will NOT be reflected by
+     `get-state` immediately, since the underlying React setState and will trigger an refresh
+     according to React rules (see React dos for the version you're using).
 
-     If you're wanting low-level js interop, use React's setState. This function deals with cljs state."
+     This function manages a cljs map within React props, and does the shallow merge by key, so setting state:
+
+     {:x 1}
+
+     against an existing state of {:y 2} will yield:
+
+     {:x 1 :y 2}
+
+     The callback is as described in the React docs (it is invoked after the state is updated).
+
+     If you want to control the update function itself, use `update-state!`.
+
+     If you're wanting low-level js interop to affect low-level js props: use React's `setState`."
      ([component new-state callback]
       {:pre [(component? component)]}
       (.setState component
@@ -2429,21 +2442,19 @@
   ([component new-state cb]
    (set-state! component new-state cb)))
 
-(defn update-state!
-  "Update a component's local state. Similar to Clojure(Script)'s swap!"
-  ([component f]
-   (set-state! component (f (get-state component))))
-  ([component f arg0]
-   (set-state! component (f (get-state component) arg0)))
-  ([component f arg0 arg1]
-   (set-state! component (f (get-state component) arg0 arg1)))
-  ([component f arg0 arg1 arg2]
-   (set-state! component (f (get-state component) arg0 arg1 arg2)))
-  ([component f arg0 arg1 arg2 arg3]
-   (set-state! component (f (get-state component) arg0 arg1 arg2 arg3)))
-  ([component f arg0 arg1 arg2 arg3 & arg-rest]
-   (set-state! component
-     (apply f (get-state component) arg0 arg1 arg2 arg3 arg-rest))))
+(let [update-fn (fn [component f args]
+                  #?(:cljs (.setState component
+                             (fn [prev-state props]
+                               #js {"fulcro$state" (apply f (gobj/get prev-state "fulcro$state") args)}))))]
+  (defn update-state!
+    "Update a component's local state. Similar to Clojure(Script)'s swap!
+
+    This function affects a managed cljs map maintained in React state.  If you want to affect the low-level
+    js state itself use React's own `.setState` on the component."
+    ([component f]
+     (update-fn component f []))
+    ([component f & args]
+     (update-fn component f args))))
 
 (defn app-state
   "Return the reconciler's application state atom. Useful when the reconciler
