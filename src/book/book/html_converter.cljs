@@ -4,7 +4,10 @@
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [hickory.core :as hc]
-    [clojure.set :as set]))
+    [com.rpl.specter :as sp]
+    [clojure.set :as set]
+    [clojure.pprint :refer [pprint]]
+    [clojure.string :as str]))
 
 (def attr-renames {
                    :class        :className
@@ -17,10 +20,18 @@
 
 (defn elem-to-cljs [elem]
   (cond
-    (string? elem) elem
+    (and (string? elem)
+      (let [elem (str/trim elem)]
+        (or
+          (= "" elem)
+          (and
+            (str/starts-with? elem "<!--")
+            (str/ends-with? elem "-->"))
+          (re-matches #"^[ \n]*$" elem)))) nil
+    (string? elem) (str/trim elem)
     (vector? elem) (let [tag      (name (first elem))
                          attrs    (set/rename-keys (second elem) attr-renames)
-                         children (map elem-to-cljs (rest (rest elem)))]
+                         children (keep elem-to-cljs (drop 2 elem))]
                      (concat (list (symbol "dom" tag) attrs) children))
     :otherwise "UNKNOWN"))
 
@@ -44,7 +55,7 @@
     (dom/textarea {:cols     80 :rows 10
                    :onChange (fn [evt] (m/set-string! this :html :event evt))
                    :value    html})
-    (dom/div {} (pr-str (:code cljs)))
+    (dom/pre {} (with-out-str (pprint (:code cljs))))
     (dom/button :.c-button {:onClick (fn [evt]
                                        (prim/transact! this `[(convert {})]))} "Convert")))
 
