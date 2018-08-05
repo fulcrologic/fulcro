@@ -1,4 +1,5 @@
 (ns fulcro.ui.file-upload
+  "DEPRECATED: See the external file upload demo instead."
   (:require
     [clojure.string :as str]
     [com.stuartsierra.component :as component]
@@ -187,7 +188,9 @@
             (dom/label {:htmlFor control-id} "Add Files" (dom/input attrs))))))))
 
 (def ui-file-upload
-  "Render a file upload component. Typically declared and embedded in a form. All of these parameters can
+  "Namespace DEPRECATED.
+
+  Render a file upload component. Typically declared and embedded in a form. All of these parameters can
   be passed through f/form-field, which is the normal way to render this control when using forms.
 
   Allowed customization props (through computed):
@@ -214,7 +217,8 @@
     (ui-file-upload (prim/computed upload-data (or params {})))))
 
 (defn progress%
-  "Given a XhrIo network progress event, returns a number between 0 and 100 to indicate progress."
+  "Namespace DEPRECATED.
+   Given a XhrIo network progress event, returns a number between 0 and 100 to indicate progress."
   [progress-evt] (int (* 100 (/ (or (.-loaded progress-evt) 0) (or (.-total progress-evt) 1)))))
 
 (defprotocol Abort
@@ -296,7 +300,8 @@
   (reset! (:reconciler file-upload-networking) reconciler))
 
 (defn file-upload-networking
-  "Create an instance of a file upload networking object. You should install one of these as the
+  "Namespace DEPRECATED.
+   Create an instance of a file upload networking object. You should install one of these as the
   `:file-upload` remote in your fulcro client. Upload url defaults to /file-upload, but can
   be configured (here and on the server)"
   ([] (file-upload-networking "/file-upload"))
@@ -307,7 +312,8 @@
 
 #?(:cljs
    (defmutation cancel-file-upload
-     "mutation: Cancels the current file upload. `upload-id` is the ID of the file-upload control, and
+     "Namespace DEPRECATED.
+     mutation: Cancels the current file upload. `upload-id` is the ID of the file-upload control, and
      `file-id` is the ID of the file to cancel."
      [{:keys [upload-id file-id]}]
      (action [{:keys [state]}]
@@ -319,7 +325,8 @@
 
 #?(:cljs
    (defmutation add-file
-     "Add a file to the given file-upload (id) component. `file-id` should be a tempid.
+     "Namespace DEPRECATED.
+     Add a file to the given file-upload (id) component. `file-id` should be a tempid.
       The name, size, and js-file should be taken from the js/FileList event that the file input
       gives on change events."
      [{:keys [file-upload file-id name size js-file]}]
@@ -339,7 +346,10 @@
      (file-upload [env] true)))
 
 (defn file-upload-input
-  "Declare (in a form-spec) a field that represents file upload(s).
+  "
+  Namespace DEPRECATED.
+
+  Declare (in a form-spec) a field that represents file upload(s).
 
   `accept`: (optional) String of comma-separated mime types that the files can have.
   `multiple?`: (optional) True/false. Can the user upload multiple files? (default false)
