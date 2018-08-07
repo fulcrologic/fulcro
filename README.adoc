@@ -9,6 +9,7 @@
 image:docs/logo.png[]
 
 image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
+image:https://cljdoc.xyz/badge/fulcrologic/fulcro[link=https://cljdoc.xyz/d/fulcrologic/fulcro/CURRENT]
 image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"] (release)
 image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"] (develop)
 
