@@ -138,12 +138,17 @@
 (def ui-list (prim/factory MyList {:keyfn :id}))
 
 (defsc Root [this {:keys [ROOT] :as props}]
-  {:query         [{:ROOT (prim/get-query MyList)}]
-   :initial-state {:ROOT {}}}
-  (js/console.log :root-props props)
-  (ui-list ROOT))
+  {:query                    [{:ROOT (prim/get-query MyList)}]
+   :getDerivedStateFromProps (fn [props state]
+                               (js/console.log :gdsfp props state)
+                               {:x 42})
+   :initial-state            {:ROOT {}}}
+  (js/console.log :root-props props :st (prim/get-state this))
+  (dom/div
+    (dom/button {:onClick #(prim/set-state! this {:n 1})})
+    (ui-list ROOT)))
 
-(defcard-fulcro reordering-to-many
+(defcard-fulcro reordering-to-many-and-get-derived-state-from-props
   Root
   {}
   {:inspect-data true})
