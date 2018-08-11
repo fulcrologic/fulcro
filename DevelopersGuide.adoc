@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: July 25, 2018
-:revnumber: 16
+:revdate: August 10, 2018
+:revnumber: 17
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -2980,9 +2980,7 @@ See https://facebook.github.io/react/docs/forms.html[React Forms] for more detai
 
 == React Lifecycle Examples [[ReactLifecycle]]
 
-NOTE: Fulcro 2.6+ includes React 16.4+ Lifecycle support (except `getDerivedStateFromProps`). You must explicitly include
-react and react-dom as dependencies in order to get the newer React versions since Fulcro still defaults to 15.6 to prevent breakage
-of existing apps.
+NOTE: Fulcro 2.6+ includes React 16.4+ Lifecycle support.
 
 There are some common use-cases that can only be solved by working directly with the React Lifecycle methods.
 
