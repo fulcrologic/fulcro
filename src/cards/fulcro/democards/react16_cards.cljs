@@ -42,7 +42,7 @@
 
 (def ui-counter (prim/factory CounterButton {:keyfn :id}))
 
-(defsc Root [this {:keys [counters]}]
+(defsc StateUpdateThingy [this {:keys [counters]}]
   {:query          [{:counters (prim/get-query CounterButton)}]
    :initLocalState {:n 22}
    :ident          (fn [] [:A 1])
@@ -53,12 +53,12 @@
     (dom/div
       (dom/h3 "Counters")
       (dom/p (str "State of root " n))
-      (dom/button {:onClick #(prim/set-state! this {:n (inc n)})} "Trigger State Update")
+      (dom/button {:onClick #(prim/update-state! this update :n inc)} "Trigger State Update")
       (dom/ul
         (map ui-counter counters)))))
 
-(defcard-fulcro card
-  (make-root Root {})
+(defcard-fulcro state-thingy-card
+  (make-root StateUpdateThingy {})
   {}
   {:inspect-data true})
 
@@ -107,3 +107,48 @@
   (dom/div
     (dom/p "sibling")
     (ui-frag-demo {:n (rand-int 10000)})))
+
+(defmutation insert-in-front [params]
+  (action [{:keys [state]}]
+    (let [id   (random-uuid)
+          item {:id id :value (str (rand-int 120000))}]
+      (swap! state (fn [s]
+                     (-> s
+                       (assoc-in [:items/by-id id] item)
+                       (update-in [:lists/by-id 1 :items] (fn [v]
+                                                            (into [[:items/by-id id]] v)))))))))
+
+(defsc MyItem [this {:keys [value] :as props}]
+  {:query         [:id :value]
+   :ident         [:items/by-id :id]
+   :initial-state {:id :param/id :value :param/v}}
+  (js/console.log (-> props meta))
+  (dom/li
+    (dom/a {:onClick #(prim/transact! this `[(insert-in-front {}) :items])} value)))
+
+(def ui-item (prim/factory MyItem {:keyfn :id}))
+
+(defsc MyList [this {:keys [items]}]
+  {:query         [:id {:items (prim/get-query MyItem)}]
+   :ident         [:lists/by-id :id]
+   :initial-state {:id 1 :items [{:id 2 :v "A"} {:id 3 :v "B"}]}}
+  (dom/ul
+    (map ui-item items)))
+
+(def ui-list (prim/factory MyList {:keyfn :id}))
+
+(defsc Root [this {:keys [ROOT] :as props}]
+  {:query                    [{:ROOT (prim/get-query MyList)}]
+   :getDerivedStateFromProps (fn [props state]
+                               (js/console.log :gdsfp props state)
+                               {:x 42})
+   :initial-state            {:ROOT {}}}
+  (js/console.log :root-props props :st (prim/get-state this))
+  (dom/div
+    (dom/button {:onClick #(prim/set-state! this {:n 1})})
+    (ui-list ROOT)))
+
+(defcard-fulcro reordering-to-many-and-get-derived-state-from-props
+  Root
+  {}
+  {:inspect-data true})
