@@ -42,7 +42,7 @@
 
 (def ui-counter (prim/factory CounterButton {:keyfn :id}))
 
-(defsc Root [this {:keys [counters]}]
+(defsc StateUpdateThingy [this {:keys [counters]}]
   {:query          [{:counters (prim/get-query CounterButton)}]
    :initLocalState {:n 22}
    :ident          (fn [] [:A 1])
@@ -53,12 +53,12 @@
     (dom/div
       (dom/h3 "Counters")
       (dom/p (str "State of root " n))
-      (dom/button {:onClick #(prim/set-state! this {:n (inc n)})} "Trigger State Update")
+      (dom/button {:onClick #(prim/update-state! this update :n inc)} "Trigger State Update")
       (dom/ul
         (map ui-counter counters)))))
 
-(defcard-fulcro card
-  (make-root Root {})
+(defcard-fulcro state-thingy-card
+  (make-root StateUpdateThingy {})
   {}
   {:inspect-data true})
 
