@@ -151,7 +151,12 @@
      (behavior "can focus the query"
        (assertions
          (:query (df/load-params* {} [:item/by-id 1] Item {:focus [:name {:comments [:title]}]}))
-         => [{[:item/by-id 1] [:name {:comments [:title]}]}]))))
+         => [{[:item/by-id 1] [:name {:comments [:title]}]}]))
+     (behavior "can update the query with custom processing"
+       (assertions
+         (:query (df/load-params* {} [:item/by-id 1] Item {:focus [:name]
+                                                           :update-query #(conj % :extra)}))
+         => [{[:item/by-id 1] [:name :extra]}]))))
 
 (specification "Load auto-refresh"
   (component "computed-refresh"
