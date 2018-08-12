@@ -21,7 +21,7 @@
 (s/def ::post-mutation (optional symbol?))
 (s/def ::post-mutation-params (optional map?))
 (s/def ::refresh (optional vector?))
-(s/def ::marker (s/or :kw keyword? :bool boolean? :nothing nil?))
+(s/def ::marker (s/or :reference any? :bool boolean? :nothing (s/or :nil nil? :false false?)))
 (s/def ::parallel (optional boolean?))
 (s/def ::fallback (optional symbol?))
 (s/def ::original-env map?)
@@ -70,7 +70,7 @@
 
 (defn- place-load-marker [state-map marker]
   (let [marker-id      (data-marker marker)
-        legacy-marker? (-> marker-id keyword? not)]
+        legacy-marker? (true? marker-id)]
     (if legacy-marker?
       (update-in state-map (data-path marker)
         (fn [current-val]
@@ -463,7 +463,7 @@
   "Returns app-state without the load marker for the given item."
   [app-state item]
   (let [marker-id      (data-marker item)
-        legacy-marker? (-> marker-id keyword? not)]
+        legacy-marker? (true? marker-id)]
     (if legacy-marker?
       (let [path (data-path item)
             data (get-in app-state path)]

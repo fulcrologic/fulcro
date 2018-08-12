@@ -161,3 +161,16 @@
                                       (df/load app ::x nil {:target [:T 1 :a]})
                                       (df/load app ::x nil {:target [:T 1 :b]})
                                       (df/load app ::x nil {:target [:T 1 :c]}))}})
+
+(defsc Item [_ _]
+  {:initial-state (fn [_] {:id "sample"})
+   :ident [:id :id]
+   :query [:id :name]}
+  (dom/div "Item"))
+
+(defcard-fulcro vector-marker
+  (make-root Item {})
+  {}
+  {:fulcro {:networking       (MockNetForEcho.)
+            :started-callback (fn [app]
+                                (df/load app [:id "sample"] Item {:marker [:id "sample"]}))}})
