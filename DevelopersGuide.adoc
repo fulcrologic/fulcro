@@ -765,7 +765,7 @@ IMPORTANT: You should always think of the query as "running from root". You'll
 notice that `Root` still expects to receive the *entire* data tree for the UI (even though it doesn't have to
 know much about what is in it, other than the names of direct children), and it still picks out those sub-trees
 of data and passes them on. In this way an arbitrary component in the UI tree is not querying
-for it's data directly in a side-band sort of way, but is instead being composed in from parent to parent all the
+for its data directly in a side-band sort of way, but is instead being composed in from parent to parent all the
 way to the root. Later, we'll learn how Fulcro can optimize this and pull the data from the database for
 a specific component, but the reasoning will remain the same.
 
@@ -1421,7 +1421,7 @@ available on an alternate port) you'll see your app, but the server interactions
 
 One might ask: "If I don't use figwheel's server, do I lose hot code reload on the client?"
 
-The answer is no. When figwheel compiles your application it embeds it's own websocket code in your application for
+The answer is no. When figwheel compiles your application it embeds its own websocket code in your application for
 hot code reload. When you load that compiled code (in any way) it will try to connect to the figwheel websocket.
 
 So your network topology was:
@@ -1772,7 +1772,7 @@ our require has `app.api.mutations` aliased to `api`, and syntax quoting will ex
 If you reload your UI you should now see the people sorted by name. Hopefully you can see how easy it is to change
 this sort order to something like "by age". Try it!
 
-==== Loading a specific entity and it's subgraph (by ident)
+==== Loading a specific entity and its subgraph (by ident)
 
 Once things are loaded from the server they are immediately growing stale (unless you're pushing updates with
 websockets). It is very common to want to re-load a particular thing in your database. Of course, you can trigger
@@ -2042,7 +2042,7 @@ That is what we mean by "pure rendering".
 
 
 Here's an example to whet your appetite: Nested check-boxes.
-In imperative programming each checkbox has it's own state, and when we want a "check all"
+In imperative programming each checkbox has its own state, and when we want a "check all"
 we end up writing nightmares of logic to make sure the thing works right because we're
 having to *store a mutable value* into an object that then does the rendering.
 Then we play with it and find out we
@@ -2057,7 +2057,7 @@ that extra bit of state in the "check all" is definitely the source of bugs.
 Here's what you do in pure rendering with immutable data:
 
 Each sub-item checkbox is a simple data structure with a `:checked?` key that has a boolean
-value. You use that to directly tell the checkbox what it's state should be
+value. You use that to directly tell the checkbox what its state should be
 (and React enforces that...making it impossible for the UI to draw it any
 differently)
 
@@ -2067,7 +2067,7 @@ differently)
 
 For a "state of the world", these are read-only. (you have to make a "new
 state of the world" to change one). When you render, the state of the
-check-all is just the conjunction of it's children's `:checked?`:
+check-all is just the conjunction of its children's `:checked?`:
 
 ```
 (let [all-checked (every? :checked? (get state :items)]
@@ -3669,7 +3669,7 @@ Now we can finally create a factory for `LocationView` component that will be us
 ```
 (def ui-location-view
   ;; GoogleApiWrapper is a function returning HOC with specified configuration parameters like API key
-  ;; Notice that it's a plain JS function thus it requires it's options to be plain JS map thus #js usage
+  ;; Notice that it's a plain JS function thus it requires its options to be plain JS map thus #js usage
   (let [hoc (GoogleApiWrapper #js {:apiKey "AIzaSyDAiFHA9fwVjW83jUFjgL43D_KP9EFcIfE"})
         WrappedLocationView (hoc ui-location-view-interop)]
     (hoc-wrapper-factory-apply WrappedLocationView)))
@@ -3978,7 +3978,7 @@ using them in order for everything to work correctly (normalization, queries, an
 Here is what a graph database might look like for the above query assuming we started at `Parent`:
 
 ```
-{ :peron-place-or-thing [:place/by-id 3]
+{ :person-place-or-thing [:place/by-id 3]
   :place/by-id { 3 { :id 3 :location "New York" }}}
 ```
 
@@ -4494,7 +4494,7 @@ protocol cannot work on the server, so this helper method makes server-side rend
 ```
 
 Notice the nice symmetry here. The initial state is (usually) a map that represents (recursively) the entity and
-it's children. The query is a vector that lists the "scalar" props, and joins as maps.  So, in `Child` we have
+its children. The query is a vector that lists the "scalar" props, and joins as maps.  So, in `Child` we have
 initial state for `:x` and a query for `:x`. In the parent we have a query for the property `:y` and a join to
 the child, and initial state for the scalar value of `:y` and the composed initial state of the `Child`. Render has
 the same thing: the things you pull out of props will be the things for which you queried. Thus, all three essentially
@@ -4626,7 +4626,7 @@ critical to compose queries correctly. The query and tree of data must have a pa
 UI. In template mode `defsc` will try to check some things for you, but you must ensure that you
 compose the queries correctly.
 
-== Normalization: Initial State, Server Interations, and Mutations
+== Normalization: Initial State, Server Interactions, and Mutations
 
 The process described above is how most data interactions occur. At startup the `:initial-state` supplies data that
 exactly matches the tree of the UI. This gives your UI some initial state to render. The normalization mechanism
@@ -4767,7 +4767,7 @@ In the default rendering mode Fulcro is capable of optimizing your rendering ref
 minimum amount of activity happens in the query engine and React. The basic rules are as follows:
 
 . Refresh the subtree starting at the component that ran `transact!`. If it was the reconciler, run from root.
-. Refresh any component's that share the same `ident` with the component that ran the transaction.
+. Refresh any components that share the same `ident` with the component that ran the transaction.
 . Refresh any component that *queries* for any of the data that was indicated in "follow-on" reads.
 
 === Parent-Child Relationships
@@ -5123,7 +5123,7 @@ and carefully integrate the other bits as well.
 .Reminder
 ****
 The *`ident`* part of the component is the magic here. This is why you *need* component queries for
-this work work right. The `ident` functions are used to determine the table locations and idents to place into
+this to work right. The `ident` functions are used to determine the table locations and idents to place into
 the normalized database!
 ****
 
@@ -5173,7 +5173,7 @@ we'd like to merge (a newly arrived counter entity):
 We'll want to:
 
 - Add the counter to the counter's table (which is not even present because we have none in our initial app state)
-- Add the ident of the counter to the UI panel so it's UI shows up
+- Add the ident of the counter to the UI panel so its UI shows up
 
 ```
 (defsc Counter [this {:keys [counter/id counter/n] :as props} {:keys [onClick] :as computed}]
@@ -5290,7 +5290,7 @@ can be used to normalize the result. Finally, the normalized result can be merge
 Query --> Server --> Response + Original Query w/Idents --> Normalized Data --> Database Merge --> New Database
 ----
 
-Any other kind of extern data integration just starts at the "Response" step by manually providing the query that
+Any other kind of external data integration just starts at the "Response" step by manually providing the query that
 is annotated with components/idents:
 
 ----
@@ -5410,7 +5410,7 @@ React lifecycle and Load may not mix well. It is technically legal to issue tran
 methods, but it is recommended that you carefully check the state of the system in said mutations before actually
 queuing network traffic.
 Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state and optionally
-submits a load. You'll learn how to do this in the sections on the <<DataFetch, data featch API>>.
+submits a load. You'll learn how to do this in the sections on the <<DataFetch, data fetch API>>.
 
 == The Data Fetch API: `load` [[DataFetch]]
 
@@ -5424,13 +5424,13 @@ a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`
 What we'd like to see then from the server is a return value with the shape of the query:
 
 ```
-{ :all-frields [ {:db/id 1 ...} {:db/id 2 ...} ...] }
+{ :all-friends [ {:db/id 1 ...} {:db/id 2 ...} ...] }
 ```
 
 If we combine that query with that tree result and were to manually call `merge!` we'd end up with this:
 
 ```
-{ :all-frields [ [:person/by-id 1] [:person/by-id 2] ...]
+{ :all-friends [ [:person/by-id 1] [:person/by-id 2] ...]
   :person/by-id { 1 { :db/id 1 ...}
                   2 { :db/id 2 ...}
                   ...}}
@@ -5594,7 +5594,7 @@ If we were to merge the earlier load into that database we could get what we wan
 a to-one edge is an ident, and a to-many edge is a vector of idents):
 
 ```
-{ :all-frields [ [:person/by-id 1] [:person/by-id 2] ...]  ; (1) MOVE this to (2)
+{ :all-friends [ [:person/by-id 1] [:person/by-id 2] ...]  ; (1) MOVE this to (2)
   :person/by-id { 1 { :db/id 1 ...}
                   2 { :db/id 2 ...}
   :current-screen [:screens/by-type :friends]
@@ -5911,7 +5911,7 @@ even in the presence of a slow network. We'll discuss more on error handling sho
 
 === Mutations Revisited
 
-A multi-method in Fulcro client (which is manipualted with `defmutation`) can indicate that a given mutation
+A multi-method in Fulcro client (which is manipulated with `defmutation`) can indicate that a given mutation
 should be sent to any number of remotes. The default remote is named `:remote`, but you can define new ones or even
 rename the default one.
 
@@ -6218,7 +6218,7 @@ Fulcro handles loads by placing load markers into a special place in the
 application database. Whenever a remote operation is triggered, the
 networking layer will check this queue and process it.
 
-The `fulcro.client.data-detch/load` function simply runs a `transact!`
+The `fulcro.client.data-fetch/load` function simply runs a `transact!`
 that does both (adds the load to the queue and triggers remote processing).
 
 If you'd like to compose one or more loads into a mutation, there are helper
@@ -7089,7 +7089,7 @@ include::src/book/book/demos/server_error_handling.cljs[]
 
 Fulcro defaults to optimistic updates, which in turn encourages you to write a UI that is very responsive. However,
 as soon as you start writing remote mutations you start worrying about the fact that your user submitted some data
-but you to let them go off and do other things (like leave the screen they're on) before the server has responded.
+but you let them go off and do other things (like leave the screen they're on) before the server has responded.
 In effect, we've told the user "success", but we know we're kind of lying to them.
 
 Another way of looking at it is: we're letting them leave the *visual context* of the information, but we know that if a
@@ -9271,7 +9271,7 @@ Adding a phone number (which acts as a sub-form) is done via the `add-phone` mut
 ```
 
 Notice that there is nothing really special going on here. Just add an additional item to the database (which is
-augmented with `f/build-form`) and integrate it's ident!
+augmented with `f/build-form`) and integrate its ident!
 
 For example, the button to run a transaction to add a phone number to
 a person creates a tempid for the phone number and passes it as a parameter in the transaction:
@@ -10110,7 +10110,7 @@ This will become clearer when we get to examples.
 
 === Write Mutations via Helper Functions on State Maps
 
-When writing a mutation, first write a helper function. Perhaps end it's name with `-impl` or even `*`. The
+When writing a mutation, first write a helper function. Perhaps end its name with `-impl` or even `*`. The
 helper function should take the application database state map (*not* atom) and any arguments needed to accomplish the
 task. It should then return the updated state map:
 
@@ -10357,7 +10357,7 @@ This new version also brings a few new features:
 
 * It uses middleware for the request and response so you can customize the entire communication pipeline without having to deal with
 low-level networking. A remote can now manipulate everything from the request headers to the URL and even the raw data on the wire.
-* It allows you to give network requests and ID, and later abort them if desired.
+* It allows you to give network requests an ID, and later abort them if desired.
 * It includes support for progress updates on mutations, which are commonly used for things like file uploads.
 
 == Creating a Remote
@@ -11691,7 +11691,7 @@ the dynamic queries won't be seen, and rendering will be incorrect.
 = Hacking the Client Query Engine
 
 Om Next pioneered the data-driven space, and Fulcro is based upon many of the original concepts defined there. One of those
-was the client parser. Fulcro is implemeted interally with a client query parser that is identical to Om Next's. Fulcro
+was the client parser. Fulcro is implemeted internally with a client query parser that is identical to Om Next's. Fulcro
 provides a default implementation of this parser, but allows you to hook into it to add your own code for interpreting
 queries! Doing so allows you to interpret the
 query of a component instead of pulling it from your database. This gives you an extreme amount of power, but at the
@@ -12077,7 +12077,7 @@ You can make this logging facility delegate to another via `set-logger!`. It's a
 
 Be sure you're using your loggers low-level logging function, and not the macros. The macros will typically try
 to extract the location using compile-time info, and the compile-time info of your call to `set-logger!` is of
-little use in your actual logs. The macros in Fulcro's internal logging will have already extract the relevant
+little use in your actual logs. The macros in Fulcro's internal logging will have already extracted the relevant
 information into the location argument.
 
 == Eliding Logging Code
