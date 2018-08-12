@@ -58,7 +58,6 @@
                                                         :or   {remote     :remote marker true parallel false refresh [] without #{}
                                                                initialize false}}]
   {:pre [(or (nil? target) (vector? target))
-         (or (nil? marker) (bool? marker) (keyword? marker))
          (or (nil? post-mutation) (symbol? post-mutation))
          (or (nil? fallback) (symbol? fallback))
          (or (nil? post-mutation-params) (map? post-mutation-params))
