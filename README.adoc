@@ -8,10 +8,18 @@
 
 image:docs/logo.png[]
 
+++++
+<a href="https://twitter.com/fulcrologic?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @fulcrologi</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<a href="https://www.patreon.com/bePatron?u=6760250" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+++++
+
 image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
 image:https://cljdoc.xyz/badge/fulcrologic/fulcro[link=https://cljdoc.xyz/d/fulcrologic/fulcro/CURRENT]
 image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"] (release)
 image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"] (develop)
+
+http://book.fulcrologic.com[Developer's Guide]
+https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube Tutorials]
 
 Fulcro is a library for building data-driven full-stack applications for the web. It uses React, is written in
 Clojure and Clojurescript (so it has first-class functional abilities with immutable data) which leads to a clean
