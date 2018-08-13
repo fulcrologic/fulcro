@@ -158,9 +158,9 @@
 
       Removing properties (like previous :without option):
           {:update-query #(df/elide-query-nodes % #{:my :elisions})}
+  - `focus` - An optional subquery to focus on some parts of the original query.
+  - `without` - An optional set of keywords that should (recursively) be removed from the query.
   - `abort-id` - An ID (typically a keyword) that you can use to cancel the load via `fulcro.client/abort`.
-  - `focus` - (DEPRECATED: use update-query) An optional subquery to focus on some parts of the original query.
-  - `without` - (DEPRECATED: use update-query) An optional set of keywords that should (recursively) be removed from the query.
 
   Notes on UI Refresh:
   The refresh list will automatically include what you load (as a non-duplicate):
