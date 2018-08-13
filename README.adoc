@@ -26,7 +26,7 @@ image:https://cljdoc.xyz/badge/fulcrologic/fulcro[link=https://cljdoc.xyz/d/fulc
 image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"] (release)
 image:https://circleci.com/gh/fulcrologic/fulcro/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/develop"] (develop)
 
-http://book.fulcrologic.com[Developer's Guide]
+http://book.fulcrologic.com[Developer's Guide] |
 https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube Tutorials]
 
 Fulcro is a library for building data-driven full-stack applications for the web. It uses React, is written in
