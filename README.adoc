@@ -9,8 +9,8 @@
 image:docs/logo.png[]
 
 ++++
-<a href="https://twitter.com/fulcrologic?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @fulcrologi</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-<a href="https://www.patreon.com/bePatron?u=6760250" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+<a href="https://twitter.com/fulcrologic?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @fulcrologic</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+ <a href="https://www.patreon.com/bePatron?u=6760250" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
 ++++
 
 image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
@@ -39,7 +39,7 @@ Fulcro has undergone a number of face-lifts over its lifetime.
 2.0 - 2.4:: No longer depends on Om Next. Public API is the same, except where improvements and fixes were needed.
 2.5:: Integrated co-located CSS for better support (e.g. localized-dom), made all server dependencies dynamic, rewrite of i18n. This
 version requires you to change a few i18n things if you were using it, and adds API to the DOM to make UI much more concise.
-2.6:: Changes for React 16. Changes in React led to a change in the underlying rendering refresh
+2.6:: Changes for React 16+. Changes in React led to a change in the underlying rendering refresh
 optimizations.
 
 == A Bare Bones Example
@@ -292,15 +292,10 @@ Contact us on the http://clojurians.net/[`#fulcro` Slack channel] for help!
 
 === Further Information
 
-The https://fulcrologic.github.io/fulcro[website] is a great place to read about
-Fulcro. It has pages describing things in more general terms, and has links
-to various resources like videos and evaluation guides.
-
 New users are encouraged to do one or both of the following:
 
 . Follow along with the https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube] video series.
 . Read the http://book.fulcrologic.com[Developer's Guide]
-. Do the devcards-based https://github.com/fulcrologic/fulcro-tutorial[Fulcro Tutorial].
 . Check out the posts on https://www.patreon.com/fulcro[Patreon]
 . Examine the various README files at https://github.com/fulcrologic/fulcro
 
@@ -321,7 +316,7 @@ It generates a lein-based project (of course), but has options that let you choo
 cljs compiler.
 * shadow-cljs - Generates a project that uses shadow-cljs for the compiler and development environment. This is a great
 alternative that replaces figwheel for hot code reload and is a fork of the standard cljs compiler that has much
-better support for the native js ecosystem (i.e. npm). I generally recommend this to consulting clients for business
+better support for the native js ecosystem (i.e. npm). *I generally recommend this to consulting clients* for business
 use, since leveraging external libraries is often a critical cost concern.
 
 The `demo` and `nodemo` options cause the template to include some very basic example code (or not). If you don't choose
