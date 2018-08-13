@@ -9,8 +9,18 @@
 image:docs/logo.png[]
 
 ++++
-<a href="https://twitter.com/fulcrologic?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @fulcrologic</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
- <a href="https://www.patreon.com/bePatron?u=6760250" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+<a href="https://twitter.com/fulcrologic?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @fulcrologic</a>
+<a href="https://www.patreon.com/bePatron?u=6760250" data-patreon-widget-type="become-patron-button">Become a Patron!</a>
+<script src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<script src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-107376541-4"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-107376541-4');
+</script>
 ++++
 
 image:https://img.shields.io/clojars/v/fulcrologic/fulcro.svg[link=https://clojars.org/fulcrologic/fulcro]
