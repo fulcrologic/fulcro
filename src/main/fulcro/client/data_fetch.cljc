@@ -33,6 +33,11 @@
 (defn replace-at [target]
   (targeting/replace-at target))
 
+(defn elide-query-nodes
+  "Remove items from a query that have a key listed in the elision-set"
+  [query elision-set]
+  (-> query prim/query->ast (impl/elide-ast-nodes elision-set) prim/ast->query))
+
 (defn- computed-refresh
   "Computes the refresh for the load by ensuring the loaded data is on the
   list of things to re-render."
@@ -54,7 +59,7 @@
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [state-map server-property-or-ident class-or-factory {:keys [target params marker refresh parallel post-mutation post-mutation-params
-                                                               fallback remote focus without initialize abort-id]
+                                                               fallback remote focus without initialize abort-id update-query]
                                                         :or   {remote     :remote marker true parallel false refresh [] without #{}
                                                                initialize false}}]
   {:pre [(or (nil? target) (vector? target))
@@ -68,7 +73,8 @@
          (or (util/ident? server-property-or-ident) (keyword? server-property-or-ident))]}
   (let [query' (if class-or-factory
                  (cond-> (prim/get-query class-or-factory state-map)
-                   focus (prim/focus-subquery focus))
+                   focus (prim/focus-subquery focus)
+                   update-query update-query)
                  nil)
         query  (cond
                  (and class-or-factory (map? params)) `[({~server-property-or-ident ~query'} ~params)]
@@ -146,6 +152,12 @@
   should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
   - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
   - `fallback` - A mutation (symbol) to run if there is a server/network error. The `env` of the fallback will be the env of the load (if available), but will also include `:load-request`.
+  - `update-query` - A optional function that can transform the component query before sending to remote.
+      For example, to focus a subquery using update-query:
+          {:update-query #(prim/focus-subquery % [:my {:sub [:query]}])}
+
+      Removing properties (like previous :without option):
+          {:update-query #(df/elide-query-nodes % #{:my :elisions})}
   - `focus` - An optional subquery to focus on some parts of the original query.
   - `without` - An optional set of keywords that should (recursively) be removed from the query.
   - `abort-id` - An ID (typically a keyword) that you can use to cancel the load via `fulcro.client/abort`.

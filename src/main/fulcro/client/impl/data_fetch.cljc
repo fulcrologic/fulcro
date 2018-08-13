@@ -21,7 +21,7 @@
 (s/def ::post-mutation (optional symbol?))
 (s/def ::post-mutation-params (optional map?))
 (s/def ::refresh (optional vector?))
-(s/def ::marker (s/or :reference any? :bool boolean? :nothing (s/or :nil nil? :false false?)))
+(s/def ::marker (s/or :reference any? :legacy true? :nothing (s/or :nil nil? :false false?)))
 (s/def ::parallel (optional boolean?))
 (s/def ::fallback (optional symbol?))
 (s/def ::original-env map?)
