@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.6.0-RC6"
+(defproject fulcrologic/fulcro "2.6.0-RC7"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -83,7 +83,7 @@
                                :output-to            "resources/public/js/cards.js"
                                :output-dir           "resources/public/js/cards"
                                :asset-path           "js/cards"
-                               :preloads             [devtools.preload]
+                               :preloads             [devtools.preload fulcro.inspect.preload]
                                ;:parallel-build       true
                                ;:verbose              true
                                ;:compiler-stats       true
@@ -141,7 +141,7 @@
                     :dependencies [[binaryage/devtools "0.9.10"]
                                    [com.rpl/specter "1.1.1"] ; used by book demos
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
-                                   [fulcrologic/fulcro-inspect "2.2.0-beta8" :exclusions [fulcrologic/fulcro]]
+                                   [fulcrologic/fulcro-inspect "2.2.1" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
                                    [figwheel-sidecar "0.5.15"]
                                    [cljsjs/d3 "4.12.0-0"]
