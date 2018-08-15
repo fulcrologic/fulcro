@@ -11,10 +11,12 @@ small and tractable.
 - BREAKING CHANGE: `set-state!` is now tied directly to React's setState, and in 16+ that
   is merely a *suggestion* to set the state and update. React is allowed to defer it. If you
   rely on reading state immediately after setting state, this may break things.
+- Load markers now support other types for marker IDs
+- `set-route` mutation auto-refreshes routers
 - Added some additional error message cases to websocket support.
-- Deprecated prim/integrate-ident and prim/integrate-ident! and moved logic to muations/integrate-ident*.
-- Added mutations/remove-ident* helper for removing idents from a list of idents in app state.
-- Added form-state/delete-form-state* for cleaning up data created by form-state.
+- Deprecated prim/integrate-ident and prim/integrate-ident! and moved logic to `muations/integrate-ident*`.
+- Added `mutations/remove-ident*` helper for removing idents from a list of idents in app state.
+- Added `form-state/delete-form-state*` for cleaning up data created by form-state.
 - Added sente-options argument to client side websockets, to mirror server side.
 - Sente channel socket type by default is now :auto, so it will fall back to ajax long polling if ws is not available.
 - Updated so that using React 16.4 includes all lifecycle methods (UNSAFE, etc.), EXCEPT getDerivedStateFromProps
