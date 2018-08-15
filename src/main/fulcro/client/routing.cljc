@@ -4,8 +4,8 @@
             [fulcro.client :as fc]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.impl.protocols :as p]
-    #?(:cljs [cljs.loader :as loader])
-    #?(:cljs [cljsjs.react])
+            #?(:cljs [cljs.loader :as loader])
+            #?(:cljs [cljsjs.react])
             [fulcro.logging :as log]
             [fulcro.util :as util]
             [clojure.spec.alpha :as s]
@@ -212,7 +212,8 @@ NOTES:
   "Mutation: Explicitly set the route of a given router to the target screen ident."
   [{:keys [router target]}]
   (action [{:keys [state]}]
-    (swap! state set-route* router target)))
+    (swap! state set-route* router target))
+  (refresh [_] [::current-route]))
 
 (declare DynamicRouter get-dynamic-router-target)
 
