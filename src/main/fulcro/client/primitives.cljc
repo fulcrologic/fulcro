@@ -936,7 +936,6 @@
        (when (and class (has-query? class))
          (get-query-by-id state-map class queryid))))))
 
-
 (defn link-element [element]
   (prewalk (fn link-element-helper [ele]
              (let [{:keys [queryid]} (meta ele)]

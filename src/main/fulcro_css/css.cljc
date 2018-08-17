@@ -1,7 +1,7 @@
 (ns fulcro-css.css
   (:require [cljs.tagged-literals]
             [clojure.string :as str]
-    #?(:cljs [cljsjs.react.dom])
+            #?(:cljs [cljsjs.react.dom])
             [clojure.walk :as walk]
             [garden.core :as g]
             [garden.selectors :as gs]))
@@ -167,8 +167,8 @@
                      (selector? ele) (localize-selector ele component)
                      :otherwise ele)) (get-local-rules component)))
 
-(defn- get-css-rules
-  "Gets the local and global rules from the given component."
+(defn get-css-rules
+  "Gets the raw local and global rules from the given component."
   [component]
   (concat (localize-css component)
     (get-global-rules component)))
@@ -217,7 +217,8 @@
 
 #?(:cljs
    (defn style-element
-     "Returns a React Style element with the (recursive) CSS of the given component. Useful for directly embedding in your UI VDOM."
+     "Returns a React Style element with the (recursive) CSS of the given component. Useful for directly embedding in your UI VDOM.
+     DEPRECATED: Use fulcro-css.css-injection/style-element instead."
      [component]
      (js/React.createElement "style" #js {:dangerouslySetInnerHTML #js {:__html (g/css (get-css component))}})))
 
@@ -230,11 +231,13 @@
 
 #?(:cljs
    (defn upsert-css
-     "(Re)place the STYLE element with the provided ID on the document's DOM  with the co-located CSS of the specified component."
+     "(Re)place the STYLE element with the provided ID on the document's DOM  with the co-located CSS of the specified component.
+     DEPRECATED: Use fulcro-css.css-injection/upsert-css instead."
      [id root-component]
      (remove-from-dom id)
      (let [style-ele (.createElement js/document "style")]
        (set! (.-innerHTML style-ele) (g/css (get-css root-component)))
        (.setAttribute style-ele "id" id)
        (.appendChild (.-body js/document) style-ele))))
+
 
