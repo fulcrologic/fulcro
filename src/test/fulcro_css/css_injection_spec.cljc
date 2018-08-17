@@ -43,12 +43,12 @@
   (behavior "Scans the query for components with css"
     (assertions
       "Removes duplicates"
-      (injection/find-css-nodes DuplicateCSS) => [A]
+      (injection/find-css-nodes {:component DuplicateCSS}) => [A]
       "Defaults to depth-first order"
-      (injection/find-css-nodes NestedRootWithCSS) => [A B NestedRootWithCSS]
-      (injection/find-css-nodes NestedRoot2) => [B A NestedRoot2]
+      (injection/find-css-nodes {:component NestedRootWithCSS}) => [A B NestedRootWithCSS]
+      (injection/find-css-nodes {:component NestedRoot2}) => [B A NestedRoot2]
       "Can find in breadth-first order"
-      (injection/find-css-nodes NestedRootWithCSS :breadth-first) => [NestedRootWithCSS A B])))
+      (injection/find-css-nodes {:component NestedRootWithCSS :order :breadth-first}) => [NestedRootWithCSS A B])))
 
 (specification "Computing CSS" :focused
   (behavior "When auto-include? is false"
@@ -68,12 +68,10 @@
                                 :auto-include? false})))
   (behavior "When auto-include? is true"
     (when-mocking
-      (injection/find-css-nodes c order) =1x=> (do
+      (injection/find-css-nodes props) =1x=> (do
                                                  (assertions
-                                                   "Defaults to depth-first order"
-                                                   order => :depth-first
                                                    "Searches the component supplied"
-                                                   c => A)
+                                                   (:component props) => A)
                                                  [A])
       (css/get-css-rules c) =1x=> (do
                                     (assertions

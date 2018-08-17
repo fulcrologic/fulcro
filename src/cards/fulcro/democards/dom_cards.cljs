@@ -1,6 +1,6 @@
 (ns fulcro.democards.dom-cards
   (:require [devcards.core :as dc]
-            [fulcro.client.cards :refer [defcard-fulcro]]
+            [fulcro.client.cards :refer [defcard-fulcro make-root]]
             [fulcro.client.dom :as dom :refer [div span]]
             [fulcro-css.css-injection :as injection]
             [goog.object :as gobj]
@@ -206,12 +206,24 @@
 (defcard-fulcro wrapped-select
   SelectTest)
 
+(defsc A [this props]
+  {:query         [:a]
+   :css           [[:.b {:color "black"}]]
+   :initial-state {}}
+  (dom/div nil "TODO"))
+
+(def ui-a (prim/factory A {:keyfn :db/id}))
+
 (defsc CSSStyleRoot [this props]
-  {:query ['*]
-   :css [[:.a {:color "red"}]]}
+  {:query         [{:a (prim/get-query A)}]
+   :initial-state {}
+   :css           [[:.a {:color "red"}]]}
   (dom/div
-    (injection/style-element {;:react-key (rand-int 120) ; Include this to recompute CSS on every refresh
-                              :component CSSStyleRoot})
+    #_(injection/style-element {:react-key (rand-int 120)   ; Include this to recompute CSS on every refresh
+                                :component this})
+    (injection/style-element {:react-key (rand-int 120) ; Include this to recompute CSS on every refresh
+                              :order     :breadth-first
+                              :component this})
     (dom/button {:onClick #(prim/set-state! this {:n (rand-int 20)})} "Bump")
     (ldom/div :.a "Edit this card to check the various bits...")))
 

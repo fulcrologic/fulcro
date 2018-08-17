@@ -997,7 +997,7 @@
                   (string? ui-factory-class-or-queryid) ui-factory-class-or-queryid
                   (some-> ui-factory-class-or-queryid meta (contains? :queryid)) (some-> ui-factory-class-or-queryid meta :queryid)
                   :otherwise (query-id ui-factory-class-or-queryid nil))
-        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (with-meta query {:queryid queryid})))]
+        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (vary-meta query assoc :queryid queryid)))]
     (if (string? queryid)
       (cond-> state-map
         (contains? args :query) (setq*))
@@ -2460,6 +2460,11 @@
   {:pre [(reconciler? reconciler)]}
   (-> reconciler :config :state))
 
+(defn component->state-map
+  "Get the normalized database state as a map. Requires a mounted component instance."
+  [component]
+  (some-> component get-reconciler :config :state deref))
+
 (defn app-root
   "Return the application's root component."
   [reconciler]
@@ -3347,4 +3352,3 @@
                  fulcro.client.primitives/*instrument* i#
                  fulcro.client.primitives/*parent*     p#]
          ~@body))))
-
