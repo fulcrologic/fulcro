@@ -2891,7 +2891,7 @@ function to wrap elements in a fragment:
 
 ```
 (defsc X [this props]
-  (dom/fragment
+  (prim/fragment ; in the prim namespace, because it isn't DOM specific. Could be used with native.
     (dom/p "a")
     (dom/p "b")))
 ```
