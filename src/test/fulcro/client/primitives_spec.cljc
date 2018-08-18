@@ -1141,12 +1141,12 @@
        (assertions
          "Can take templates and turn them into the proper protocol"
          (#'prim/build-css 'this {:template []} {:template []})
-         => '(static fulcro-css.css/CSS
+         => '(static fulcro-css.css-protocols/CSS
                (local-rules [_] [])
                (include-children [_] []))
          "Can take methods and turn them into the proper protocol"
          (#'prim/build-css 'th {:method '(fn [] [:rule])} {:method '(fn [] [CrapTastic])})
-         => '(static fulcro-css.css/CSS
+         => '(static fulcro-css.css-protocols/CSS
                (local-rules [th] [:rule])
                (include-children [th] [CrapTastic]))
          "Omits the entire protocol if neiter are supplied"
@@ -1334,7 +1334,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro-css.css-protocols/CSS
                (local-rules [_] [:rule])
                (include-children [_] [])
                Object
@@ -1370,7 +1370,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro-css.css-protocols/CSS
                (local-rules [_] [])
                (include-children [_] [A])
                static
@@ -1389,7 +1389,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro-css.css-protocols/CSS
                (local-rules [this] [:rule])
                (include-children [this] [A])
                static
@@ -1407,7 +1407,7 @@
                          (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
-               fulcro-css.css/CSS
+               fulcro-css.css-protocols/CSS
                (local-rules [this] [:rule])
                (include-children [this] [A])
                static

@@ -10,7 +10,7 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
-    fulcro-css.css
+    fulcro-css.css-protocols
     [clojure.core.async :as async]
     [clojure.set :as set]
     [fulcro.history :as hist]
@@ -936,7 +936,6 @@
        (when (and class (has-query? class))
          (get-query-by-id state-map class queryid))))))
 
-
 (defn link-element [element]
   (prewalk (fn link-element-helper [ele]
              (let [{:keys [queryid]} (meta ele)]
@@ -998,7 +997,7 @@
                   (string? ui-factory-class-or-queryid) ui-factory-class-or-queryid
                   (some-> ui-factory-class-or-queryid meta (contains? :queryid)) (some-> ui-factory-class-or-queryid meta :queryid)
                   :otherwise (query-id ui-factory-class-or-queryid nil))
-        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (with-meta query {:queryid queryid})))]
+        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (vary-meta query assoc :queryid queryid)))]
     (if (string? queryid)
       (cond-> state-map
         (contains? args :query) (setq*))
@@ -2461,6 +2460,11 @@
   {:pre [(reconciler? reconciler)]}
   (-> reconciler :config :state))
 
+(defn component->state-map
+  "Get the normalized database state as a map. Requires a mounted component instance."
+  [component]
+  (some-> component get-reconciler :config :state deref))
+
 (defn app-root
   "Return the application's root component."
   [reconciler]
@@ -3022,7 +3026,7 @@
                                                `(~'include-children [~'_] ~include-template))
                             include-method (replace-and-validate-fn 'include-children [thissym] 0 include-method 'css-include)
                             :else '(include-children [_] []))]
-         `(~'static fulcro-css.css/CSS
+         `(~'static fulcro-css.css-protocols/CSS
             ~local-form
             ~include-form)))))
 
@@ -3348,4 +3352,3 @@
                  fulcro.client.primitives/*instrument* i#
                  fulcro.client.primitives/*parent*     p#]
          ~@body))))
-

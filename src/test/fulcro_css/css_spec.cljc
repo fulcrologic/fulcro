@@ -2,13 +2,14 @@
   (:require
     [fulcro-spec.core :refer [specification assertions behavior]]
     [fulcro-css.css :as css]
+    [fulcro-css.css-protocols :as cssp]
     [fulcro.client.primitives :as prim :refer [defui]]
     #?(:cljs [fulcro.client.dom :as dom]
        :clj [fulcro.client.dom-server :as dom])
     [garden.selectors :as sel]))
 
 (defui ListItem
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.item {:font-weight "bold"}]])
   (include-children [this] [])
   Object
@@ -17,7 +18,7 @@
       (dom/li #js {:className item} "listitem"))))
 
 (defui ListComponent
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.items-wrapper {:background-color "blue"}]])
   (include-children [this] [ListItem])
   Object
@@ -26,17 +27,17 @@
       (dom/ul #js {:className items-wrapper} "list"))))
 
 (defui Root
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.container {:background-color "red"}]])
   (include-children [this] [ListComponent])
-  static css/Global
+  static cssp/Global
   (global-rules [this] [[:.text {:color "green"}]])
   Object
   (render [this]
     (dom/div nil "root")))
 
 (defui Child1
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.child1class {:color "red"}]])
   (include-children [this] [])
   Object
@@ -44,7 +45,7 @@
     (dom/div nil "test")))
 
 (defui Child2
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.child2class {:color "blue"}]])
   (include-children [this] [])
   Object
@@ -52,7 +53,7 @@
     (dom/div nil "test")))
 
 (defui Parent
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [])
   (include-children [this] [Child1 Child2])
   Object
@@ -60,12 +61,12 @@
     (dom/div nil "test")))
 
 (defui MyLabel
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.my-label {:color "green"}]])
   (include-children [this] []))
 
 (defui MyButton
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.my-button {:color "black"}]])
   (include-children [this] [MyLabel])
   Object
@@ -73,7 +74,7 @@
     (dom/div nil "test")))
 
 (defui MyForm
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.form {:background-color "white"}]])
   (include-children [this] [MyButton])
   Object
@@ -81,7 +82,7 @@
     (dom/div nil "test")))
 
 (defui MyNavigation
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.nav {:width "100px"}]])
   (include-children [this] [MyButton])
   Object
@@ -89,7 +90,7 @@
     (dom/div nil "test")))
 
 (defui MyRoot
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [])
   (include-children [this] [MyForm MyNavigation])
   Object
@@ -128,35 +129,35 @@
     (:items-wrapper (css/get-classnames Root)) => nil))
 
 (defui A
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[(sel/> :.a :.b :.c) {:color "blue"}]])
   (include-children [this] []))
 
 (defui B
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[(sel/> :$a :.b :span :$c) {:color "red"}]])
   (include-children [this] []))
 
 (defui C
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[(sel/+ :.a :$b) {:color "green"}]])
   (include-children [this] []))
 
 (defui D
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[(sel/- :.a :.b) {:color "yellow"}]])
   (include-children [this] []))
 
 (defui E
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[(sel/+ :.a (sel/> :$b :span)) {:color "brown"}]])
   (include-children [this] []))
 
 (defui F
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[(sel/+ :.a (sel/> :$b :span)) {:color "brown"}]])
   (include-children [this] [])
-  static css/Global
+  static cssp/Global
   (global-rules [this] [[(sel/> :.c :.d) {:color "blue"}]]))
 
 (defn- first-css-selector [css-rules]
@@ -181,12 +182,12 @@
                                :d "d"}))
 
 (defui G
-  static css/CSS
+  static cssp/CSS
   (local-rules [this] [[:.a {:color "orange"}
                         [:&.b {:font-weight "bold"}]
                         [:&$c {:background-color "black"}]]])
   (include-children [this] [])
-  static css/Global
+  static cssp/Global
   (global-rules [this] [[:.d {:color "green"}
                          [:&.e {:color "gray"}]]]))
 
@@ -204,7 +205,3 @@
                                :c "c"
                                :d "d"
                                :e "e"}))
-
-
-
-

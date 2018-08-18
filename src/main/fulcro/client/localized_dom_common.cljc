@@ -1,6 +1,7 @@
 (ns fulcro.client.localized-dom-common
   (:refer-clojure :exclude [map meta time])
   (:require
+    fulcro-css.css
     #?(:clj [cljs.tagged-literals :refer [->JSValue]])
     #?@(:cljs [[cljsjs.react]
                [cljsjs.react.dom]

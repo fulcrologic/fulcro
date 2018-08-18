@@ -1,10 +1,12 @@
 (ns fulcro.democards.dom-cards
   (:require [devcards.core :as dc]
-            [fulcro.client.cards :refer [defcard-fulcro]]
+            [fulcro.client.cards :refer [defcard-fulcro make-root]]
             [fulcro.client.dom :as dom :refer [div span]]
+            [fulcro-css.css-injection :as injection]
             [goog.object :as gobj]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
-            [fulcro.client.mutations :as m]))
+            [fulcro.client.mutations :as m]
+            [fulcro.client.localized-dom :as ldom]))
 
 ;; normally we get macro expansion, this will let us force calling the functions
 (def fdiv div)
@@ -203,3 +205,27 @@
 
 (defcard-fulcro wrapped-select
   SelectTest)
+
+(defsc A [this props]
+  {:query         [:a]
+   :css           [[:.b {:color "black"}]]
+   :initial-state {}}
+  (dom/div nil "TODO"))
+
+(def ui-a (prim/factory A {:keyfn :db/id}))
+
+(defsc CSSStyleRoot [this props]
+  {:query         [{:a (prim/get-query A)}]
+   :initial-state {}
+   :css           [[:.a {:color "red"}]]}
+  (dom/div
+    #_(injection/style-element {:react-key (rand-int 120)   ; Include this to recompute CSS on every refresh
+                                :component this})
+    (injection/style-element {:react-key (rand-int 120) ; Include this to recompute CSS on every refresh
+                              :order     :breadth-first
+                              :component this})
+    (dom/button {:onClick #(prim/set-state! this {:n (rand-int 20)})} "Bump")
+    (ldom/div :.a "Edit this card to check the various bits...")))
+
+(defcard-fulcro css-card-1
+  CSSStyleRoot)

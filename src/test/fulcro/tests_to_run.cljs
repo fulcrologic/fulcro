@@ -18,7 +18,8 @@
     fulcro.i18n-spec
     fulcro.client.dom-spec
     fulcro.client.localized-dom-spec
-    fulcro-css.css-spec))
+    fulcro-css.css-spec
+    fulcro-css.css-injection-spec))
 
 ;********************************************************************************
 ; IMPORTANT:

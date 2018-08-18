@@ -9,10 +9,17 @@ small and tractable.
 2.6.0
 -----
 - BREAKING CHANGE: `set-state!` is now tied directly to React's setState, and in 16+ that
-  is merely a *suggestion* to set the state and update. React is allowed to defer it. If you
-  rely on reading state immediately after setting state, this may break things.
+  is merely an *async request* to set the state and update. React is allowed to defer it. If you
+  rely on reading state with `get-state` immediately after setting it, then your
+  code *will* break.  This change was facilitated by internal changes from React 15 to 16.
+- BREAKING CHANGE: In the unlikely case that you still directly use `defui`
+  AND co-located CSS, then you will need to change protocols. The CSS protocols moved
+  to fuclro-css.css-protocols to allow people to opt-out of the `garden`
+  library bloat if they don't use it.  *Users of `defsc` should not have a problem*.
+- Added `fulcro-css/css-injection` namespace with new (better) ways of injecting CSS.
+- You can now pass a component to `app-state` in addition to the reconciler.
 - Load markers now support other types for marker IDs
-- `set-route` mutation auto-refreshes routers
+- `set-route` mutation now auto-refreshes routers
 - Added some additional error message cases to websocket support.
 - Deprecated prim/integrate-ident and prim/integrate-ident! and moved logic to `muations/integrate-ident*`.
 - Added `mutations/remove-ident*` helper for removing idents from a list of idents in app state.

@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: August 10, 2018
-:revnumber: 17
+:revdate: August 17, 2018
+:revnumber: 18
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -2891,7 +2891,7 @@ function to wrap elements in a fragment:
 
 ```
 (defsc X [this props]
-  (dom/fragment
+  (prim/fragment ; in the prim namespace, because it isn't DOM specific. Could be used with native.
     (dom/p "a")
     (dom/p "b")))
 ```
@@ -3255,11 +3255,13 @@ CSS can be co-located on any component. This CSS does *not* take effect until it
 . (optional) Add the `:css-include` option to `defsc`. This MUST be a vector of components that are used within the `render`
 that *also* supply CSS. This allows the library to compose together your CSS according to what components you *use*. Pulling
 the CSS rules from some top-level component will dedupe any inclusions before generating the actual on-DOM CSS.
+See <<CSSInjection, CSS Injection>> for a way to avoid this.
 . Use one of many options to get the "munged" classnames for use in your code:
 ** `(fulcro-css.css/get-classnames Componenet)` returns a map of namespaced CSS classes keyed by the simple name you used in your garden rules.
 ** The 4th argument to `defsc` is that same map, on which you can apply destructuring to get the munged class names.
 ** Use `fulcro.client.localized-dom` for DOM rendering, and have it all automatically done for you!
-. Use the `fulcro-css.css/upsert-css` or `fulcro-css.css/style-element` function (or your own style element) to embed the CSS.
+. Before Fulcro 2.6: Use the `fulcro-css.css/upsert-css` or `fulcro-css.css/style-element` function (or your own style element) to embed the CSS.
+. Fuclro 2.6+: Use the `fulcro-css.css-injection/upsert-css` or `fulcro-css.css-injection/style-element` to embed the CSS. See <<CSSInjection, CSS Injection>>.
 
 A typical file will have the following layout:
 
@@ -3281,7 +3283,7 @@ A typical file will have the following layout:
 
 (defsc ListComponent [this {:keys [id items]} computed {:keys [items-wrapper]}]
   {:css [[:.items-wrapper {:background-color "blue"}]] ; this component's css
-   :css-include [ListItem]} ; components whose CSS should be included if this component is included
+   :css-include [ListItem]} ; components whose CSS should be included if this component is included (optional in 2.6+)
   (dom/div {:className items-wrapper}
     (dom/h2 (str "List " id))
     (dom/ul (map ui-list-item items))))
@@ -3290,7 +3292,7 @@ A typical file will have the following layout:
 
 (defsc Root [this props computed {:keys [text]}]
   {:css [[:.container {:background-color "red"}]]
-   :css-include [ListComponent]}
+   :css-include [ListComponent]} ; NOTE: optional in Fulcro 2.6+
     (let [the-list {:id 1 :items [{:id 1 :label "A"} {:id 2 :label "B"}]}]
       (dom/div {:className text}
         (ui-list the-list))))
@@ -3299,7 +3301,7 @@ A typical file will have the following layout:
 
 ; Add the CSS from Root as a HEAD style element. If it already exists, replace it. This
 ; will recursively follow all of the CSS includes *just* for components that Root includes!
-(css/upsert-css "my-css" Root)
+(css/upsert-css "my-css" Root) ; NOTE: Use css-injection in Fulcro 2.6+
 -----
 
 
@@ -3385,7 +3387,9 @@ embedded data on colocated CSS and re-upsert the generated result!
 include::src/book/book/demos/component_localized_css.cljs[]
 ----
 
-=== Localized CSS and Server-Side Rendering
+=== Localized CSS and Server-Side Rendering (Fulcro 2.5 and earlier)
+
+NOTE: See <<CSSInjection, CSS Injection>> for Fulcro 2.6+.
 
 The `upsert-css` and `style-element` functions are conveniences for CLJS DOM, but they do not work in CLJ.
 
@@ -3403,6 +3407,51 @@ You can use the raw string in generated HTML, or use the server-compatible DOM f
 
 (dom/style {:dangerouslySetInnerHTML {:__html (g/css (css/get-css component))}})
 ```
+
+== Improved CSS Injection (Fulcro 2.6+) [[CSSInjection]]
+
+Fulcro has had component-local CSS for quite some time.  The ability
+to write your CSS inside of your components is a very powerful feature,
+but the injection support in prior versions had a couple of weaknesses:
+
+1. You had to manually compose your CSS by including children in the parent.
+2. It sorted components in breadth-first order.
+3. The `style-element` method of injection had high overhead (computed
+new content on every refresh)
+
+Fulcro 2.6 adds a new `fulcro-css.css-injection` namespace that gives you
+better control and performance:
+
+```
+(ns my-app
+  (:require [fulcro-css.css-injection :as injection]))
+
+(defsc A [this props]
+  {:css [[ARules]]} ...)
+
+(defsc MyRoot [this props]
+  {:css [[rules]]
+   ; NO css includes
+   :query [{:a (prim/get-query A)}]}
+  (dom/div
+    (injection/style-element {:component this})
+    ...))
+```
+
+The new `style-element` has the following benefits:
+
+. By default it will automatically use the query to find all children (even through unions) that have CSS.
+. It defaults to a depth-first ordering in the output rules.
+. It caches the computed CSS, so it has much less rendering overhead than the old one.
+
+You can get just the performance benefits (with exact behavior of the old one) by passing `:auto-include? false` and
+`:order :breadth-first` in the options.
+
+=== Upserts and SSR
+
+The new injections namespace also has an improved `upsert` (client-only DOM node upsert), and a `compute-css` function the returns
+the CSS as a string (useful for generating the upserted node in SSR). They take the exact same options map as the
+`style-element`.
 
 == CSS Localized DOM [[LocalizedDOM]]
 
