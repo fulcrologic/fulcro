@@ -1,5 +1,6 @@
 (ns fulcro-css.css
   (:require [cljs.tagged-literals]
+            [fulcro-css.css-protocols :as cp :refer [local-rules include-children global-rules]]
             [clojure.string :as str]
             #?(:cljs [cljsjs.react.dom])
             [clojure.walk :as walk]
@@ -37,14 +38,6 @@
                                 (dissoc :class)))))
 
 ;; css
-
-(defprotocol CSS
-  (local-rules [this] "Specifies the component's local CSS rules")
-  (include-children [this] "Specifies the components (typically direct children) whose CSS should be included."))
-
-(defprotocol Global
-  (global-rules [this] "DEPRECATED. Will be removed in a future release. Do not use for new applications. Use the `$` prefix instead."))
-
 #?(:clj (defn implements-protocol?
           [x protocol protocol-key]
           (if (fn? x)
@@ -54,14 +47,14 @@
 (defn CSS?
   "Returns true if the given component has css"
   [x]
-  #?(:clj  (implements-protocol? x CSS :local-rules)
-     :cljs (implements? CSS x)))
+  #?(:clj  (implements-protocol? x cp/CSS :local-rules)
+     :cljs (implements? cp/CSS x)))
 
 (defn Global?
   "Returns true if the component has global rules"
   [x]
-  #?(:clj  (implements-protocol? x Global :global-rules)
-     :cljs (implements? Global x)))
+  #?(:clj  (implements-protocol? x cp/Global :global-rules)
+     :cljs (implements? cp/Global x)))
 
 (defn get-global-rules
   "Get the *raw* value from the global-rules of a component."

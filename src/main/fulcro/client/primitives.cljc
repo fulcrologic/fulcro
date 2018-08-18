@@ -10,7 +10,7 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
-    fulcro-css.css
+    fulcro-css.css-protocols
     [clojure.core.async :as async]
     [clojure.set :as set]
     [fulcro.history :as hist]
@@ -3026,7 +3026,7 @@
                                                `(~'include-children [~'_] ~include-template))
                             include-method (replace-and-validate-fn 'include-children [thissym] 0 include-method 'css-include)
                             :else '(include-children [_] []))]
-         `(~'static fulcro-css.css/CSS
+         `(~'static fulcro-css.css-protocols/CSS
             ~local-form
             ~include-form)))))
 
