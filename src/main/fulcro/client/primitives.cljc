@@ -26,6 +26,7 @@
     [clojure.string :as str]
     [clojure.spec.alpha :as s]
     #?(:clj
+       fulcro-css.css
        [clojure.future :refer :all])
     [cognitect.transit :as t])
   #?(:clj
