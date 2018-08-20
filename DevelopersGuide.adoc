@@ -7662,9 +7662,13 @@ handled by your pre-hook.
 
 = Dynamic Queries [[DynamicQueries]]
 
-Fulcro fully support dynamic queries: the ability the change the query of a component at runtime. This feature is fully
-serializable (works with the support viewer and other time-travel features), and is critical for features like code splitting
+Fulcro supports dynamic queries: the ability the change the query of a component at runtime. This feature is fully
+serializable (works with the support viewer and other time-travel features), and is necessary code splitting
 where you may need to compose in a query of an as-yet unloaded component tree of your application.
+
+EXPERIMENTAL, and HAS KNOWN BUG: To date we are not aware of anyone using this feature of Fulcro, and it is known to have issues. Specifically,
+the normalization data is lost on the query, and that means that using component with dynamic queries in merges is
+currently broken.
 
 == Query IDs
 
@@ -11458,6 +11462,10 @@ To demonstrate one technique we'll assume that what you load is a "section" of t
 main application knows to provide the link, but it does not yet have the rendering factory, class, or query.
 
 == Dynamic Routing and Code Splitting
+
+WARNING: There is known bug in dynamic queries, which are used by dynamic routers.  That means using dynamic routers will
+cause problems when used with load facilities.  At the moment it is recommended that you do not split your Fulcro UI code with
+code splitting.
 
 The `fulcro.client.routing` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
 

@@ -308,7 +308,7 @@
       "Preserves the query when parameters are present"
       (prim/get-query ui-rootp state-parameterized) => parameterized-query)))
 
-(specification "Setting a query"
+(specification "Setting a query" :focused
   (let [query                       (prim/get-query ui-root {})
         parameterized-query         (prim/get-query ui-rootp {})
         state                       (prim/normalize-query {} query)
@@ -328,7 +328,18 @@
       "Can update a node by class"
       (prim/get-query ui-root state-modified-root) => expected-root-query
       "Can be done directly by ID"
-      (prim/get-query ui-root state-queryid-modified-root) => expected-root-query)))
+      (prim/get-query ui-root state-queryid-modified-root) => expected-root-query
+      "Maintains metadata (when used without state)"
+      (-> (prim/get-query ui-root) meta :component) => Root
+      (-> (prim/get-query ui-root) second first second meta :component) => Child
+      (-> (prim/get-query ui-root) (nth 2) first second meta :component) => Union
+      ;; FIXME: Dynamic queries are broken with respect to auto-normalization because they don't have
+      ;; the component with them.  Going to take some effort to fix.
+      ;"Maintains metadata (when used with state)"
+      ;(-> (prim/get-query ui-root state-modified) meta :component) => Root
+      ;(-> (prim/get-query ui-root state-modified) second first second meta :component) => Child
+      ;(-> (prim/get-query ui-root state-modified) (nth 2) first second meta :component) => Union
+      )))
 
 (specification "Indexing"
   (component "Gathering keys for a query"

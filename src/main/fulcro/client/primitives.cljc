@@ -994,11 +994,20 @@
   up an initial app state."
   [state-map ui-factory-class-or-queryid {:keys [query] :as args}]
   (let [queryid (cond
-                  (nil? ui-factory-class-or-queryid) nil
-                  (string? ui-factory-class-or-queryid) ui-factory-class-or-queryid
-                  (some-> ui-factory-class-or-queryid meta (contains? :queryid)) (some-> ui-factory-class-or-queryid meta :queryid)
+                  (nil? ui-factory-class-or-queryid)
+                  nil
+
+                  (string? ui-factory-class-or-queryid)
+                  ui-factory-class-or-queryid
+
+                  (some-> ui-factory-class-or-queryid meta (contains? :queryid))
+                  (some-> ui-factory-class-or-queryid meta :queryid)
+
                   :otherwise (query-id ui-factory-class-or-queryid nil))
-        setq*   (fn [state] (normalize-query (update state ::queries dissoc queryid) (vary-meta query assoc :queryid queryid)))]
+        setq*   (fn [state]
+                  (normalize-query
+                    (update state ::queries dissoc queryid)
+                    (vary-meta query assoc :queryid queryid)))]
     (if (string? queryid)
       (cond-> state-map
         (contains? args :query) (setq*))
