@@ -8716,7 +8716,7 @@ with components like:
 Normally you might throw this into your application state with something like:
 
 ```
-(prim/merge-component! reconciler Person person-tree)
+(prim/merge-component! reconciler PersonForm person-tree)
 ```
 
 which will insert and normalize the person and phone number.
