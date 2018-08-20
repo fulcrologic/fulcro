@@ -7,6 +7,15 @@
             #?(:cljs [fulcro.client.dom :as dom]
                :clj  [fulcro.client.dom-server :as dom])))
 
+(defn component-css-includes-with-depth [component breadth depth]
+  (let [includes (css/get-includes component)]
+    (-> (into []
+              (map #(hash-map ::depth (inc depth)
+                              ::breadth breadth
+                              ::component %))
+              includes)
+        (into (mapcat #(component-css-includes-with-depth % breadth (inc depth)) includes)))))
+
 (defn find-css-nodes
   "Scan the given component and return an ordered vector of the css rules in depth-first order.
   `order` can be :depth-first (default) or :breadth-first"
@@ -14,12 +23,14 @@
   (let [query         (if (map? state-map) (prim/get-query component state-map) (prim/get-query component))
         ast           (prim/query->ast query)
         breadth       (atom 0)
-        traverse      (fn traverse* [{:keys [children component] :as ast-node} depth]
+        traverse      (fn traverse* [{:keys [children component]} depth]
                         (into
                           (if (and component (css/CSS? component))
-                            [{::depth     depth
-                              ::breadth   (swap! breadth inc)
-                              ::component component}]
+                            (into
+                              [{::depth     depth
+                                ::breadth   (swap! breadth inc)
+                                ::component component}]
+                              (component-css-includes-with-depth component @breadth depth))
                             [])
                           (mapcat #(traverse* % (inc depth)) (seq children))))
         nodes         (traverse ast 0)

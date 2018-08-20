@@ -9,9 +9,14 @@
        :clj  [fulcro.client.dom-server :as dom])
     [clojure.string :as str]))
 
-(defsc C [_ _]
+(defsc D [_ _]
   {:query ['*]
    :css   []})
+
+(defsc C [_ _]
+  {:query ['*]
+   :css   []
+   :css-include [D]})
 
 (defsc B [_ _]
   {:query ['*]
@@ -39,6 +44,10 @@
    :css-include [A]
    :query       [{:a (prim/get-query A)} {:b (prim/get-query BSibling)}]})
 
+(defsc JoinAndInclude [_ _]
+  {:query [{:a (prim/get-query A)}]
+   :css-include [C]})
+
 (specification "find-css-nodes" :focused
   (behavior "Scans the query for components with css"
     (assertions
@@ -48,7 +57,9 @@
       (injection/find-css-nodes {:component NestedRootWithCSS}) => [A B NestedRootWithCSS]
       (injection/find-css-nodes {:component NestedRoot2}) => [B A NestedRoot2]
       "Can find in breadth-first order"
-      (injection/find-css-nodes {:component NestedRootWithCSS :order :breadth-first}) => [NestedRootWithCSS A B])))
+      (injection/find-css-nodes {:component NestedRootWithCSS :order :breadth-first}) => [NestedRootWithCSS A B]
+      "Includes items from css-include"
+      (injection/find-css-nodes {:component JoinAndInclude}) => [D C A JoinAndInclude])))
 
 (specification "Computing CSS" :focused
   (behavior "When auto-include? is false"
