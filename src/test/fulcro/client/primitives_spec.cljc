@@ -580,6 +580,13 @@
       {}
       {[:d 1] {:ui/fetch-state {:fulcro.client.impl.data-fetch/type :not-found}}}))
 
+  (behavior "Ignores root link idents"
+    (assertions
+      "when the subquery exists"
+      (prim/mark-missing {} [{[:a '_] [:x]}]) => {}
+      "when it is a pure link"
+      (prim/mark-missing {} [[:a '_]]) => {}))
+
   (behavior "parameterized"
     (are [query ?missing-result exp]
       (= exp (prim/mark-missing ?missing-result query))
@@ -2041,3 +2048,4 @@
 
     (prim/db->tree [{'(:foo {:param "123"}) [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
     => {:foo {:bar "baz"}}))
+

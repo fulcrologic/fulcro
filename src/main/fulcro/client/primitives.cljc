@@ -1570,6 +1570,10 @@
                                    :else nil)
                     result-value (get result result-key)]
                 (cond
+                  (or (and (util/ident? result-key) (= '_ (second result-key)))
+                    (and (util/ident? element) (= '_ (second element))))
+                  result
+
                   (is-ui-query-fragment? result-key)
                   result
 
