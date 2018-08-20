@@ -1187,7 +1187,7 @@
                (~'render [~'this]
                  (let [{:keys [~'a]} (fulcro.client.primitives/props ~'this)
                        {:keys [~'onSelect]} (fulcro.client.primitives/get-computed ~'this)
-                       ~'{:keys [my-class]} (fulcro-css.css/get-classnames ~'Boo)]
+                       ~'{:keys [my-class]} (fulcro-css.css-implementation/get-classnames ~'Boo)]
                    (~'dom/div nil "Hello"))))))
      (component "make-lifecycle"
        (assertions

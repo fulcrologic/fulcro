@@ -3248,7 +3248,8 @@ your CSS to load for the UI to look right!
 CSS can be co-located on any component. This CSS does *not* take effect until it is embedded on the page
 (see Embedding The CSS below). The typical steps for usage are:
 
-. Add localized rules to your component via the `:css` option of `defsc` or by implementing the `fulcro-css.css/CSS` protocol's `local-rules`.
+. Add localized rules to your component via the `:css` option of `defsc` or by implementing the `fulcro-css.css-protocols/CSS`  protocol's `local-rules`.
+NOTE: (in olders versions this protocol was named `fulcro-css.css/CSS`)
  The result of this must be a vector in Garden notation. Any rules included here will be automatically prefixed with the CSSified namespace
  and component name to ensure name collisions are impossible.
 . (optional) Add "global" rules. The vector of rules (in the prior step) can use a `$` prefix to prevent localization (`:$container` instead of `:.container`).

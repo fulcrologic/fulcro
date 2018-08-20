@@ -14,7 +14,7 @@ small and tractable.
   code *will* break.  This change was facilitated by internal changes from React 15 to 16.
 - BREAKING CHANGE: In the unlikely case that you still directly use `defui`
   AND co-located CSS, then you will need to change protocols. The CSS protocols moved
-  to fuclro-css.css-protocols to allow people to opt-out of the `garden`
+  to `fuclro-css.css-protocols` to allow people to opt-out of the `garden`
   library bloat if they don't use it.  *Users of `defsc` should not have a problem*.
 - Added `fulcro-css/css-injection` namespace with new (better) ways of injecting CSS.
 - You can now pass a component to `app-state` in addition to the reconciler.

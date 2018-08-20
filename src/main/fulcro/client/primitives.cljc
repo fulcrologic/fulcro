@@ -11,6 +11,7 @@
                [cljsjs.react]
                [goog.object :as gobj]])
     fulcro-css.css-protocols
+    fulcro-css.css-implementation
     [clojure.core.async :as async]
     [clojure.set :as set]
     [fulcro.history :as hist]
@@ -2821,7 +2822,7 @@
 
 #?(:clj
    (defn- build-render [classsym thissym propsym compsym csssym body]
-     (let [css-bindings      (when csssym `[~csssym (fulcro-css.css/get-classnames ~classsym)])
+     (let [css-bindings      (when csssym `[~csssym (fulcro-css.css-implementation/get-classnames ~classsym)])
            computed-bindings (when compsym `[~compsym (fulcro.client.primitives/get-computed ~thissym)])]
        `(~'Object
           (~'render [~thissym]

@@ -6,4 +6,3 @@
 
 (defprotocol Global
   (global-rules [this] "DEPRECATED. Will be removed in a future release. Do not use for new applications. Use the `$` prefix instead."))
-
