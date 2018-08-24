@@ -10,11 +10,11 @@
 (defn component-css-includes-with-depth [component breadth depth]
   (let [includes (css/get-includes component)]
     (-> (into []
-              (map #(hash-map ::depth (inc depth)
-                              ::breadth breadth
-                              ::component %))
-              includes)
-        (into (mapcat #(component-css-includes-with-depth % breadth (inc depth)) includes)))))
+          (map #(hash-map ::depth (inc depth)
+                  ::breadth breadth
+                  ::component %))
+          includes)
+      (into (mapcat #(component-css-includes-with-depth % breadth (inc depth)) includes)))))
 
 (defn find-css-nodes
   "Scan the given component and return an ordered vector of the css rules in depth-first order.
@@ -94,12 +94,21 @@
          :clj  (dom/style {}
                  (compute-css props))))))
 
-#?(:cljs
+#?(:clj
+   (defn upsert-css
+     "In CLJ this is a STUB (to prevent compile errors in CLJC UI files).
+
+     Upsert-css not available for CLJ use. There is no DOM.  Use `compute-css` and manual embedding in your returned server page instead."
+     [id options]
+     (log/error "Upsert-css not available for CLJ use. There is no DOM.  Use `compute-css` and manual embedding in your returned server page instead."))
+   :cljs
    (defn upsert-css
      "(Re)place the STYLE element with the provided ID on the document's low-level DOM with the co-located CSS of
      the specified component.
 
-     The `options` is the same as passed to `style-element`."
+     The `options` is the same as passed to `style-element`.
+
+     ONLY WORKS FOR CLJS, since otherwise there is no DOM to change."
      [id options]
      (css/remove-from-dom id)
      (let [style-ele (.createElement js/document "style")
