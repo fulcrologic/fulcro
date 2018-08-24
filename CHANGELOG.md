@@ -36,6 +36,7 @@ exclude react, react-dom, and react-dom-server from Fulcro, and include
 the version of React they need.
 - Still supports React 15.x
 - Fixed bug in merge with link queries
+- Fixed a bug related to metadata on dynamic queries which cause normalization problems.
 
 2.5.12
 ------

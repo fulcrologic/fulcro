@@ -7666,9 +7666,7 @@ Fulcro supports dynamic queries: the ability the change the query of a component
 serializable (works with the support viewer and other time-travel features), and is necessary code splitting
 where you may need to compose in a query of an as-yet unloaded component tree of your application.
 
-EXPERIMENTAL, and HAS KNOWN BUG: To date we are not aware of anyone using this feature of Fulcro, and it is known to have issues. Specifically,
-the normalization data is lost on the query, and that means that using component with dynamic queries in merges is
-currently broken.
+WARNING: This feature is not widely used yet, and should be considered of ALPHA quality.
 
 == Query IDs
 
@@ -7704,6 +7702,59 @@ The following live demo shows dynamic queries in action:
 ----
 include::src/book/book/queries/dynamic_queries.cljs[]
 ----
+
+== Setting a Query
+
+The whole point of a dynamic query is being able to set the query to something new on a component.  This has one
+critical component that you must be very careful with: normalization.  A component's query is augmented with metadata
+the marks which component is used to normalize (via idents) the entity found for the given portion of the query that
+it handles.  Therefore, you must still use `get-query` to pull the query for portions of your subquery that you wish
+to include when setting a new query.  If done incorrectly, then normalization when using these components will not
+work.
+
+The top-level metadata will be added for you, so this is fine:
+
+```
+(defmutation change-a-query [_]
+  (action [{:keys [state]}]
+    (swap! state prim/set-query* B {:query [:MODIFIED]}))
+```
+
+but as soon as there's a join you must ensure the subqueries have the correct metadata.  This means that this is probably
+*incorrect* (because `[:x]` probably goes with some other component):
+
+```
+(defmutation change-a-query [_]
+  (action [{:keys [state]}]
+    (swap! state prim/set-query* B {:query [:MODIFIED {:subquery [:x]}]}))
+```
+
+instead, you should use `get-query` with a state parameter to pull the query for a given component.  So, say you
+wanted to change the query for this:
+
+```
+(defsc X [_ _]
+  {:query [:id :name]
+   :ident [:x/by-id :id]})
+
+(defsc A [_ _]
+  {:query [:id {:x (prim/get-query X)}]
+   :ident [:a/by-id :id]})
+```
+
+and you want to change both component's queries.  The correct form for the resulting mutation is:
+
+```
+(defmutation change-a-query [_]
+  (action [{:keys [state]}]
+    (swap! state (fn [s]
+                    (as-> s state-map
+                      (prim/set-query* state-map X {:query [:id :address]})
+                      (prim/set-query* state-map A {:query [:id :new-prop {:x (prim/get-query X state-map}]}))))))
+```
+
+
+
 
 = Query Parsing
 

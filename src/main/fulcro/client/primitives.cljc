@@ -957,7 +957,9 @@
                   raw-element    (if parameterized? (first ele) ele)]
               (cond
                 (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
-                                                normalized-union-alternates (into {} (map link-element union-alternates))
+                                                union-meta                  (-> union-alternates meta)
+                                                normalized-union-alternates (-> (into {} (map link-element union-alternates))
+                                                                              (with-meta union-meta))
                                                 union-query-id              (-> union-alternates meta :queryid)]
                                             (assert union-query-id "Union query has an ID. Did you use extended get-query?")
                                             (deep-merge
@@ -973,7 +975,10 @@
   "Find all of the elements (only at the top level) of the given query and replace them
   with their query ID"
   [query]
-  (mapv link-element query))
+  (let [metadata (meta query)]
+    (with-meta
+      (mapv link-element query)
+      metadata)))
 
 (defn normalize-query
   "Given a state map and a query, returns a state map with the query normalized into the database. Query fragments
@@ -992,27 +997,25 @@
   "Put a query in app state.
   NOTE: Indexes must be rebuilt after setting a query, so this function should primarily be used to build
   up an initial app state."
-  [state-map ui-factory-class-or-queryid {:keys [query] :as args}]
-  (let [queryid (cond
-                  (nil? ui-factory-class-or-queryid)
-                  nil
+  [state-map class-or-factory {:keys [query] :as args}]
+  (let [queryid   (cond
+                    (nil? class-or-factory)
+                    nil
 
-                  (string? ui-factory-class-or-queryid)
-                  ui-factory-class-or-queryid
+                    (some-> class-or-factory meta (contains? :queryid))
+                    (some-> class-or-factory meta :queryid)
 
-                  (some-> ui-factory-class-or-queryid meta (contains? :queryid))
-                  (some-> ui-factory-class-or-queryid meta :queryid)
-
-                  :otherwise (query-id ui-factory-class-or-queryid nil))
-        setq*   (fn [state]
-                  (normalize-query
-                    (update state ::queries dissoc queryid)
-                    (vary-meta query assoc :queryid queryid)))]
+                    :otherwise (query-id class-or-factory nil))
+        component (or (-> class-or-factory meta :class) class-or-factory)
+        setq*     (fn [state]
+                    (normalize-query
+                      (update state ::queries dissoc queryid)
+                      (vary-meta query assoc :queryid queryid :component component)))]
     (if (string? queryid)
       (cond-> state-map
         (contains? args :query) (setq*))
       (do
-        (log/error "Set query failed. There was no query ID.")
+        (log/error "Set query failed. There was no query ID. Use a class or factory for the second argument.")
         state-map))))
 
 (defn gather-keys
