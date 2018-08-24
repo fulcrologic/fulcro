@@ -4972,7 +4972,7 @@ case) then it can be a bit shorter to just push the table logic (ident resolutio
 (defn add-friend**
    "Add a friend to an existing person in the client database."
    [app-state person-id friend-id]
-   (update-in app-state [:person/by-id person-id field-name] (fnil conj []) (person-ident friend-id)))
+   (update-in app-state [:person/by-id person-id :person/friends] (fnil conj []) (person-ident friend-id)))
 
 (defmutation add-friend [{:keys [source-person-id target-id]}]
   (action [{:keys [state]}]
