@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: August 17, 2018
-:revnumber: 18
+:revdate: August 24, 2018
+:revnumber: 19
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -8682,11 +8682,11 @@ The form state is normalized into your state database. There are two ways of add
 . Add it to a tree of initial (or incoming) state, and merge that (which will normalize it all).
 . Add it directly to your state database.
 
-both methods are supported:
+these methods are described in the following section.
 
 === Initializing a Tree of Data
 
-This case occurs when you have either some initial state or a function on the client side that generate a new
+This case occurs when you have either some initial state or a function on the client side that generates a new
 entity (i.e. with a tempid) and you want to immediately use it with a form. Forms can be nested into
 a group, and the functions automatically support initializing the configuration recursively for a given form set.
 
@@ -8720,16 +8720,16 @@ with components like:
 Normally you might throw this into your application state with something like:
 
 ```
-(prim/merge-component! reconciler Person person-tree)
+(prim/merge-component! reconciler PersonForm person-tree)
 ```
 
 which will insert and normalize the person and phone number.
 
-You can first augment the form with form configuration like so:
+If you also are supporting form interactions then you can augment the form with form configuration data like so:
 
 ```
-(def person-tree-with-form-support (fs/add-form-config Person person-tree))
-(prim/merge-component! reconciler Person person-tree-with-form-support)
+(def person-tree-with-form-support (fs/add-form-config PersonForm person-tree))
+(prim/merge-component! reconciler PersonForm person-tree-with-form-support)
 ```
 
 IMPORTANT: `add-form-config` will look at all of the form (and subforms reachable from that form), but it will
@@ -8741,24 +8741,26 @@ The other very common case is this: You've loaded something from the server, and
 for form fields. In this case the data is already normalized in your state database, and you'll need to work on
 it via a mutation.
 
-The `add-form-config*` function is your helper for that. The common pattern for using it is:
+The `add-form-config*` function is the helper for that. The common pattern for using it is:
 
 ```
 (defmutation use-person-as-form [{:keys [person-id]}]
   (action [{:keys [state]}]
     (swap! state (fn [s]
                    (-> s
-                     (fs/add-form-config* Person [:person/by-id person-id]) ; this will get phone as well
+                     (fs/add-form-config* PersonForm [:person/by-id person-id]) ; this will affect the joined phone as well
                      (assoc-in [:component :person-editor :person-to-edit] [:person/by-id person-id]) ; hook it into an editor?
                      ...))))) ; other setup code
 ```
 
 IMPORTANT: `add-form-config*` will look at all of the form (and subforms reachable from that form), but it will
-only add config to the ones that are missing it. This means the current form state is *not* reset by this call.
+only add config to the ones that are missing it. This means the current form state is *not* reset by this call. This
+is intentional, since you might add sub-forms (e.g. a new phone number) to a form group, and this allows you to
+re-run the add of config data from the top without worrying about affecting pre-existing form state.
 
 == Validation
 
-Validation is completely customizable. There is built-in support for working with Clojure Spec as your validation
+Validation in the form state system is completely customizable. There is built-in support for working with Clojure Spec as your validation
 layer. In order for this to be effective you should be sure to namespace all of your properties in a globally-unique
 way, and then simply write normal specs for them. The section on <<CustomValidators, custom validators>> describes
 the other supported mechanism for validation.
@@ -8769,22 +8771,25 @@ Initially, a form's fields are marked as incomplete. When in this state the vali
 
 Some additional helpers are useful for concise UI code:
 
-* `(invalid-spec? form field)` - Field is optional. Returns true if the form (field) is complete *and* invalid.
-* `(valid-spec? form field)` - Field is optional. Returns true if the form (field) is complete *and* valid.
-* `(checked? form field)` - Field is optional. Returns true if the form (field) is complete. This function works no matter
+* `(invalid-spec? form field)` - Field is an optional argument. Returns true if the form (field) is complete *and* invalid.
+* `(valid-spec? form field)` - Field is an optional argument. Returns true if the form (field) is complete *and* valid.
+* `(checked? form field)` - Field is an optional argument. Returns true if the form (field) is complete. This function works no matter
 what validator you're using.
-* `(dirty? form field)` - Field is optional. Returns true if the pristine copy of the form (field) doesn't match the current entity.
+* `(dirty? form field)` - Field is an optional argument. Returns true if the pristine copy of the form (field) doesn't match the current entity.
+
+For example:
 
 ```
 (defsc PersonForm [this {:keys [person/name] :as props}]
    ...
-   (dom/input { :value name :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   ;; The `mark-complete!` mutation is covered below
+   (dom/input {:value name :onBlur #(prim/transact! this `[(fs/mark-complete! ...)]) ...})
    (when (fs/invalid-spec? props :person/name)
       (dom/span "Invalid username!")
    ...)
 ```
 
-and the error message won't show until the user has "blurred" out of that field, and then only if the field's value
+will show the error only if the field is complete (shown as a call to `mark-complete!` on blur), but only if the field's value
 does not match the spec for `:person/name`.
 
 As you can see, the idea of "complete" is important to validation.
@@ -8814,22 +8819,27 @@ So, in our earlier example of loading a person for editing, we'd augment that mu
   (action [{:keys [state]}]
     (swap! state (fn [s]
                    (-> s
-                     (fs/add-form-config* Person [:person/by-id person-id]) ; this will get phone as well
-                     (fs/mark-complete* [:person/by-id person-id]) ; MUST come after config is added!
+                     (fs/add-form-config* PersonForm [:person/by-id person-id])
+                     ;; MUST come after the config is added. Mark all fields complete (since they came from existing entity)
+                     (fs/mark-complete* [:person/by-id person-id])
+                     ;; add it to some editor as the target
                      (assoc-in [:component :person-editor :person-to-edit] [:person/by-id person-id]))))))
 ```
 
-this will cause all validations to immediately apply in the UI.
+and all validations will immediately apply in the UI.
 
 The `mark-complete!` mutation can be used for the exact same purpose from the UI. Typically, it is used in things like
-`:onBlur` handlers to indicate that a field is ready for validation. It takes an `:entity-ident` and `:field`, but the
-`:entity-ident` is optional if the transaction is invoked on the form component of that field:
+`:onBlur` handlers to indicate that a field is ready for validation. It takes an `:entity-ident` and `:field`.
+The `:entity-ident` is optional if the transaction is invoked on the form component of that field, and if the `:field` is
+not supplied it means to affect the entire form recursively:
 
 ```
 (defsc PersonForm [this {:keys [db/id person/name]}]
   ... ; as before
+
+  ;; uses the ident of the current instance as the entity-ident
   (dom/input {:value name
-              :onBlur #(prim/transact! this `[(fs/mark-complete! {:entity-ident [:person/by-id ~id]})])})
+              :onBlur #(prim/transact! this `[(fs/mark-complete! {:field :person/name})])})
   ...)
 ```
 
@@ -8876,7 +8886,7 @@ a decent amount of clutter out of the primary UI code and into the form support 
 
 == Submitting Data
 
-Once your form is valid and the user indicates a desire to save your interest of course is to send that data to the
+Once your form is valid and the user indicates a desire to save, then your interest shifts to sending that data to the
 server. The `dirty-fields` function should be used from the UI in order to calculate this and pass it as a parameter
 to a mutation. The mutation can then update the local pristine state of form config and indicate a remote operation.
 
@@ -8906,6 +8916,11 @@ If you'd like to wait until the server indicates everything is ok, then you can 
 some submission information, and move the `entity->pristine*` step to a later mutation:
 
 ```
+;; Exists purely as a way to return a value into a normalized state database...
+(defsc SubmissionStatus [_ _]
+  {:query [:id :status]
+   :ident [:submission-status/by-id :id]})
+
 (defmutation submit-person [{:keys [id]}]
   (remote [{:keys [ast state]] (fulcro.client.mutations/returning ast @state SubmissionStatus))
 
@@ -8913,7 +8928,7 @@ some submission information, and move the `entity->pristine*` step to a later mu
   (action [{:keys [state]}]
      (if (= :ok (get-in @state [:submission-status/by-id id :status]))
        (swap! state fs/entity->pristine* [:person/by-id id])
-       ...)))
+       ...))) ; else show some error
 
 ...
 
@@ -8922,6 +8937,11 @@ some submission information, and move the `entity->pristine*` step to a later mu
 ```
 
 See <<PTransact, pessimistic transactions>> for more details.
+
+Of course, the behavior of the UI is up to you, and all of the examples above assume that the mutations in question would
+also be changing other things in your form/editor to show status to the user as you go.  It should be relatively straightforward
+to combine the form state maintenance functions with your own support functions and mutations to create your "standard" look
+for form interactions across your application.
 
 == Form State Demos
 
@@ -8948,8 +8968,6 @@ This demo lists some phone numbers. Clicking on one:
 include::src/book/book/forms/form_state_demo_1.cljs[]
 ----
 
-
-
 === Loading or Creating Something New
 
 This example shows the case where a graph of entities (a person and multiple phone numbers) are to be
@@ -8972,10 +8990,13 @@ code to show you how to put it together with a load interaction.
 include::src/book/book/forms/form_state_demo_2.cljs[]
 ----
 
-
 = Full Form Management (Older Support) [[FullForm]]
 
-Fulcro includes support for working with forms. The core purpose of the support is to help you with
+Fulcro includes alternate (older) support for working with forms.  It is recommended that new applications use <<FormState, form-state
+support>> instead.  This older form support will probably move to an external library at some point in the future.
+
+
+The core purpose of the support is to help you with
 the fact that you usually need roughly the same pattern for each form:
 
 * A place to store what the form was before the user started editing
