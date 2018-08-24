@@ -224,9 +224,9 @@
 
 (defui RootP
   static prim/IQuery
-  (query [this] [:a
-                 ({:join (prim/get-query ui-child)} {:join-params 2})
-                 ({:union (prim/get-query ui-unionp)} {:union-params 3})]))
+  (query [this] `[:a
+                  ({:join ~(prim/get-query ui-child)} {:join-params 2})
+                  ({:union ~(prim/get-query ui-unionp)} {:union-params 3})]))
 
 (def ui-rootp (prim/factory RootP))
 
