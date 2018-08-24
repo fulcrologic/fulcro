@@ -114,7 +114,7 @@
                 :source-paths ["src/main" "src/book"]
                 :compiler     {:output-dir    "docs/js/book"
                                :asset-path    "js/book"
-                               :optimizations :advanced
+                               :optimizations :whitespace
                                :modules       {:entry-point {:output-to "docs/js/book.js"
                                                              :entries   #{book.main}}
                                                ; For the dynamic code splitting demo
