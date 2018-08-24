@@ -118,7 +118,6 @@
      "mutation: A helper method that toggles the true/false nature of a component's state by ident.
       Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
      [{:keys [field]}]
-
      (action [{:keys [state ref]}]
        (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
        (swap! state update-in (conj ref field) not))))
