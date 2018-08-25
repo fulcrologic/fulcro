@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.6.0-RC9"
+(defproject fulcrologic/fulcro "2.6.0"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -112,14 +112,16 @@
                                #_#_:parallel-build true}}
                {:id           "book-live"
                 :source-paths ["src/main" "src/book"]
-                :compiler     {:output-dir    "docs/js/book"
-                               :asset-path    "js/book"
-                               :optimizations :whitespace
-                               :modules       {:entry-point {:output-to "docs/js/book.js"
-                                                             :entries   #{book.main}}
-                                               ; For the dynamic code splitting demo
-                                               :main        {:output-to "docs/js/book/main-ui.js"
-                                                             :entries   #{book.demos.dynamic-ui-main}}}}}
+                :compiler     {:output-dir     "docs/js/book"
+                               :asset-path     "js/book"
+                               :parallel-build true
+                               :optimizations  :advanced
+                               :source-map     "docs/js/book.js.map"
+                               :modules        {:entry-point {:output-to "docs/js/book.js"
+                                                              :entries   #{book.main}}
+                                                ; For the dynamic code splitting demo
+                                                :main        {:output-to "docs/js/book/main-ui.js"
+                                                              :entries   #{book.demos.dynamic-ui-main}}}}}
                {:id           "automated-tests"
                 :source-paths ["src/test" "src/main"]
                 :compiler     {:output-to     "resources/private/js/unit-tests.js"

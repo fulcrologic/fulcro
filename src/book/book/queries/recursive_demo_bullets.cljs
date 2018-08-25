@@ -1,7 +1,8 @@
 (ns book.queries.recursive-demo-bullets
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.dom :as dom]))
+            [fulcro.client.dom :as dom]
+            [clojure.string :as str]))
 
 (declare ui-item)
 
