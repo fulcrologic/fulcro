@@ -946,13 +946,13 @@ that we're deleting:
 <1> The argument list for the mutation itself
 <2> The thing to do, which receives the app-state atom as an argument.
 
-Then all that remains is to change `basic-ui` in the following ways:
+Then all that remains is to change `ui.root` in the following ways:
 
 1. Add a require and alias for app.operations to the ns
 2. Change the callback to run the transaction
 
 ```
-(ns app.basic-ui
+(ns app.ui.root
   (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             ; ADD THIS:
@@ -1213,8 +1213,8 @@ names which component that query fragment came from.
 For example, try this at the REPL:
 
 ----
-dev:cljs.user=> (meta (fulcro.client.primitives/get-query app.basic-ui/PersonList))
-{:component app.basic-ui/PersonList}
+dev:cljs.user=> (meta (fulcro.client.primitives/get-query app.ui.root/PersonList))
+{:component app.ui.root/PersonList}
 ----
 
 The `get-query` function adds the component itself to the metadata for that query fragment. We already know that
