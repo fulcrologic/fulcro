@@ -4389,13 +4389,13 @@ Since the two entries merge to the same entry, it also means the modifications w
 be shared among them. Try checking item `B.1` in either location.
 
 ++++
-<div class="example" id="recursive-demo-4"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-4').toggle()">Show/Hide Source</a>
+<div class="example" id="recursive-demo-bullets"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-bullets').toggle()">Show/Hide Source</a>
 ++++
 
-[source,clojure,role="recursive-demo-4 source"]
+[source,clojure,role="recursive-demo-bullets source"]
 ----
-include::src/book/book/queries/recursive_demo_4.cljs[]
+include::src/book/book/queries/recursive_demo_bullets.cljs[]
 ----
 
 == The AST
