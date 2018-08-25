@@ -391,7 +391,7 @@ default-malformed-response
 
                        There is special support for placing the action as a var in the namespace. This support
                        only work when using a plain symbol. Simple add `:intern` metadata to the symbol. If
-                       the metadata is true, it will intern the symbol as-is. It it is a string, it will suffix
+                       the metadata is true, it will intern the symbol as-is. If it is a string, it will suffix
                        the symbol with that string. If it is a symbol, it will use that symbol. The interned
                        symbol will act like the action side of the mutation, and has the signature:
                        `(fn [env params])`. This is also useful in devcards for using mkdn-pprint-source on mutations,

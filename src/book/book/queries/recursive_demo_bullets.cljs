@@ -1,7 +1,8 @@
-(ns book.queries.recursive-demo-4
+(ns book.queries.recursive-demo-bullets
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.dom :as dom]))
+            [fulcro.client.dom :as dom]
+            [clojure.string :as str]))
 
 (declare ui-item)
 
@@ -30,8 +31,7 @@
 (defsc Root [this {:keys [list]}]
   {:initial-state (fn [p]
                     {:list {:db/id      1
-                            :list/items [
-                                         {:db/id 2 :item/label "A"
+                            :list/items [{:db/id 2 :item/label "A"
                                           :item/subitems
                                                  [{:db/id      7
                                                    :item/label "A.1"

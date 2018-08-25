@@ -2,9 +2,9 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
-    #?(:cljs [fulcro.client.dom :as dom]
-       :clj
-            [fulcro.client.dom-server :as dom])
+            #?(:cljs [fulcro.client.dom :as dom]
+               :clj
+                     [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -17,7 +17,7 @@
             [clojure.test.check :as tc]
             [clojure.spec.test.alpha :as check]
             [clojure.test :refer [is are]]
-    #?@(:cljs [[goog.object :as gobj]])
+            #?@(:cljs [[goog.object :as gobj]])
             [fulcro.client.impl.protocols :as p]
             [fulcro.util :as util]
             [clojure.walk :as walk]
@@ -308,27 +308,56 @@
       "Preserves the query when parameters are present"
       (prim/get-query ui-rootp state-parameterized) => parameterized-query)))
 
-(specification "Setting a query"
-  (let [query                       (prim/get-query ui-root {})
-        parameterized-query         (prim/get-query ui-rootp {})
-        state                       (prim/normalize-query {} query)
-        state-modified              (prim/set-query* state ui-b {:query [:MODIFIED]})
-        expected-query              (assoc-in query [2 :union :u2 0] :MODIFIED)
-        state-modified-root         (prim/set-query* state Root {:query [:b
-                                                                         {:join (prim/get-query ui-child state)}
-                                                                         {:union (prim/get-query ui-union state)}]})
-        queryid                     (prim/query-id Root nil)
-        state-queryid-modified-root (prim/set-query* state queryid {:query [:b
-                                                                            {:join (prim/get-query ui-child state)}
-                                                                            {:union (prim/get-query ui-union state)}]})
-        expected-root-query         (assoc query 0 :b)]
+(specification "Setting a query" :focused
+  (let [query               (prim/get-query ui-root {})
+        state               (prim/normalize-query {} query)
+        state-modified      (prim/set-query* state ui-b {:query [:MODIFIED]})
+        expected-query      (assoc-in query [2 :union :u2 0] :MODIFIED)
+        state-modified-root (prim/set-query* state Root {:query [:b
+                                                                 {:join (prim/get-query ui-child state)}
+                                                                 {:union (prim/get-query ui-union state)}]})
+        expected-root-query (assoc query 0 :b)]
     (assertions
       "Can update a node by factory"
       (prim/get-query ui-root state-modified) => expected-query
       "Can update a node by class"
       (prim/get-query ui-root state-modified-root) => expected-root-query
-      "Can be done directly by ID"
-      (prim/get-query ui-root state-queryid-modified-root) => expected-root-query)))
+      "Maintains metadata (when used without state)"
+      (-> (prim/get-query ui-root) meta :component) => Root
+      (-> (prim/get-query ui-root) second first second meta :component) => Child
+      (-> (prim/get-query ui-root) (nth 2) first second meta :component) => Union
+      ;; FIXME: Dynamic queries are broken with respect to auto-normalization because they don't have
+      ;; the component with them.  Going to take some effort to fix.
+      "Maintains top metadata (when used with state)"
+      (-> (prim/get-query ui-root state-modified) meta :component) => Root
+      "Maintains children metadata (when used with state)"
+      (-> (prim/get-query ui-root state-modified) second first second meta :component) => Child
+      "Maintains union metadata (when used with state)"
+      (-> (prim/get-query ui-root state-modified) (nth 2) :union meta :component) => Union
+      (-> (prim/get-query ui-root state-modified) (nth 2) :union :u1 meta :component) => UnionChildA
+      (-> (prim/get-query ui-root state-modified) (nth 2) :union :u2 meta :component) => UnionChildB)))
+
+(defsc T2C1 [_ _]
+  {:query [:id :name]
+   :ident [:x/by-id :id]})
+
+(defsc T2 [_ _]
+  {:query [:id {:x (prim/get-query T2C1)}]
+   :ident [:a/by-id :id]})
+
+(specification "Compount set-query" :focused
+  (let [state       {}
+        new-state   (as-> state s
+                      (prim/set-query* s T2C1 {:query [:id :address]})
+                      (prim/set-query* s T2 {:query [:id :prop {:x (prim/get-query T2C1 s)}]}))
+        saved-query (prim/get-query T2 new-state)]
+    (assertions
+      "Updates the query"
+      saved-query => [:id :prop {:x [:id :address]}]
+      "preserves metadata on the top-level"
+      (-> saved-query meta :component) => T2
+      "preserves metadata on the query joins"
+      (-> saved-query (nth 2) :x meta :component) => T2C1)))
 
 (specification "Indexing"
   (component "Gathering keys for a query"

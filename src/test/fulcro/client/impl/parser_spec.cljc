@@ -143,7 +143,7 @@
       "Replaces nested path"
       (-> result (get :input) meta ::parser/data-path) => [:ROOT :input])))
 
-(specification "parser on ident-based queries with replacement root path" :focused
+(specification "parser on ident-based queries with replacement root path"
   (let [node-ident   [:table :id]
         query        [{node-ident [{:input [:my-value]} :ui/local-value]}]
         state-map    {:input/by-id {1 {:my-value "b"}}

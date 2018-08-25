@@ -1,8 +1,7 @@
 (ns book.main
   (:require
     [book.macros :refer [defexample deftool]]
-    #?@(:cljs [
-               [book.ui.d3-example :as d3-example]
+    #?@(:cljs [[book.ui.d3-example :as d3-example]
                [book.ui.focus-example :as focus-example]
                [book.ui.hover-example :as hover-example]
                [book.ui.victory-example :as victory-example]
@@ -22,7 +21,7 @@
                book.queries.recursive-demo-1
                book.queries.recursive-demo-2
                book.queries.recursive-demo-3
-               book.queries.recursive-demo-4
+               book.queries.recursive-demo-bullets
                book.forms.form-state-demo-1
                book.forms.form-state-demo-2
                book.forms.forms-demo-1
@@ -90,7 +89,7 @@
     [fulcro.client.network :as fcn]
     [fulcro.client.primitives :as prim :refer [defsc]]
     #?(:cljs [fulcro.client.dom :as dom]
-       :clj [fulcro.client.dom-server :as dom])
+       :clj  [fulcro.client.dom-server :as dom])
     [fulcro.logging :as log]
     [book.example-1 :as ex1]
     [fulcro.client.data-fetch :as df]
@@ -214,7 +213,7 @@
 #?(:cljs (defexample "Recursive Demo 1" book.queries.recursive-demo-1/Root "recursive-demo-1"))
 #?(:cljs (defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2"))
 #?(:cljs (defexample "Recursive Demo 3" book.queries.recursive-demo-3/Root "recursive-demo-3"))
-#?(:cljs (defexample "Recursive Demo 4" book.queries.recursive-demo-4/Root "recursive-demo-4"))
+#?(:cljs (defexample "Recursive Demo 4" book.queries.recursive-demo-bullets/Root "recursive-demo-bullets"))
 
 ;; Dynamic queries
 #?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries"))

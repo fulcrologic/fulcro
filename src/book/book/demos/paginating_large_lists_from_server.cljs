@@ -110,7 +110,7 @@
 
 (def ui-list (prim/factory LargeList))
 
-(defsc Root [this {:keys [pagination/list] :or {ui/react-key "ROOT"}}]
+(defsc Root [this {:keys [pagination/list]}]
   {:initial-state (fn [params] {:pagination/list (prim/get-initial-state LargeList {})})
    :query         [{:pagination/list (prim/get-query LargeList)}]}
   (dom/div (ui-list list)))

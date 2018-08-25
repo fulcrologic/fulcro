@@ -36,10 +36,13 @@
    :componentDidMount     (fn []
                             #?(:cljs (let [{:keys [app root]} (meta (prim/props this))]
                                        (if (and app root)
-                                         (if-let [target-div (obj/get this "appdiv")]
-                                           (let [app (fc/mount app root target-div)]
-                                             (watch-state this app))
-                                           (log/fatal "App holder: Target div not found."))
+                                         ;; necessary so we don't close over the outer app's reconciler when rendering
+                                         (js/setTimeout #(if-let [target-div (obj/get this "appdiv")]
+                                                           (let [app (fc/mount app root target-div)]
+                                                             (prim/set-state! this {:app app})
+                                                             (watch-state this app))
+                                                           (log/fatal "App holder: Target div not found."))
+                                           10)
                                          (log/fatal "App holder: Not given an app or root" :app app :root root)))))}
   #?(:clj  (dom/div nil "")
      :cljs (dom/div {:className app-holder :ref (fn [r] (obj/set this "appdiv" r))} "")))
@@ -88,8 +91,8 @@
                       :title       title})))
 
 (defmacro defexample [title root-class id & args]
-  (let [app         (symbol (str "fulcroapp-" id))
-        example-app (symbol (str "example-container-" id))]
+  (let [app         (with-meta (symbol (str "fulcroapp-" id)) {:extern true})
+        example-app (with-meta (symbol (str "example-container-" id)) {:extern true})]
     `(do
        (defonce ~app (fulcro.client/new-fulcro-client :reconciler-options {:id ~(name app)} ~@args))
        (defonce ~example-app (book.macros/new-example {:title ~title :example-app ~app :root-class ~root-class}))

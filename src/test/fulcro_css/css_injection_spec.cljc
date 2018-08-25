@@ -48,7 +48,7 @@
   {:query [{:a (prim/get-query A)}]
    :css-include [C]})
 
-(specification "find-css-nodes" :focused
+(specification "find-css-nodes"
   (behavior "Scans the query for components with css"
     (assertions
       "Removes duplicates"
@@ -61,7 +61,7 @@
       "Includes items from css-include"
       (injection/find-css-nodes {:component JoinAndInclude}) => [D C A JoinAndInclude])))
 
-(specification "Computing CSS" :focused
+(specification "Computing CSS"
   (behavior "When auto-include? is false"
     (when-mocking
       (css/get-css c) => (do
@@ -99,7 +99,7 @@
                                 :auto-include? true}))))
 
 #?(:clj
-   (specification "Style element CSS render" :focused
+   (specification "Style element CSS render"
      (assertions
        "Renders via render-to-str for the server"
        (str/includes? (dom/render-to-str (injection/style-element {:component A})) "<style") => true
