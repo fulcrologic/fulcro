@@ -2247,6 +2247,7 @@
      :hydrate?     - Bolean. When true, it indicates the the first render should assume the server pre-rendered a DOM,
                      which will cause a call to hydrate instead of render (React 16+).
      :root-render  - the root render function. Defaults to ReactDOM.render
+     :root-hydrate - the root hydrate function. Defaults to ReactDOM.hydrate. Only used on initial render, and only if `:hydrate?` is true.
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
      :render-mode  - :normal - fastest, and the default. Components with idents can refresh in isolation.
