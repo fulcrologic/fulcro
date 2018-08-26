@@ -6,6 +6,11 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.1
+-----
+- Added `:hydrate?` to reconciler options. Used to inform the client that the content was pre-renderered on the
+server and should be hydrated instead of rendererd. (React 16+ feature).
+
 2.6.0
 -----
 - BREAKING CHANGE: `set-state!` is now tied directly to React's setState, and in 16+ that

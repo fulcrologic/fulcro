@@ -2061,9 +2061,10 @@
   (get-history [_] history)
 
   (add-root! [this root-class target options]
-    (let [ret   (atom nil)
-          rctor (factory root-class)
-          guid  (or (p/get-id this) (util/unique-key))]
+    (let [ret      (atom nil)
+          rctor    (factory root-class)
+          guid     (or (p/get-id this) (util/unique-key))
+          hydrate? (:hydrate? config)]
       (when-not (p/get-id this)
         (swap! state assoc :id guid))
       (when (has-query? root-class)
@@ -2081,28 +2082,32 @@
                                                (when (:shared-fn config)
                                                  ((:shared-fn config) data)))
                                 *instrument* (:instrument config)]
-                        (let [c (cond
-                                  #?@(:cljs [(not (nil? target)) ((:root-render config) (rctor data) target)])
-                                  (nil? @ret) (rctor data)
-                                  :else (when-let [c' @ret]
-                                          #?(:clj  (do
-                                                     (reset! ret nil)
-                                                     (rctor data))
-                                             :cljs (when (mounted? c')
-                                                     (force-update c' data)))))]
+                        (let [hydrate?        (-> data meta :hydrate?)
+                              render-function (if hydrate? (:root-hydrate config) (:root-render config))
+                              c               (cond
+                                                #?@(:cljs [(not (nil? target)) (render-function (rctor data) target)])
+                                                (nil? @ret) (rctor data)
+                                                :else (when-let [c' @ret]
+                                                        #?(:clj  (do
+                                                                   (reset! ret nil)
+                                                                   (rctor data))
+                                                           :cljs (when (mounted? c')
+                                                                   (force-update c' data)))))]
                           (when (and (nil? @ret) (not (nil? c)))
                             (swap! state assoc :root c)
                             (reset! ret c)))))
-            parsef  (fn parse-fn []
-                      (let [root-query (get-query rctor (-> config :state deref))]
-                        (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
-                        (if-not (nil? root-query)
-                          (let [env        (to-env config)
-                                root-props ((:parser config) env root-query)]
-                            (when (empty? root-props)
-                              (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
-                            (renderf root-props))
-                          (renderf @(:state config)))))]
+            parsef  (fn parse-fn
+                      ([] (parse-fn false))
+                      ([hydrate?]
+                       (let [root-query (get-query rctor (-> config :state deref))]
+                         (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
+                         (if-not (nil? root-query)
+                           (let [env        (to-env config)
+                                 root-props ((:parser config) env root-query)]
+                             (when (empty? root-props)
+                               (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
+                             (renderf (vary-meta root-props assoc :hydrate? hydrate?)))
+                           (renderf (vary-meta @(:state config) assoc :hydrate? hydrate?))))))]
         (swap! state merge
           {:target target :render parsef :root root-class :render-props renderf
            :remove (fn remove-fn []
@@ -2121,7 +2126,7 @@
                  (do
                    (p/tick! this)
                    (schedule-render! this))))))
-        (parsef)
+        (parsef hydrate?)
         @ret)))
 
   (remove-root! [_ target]
@@ -2239,6 +2244,8 @@
                      normalization.
      :remotes      - a vector of keywords representing remote services which can
                      evaluate query expressions. Defaults to [:remote]
+     :hydrate?     - Bolean. When true, it indicates the the first render should assume the server pre-rendered a DOM,
+                     which will cause a call to hydrate instead of render (React 16+).
      :root-render  - the root render function. Defaults to ReactDOM.render
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
@@ -2256,21 +2263,25 @@
                      the old and new state. The second argument is a history-step (see history). It also contains
                      a couple of legacy fields for bw compatibility with 1.0."
   [{:keys [id state shared shared-fn
+           hydrate?
            parser normalize
            send merge-sends remotes
            merge-tree merge-ident
            lifecycle
-           root-render root-unmount
+           root-render root-unmount root-hydrate
            migrate render-mode
            instrument tx-listen
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
+           hydrate?     false
            remotes      [:remote]
            render-mode  :normal
            history      200
            lifecycle    nil
            root-render  #?(:clj  (fn clj-root-render [c target] c)
                            :cljs #(js/ReactDOM.render %1 %2))
+           root-hydrate #?(:clj (fn clj-root-hydrate [c target] c)
+                           :cljs #(js/ReactDOM.hydrate %1 %2))
            root-unmount #?(:clj  (fn clj-unmount [x])
                            :cljs #(js/ReactDOM.unmountComponentAtNode %))}
     :as   config}]
@@ -2281,11 +2292,12 @@
         state'        (if norm? state (atom state))
         ret           (Reconciler.
                         {:state       state' :shared shared :shared-fn shared-fn
+                         :hydrate?    hydrate?
                          :parser      parser :indexer idxr
                          :send        send :merge-sends merge-sends :remotes remotes
                          :merge-tree  merge-tree :merge-ident merge-ident
                          :normalize   (or (not norm?) normalize)
-                         :root-render root-render :root-unmount root-unmount
+                         :root-render root-render :root-unmount root-unmount :root-hydrate root-hydrate
                          :render-mode render-mode
                          :pathopt     true
                          :migrate     migrate
