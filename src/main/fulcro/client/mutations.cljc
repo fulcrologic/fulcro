@@ -7,7 +7,15 @@
     [fulcro.client.primitives :as prim]
     #?(:cljs [cljs.loader :as loader])
     [fulcro.client.impl.protocols :as p]
-    [fulcro.client.impl.parser :as parser]))
+    [fulcro.client.impl.parser :as parser])
+  #?(:clj (:import [clojure.lang IFn])))
+
+(defrecord MutationHandle [mutation-id]
+  IFn
+  (#?(:clj invoke :cljs -invoke) [_]
+    (list mutation-id {}))
+  (#?(:clj invoke :cljs -invoke) [_ args]
+    (list mutation-id args)))
 
 
 #?(:clj (s/def ::action (s/cat
@@ -92,7 +100,8 @@
               ~multimethod
               (fn [~(first action-args) ~(first arglist)]
                 ~@action-body)))
-         multimethod))))
+         `(do ~multimethod
+              (def ~sym (MutationHandle. (quote ~fqsym))))))))
 
 ;; Add methods to this to implement your local mutations
 (defmulti mutate prim/dispatch)
