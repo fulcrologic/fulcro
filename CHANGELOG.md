@@ -22,7 +22,7 @@ server and should be hydrated instead of rendererd. (React 16+ feature).
   to `fuclro-css.css-protocols` to allow people to opt-out of the `garden`
   library bloat if they don't use it.  *Users of `defsc` should not have a problem*.
 - Added `fulcro-css/css-injection` namespace with new (better) ways of injecting CSS.
-- You can now pass a component to `app-state` in addition to the reconciler.
+- You can now more easily access the current state via `primitives/component->state-map`. Not a common need, but comes up now and then.
 - Load markers now support other types for marker IDs
 - `set-route` mutation now auto-refreshes routers
 - Added some additional error message cases to websocket support.
