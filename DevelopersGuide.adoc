@@ -2658,6 +2658,23 @@ Both are optional. If you use neither, then your code will not incur a dependenc
 
 See <<ColocatedCSS, Colocated CSS>> for more details.
 
+=== Component Constructor
+
+It is sometimes useful to be able to run some code once on component construction. In React this is particularly useful
+when you want a function for saving off `:ref` or as other callbacks (so the function isn't changing all the time).
+
+There is no *formal* constructor for `defsc`, but you can get *exactly* the effect of a constructor by placing the
+code for it in `:initLocalState`, which is guaranteed to run once and only once per instance construction:
+
+```
+(defsc Component [this props]
+  {:initLocalState (fn [] ;; this is accessible
+                     (set! (.-saveref this) (fn [r] (set! (.-ref this) r)))
+                     ;; just also remember to return something to act as your React component initial local state!
+                     {})}
+  (dom/input {:ref (.-saveref this)}))
+```
+
 === React Lifecycle Methods
 
 The options of defsc allow for React Lifecycle methods to be defined (as lambdas). The `this` parameter of `defsc` is
