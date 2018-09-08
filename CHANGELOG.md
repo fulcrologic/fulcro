@@ -10,6 +10,7 @@ small and tractable.
 -----
 - Added `:hydrate?` to reconciler options. Used to inform the client that the content was pre-renderered on the
 server and should be hydrated instead of rendererd. (React 16+ feature).
+- Improved error messages from `defsc`, `defmutation`, and `defrouter`.
 
 2.6.0
 -----

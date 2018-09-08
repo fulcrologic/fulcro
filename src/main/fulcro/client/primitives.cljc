@@ -2831,7 +2831,7 @@
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
            (when (and (not has-wildcard?) (seq illegal-syms))
-             (throw (ana/error env (str "defsc " class ": " illegal-syms " is/are destructured in the props, but do(es) not appear in the :query!"))))
+             (throw (ana/error env (str "defsc " class ": " illegal-syms " was destructured in props, but does not appear in the :query!"))))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
        `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn env 'query [thissym] 0 method)))))
@@ -2966,7 +2966,8 @@
            kv-pairs      (map (fn [k]
                                 [k (if (is-child? k)
                                      (child-state k)
-                                     (param-expr (get initial-state k)))]) init-keys)]
+                                     (param-expr (get initial-state k)))]) init-keys)
+           state-map     (into {} kv-pairs)]
        (when (seq illegal-keys)
          (throw (ana/error env (str "Initial state includes keys " illegal-keys ", but they are not in your query."))))
        (if is-a-form?

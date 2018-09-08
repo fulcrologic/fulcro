@@ -1091,56 +1091,55 @@
      (component "build-query-forms"
        (assertions
          "Support a method form"
-         (#'prim/build-query-forms 'X 'this 'props {:method '(fn [] [:db/id])})
+         (#'prim/build-query-forms nil 'X 'this 'props {:method '(fn [] [:db/id])})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id]))
          "Uses symbol from external-looking scope in output"
-         (#'prim/build-query-forms 'X 'that 'props {:method '(query [] [:db/id])})
+         (#'prim/build-query-forms nil 'X 'that 'props {:method '(query [] [:db/id])})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'that] [:db/id]))
          "Honors the symbol for this that is defined by defsc"
-         (#'prim/build-query-forms 'X 'that 'props {:template '[:db/id]})
+         (#'prim/build-query-forms nil 'X 'that 'props {:template '[:db/id]})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'that] [:db/id]))
          "Composes properties and joins into a proper query expression as a list of defui forms"
-         (#'prim/build-query-forms 'X 'this 'props {:template '[:db/id :person/name {:person/job (prim/get-query Job)} {:person/settings (prim/get-query Settings)}]})
+         (#'prim/build-query-forms nil 'X 'this 'props {:template '[:db/id :person/name {:person/job (prim/get-query Job)} {:person/settings (prim/get-query Settings)}]})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'prim/get-query ~'Job)} {:person/settings (~'prim/get-query ~'Settings)}]))
          "Verifies the propargs matches queries data when not a symbol"
-         (#'prim/build-query-forms 'X 'this '{:keys [db/id person/nme person/job]} {:template '[:db/id :person/name {:person/job (prim/get-query Job)}]})
-         =throws=> (ExceptionInfo #"defsc X: \[person/nme\] destructured" (fn [e]
-                                                                            (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
+         (#'prim/build-query-forms nil 'X 'this '{:keys [db/id person/nme person/job]} {:template '[:db/id :person/name {:person/job (prim/get-query Job)}]})
+         =throws=> {:regex #"defsc X: .person/nme. was destructured"}))
      (component "build-initial-state"
        (assertions
          "Throws an error in template mode if any of the values are calls to get-initial-state"
-         (#'prim/build-initial-state 'S 'this {:template {:child '(get-initial-state P {})}} #{}
+         (#'prim/build-initial-state nil 'S 'this {:template {:child '(get-initial-state P {})}} #{:child}
            '{:template [{:child (prim/get-query S)}]} false)
-         =throws=> (ExceptionInfo #"defsc S: Illegal call \(get-initial-state P \{\}\).*See Developer.*")
+         =throws=> {:regex #"defsc S: Illegal parameters to :initial-state"}
          "Generates nothing when there is entry"
-         (#'prim/build-initial-state 'S 'this nil #{} {:template []} false) => nil
+         (#'prim/build-initial-state  nil 'S 'this nil #{} {:template []} false) => nil
          "Can build initial state from a method"
-         (#'prim/build-initial-state 'S 'that {:method '(fn [p] {:x 1})} #{} {:template []} false) =>
+         (#'prim/build-initial-state nil 'S 'that {:method '(fn [p] {:x 1})} #{} {:template []} false) =>
          '(static fulcro.client.primitives/InitialAppState
             (initial-state [that p] {:x 1}))
          "Can build initial state from a template"
-         (#'prim/build-initial-state 'S 'this {:template {}} #{} {:template []} false) =>
+         (#'prim/build-initial-state nil 'S 'this {:template {}} #{} {:template []} false) =>
          '(static fulcro.client.primitives/InitialAppState
             (initial-state [c params]
               (fulcro.client.primitives/make-state-map {} {} params)))
          "If the query is a method, so must the initial state"
-         (#'prim/build-initial-state 'S 'this {:template {:x 1}} #{} {:method '(fn [t] [])} false)
+         (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:method '(fn [t] [])} false)
          =throws=> (ExceptionInfo #"When query is a method, initial state MUST")
          "Allows any state in initial-state method form, independent of the query form"
-         (#'prim/build-initial-state 'S 'this {:method '(fn [p] {:x 1 :y 2})} #{} {:tempate []} false)
+         (#'prim/build-initial-state nil 'S 'this {:method '(fn [p] {:x 1 :y 2})} #{} {:tempate []} false)
          => '(static fulcro.client.primitives/InitialAppState (initial-state [this p] {:x 1 :y 2}))
-         (#'prim/build-initial-state 'S 'this {:method '(initial-state [p] {:x 1 :y 2})} #{} {:method '(query [t] [])} false)
+         (#'prim/build-initial-state nil 'S 'this {:method '(initial-state [p] {:x 1 :y 2})} #{} {:method '(query [t] [])} false)
          => '(static fulcro.client.primitives/InitialAppState (initial-state [this p] {:x 1 :y 2}))
          "In template mode: Disallows initial state to contain items that are not in the query"
-         (#'prim/build-initial-state 'S 'this {:template {:x 1}} #{} {:template [:x]} false)
-         =throws=> (ExceptionInfo #"Initial state includes keys that are not" (fn [e] (-> (ex-data e) :offending-keys (= #{:x}))))
+         (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:template [:x]} false)
+         =throws=> {:regex #"Initial state includes keys"}
          "Generates proper state parameters to make-state-map when data is available"
-         (#'prim/build-initial-state 'S 'this {:template {:x 1}} #{:x} {:template [:x]} false)
+         (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{:x} {:template [:x]} false)
          => '(static fulcro.client.primitives/InitialAppState
                (initial-state [c params]
                  (fulcro.client.primitives/make-state-map {:x 1} {} params)))
          "Adds build-form around the initial state if it is a template and there are form fields"
-         (#'prim/build-initial-state 'S 'this {:template {}} #{} {:template []} true)
+         (#'prim/build-initial-state nil 'S 'this {:template {}} #{} {:template []} true)
          => '(static fulcro.client.primitives/InitialAppState
                (initial-state [c params]
                  (fulcro.ui.forms/build-form S (fulcro.client.primitives/make-state-map {} {} params))))))
@@ -1150,7 +1149,8 @@
          (#'prim/build-ident nil 't 'p nil #{}) => nil
          (#'prim/build-ident nil 't 'p nil #{:boo}) => nil
          "Requires the ID to be in the declared props"
-         (#'prim/build-ident nil 't 'p {:template [:TABLE/by-id :id]} #{}) =throws=> (ExceptionInfo #"ID property of :ident")
+         (#'prim/build-ident nil 't 'p {:template [:TABLE/by-id :id]} #{})
+         =throws=> {:regex #"The ID property :id of :ident"}
          "Can use a ident method to build the defui forms"
          (#'prim/build-ident nil 't 'p {:method '(fn [] [:x :id])} #{})
          => '(static fulcro.client.primitives/Ident (ident [t p] [:x :id]))
@@ -1228,31 +1228,31 @@
      (component "make-lifecycle"
        (assertions
          "Can convert :initLocalState"
-         (#'prim/make-lifecycle 'this {:initLocalState '(fn [] {:x 1})})
+         (#'prim/make-lifecycle nil 'this {:initLocalState '(fn [] {:x 1})})
          => ['(initLocalState [this] {:x 1})]
          "Can convert :shouldComponentUpdate"
-         (#'prim/make-lifecycle 'this {:shouldComponentUpdate '(fn [next-props next-state] false)})
+         (#'prim/make-lifecycle nil 'this {:shouldComponentUpdate '(fn [next-props next-state] false)})
          => ['(shouldComponentUpdate [this next-props next-state] false)]
          "Can convert :componentWillReceiveProps"
-         (#'prim/make-lifecycle 'this {:componentWillReceiveProps '(fn [next-props] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillReceiveProps '(fn [next-props] false)})
          => ['(componentWillReceiveProps [this next-props] false)]
          "Can convert :componentWillUpdate"
-         (#'prim/make-lifecycle 'this {:componentWillUpdate '(fn [next-props next-state] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillUpdate '(fn [next-props next-state] false)})
          => ['(componentWillUpdate [this next-props next-state] false)]
          "Can convert :componentDidUpdate"
-         (#'prim/make-lifecycle 'this {:componentDidUpdate '(fn [pprops pstate] false)})
+         (#'prim/make-lifecycle nil 'this {:componentDidUpdate '(fn [pprops pstate] false)})
          => ['(componentDidUpdate [this pprops pstate] false)]
          "Can convert :componentWillMount"
-         (#'prim/make-lifecycle 'this {:componentWillMount '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillMount '(fn [] false)})
          => ['(componentWillMount [this] false)]
          "Can convert :componentWillUnmount"
-         (#'prim/make-lifecycle 'this {:componentWillUnmount '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillUnmount '(fn [] false)})
          => ['(componentWillUnmount [this] false)]
          "Can convert :componentDidMount"
-         (#'prim/make-lifecycle 'this {:componentDidMount '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:componentDidMount '(fn [] false)})
          => ['(componentDidMount [this] false)]
          "Ignores non-lifecycle methods"
-         (#'prim/make-lifecycle 'this {:goobers '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:goobers '(fn [] false)})
          => []))
      (component "make-state-map"
        (assertions
@@ -1356,7 +1356,7 @@
        (assertions
          "warns if the css destructuring is included, but no css option has been"
          (prim/defsc* nil '(Person [this {:keys [some-prop]} computed css] (dom/div nil "Boo")))
-         =throws=> (ExceptionInfo #"You included a CSS argument, but there is no CSS localized to the component.")
+         =throws=> (ExceptionInfo #"You included a CSS argument")
          "allows one to define a simple component without options"
          (prim/defsc* nil '(Person [this {:keys [some-prop]}] (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
