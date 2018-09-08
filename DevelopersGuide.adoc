@@ -946,13 +946,13 @@ that we're deleting:
 <1> The argument list for the mutation itself
 <2> The thing to do, which receives the app-state atom as an argument.
 
-Then all that remains is to change `basic-ui` in the following ways:
+Then all that remains is to change `ui.root` in the following ways:
 
 1. Add a require and alias for app.operations to the ns
 2. Change the callback to run the transaction
 
 ```
-(ns app.basic-ui
+(ns app.ui.root
   (:require [fulcro.client :as fc]
             [fulcro.client.dom :as dom]
             ; ADD THIS:
@@ -1213,8 +1213,8 @@ names which component that query fragment came from.
 For example, try this at the REPL:
 
 ----
-dev:cljs.user=> (meta (fulcro.client.primitives/get-query app.basic-ui/PersonList))
-{:component app.basic-ui/PersonList}
+dev:cljs.user=> (meta (fulcro.client.primitives/get-query app.ui.root/PersonList))
+{:component app.ui.root/PersonList}
 ----
 
 The `get-query` function adds the component itself to the metadata for that query fragment. We already know that
@@ -2657,6 +2657,23 @@ The keys in the `defsc` options map to leverage co-located CSS are:
 Both are optional. If you use neither, then your code will not incur a dependency on the fulcro-css library.
 
 See <<ColocatedCSS, Colocated CSS>> for more details.
+
+=== Component Constructor
+
+It is sometimes useful to be able to run some code once on component construction. In React this is particularly useful
+when you want a function for saving off `:ref` or as other callbacks (so the function isn't changing all the time).
+
+There is no *formal* constructor for `defsc`, but you can get *exactly* the effect of a constructor by placing the
+code for it in `:initLocalState`, which is guaranteed to run once and only once per instance construction:
+
+```
+(defsc Component [this props]
+  {:initLocalState (fn [] ;; this is accessible
+                     (set! (.-saveref this) (fn [r] (set! (.-ref this) r)))
+                     ;; just also remember to return something to act as your React component initial local state!
+                     {})}
+  (dom/input {:ref (.-saveref this)}))
+```
 
 === React Lifecycle Methods
 

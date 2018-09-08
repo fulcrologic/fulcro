@@ -6,6 +6,12 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.1
+-----
+- Added `:hydrate?` to reconciler options. Used to inform the client that the content was pre-renderered on the
+server and should be hydrated instead of rendererd. (React 16+ feature).
+- Improved error messages from `defsc`, `defmutation`, and `defrouter`.
+
 2.6.0
 -----
 - BREAKING CHANGE: `set-state!` is now tied directly to React's setState, and in 16+ that
@@ -17,7 +23,7 @@ small and tractable.
   to `fuclro-css.css-protocols` to allow people to opt-out of the `garden`
   library bloat if they don't use it.  *Users of `defsc` should not have a problem*.
 - Added `fulcro-css/css-injection` namespace with new (better) ways of injecting CSS.
-- You can now pass a component to `app-state` in addition to the reconciler.
+- You can now more easily access the current state via `primitives/component->state-map`. Not a common need, but comes up now and then.
 - Load markers now support other types for marker IDs
 - `set-route` mutation now auto-refreshes routers
 - Added some additional error message cases to websocket support.

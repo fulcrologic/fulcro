@@ -1091,116 +1091,116 @@
      (component "build-query-forms"
        (assertions
          "Support a method form"
-         (#'prim/build-query-forms 'X 'this 'props {:method '(fn [] [:db/id])})
+         (#'prim/build-query-forms nil 'X 'this 'props {:method '(fn [] [:db/id])})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id]))
          "Uses symbol from external-looking scope in output"
-         (#'prim/build-query-forms 'X 'that 'props {:method '(query [] [:db/id])})
+         (#'prim/build-query-forms nil 'X 'that 'props {:method '(query [] [:db/id])})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'that] [:db/id]))
          "Honors the symbol for this that is defined by defsc"
-         (#'prim/build-query-forms 'X 'that 'props {:template '[:db/id]})
+         (#'prim/build-query-forms nil 'X 'that 'props {:template '[:db/id]})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'that] [:db/id]))
          "Composes properties and joins into a proper query expression as a list of defui forms"
-         (#'prim/build-query-forms 'X 'this 'props {:template '[:db/id :person/name {:person/job (prim/get-query Job)} {:person/settings (prim/get-query Settings)}]})
+         (#'prim/build-query-forms nil 'X 'this 'props {:template '[:db/id :person/name {:person/job (prim/get-query Job)} {:person/settings (prim/get-query Settings)}]})
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'prim/get-query ~'Job)} {:person/settings (~'prim/get-query ~'Settings)}]))
          "Verifies the propargs matches queries data when not a symbol"
-         (#'prim/build-query-forms 'X 'this '{:keys [db/id person/nme person/job]} {:template '[:db/id :person/name {:person/job (prim/get-query Job)}]})
-         =throws=> (ExceptionInfo #"defsc X: \[person/nme\] destructured" (fn [e]
-                                                                            (-> (ex-data e) :offending-symbols (= ['person/nme]))))))
+         (#'prim/build-query-forms nil 'X 'this '{:keys [db/id person/nme person/job]} {:template '[:db/id :person/name {:person/job (prim/get-query Job)}]})
+         =throws=> {:regex #"defsc X: .person/nme. was destructured"}))
      (component "build-initial-state"
        (assertions
          "Throws an error in template mode if any of the values are calls to get-initial-state"
-         (#'prim/build-initial-state 'S 'this {:template {:child '(get-initial-state P {})}} #{}
+         (#'prim/build-initial-state nil 'S 'this {:template {:child '(get-initial-state P {})}} #{:child}
            '{:template [{:child (prim/get-query S)}]} false)
-         =throws=> (ExceptionInfo #"defsc S: Illegal call \(get-initial-state P \{\}\).*See Developer.*")
+         =throws=> {:regex #"defsc S: Illegal parameters to :initial-state"}
          "Generates nothing when there is entry"
-         (#'prim/build-initial-state 'S 'this nil #{} {:template []} false) => nil
+         (#'prim/build-initial-state  nil 'S 'this nil #{} {:template []} false) => nil
          "Can build initial state from a method"
-         (#'prim/build-initial-state 'S 'that {:method '(fn [p] {:x 1})} #{} {:template []} false) =>
+         (#'prim/build-initial-state nil 'S 'that {:method '(fn [p] {:x 1})} #{} {:template []} false) =>
          '(static fulcro.client.primitives/InitialAppState
             (initial-state [that p] {:x 1}))
          "Can build initial state from a template"
-         (#'prim/build-initial-state 'S 'this {:template {}} #{} {:template []} false) =>
+         (#'prim/build-initial-state nil 'S 'this {:template {}} #{} {:template []} false) =>
          '(static fulcro.client.primitives/InitialAppState
             (initial-state [c params]
               (fulcro.client.primitives/make-state-map {} {} params)))
          "If the query is a method, so must the initial state"
-         (#'prim/build-initial-state 'S 'this {:template {:x 1}} #{} {:method '(fn [t] [])} false)
+         (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:method '(fn [t] [])} false)
          =throws=> (ExceptionInfo #"When query is a method, initial state MUST")
          "Allows any state in initial-state method form, independent of the query form"
-         (#'prim/build-initial-state 'S 'this {:method '(fn [p] {:x 1 :y 2})} #{} {:tempate []} false)
+         (#'prim/build-initial-state nil 'S 'this {:method '(fn [p] {:x 1 :y 2})} #{} {:tempate []} false)
          => '(static fulcro.client.primitives/InitialAppState (initial-state [this p] {:x 1 :y 2}))
-         (#'prim/build-initial-state 'S 'this {:method '(initial-state [p] {:x 1 :y 2})} #{} {:method '(query [t] [])} false)
+         (#'prim/build-initial-state nil 'S 'this {:method '(initial-state [p] {:x 1 :y 2})} #{} {:method '(query [t] [])} false)
          => '(static fulcro.client.primitives/InitialAppState (initial-state [this p] {:x 1 :y 2}))
          "In template mode: Disallows initial state to contain items that are not in the query"
-         (#'prim/build-initial-state 'S 'this {:template {:x 1}} #{} {:template [:x]} false)
-         =throws=> (ExceptionInfo #"Initial state includes keys that are not" (fn [e] (-> (ex-data e) :offending-keys (= #{:x}))))
+         (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:template [:x]} false)
+         =throws=> {:regex #"Initial state includes keys"}
          "Generates proper state parameters to make-state-map when data is available"
-         (#'prim/build-initial-state 'S 'this {:template {:x 1}} #{:x} {:template [:x]} false)
+         (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{:x} {:template [:x]} false)
          => '(static fulcro.client.primitives/InitialAppState
                (initial-state [c params]
                  (fulcro.client.primitives/make-state-map {:x 1} {} params)))
          "Adds build-form around the initial state if it is a template and there are form fields"
-         (#'prim/build-initial-state 'S 'this {:template {}} #{} {:template []} true)
+         (#'prim/build-initial-state nil 'S 'this {:template {}} #{} {:template []} true)
          => '(static fulcro.client.primitives/InitialAppState
                (initial-state [c params]
                  (fulcro.ui.forms/build-form S (fulcro.client.primitives/make-state-map {} {} params))))))
      (component "build-ident"
        (assertions
          "Generates nothing when there is no table"
-         (#'prim/build-ident 't 'p nil #{}) => nil
-         (#'prim/build-ident 't 'p nil #{:boo}) => nil
+         (#'prim/build-ident nil 't 'p nil #{}) => nil
+         (#'prim/build-ident nil 't 'p nil #{:boo}) => nil
          "Requires the ID to be in the declared props"
-         (#'prim/build-ident 't 'p {:template [:TABLE/by-id :id]} #{}) =throws=> (ExceptionInfo #"ID property of :ident")
+         (#'prim/build-ident nil 't 'p {:template [:TABLE/by-id :id]} #{})
+         =throws=> {:regex #"The ID property :id of :ident"}
          "Can use a ident method to build the defui forms"
-         (#'prim/build-ident 't 'p {:method '(fn [] [:x :id])} #{})
+         (#'prim/build-ident nil 't 'p {:method '(fn [] [:x :id])} #{})
          => '(static fulcro.client.primitives/Ident (ident [t p] [:x :id]))
          "Can include destructuring in props"
-         (#'prim/build-ident 't '{:keys [a b c]} {:method '(fn [] [:x :id])} #{})
+         (#'prim/build-ident nil 't '{:keys [a b c]} {:method '(fn [] [:x :id])} #{})
          => '(static fulcro.client.primitives/Ident (ident [t {:keys [a b c]}] [:x :id]))
          "Can use a vector template to generate defui forms"
-         (#'prim/build-ident 't 'p {:template [:TABLE/by-id :id]} #{:id})
+         (#'prim/build-ident nil 't 'p {:template [:TABLE/by-id :id]} #{:id})
          => `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [:TABLE/by-id (:id ~'props)]))))
      (component "rename-and-validate-fn"
        (assertions
          "Replaces the first symbol in a method/lambda form"
-         (#'prim/replace-and-validate-fn 'nm [] 0 '(fn [] ...)) => '(nm [] ...)
+         (#'prim/replace-and-validate-fn nil 'nm [] 0 '(fn [] ...)) => '(nm [] ...)
          "Allows correct number of args"
-         (#'prim/replace-and-validate-fn 'nm ['this] 1 '(fn [x] ...)) => '(nm [this x] ...)
+         (#'prim/replace-and-validate-fn nil 'nm ['this] 1 '(fn [x] ...)) => '(nm [this x] ...)
          "Allows too many args"
-         (#'prim/replace-and-validate-fn 'nm ['this] 1 '(fn [x y z] ...)) => '(nm [this x y z] ...)
+         (#'prim/replace-and-validate-fn nil 'nm ['this] 1 '(fn [x y z] ...)) => '(nm [this x y z] ...)
          "Prepends the additional arguments to the front of the argument list"
-         (#'prim/replace-and-validate-fn 'nm ['that 'other-thing] 3 '(fn [x y z] ...)) => '(nm [that other-thing x y z] ...)
+         (#'prim/replace-and-validate-fn nil 'nm ['that 'other-thing] 3 '(fn [x y z] ...)) => '(nm [that other-thing x y z] ...)
          "Throws an exception if there are too few arguments"
-         (#'prim/replace-and-validate-fn 'nm ['a] 2 '(fn [p] ...))
+         (#'prim/replace-and-validate-fn nil 'nm ['a] 2 '(fn [p] ...))
          =throws=> (ExceptionInfo #"Invalid arity for nm")))
      (component "build-css"
        (assertions
          "Can take templates and turn them into the proper protocol"
-         (#'prim/build-css 'this {:template []} {:template []})
+         (#'prim/build-css nil 'this {:template []} {:template []})
          => '(static fulcro-css.css-protocols/CSS
                (local-rules [_] [])
                (include-children [_] []))
          "Can take methods and turn them into the proper protocol"
-         (#'prim/build-css 'th {:method '(fn [] [:rule])} {:method '(fn [] [CrapTastic])})
+         (#'prim/build-css nil 'th {:method '(fn [] [:rule])} {:method '(fn [] [CrapTastic])})
          => '(static fulcro-css.css-protocols/CSS
                (local-rules [th] [:rule])
                (include-children [th] [CrapTastic]))
          "Omits the entire protocol if neiter are supplied"
-         (#'prim/build-css 'th nil nil) => nil))
+         (#'prim/build-css nil 'th nil nil) => nil))
      (component "build-form (on specs)"
        (assertions
          "generates IForm protocol for given field specs"
-         (#'prim/build-form '[(f/field :a)] #{})
+         (#'prim/build-form nil '[(f/field :a)] #{})
          => '[static fulcro.ui.forms/IForm
               (form-spec [this] [(f/field :a)])]))
      (component "build-form (on set)"
        (assertions
          "generates IFormField protocol for given field specs"
-         (#'prim/build-form #{:a :b} [:a :b :c 'f/form-config-join])
+         (#'prim/build-form nil #{:a :b} [:a :b :c 'f/form-config-join])
          => '[static fulcro.ui.form-state/IFormFields
               (form-fields [this] #{:a :b})]
          "Error-checks the field set against the keys in the query"
-         (#'prim/build-form #{:a :b} [:a 'f/form-config-join])
+         (#'prim/build-form nil #{:a :b} [:a 'f/form-config-join])
          =throws=> (ExceptionInfo #":form-fields include keywords that are not in the query")))
      (component "build-render"
        (assertions
@@ -1228,31 +1228,31 @@
      (component "make-lifecycle"
        (assertions
          "Can convert :initLocalState"
-         (#'prim/make-lifecycle 'this {:initLocalState '(fn [] {:x 1})})
+         (#'prim/make-lifecycle nil 'this {:initLocalState '(fn [] {:x 1})})
          => ['(initLocalState [this] {:x 1})]
          "Can convert :shouldComponentUpdate"
-         (#'prim/make-lifecycle 'this {:shouldComponentUpdate '(fn [next-props next-state] false)})
+         (#'prim/make-lifecycle nil 'this {:shouldComponentUpdate '(fn [next-props next-state] false)})
          => ['(shouldComponentUpdate [this next-props next-state] false)]
          "Can convert :componentWillReceiveProps"
-         (#'prim/make-lifecycle 'this {:componentWillReceiveProps '(fn [next-props] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillReceiveProps '(fn [next-props] false)})
          => ['(componentWillReceiveProps [this next-props] false)]
          "Can convert :componentWillUpdate"
-         (#'prim/make-lifecycle 'this {:componentWillUpdate '(fn [next-props next-state] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillUpdate '(fn [next-props next-state] false)})
          => ['(componentWillUpdate [this next-props next-state] false)]
          "Can convert :componentDidUpdate"
-         (#'prim/make-lifecycle 'this {:componentDidUpdate '(fn [pprops pstate] false)})
+         (#'prim/make-lifecycle nil 'this {:componentDidUpdate '(fn [pprops pstate] false)})
          => ['(componentDidUpdate [this pprops pstate] false)]
          "Can convert :componentWillMount"
-         (#'prim/make-lifecycle 'this {:componentWillMount '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillMount '(fn [] false)})
          => ['(componentWillMount [this] false)]
          "Can convert :componentWillUnmount"
-         (#'prim/make-lifecycle 'this {:componentWillUnmount '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:componentWillUnmount '(fn [] false)})
          => ['(componentWillUnmount [this] false)]
          "Can convert :componentDidMount"
-         (#'prim/make-lifecycle 'this {:componentDidMount '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:componentDidMount '(fn [] false)})
          => ['(componentDidMount [this] false)]
          "Ignores non-lifecycle methods"
-         (#'prim/make-lifecycle 'this {:goobers '(fn [] false)})
+         (#'prim/make-lifecycle nil 'this {:goobers '(fn [] false)})
          => []))
      (component "make-state-map"
        (assertions
@@ -1355,19 +1355,19 @@
      (component "css"
        (assertions
          "warns if the css destructuring is included, but no css option has been"
-         (prim/defsc* '(Person [this {:keys [some-prop]} computed css] (dom/div nil "Boo")))
-         =throws=> (ExceptionInfo #"You included a CSS argument, but there is no CSS localized to the component.")
+         (prim/defsc* nil '(Person [this {:keys [some-prop]} computed css] (dom/div nil "Boo")))
+         =throws=> (ExceptionInfo #"You included a CSS argument")
          "allows one to define a simple component without options"
-         (prim/defsc* '(Person [this {:keys [some-prop]}] (dom/div nil "Boo")))
+         (prim/defsc* nil '(Person [this {:keys [some-prop]}] (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                Object
                (render [this]
                  (clojure.core/let [{:keys [some-prop]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
          "allows optional use of include when using CSS"
-         (prim/defsc* '(Person [this {:keys [db/id]}]
-                         {:css [:rule]}
-                         (dom/div nil "Boo")))
+         (prim/defsc* nil '(Person [this {:keys [db/id]}]
+                             {:css [:rule]}
+                             (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css-protocols/CSS
@@ -1378,11 +1378,11 @@
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
          "allows dropping 2 unused arguments"
-         (prim/defsc* '(Job
-                         "A job component"
-                         [this props]
-                         {}
-                         (dom/span nil "TODO")))
+         (prim/defsc* nil '(Job
+                             "A job component"
+                             [this props]
+                             {}
+                             (dom/span nil "TODO")))
          => '(fulcro.client.primitives/defui Job
                Object
                (render [this]
@@ -1390,9 +1390,9 @@
                    [props (fulcro.client.primitives/props this)]
                    (dom/span nil "TODO"))))
          "allows dropping 1 unused argument"
-         (prim/defsc* '(Person [this {:keys [db/id]} computed]
-                         {}
-                         (dom/div nil "Boo")))
+         (prim/defsc* nil '(Person [this {:keys [db/id]} computed]
+                             {}
+                             (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                Object
                (render [this]
@@ -1400,10 +1400,10 @@
                                     computed (fulcro.client.primitives/get-computed this)]
                    (dom/div nil "Boo"))))
          "allows optional use of css"
-         (prim/defsc* '(Person [this {:keys [db/id]}]
-                         {:query       [:db/id]
-                          :css-include [A]}
-                         (dom/div nil "Boo")))
+         (prim/defsc* nil '(Person [this {:keys [db/id]}]
+                             {:query       [:db/id]
+                              :css-include [A]}
+                             (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css-protocols/CSS
@@ -1417,12 +1417,12 @@
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
          "allows method bodies"
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]}]
-                         {:query       [:db/id]
-                          :css         (fn [] [:rule])
-                          :css-include (fn [] [A])}
-                         (dom/div nil "Boo")))
+         (prim/defsc* nil '(Person
+                             [this {:keys [db/id]}]
+                             {:query       [:db/id]
+                              :css         (fn [] [:rule])
+                              :css-include (fn [] [A])}
+                             (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css-protocols/CSS
@@ -1435,12 +1435,12 @@
                (render [this]
                  (clojure.core/let [{:keys [db/id]} (fulcro.client.primitives/props this)]
                    (dom/div nil "Boo"))))
-         (prim/defsc* '(Person
-                         [this {:keys [db/id]}]
-                         {:query       [:db/id]
-                          :css         (some-random-name [] [:rule]) ; doesn't really care what sym you use
-                          :css-include (craptastic! [] [A])}
-                         (dom/div nil "Boo")))
+         (prim/defsc* nil '(Person
+                             [this {:keys [db/id]}]
+                             {:query       [:db/id]
+                              :css         (some-random-name [] [:rule]) ; doesn't really care what sym you use
+                              :css-include (craptastic! [] [A])}
+                             (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
                static
                fulcro-css.css-protocols/CSS
@@ -1455,21 +1455,21 @@
                    (dom/div nil "Boo"))))))
      (assertions
        "Disables sanity checks when the query contains '*"
-       (#'prim/defsc* '(Person
-                         [this {:keys [x y z] :as props}]
-                         {:query         [*]
-                          :initial-state {:a 1}
-                          :ident         [:PERSON/by-id :db/id]}
-                         (dom/div nil "Boo")))
+       (#'prim/defsc* nil '(Person
+                             [this {:keys [x y z] :as props}]
+                             {:query         [*]
+                              :initial-state {:a 1}
+                              :ident         [:PERSON/by-id :db/id]}
+                             (dom/div nil "Boo")))
        =fn=> (constantly true)                              ; just expect it not to throw
        "works with initial state"
-       (#'prim/defsc* '(Person
-                         [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                         {:query         [:db/id {:person/job (prim/get-query Job)}]
-                          :initial-state {:person/job {:x 1}
-                                          :db/id      42}
-                          :ident         [:PERSON/by-id :db/id]}
-                         (dom/div nil "Boo")))
+       (#'prim/defsc* nil '(Person
+                             [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                             {:query         [:db/id {:person/job (prim/get-query Job)}]
+                              :initial-state {:person/job {:x 1}
+                                              :db/id      42}
+                              :ident         [:PERSON/by-id :db/id]}
+                             (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/InitialAppState
              (~'initial-state [~'c ~'params]
@@ -1488,12 +1488,12 @@
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "allows an initial state method body"
-       (prim/defsc* '(Person
-                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                       {:query         [:db/id {:person/job (prim/get-query Job)}]
-                        :initial-state (initial-state [params] {:x 1})
-                        :ident         [:PERSON/by-id :db/id]}
-                       (dom/div nil "Boo")))
+       (prim/defsc* nil '(Person
+                           [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                           {:query         [:db/id {:person/job (prim/get-query Job)}]
+                            :initial-state (initial-state [params] {:x 1})
+                            :ident         [:PERSON/by-id :db/id]}
+                           (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/InitialAppState
              (~'initial-state [~'this ~'params] {:x 1})
@@ -1507,11 +1507,11 @@
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "works without initial state"
-       (prim/defsc* '(Person
-                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                       {:query [:db/id {:person/job (prim/get-query Job)}]
-                        :ident [:PERSON/by-id :db/id]}
-                       (dom/div nil "Boo")))
+       (prim/defsc* nil '(Person
+                           [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                           {:query [:db/id {:person/job (prim/get-query Job)}]
+                            :ident [:PERSON/by-id :db/id]}
+                           (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
@@ -1523,11 +1523,11 @@
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
        "allows Object protocol"
-       (prim/defsc* '(Person
-                       [this props computed]
-                       {:query     [:db/id]
-                        :protocols (Object (shouldComponentUpdate [this p s] false))}
-                       (dom/div nil "Boo")))
+       (prim/defsc* nil '(Person
+                           [this props computed]
+                           {:query     [:db/id]
+                            :protocols (Object (shouldComponentUpdate [this p s] false))}
+                           (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id])
@@ -1538,7 +1538,7 @@
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "Places lifecycle signatures under the Object protocol"
-       (prim/defsc* '(Person [this props] {:shouldComponentUpdate (fn [next-props next-state] false)} (dom/div nil "Boo")))
+       (prim/defsc* nil '(Person [this props] {:shouldComponentUpdate (fn [next-props next-state] false)} (dom/div nil "Boo")))
        => '(fulcro.client.primitives/defui Person
              Object
              (render [this]
@@ -1547,7 +1547,7 @@
                  (dom/div nil "Boo")))
              (shouldComponentUpdate [this next-props next-state] false))
        "Emits a placeholder body if you do not give a body"
-       (prim/defsc* '(Person [this props] {:shouldComponentUpdate (fn [props state] false)}))
+       (prim/defsc* nil '(Person [this props] {:shouldComponentUpdate (fn [props state] false)}))
        => '(fulcro.client.primitives/defui Person
              Object
              (render [this]
@@ -1556,8 +1556,8 @@
                  nil))
              (shouldComponentUpdate [this props state] false))
        "can add fulcro 1.0 form spec"
-       (prim/defsc* '(Person [this {:keys [a]}] {:form-fields [(f/text-input :a)]
-                                                 :query       [:a]} (dom/div nil "TODO")))
+       (prim/defsc* nil '(Person [this {:keys [a]}] {:form-fields [(f/text-input :a)]
+                                                     :query       [:a]} (dom/div nil "TODO")))
        => '(fulcro.client.primitives/defui Person
              static fulcro.client.primitives/IQuery
              (query [this] [:a])
@@ -1568,8 +1568,8 @@
                (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
                  (dom/div nil "TODO"))))
        "can add fulcro 2.0 form state fields"
-       (prim/defsc* '(Person [this {:keys [a]}] {:form-fields #{:a}
-                                                 :query       [:a f/form-config-join]} (dom/div nil "TODO")))
+       (prim/defsc* nil '(Person [this {:keys [a]}] {:form-fields #{:a}
+                                                     :query       [:a f/form-config-join]} (dom/div nil "TODO")))
        => '(fulcro.client.primitives/defui Person
              static fulcro.client.primitives/IQuery
              (query [this] [:a f/form-config-join])
@@ -1580,15 +1580,15 @@
                (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
                  (dom/div nil "TODO"))))
        "allows other protocols"
-       (prim/defsc* '(Person
-                       [this props computed]
-                       {:query     [:db/id]
-                        :protocols (static css/CSS
-                                     (local-rules [_] [])
-                                     (include-children [_] [])
-                                     Object
-                                     (shouldComponentUpdate [this p s] false))}
-                       (dom/div nil "Boo")))
+       (prim/defsc* nil '(Person
+                           [this props computed]
+                           {:query     [:db/id]
+                            :protocols (static css/CSS
+                                         (local-rules [_] [])
+                                         (include-children [_] [])
+                                         Object
+                                         (shouldComponentUpdate [this p s] false))}
+                           (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static ~'css/CSS
              (~'local-rules [~'_] [])
@@ -1602,10 +1602,10 @@
                  (~'dom/div nil "Boo")))
              (~'shouldComponentUpdate [~'this ~'p ~'s] false))
        "works without an ident"
-       (prim/defsc* '(Person
-                       [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
-                       {:query [:db/id {:person/job (prim/get-query Job)}]}
-                       (dom/div nil "Boo")))
+       (prim/defsc* nil '(Person
+                           [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                           {:query [:db/id {:person/job (prim/get-query Job)}]}
+                           (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/IQuery
              (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])

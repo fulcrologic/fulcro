@@ -10,6 +10,7 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
+    [cljs.analyzer :as ana]
     fulcro-css.css-protocols
     fulcro-css.css-implementation
     [clojure.core.async :as async]
@@ -2061,9 +2062,10 @@
   (get-history [_] history)
 
   (add-root! [this root-class target options]
-    (let [ret   (atom nil)
-          rctor (factory root-class)
-          guid  (or (p/get-id this) (util/unique-key))]
+    (let [ret      (atom nil)
+          rctor    (factory root-class)
+          guid     (or (p/get-id this) (util/unique-key))
+          hydrate? (:hydrate? config)]
       (when-not (p/get-id this)
         (swap! state assoc :id guid))
       (when (has-query? root-class)
@@ -2081,28 +2083,32 @@
                                                (when (:shared-fn config)
                                                  ((:shared-fn config) data)))
                                 *instrument* (:instrument config)]
-                        (let [c (cond
-                                  #?@(:cljs [(not (nil? target)) ((:root-render config) (rctor data) target)])
-                                  (nil? @ret) (rctor data)
-                                  :else (when-let [c' @ret]
-                                          #?(:clj  (do
-                                                     (reset! ret nil)
-                                                     (rctor data))
-                                             :cljs (when (mounted? c')
-                                                     (force-update c' data)))))]
+                        (let [hydrate?        (-> data meta :hydrate?)
+                              render-function (if hydrate? (:root-hydrate config) (:root-render config))
+                              c               (cond
+                                                #?@(:cljs [(not (nil? target)) (render-function (rctor data) target)])
+                                                (nil? @ret) (rctor data)
+                                                :else (when-let [c' @ret]
+                                                        #?(:clj  (do
+                                                                   (reset! ret nil)
+                                                                   (rctor data))
+                                                           :cljs (when (mounted? c')
+                                                                   (force-update c' data)))))]
                           (when (and (nil? @ret) (not (nil? c)))
                             (swap! state assoc :root c)
                             (reset! ret c)))))
-            parsef  (fn parse-fn []
-                      (let [root-query (get-query rctor (-> config :state deref))]
-                        (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
-                        (if-not (nil? root-query)
-                          (let [env        (to-env config)
-                                root-props ((:parser config) env root-query)]
-                            (when (empty? root-props)
-                              (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
-                            (renderf root-props))
-                          (renderf @(:state config)))))]
+            parsef  (fn parse-fn
+                      ([] (parse-fn false))
+                      ([hydrate?]
+                       (let [root-query (get-query rctor (-> config :state deref))]
+                         (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
+                         (if-not (nil? root-query)
+                           (let [env        (to-env config)
+                                 root-props ((:parser config) env root-query)]
+                             (when (empty? root-props)
+                               (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
+                             (renderf (vary-meta root-props assoc :hydrate? hydrate?)))
+                           (renderf (vary-meta @(:state config) assoc :hydrate? hydrate?))))))]
         (swap! state merge
           {:target target :render parsef :root root-class :render-props renderf
            :remove (fn remove-fn []
@@ -2121,7 +2127,7 @@
                  (do
                    (p/tick! this)
                    (schedule-render! this))))))
-        (parsef)
+        (parsef hydrate?)
         @ret)))
 
   (remove-root! [_ target]
@@ -2239,7 +2245,10 @@
                      normalization.
      :remotes      - a vector of keywords representing remote services which can
                      evaluate query expressions. Defaults to [:remote]
+     :hydrate?     - Bolean. When true, it indicates the the first render should assume the server pre-rendered a DOM,
+                     which will cause a call to hydrate instead of render (React 16+).
      :root-render  - the root render function. Defaults to ReactDOM.render
+     :root-hydrate - the root hydrate function. Defaults to ReactDOM.hydrate. Only used on initial render, and only if `:hydrate?` is true.
      :root-unmount - the root unmount function. Defaults to
                      ReactDOM.unmountComponentAtNode
      :render-mode  - :normal - fastest, and the default. Components with idents can refresh in isolation.
@@ -2256,21 +2265,25 @@
                      the old and new state. The second argument is a history-step (see history). It also contains
                      a couple of legacy fields for bw compatibility with 1.0."
   [{:keys [id state shared shared-fn
+           hydrate?
            parser normalize
            send merge-sends remotes
            merge-tree merge-ident
            lifecycle
-           root-render root-unmount
+           root-render root-unmount root-hydrate
            migrate render-mode
            instrument tx-listen
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
+           hydrate?     false
            remotes      [:remote]
            render-mode  :normal
            history      200
            lifecycle    nil
            root-render  #?(:clj  (fn clj-root-render [c target] c)
                            :cljs #(js/ReactDOM.render %1 %2))
+           root-hydrate #?(:clj  (fn clj-root-hydrate [c target] c)
+                           :cljs #(js/ReactDOM.hydrate %1 %2))
            root-unmount #?(:clj  (fn clj-unmount [x])
                            :cljs #(js/ReactDOM.unmountComponentAtNode %))}
     :as   config}]
@@ -2281,11 +2294,12 @@
         state'        (if norm? state (atom state))
         ret           (Reconciler.
                         {:state       state' :shared shared :shared-fn shared-fn
+                         :hydrate?    hydrate?
                          :parser      parser :indexer idxr
                          :send        send :merge-sends merge-sends :remotes remotes
                          :merge-tree  merge-tree :merge-ident merge-ident
                          :normalize   (or (not norm?) normalize)
-                         :root-render root-render :root-unmount root-unmount
+                         :root-render root-render :root-unmount root-unmount :root-hydrate root-hydrate
                          :render-mode render-mode
                          :pathopt     true
                          :migrate     migrate
@@ -2780,15 +2794,16 @@
 (defn- replace-and-validate-fn
   "Replace the first sym in a list (the function name) with the given symbol.
 
+  env - the macro &env
   sym - The symbol that the lambda should have
   external-args - A sequence of argmuments that the user should not include, but that you want to be inserted in the external-args by this function.
   user-arity - The number of external-args the user should supply (resulting user-arity is (count external-args) + user-arity).
   fn-form - The form to rewrite
   sym - The symbol to report in the error message (in case the rewrite uses a different target that the user knows)."
-  ([sym external-args user-arity fn-form] (replace-and-validate-fn sym external-args user-arity fn-form sym))
-  ([sym external-args user-arity fn-form user-known-sym]
+  ([env sym external-args user-arity fn-form] (replace-and-validate-fn env sym external-args user-arity fn-form sym))
+  ([env sym external-args user-arity fn-form user-known-sym]
    (when-not (<= user-arity (count (second fn-form)))
-     (throw (ex-info (str "Invalid arity for " user-known-sym) {:expected (str user-arity " or more") :got (count (second fn-form))})))
+     (throw (ana/error env (str "Invalid arity for " user-known-sym ". Expected " user-arity " or more."))))
    (let [user-args    (second fn-form)
          updated-args (into (vec (or external-args [])) user-args)
          body-forms   (drop 2 fn-form)]
@@ -2799,7 +2814,7 @@
 #?(:clj
    (defn- build-query-forms
      "Validate that the property destructuring and query make sense with each other."
-     [class thissym propargs {:keys [template method]}]
+     [env class thissym propargs {:keys [template method]}]
      (cond
        template
        (do
@@ -2816,24 +2831,24 @@
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
            (when (and (not has-wildcard?) (seq illegal-syms))
-             (throw (ex-info (str "defsc " class ": " illegal-syms " destructured in props but do(es) not appear in your query!") {:offending-symbols illegal-syms})))
+             (throw (ana/error env (str "defsc " class ": " illegal-syms " was destructured in props, but does not appear in the :query!"))))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
-       `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn 'query [thissym] 0 method)))))
+       `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn env 'query [thissym] 0 method)))))
 
 #?(:clj
    (defn- build-ident
      "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
      in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
      entry in defui without error checking."
-     [thissym propsarg {:keys [:method :template]} is-legal-key?]
+     [env thissym propsarg {:keys [:method :template]} is-legal-key?]
      (cond
-       method `(~'static fulcro.client.primitives/Ident ~(replace-and-validate-fn 'ident [thissym propsarg] 0 method))
+       method `(~'static fulcro.client.primitives/Ident ~(replace-and-validate-fn env 'ident [thissym propsarg] 0 method))
        template (let [table   (first template)
                       id-prop (or (second template) :db/id)]
                   (cond
-                    (nil? table) (throw (ex-info "TABLE part of ident template was nil" {}))
-                    (not (is-legal-key? id-prop)) (throw (ex-info "ID property of :ident does not appear in your :query" {:id-property id-prop}))
+                    (nil? table) (throw (ana/error env "TABLE part of ident template was nil" {}))
+                    (not (is-legal-key? id-prop)) (throw (ana/error env (str "The ID property " id-prop " of :ident does not appear in your :query")))
                     :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
@@ -2848,7 +2863,7 @@
               ~@body))))))
 
 #?(:clj
-   (defn- make-lifecycle [thissym options]
+   (defn- make-lifecycle [env thissym options]
      (let [possible-methods  (-> options keys set)
            lifecycle-kws     (->> lifecycle-sigs keys (map (comp keyword name)) set)
            methods-to-define (set/intersection lifecycle-kws possible-methods)
@@ -2858,7 +2873,7 @@
                      lambda    (get options method-kw)
                      signature (get-signature sym)
                      arity     (count signature)
-                     method    (replace-and-validate-fn sym [thissym] arity lambda)]
+                     method    (replace-and-validate-fn env sym [thissym] arity lambda)]
                  method))
          methods-to-define))))
 
@@ -2920,7 +2935,7 @@
     (into {} (keep value-of initial-state))))
 
 #?(:clj
-   (defn- build-and-validate-initial-state-map [sym initial-state legal-keys children-by-query-key is-a-form?]
+   (defn- build-and-validate-initial-state-map [env sym initial-state legal-keys children-by-query-key is-a-form?]
      (let [join-keys     (set (keys children-by-query-key))
            init-keys     (set (keys initial-state))
            illegal-keys  (if (set? legal-keys) (set/difference init-keys legal-keys) #{})
@@ -2939,10 +2954,9 @@
                                  from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
                                  child-class     (get children-by-query-key k)]
                              (when code?
-                               (throw (ex-info (str "defsc " sym ": Illegal call " state-params ". Use a lambda to write code for initial state. Template mode for initial state requires simple maps (or vectors of maps) as parameters to children. See Developer's Guide.")
-                                        {})))
+                               (throw (ana/error env (str "defsc " sym ": Illegal parameters to :initial-state " state-params ". Use a lambda if you want to write code for initial state. Template mode for initial state requires simple maps (or vectors of maps) as parameters to children. See Developer's Guide."))))
                              (cond
-                               (not (or from-parameter? to-many? to-one?)) (throw (ex-info "Initial value for a child must be a map or vector of maps!" {:offending-child k}))
+                               (not (or from-parameter? to-many? to-one?)) (throw (ana/error env (str "Initial value for a child (" k ") must be a map or vector of maps!")))
                                to-one? `(fulcro.client.primitives/get-initial-state ~child-class ~(parameterized state-params))
                                to-many? (mapv (fn [params]
                                                 `(fulcro.client.primitives/get-initial-state ~child-class ~(parameterized params)))
@@ -2955,7 +2969,7 @@
                                      (param-expr (get initial-state k)))]) init-keys)
            state-map     (into {} kv-pairs)]
        (when (seq illegal-keys)
-         (throw (ex-info "Initial state includes keys that are not in your query." {:offending-keys illegal-keys})))
+         (throw (ana/error env (str "Initial state includes keys " illegal-keys ", but they are not in your query."))))
        (if is-a-form?
          `(~'static fulcro.client.primitives/InitialAppState
             (~'initial-state [~'c ~'params] (fulcro.ui.forms/build-form ~sym (fulcro.client.primitives/make-state-map ~initial-state ~children-by-query-key ~'params))))
@@ -2965,19 +2979,19 @@
 #?(:clj
    (defn- build-raw-initial-state
      "Given an initial state form that is a list (function-form), simple copy it into the form needed by defui."
-     [thissym method]
+     [env thissym method]
      `(~'static fulcro.client.primitives/InitialAppState
-        ~(replace-and-validate-fn 'initial-state [thissym] 1 method))))
+        ~(replace-and-validate-fn env 'initial-state [thissym] 1 method))))
 
 #?(:clj
-   (defn- build-initial-state [sym thissym {:keys [template method]} legal-keys query-template-or-method is-a-form?]
+   (defn- build-initial-state [env sym thissym {:keys [template method]} legal-keys query-template-or-method is-a-form?]
      (when (and template (contains? query-template-or-method :method))
-       (throw (ex-info "When query is a method, initial state MUST be as well." {:component sym})))
+       (throw (ana/error env (str "When query is a method, initial state MUST be as well."))))
      (cond
-       method (build-raw-initial-state thissym method)
+       method (build-raw-initial-state env thissym method)
        template (let [query    (:template query-template-or-method)
                       children (or (children-by-prop query) {})]
-                  (build-and-validate-initial-state-map sym template legal-keys children is-a-form?)))))
+                  (build-and-validate-initial-state-map env sym template legal-keys children is-a-form?)))))
 
 #?(:clj (s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?)))
@@ -3010,7 +3024,7 @@
                                                                 :methods (s/+ :fulcro.client.primitives.defsc/protocol-method)))))
 
 #?(:clj
-   (defn- build-form [form-fields query]
+   (defn- build-form [env form-fields query]
      (cond
        (nil? form-fields) nil
        (set? form-fields) (let [valid-key?           (if (vector? query)
@@ -3019,29 +3033,29 @@
                                 missing-form-config? (and (vector? query)
                                                        (not (some #(= "form-config-join" (if (symbol? %) (name %))) query)))]
                             (when-not (every? valid-key? form-fields)
-                              (throw (ex-info ":form-fields include keywords that are not in the query" {})))
+                              (throw (ana/error env ":form-fields include keywords that are not in the query")))
                             (when missing-form-config?
-                              (throw (ex-info "Form fields are declared, but the query does not contain form-config-join" {})))
+                              (throw (ana/error env "Form fields are declared, but the query does not contain fs/form-config-join")))
                             `(~'static fulcro.ui.form-state/IFormFields
                                (~'form-fields [~'this] ~form-fields)))
        (vector? form-fields) `(~'static fulcro.ui.forms/IForm
                                 (~'form-spec [~'this] ~form-fields))
-       :otherwise (throw (ex-info "Form fields must be a literal vector (if using forms) or a set (if using form-state)." {})))))
+       :otherwise (throw (ana/error env "Form fields must be a literal vector (if using forms) or a set (if using form-state).")))))
 
 #?(:clj
-   (defn build-css [thissym {css-method :method css-template :template} {include-method :method include-template :template}]
+   (defn build-css [env thissym {css-method :method css-template :template} {include-method :method include-template :template}]
      (when (or css-method css-template include-method include-template)
        (let [local-form   (cond
                             css-template (if-not (vector? css-template)
-                                           (throw (ex-info "css MUST be a vector of garden-syntax rules" {}))
+                                           (throw (ana/error env ":css MUST be a vector of garden-syntax rules"))
                                            `(~'local-rules [~'_] ~css-template))
-                            css-method (replace-and-validate-fn 'local-rules [thissym] 0 css-method 'css)
+                            css-method (replace-and-validate-fn env 'local-rules [thissym] 0 css-method 'css)
                             :else '(local-rules [_] []))
              include-form (cond
                             include-template (if-not (and (vector? include-template) (every? symbol? include-template))
-                                               (throw (ex-info "css-include must be a vector of component symbols" {}))
+                                               (throw (ana/error ":css-include must be a vector of component symbols"))
                                                `(~'include-children [~'_] ~include-template))
-                            include-method (replace-and-validate-fn 'include-children [thissym] 0 include-method 'css-include)
+                            include-method (replace-and-validate-fn env 'include-children [thissym] 0 include-method 'css-include)
                             :else '(include-children [_] []))]
          `(~'static fulcro-css.css-protocols/CSS
             ~local-form
@@ -3049,13 +3063,12 @@
 
 #?(:clj
    (defn defsc*
-     [args]
+     [env args]
      (if-not (s/valid? :fulcro.client.primitives.defsc/args args)
-       (throw (ex-info "Invalid arguments"
-                {:reason (str (-> (s/explain-data :fulcro.client.primitives.defsc/args args)
-                                ::s/problems
-                                first
-                                :path) " is invalid.")})))
+       (throw (ana/error env (str "Invalid arguments. " (-> (s/explain-data :fulcro.client.primitives.defsc/args args)
+                                                          ::s/problems
+                                                          first
+                                                          :path) " is invalid."))))
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
            [thissym propsym computedsym csssym] arglist
            {:keys [ident query initial-state protocols form-fields css css-include]} options
@@ -3073,7 +3086,7 @@
                                               (complement #{}))
            parsed-protocols                 (when protocols (group-by :protocol (s/conform :fulcro.client.primitives.defsc/protocols protocols)))
            object-methods                   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
-           lifecycle-methods                (make-lifecycle thissym options)
+           lifecycle-methods                (make-lifecycle env thissym options)
            static-lifecycle                 (make-static-lifecycle options)
            addl-protocols                   (some->> (dissoc parsed-protocols 'Object)
                                               vals
@@ -3082,15 +3095,15 @@
                                                        (concat ['static (:protocol v)] (:methods v))
                                                        (concat [(:protocol v)] (:methods v)))))
                                               (mapcat identity))
-           ident-forms                      (build-ident thissym propsym ident-template-or-method legal-key-checker)
-           state-forms                      (build-initial-state sym thissym initial-state-template-or-method legal-key-checker query-template-or-method false #_(vector? form-fields))
-           query-forms                      (build-query-forms sym thissym propsym query-template-or-method)
-           form-forms                       (build-form (some-> form-fields second) (:template query-template-or-method))
-           css-forms                        (build-css thissym css-template-or-method css-include-template-or-method)
+           ident-forms                      (build-ident env thissym propsym ident-template-or-method legal-key-checker)
+           state-forms                      (build-initial-state env sym thissym initial-state-template-or-method legal-key-checker query-template-or-method false #_(vector? form-fields))
+           query-forms                      (build-query-forms env sym thissym propsym query-template-or-method)
+           form-forms                       (build-form env (some-> form-fields second) (:template query-template-or-method))
+           css-forms                        (build-css env thissym css-template-or-method css-include-template-or-method)
            render-forms                     (build-render sym thissym propsym computedsym csssym body)]
        (assert (or (nil? protocols) (s/valid? :fulcro.client.primitives.defsc/protocols protocols)) "Protocols must be valid protocol declarations")
        (when (and csssym (not (seq css-forms)))
-         (throw (ex-info "You included a CSS argument, but there is no CSS localized to the component." {})))
+         (throw (ana/error env "You included a CSS argument in your argument list (position 4), but there is no :css on the component.")))
        ;; TODO: Add CSS destructuring validation here? Must use dynamic loading of fulcro CSS IFF css is used, so that we
        ; don't have a hard dependency on it.
        ; You're at *compile time* in *Clojure*...you *cannot rely on components* that are defined because they might be only
@@ -3172,9 +3185,11 @@
      [& args]
      (let [location (str *ns* ":" (:line (meta &form)))]
        (try
-         (defsc* args)
+         (defsc* &env args)
          (catch Exception e
-           (throw (ex-info (str "Syntax Error at " location) {:cause e})))))))
+           (if (contains? (ex-data e) :tag)
+             (throw e)
+             (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e))))))))
 
 (defmacro sc
   "Just like defsc, but returns the component instead. The arguments are the same, except do not supply a symbol:

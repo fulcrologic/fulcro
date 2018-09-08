@@ -2,12 +2,13 @@
   #?(:cljs (:require-macros fulcro.client.mutations))
   (:require
     [clojure.spec.alpha :as s]
-    [fulcro.util :as util :refer [conform! join-key join-value join?]]
+    [fulcro.util :as util :refer [join-key join-value join?]]
     [fulcro.logging :as log]
     [fulcro.client.primitives :as prim]
     #?(:cljs [cljs.loader :as loader])
     [fulcro.client.impl.protocols :as p]
-    [fulcro.client.impl.parser :as parser]))
+    [fulcro.client.impl.parser :as parser]
+    [cljs.analyzer :as ana]))
 
 
 #?(:clj (s/def ::action (s/cat
@@ -60,7 +61,11 @@
                             [sym docstring? arglist action remote]
                             [sym docstring? arglist remote])} defmutation
      [& args]
-     (let [{:keys [sym doc arglist action remote]} (conform! ::mutation-args args)
+     (let [conform!        (fn [element spec value]
+                             (when-not (s/valid? spec value)
+                               (throw (ana/error &env (str "Syntax error in " element ": " (s/explain-str spec value)))))
+                             (s/conform spec value))
+           {:keys [sym doc arglist action remote]} (conform! "defmutation" ::mutation-args args)
            fqsym           (if (namespace sym)
                              sym
                              (symbol (name (ns-name *ns*)) (name sym)))
@@ -70,10 +75,10 @@
                              (symbol? intern?) intern?
                              :else fqsym)
            {:keys [action-args action-body]} (if action
-                                               (conform! ::action action)
+                                               (conform! "mutation action" ::action action)
                                                {:action-args ['env] :action-body []})
            remotes         (if (seq remote)
-                             (map #(conform! ::remote %) remote)
+                             (map #(conform! (str remote) ::remote %) remote)
                              [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
            env-symbol      (gensym "env")
            doc             (or doc "")

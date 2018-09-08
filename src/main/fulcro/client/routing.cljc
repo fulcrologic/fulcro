@@ -9,7 +9,8 @@
             [fulcro.logging :as log]
             [fulcro.util :as util]
             [clojure.spec.alpha :as s]
-            [fulcro.logging :as log]))
+            [fulcro.logging :as log]
+            [cljs.analyzer :as ana]))
 
 #?(:clj
    (s/def ::mutation-args
@@ -107,6 +108,8 @@ NOTES:
 "
                :arglists '([sym router-id ident-generator & kws-and-screens])} defrouter
      [& args]
+     (when-not (s/valid? ::router-args args)
+       (throw (ana/error &env (str "Syntax error in defrouter. " (s/explain-str ::router-args args)))))
      (let [{:keys [sym router-id ident-fn kws-and-screens]} (util/conform! ::router-args args)
            ident-arg (second ident-fn)
            union-sym (symbol (str (name sym) "-Union"))]
