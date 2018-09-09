@@ -2803,7 +2803,7 @@
   ([env sym external-args user-arity fn-form] (replace-and-validate-fn env sym external-args user-arity fn-form sym))
   ([env sym external-args user-arity fn-form user-known-sym]
    (when-not (<= user-arity (count (second fn-form)))
-     (throw (ana/error env (str "Invalid arity for " user-known-sym ". Expected " user-arity " or more."))))
+     (throw (ana/error (merge env (meta fn-form)) (str "Invalid arity for " user-known-sym ". Expected " user-arity " or more."))))
    (let [user-args    (second fn-form)
          updated-args (into (vec (or external-args [])) user-args)
          body-forms   (drop 2 fn-form)]
@@ -2831,7 +2831,7 @@
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
            (when (and (not has-wildcard?) (seq illegal-syms))
-             (throw (ana/error env (str "defsc " class ": " illegal-syms " was destructured in props, but does not appear in the :query!"))))
+             (throw (ana/error (merge env (meta template)) (str "defsc " class ": " illegal-syms " was destructured in props, but does not appear in the :query!"))))
            `(~'static fulcro.client.primitives/IQuery (~'query [~thissym] ~template))))
        method
        `(~'static fulcro.client.primitives/IQuery ~(replace-and-validate-fn env 'query [thissym] 0 method)))))
@@ -2847,8 +2847,8 @@
        template (let [table   (first template)
                       id-prop (or (second template) :db/id)]
                   (cond
-                    (nil? table) (throw (ana/error env "TABLE part of ident template was nil" {}))
-                    (not (is-legal-key? id-prop)) (throw (ana/error env (str "The ID property " id-prop " of :ident does not appear in your :query")))
+                    (nil? table) (throw (ana/error (merge env (meta template)) "TABLE part of ident template was nil" {}))
+                    (not (is-legal-key? id-prop)) (throw (ana/error (merge env (meta template)) (str "The ID property " id-prop " of :ident does not appear in your :query")))
                     :otherwise `(~'static fulcro.client.primitives/Ident (~'ident [~'this ~'props] [~table (~id-prop ~'props)])))))))
 
 #?(:clj
@@ -2936,7 +2936,8 @@
 
 #?(:clj
    (defn- build-and-validate-initial-state-map [env sym initial-state legal-keys children-by-query-key is-a-form?]
-     (let [join-keys     (set (keys children-by-query-key))
+     (let [env           (merge env (meta initial-state))
+           join-keys     (set (keys children-by-query-key))
            init-keys     (set (keys initial-state))
            illegal-keys  (if (set? legal-keys) (set/difference init-keys legal-keys) #{})
            is-child?     (fn [k] (contains? join-keys k))
@@ -2986,7 +2987,7 @@
 #?(:clj
    (defn- build-initial-state [env sym thissym {:keys [template method]} legal-keys query-template-or-method is-a-form?]
      (when (and template (contains? query-template-or-method :method))
-       (throw (ana/error env (str "When query is a method, initial state MUST be as well."))))
+       (throw (ana/error (merge env (meta template)) (str "When query is a method, initial state MUST be as well."))))
      (cond
        method (build-raw-initial-state env thissym method)
        template (let [query    (:template query-template-or-method)
@@ -3025,35 +3026,36 @@
 
 #?(:clj
    (defn- build-form [env form-fields query]
-     (cond
-       (nil? form-fields) nil
-       (set? form-fields) (let [valid-key?           (if (vector? query)
-                                                       (legal-keys query)
-                                                       (constantly true))
-                                missing-form-config? (and (vector? query)
-                                                       (not (some #(= "form-config-join" (if (symbol? %) (name %))) query)))]
-                            (when-not (every? valid-key? form-fields)
-                              (throw (ana/error env ":form-fields include keywords that are not in the query")))
-                            (when missing-form-config?
-                              (throw (ana/error env "Form fields are declared, but the query does not contain fs/form-config-join")))
-                            `(~'static fulcro.ui.form-state/IFormFields
-                               (~'form-fields [~'this] ~form-fields)))
-       (vector? form-fields) `(~'static fulcro.ui.forms/IForm
-                                (~'form-spec [~'this] ~form-fields))
-       :otherwise (throw (ana/error env "Form fields must be a literal vector (if using forms) or a set (if using form-state).")))))
+     (let [env (merge env (meta form-fields))]
+       (cond
+         (nil? form-fields) nil
+         (set? form-fields) (let [valid-key?           (if (vector? query)
+                                                         (legal-keys query)
+                                                         (constantly true))
+                                  missing-form-config? (and (vector? query)
+                                                         (not (some #(= "form-config-join" (if (symbol? %) (name %))) query)))]
+                              (when-not (every? valid-key? form-fields)
+                                (throw (ana/error env ":form-fields include keywords that are not in the query")))
+                              (when missing-form-config?
+                                (throw (ana/error env "Form fields are declared, but the query does not contain fs/form-config-join")))
+                              `(~'static fulcro.ui.form-state/IFormFields
+                                 (~'form-fields [~'this] ~form-fields)))
+         (vector? form-fields) `(~'static fulcro.ui.forms/IForm
+                                  (~'form-spec [~'this] ~form-fields))
+         :otherwise (throw (ana/error env "Form fields must be a literal vector (if using forms) or a set (if using form-state)."))))))
 
 #?(:clj
    (defn build-css [env thissym {css-method :method css-template :template} {include-method :method include-template :template}]
      (when (or css-method css-template include-method include-template)
        (let [local-form   (cond
                             css-template (if-not (vector? css-template)
-                                           (throw (ana/error env ":css MUST be a vector of garden-syntax rules"))
+                                           (throw (ana/error (merge env (meta css-template)) ":css MUST be a vector of garden-syntax rules"))
                                            `(~'local-rules [~'_] ~css-template))
                             css-method (replace-and-validate-fn env 'local-rules [thissym] 0 css-method 'css)
                             :else '(local-rules [_] []))
              include-form (cond
                             include-template (if-not (and (vector? include-template) (every? symbol? include-template))
-                                               (throw (ana/error ":css-include must be a vector of component symbols"))
+                                               (throw (ana/error (merge env (meta include-template)) ":css-include must be a vector of component symbols"))
                                                `(~'include-children [~'_] ~include-template))
                             include-method (replace-and-validate-fn env 'include-children [thissym] 0 include-method 'css-include)
                             :else '(include-children [_] []))]
@@ -3103,7 +3105,7 @@
            render-forms                     (build-render sym thissym propsym computedsym csssym body)]
        (assert (or (nil? protocols) (s/valid? :fulcro.client.primitives.defsc/protocols protocols)) "Protocols must be valid protocol declarations")
        (when (and csssym (not (seq css-forms)))
-         (throw (ana/error env "You included a CSS argument in your argument list (position 4), but there is no :css on the component.")))
+         (throw (ana/error (merge env (meta arglist)) "You included a CSS argument in your argument list (position 4), but there is no :css on the component.")))
        ;; TODO: Add CSS destructuring validation here? Must use dynamic loading of fulcro CSS IFF css is used, so that we
        ; don't have a hard dependency on it.
        ; You're at *compile time* in *Clojure*...you *cannot rely on components* that are defined because they might be only
