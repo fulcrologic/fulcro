@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.2
+-----
+- Minor improvements to error messages.
+
 2.6.1
 -----
 - Added `:hydrate?` to reconciler options. Used to inform the client that the content was pre-renderered on the
