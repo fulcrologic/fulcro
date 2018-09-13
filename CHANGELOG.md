@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.3
+-----
+- Make `form-state/reset-form!` parameters optional (consistentcy).
+
 2.6.2
 -----
 - Minor improvements to error messages.
