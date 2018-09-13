@@ -190,14 +190,10 @@
                 (case command
                   :prepend (if (already-has-ident-at-path? data-path)
                              state
-                             (do
-                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
-                               (update-in state data-path #(into [ident] %))))
-                  :append  (if (already-has-ident-at-path? data-path)
-                             state
-                             (do
-                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
-                               (update-in state data-path conj ident)))
+                             (update-in state data-path #(into [ident] %)))
+                  :append (if (already-has-ident-at-path? data-path)
+                            state
+                            (update-in state data-path (fnil conj []) ident))
                   :replace (let [path-to-vector (butlast data-path)
                                  to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
                                  index          (last data-path)

@@ -603,11 +603,11 @@
   :ret map?)
 
 (defmutation reset-form!
-  "Mutation: Reset the form (recursively) to its (last recorded) pristine state. Requires the form's ident. See `pristine->entity*` for a function
-   you can compose into your own mutations."
+  "Mutation: Reset the form (recursively) to its (last recorded) pristine state. If form ident is not supplied it uses the ident
+   of the calling component. See `pristine->entity*` for a function you can compose into your own mutations."
   [{:keys [form-ident]}]
-  (action [{:keys [state]}]
-    (swap! state pristine->entity* form-ident)))
+  (action [{:keys [ref state]}]
+    (swap! state pristine->entity* (or form-ident ref))))
 
 (defmutation mark-complete!
   "Mutation: Mark a given form (recursively) or field complete.
