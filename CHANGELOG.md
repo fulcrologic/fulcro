@@ -9,6 +9,7 @@ small and tractable.
 2.6.3
 -----
 - Make `form-state/reset-form!` parameters optional (consistentcy).
+- Made integrate-ident append/prepend tolerate missing vectors
 
 2.6.2
 -----

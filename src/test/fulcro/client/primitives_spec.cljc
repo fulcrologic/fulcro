@@ -2,9 +2,9 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
-            #?(:cljs [fulcro.client.dom :as dom]
-               :clj
-                     [fulcro.client.dom-server :as dom])
+    #?(:cljs [fulcro.client.dom :as dom]
+       :clj
+            [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -17,7 +17,7 @@
             [clojure.test.check :as tc]
             [clojure.spec.test.alpha :as check]
             [clojure.test :refer [is are]]
-            #?@(:cljs [[goog.object :as gobj]])
+    #?@(:cljs [[goog.object :as gobj]])
             [fulcro.client.impl.protocols :as p]
             [fulcro.util :as util]
             [clojure.walk :as walk]
@@ -1112,7 +1112,7 @@
            '{:template [{:child (prim/get-query S)}]} false)
          =throws=> {:regex #"defsc S: Illegal parameters to :initial-state"}
          "Generates nothing when there is entry"
-         (#'prim/build-initial-state  nil 'S 'this nil #{} {:template []} false) => nil
+         (#'prim/build-initial-state nil 'S 'this nil #{} {:template []} false) => nil
          "Can build initial state from a method"
          (#'prim/build-initial-state nil 'S 'that {:method '(fn [p] {:x 1})} #{} {:template []} false) =>
          '(static fulcro.client.primitives/InitialAppState
@@ -1759,7 +1759,7 @@
       (assertions
         (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
 
-(specification "integrate-ident"
+(specification "integrate-ident" :focused
   (let [state {:a    {:path [[:table 2]]}
                :b    {:path [[:table 2]]}
                :d    [:table 6]
@@ -1770,6 +1770,12 @@
         (integrate-ident* [:table 3] :append [:a :path])
         (get-in [:a :path]))
       => [[:table 2] [:table 3]]
+
+      "Will append (create) on a non-existent vector"
+      (-> state
+        (integrate-ident* [:table 3] :append [:a :missing])
+        (get-in [:a :missing]))
+      => [[:table 3]]
 
       "(is a no-op if the ident is already there)"
       (-> state
@@ -1782,6 +1788,12 @@
         (integrate-ident* [:table 3] :prepend [:b :path])
         (get-in [:b :path]))
       => [[:table 3] [:table 2]]
+
+      "Will prepend (create) on a non-existent vector"
+      (-> state
+        (integrate-ident* [:table 3] :prepend [:a :missing])
+        (get-in [:a :missing]))
+      => [[:table 3]]
 
       "(is a no-op if already there)"
       (-> state
