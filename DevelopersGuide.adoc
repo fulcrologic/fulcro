@@ -1810,6 +1810,10 @@ Let's embed that into our UI at the root:
 
 ===== Handling an Entity Query on the Server
 
+NOTE: The `defquery*` macros are meant as a quick entry point.  Once inside you'll have access to the subquery in
+the `env` as `:query`. It is highly recommended that you use https://github.com/wilkerlucio/pathom[pathom] to further
+process queries.  Specifically, we recommend using the "Connect" functionality of Pathom.
+
 The incoming query will have a slightly different form, so there is an alternate macro for making a handler for entity
 loading. Let's add this in our server's `read.clj`:
 
@@ -5473,6 +5477,10 @@ talk about this more in a moment, first, let's see how to handle that on the ser
 
 === Handling a Root Query
 
+NOTE: The `defquery*` macros are meant as a quick entry point.  Once inside you'll have access to the subquery in
+the `env` as `:query`. It is highly recommended that you use https://github.com/wilkerlucio/pathom[pathom] to further
+process queries.  Specifically, we recommend using the "Connect" functionality of Pathom.
+
 If you're using the standard server support of Fulcro, then the API hooks are already predefined for you and you
 can use helper macros to generate handlers for queries. If your `load` specified a keyword then this is seen by
 the server as a load targeted to your root node. Thus, the server macro is called `defquery-root`:
@@ -7774,6 +7782,11 @@ and you want to change both component's queries.  The correct form for the resul
 
 
 = Query Parsing
+
+NOTE: This chapter is here to help you understand how the internals of query parsing work.  It used to be more
+necessary to interact at this level, but now libraries exist that make this much easier.
+It is highly recommended that you use the "Connect" feature of https://github.com/wilkerlucio/pathom[pathom] to
+process queries.
 
 In the <<Loading, Loading>> and <<IncrementalLoading, Incremental Loading>> sections we showed you the central entry
 points for responding to server queries:
