@@ -10,7 +10,7 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
-    [cljs.analyzer :as ana]
+    #?(:clj [cljs.analyzer :as ana])
     fulcro-css.css-protocols
     fulcro-css.css-implementation
     [clojure.core.async :as async]
@@ -2791,25 +2791,26 @@
                   [k cls])
                 nil) query))))
 
-(defn- replace-and-validate-fn
-  "Replace the first sym in a list (the function name) with the given symbol.
+#?(:clj
+   (defn- replace-and-validate-fn
+     "Replace the first sym in a list (the function name) with the given symbol.
 
-  env - the macro &env
-  sym - The symbol that the lambda should have
-  external-args - A sequence of argmuments that the user should not include, but that you want to be inserted in the external-args by this function.
-  user-arity - The number of external-args the user should supply (resulting user-arity is (count external-args) + user-arity).
-  fn-form - The form to rewrite
-  sym - The symbol to report in the error message (in case the rewrite uses a different target that the user knows)."
-  ([env sym external-args user-arity fn-form] (replace-and-validate-fn env sym external-args user-arity fn-form sym))
-  ([env sym external-args user-arity fn-form user-known-sym]
-   (when-not (<= user-arity (count (second fn-form)))
-     (throw (ana/error (merge env (meta fn-form)) (str "Invalid arity for " user-known-sym ". Expected " user-arity " or more."))))
-   (let [user-args    (second fn-form)
-         updated-args (into (vec (or external-args [])) user-args)
-         body-forms   (drop 2 fn-form)]
-     (->> body-forms
-       (cons updated-args)
-       (cons sym)))))
+     env - the macro &env
+     sym - The symbol that the lambda should have
+     external-args - A sequence of argmuments that the user should not include, but that you want to be inserted in the external-args by this function.
+     user-arity - The number of external-args the user should supply (resulting user-arity is (count external-args) + user-arity).
+     fn-form - The form to rewrite
+     sym - The symbol to report in the error message (in case the rewrite uses a different target that the user knows)."
+     ([env sym external-args user-arity fn-form] (replace-and-validate-fn env sym external-args user-arity fn-form sym))
+     ([env sym external-args user-arity fn-form user-known-sym]
+      (when-not (<= user-arity (count (second fn-form)))
+        (throw (ana/error (merge env (meta fn-form)) (str "Invalid arity for " user-known-sym ". Expected " user-arity " or more."))))
+      (let [user-args (second fn-form)
+            updated-args (into (vec (or external-args [])) user-args)
+            body-forms (drop 2 fn-form)]
+        (->> body-forms
+             (cons updated-args)
+             (cons sym))))))
 
 #?(:clj
    (defn- build-query-forms
