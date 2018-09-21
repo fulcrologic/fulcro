@@ -1810,6 +1810,10 @@ Let's embed that into our UI at the root:
 
 ===== Handling an Entity Query on the Server
 
+NOTE: The `defquery*` macros are meant as a quick entry point.  Once inside you'll have access to the subquery in
+the `env` as `:query`. It is highly recommended that you use https://github.com/wilkerlucio/pathom[pathom] to further
+process queries.  Specifically, we recommend using the "Connect" functionality of Pathom.
+
 The incoming query will have a slightly different form, so there is an alternate macro for making a handler for entity
 loading. Let's add this in our server's `read.clj`:
 
@@ -5473,6 +5477,10 @@ talk about this more in a moment, first, let's see how to handle that on the ser
 
 === Handling a Root Query
 
+NOTE: The `defquery*` macros are meant as a quick entry point.  Once inside you'll have access to the subquery in
+the `env` as `:query`. It is highly recommended that you use https://github.com/wilkerlucio/pathom[pathom] to further
+process queries.  Specifically, we recommend using the "Connect" functionality of Pathom.
+
 If you're using the standard server support of Fulcro, then the API hooks are already predefined for you and you
 can use helper macros to generate handlers for queries. If your `load` specified a keyword then this is seen by
 the server as a load targeted to your root node. Thus, the server macro is called `defquery-root`:
@@ -7775,6 +7783,11 @@ and you want to change both component's queries.  The correct form for the resul
 
 = Query Parsing
 
+NOTE: This chapter is here to help you understand how the internals of query parsing work.  It used to be more
+necessary to interact at this level, but now libraries exist that make this much easier.
+It is highly recommended that you use the "Connect" feature of https://github.com/wilkerlucio/pathom[pathom] to
+process queries.
+
 In the <<Loading, Loading>> and <<IncrementalLoading, Incremental Loading>> sections we showed you the central entry
 points for responding to server queries:
 `defquery-root` and `defquery-entity`. These are fine for simple examples and for getting into your
@@ -7795,20 +7808,29 @@ If you're lucky, you can make use of a library to do this stuff for you. Here ar
 
 * https://github.com/wilkerlucio/pathom[Pathom]
 +
-A really nice library for building recursive Fulcro query parsers. It has a good model for building parsers that can
-bridge everything from REST services to microservice architectures. In general if you need to interpret your UI queries,
-this tool can be very useful.
+A really nice library for building recursive Fulcro query parsers. The Connect functionality lets you easily build
+parsers that can bridge any kind of data source (even Datomic schema mismatches) to your desired UI query.
+This is *the recommended library* for writing server-side query processing logic. It will let you accomplish
+anything you need, give you autocomplete in the Query tab of Fulcro Inspect, flatten schema, deepen nesting, etc.
+If you're writing a full-stack Fulcro application, this will be your best general choice.
 +
 * https://github.com/fulcrologic/fulcro-sql[Fulcro-SQL]
 +
 A library that can run Fulcro graph queries against SQL databases. This library lets you define your joins in relation
 to the Fulcro join notion. It can walk to-one, to-many, and many-to-many joins in an SQL database in response to a
 Fulcro join. This allows it to handle many Fulcro queries as graph queries against your SQL database with just a little
-configuration and invocatin code.
+configuration and invocatin code. This library is contributor maintained, so it may not fit with production needs.
++
+* https://github.com/walkable-server/walkable[Walkable]
++
+Another SQL-centric offering.  This one actually uses Pathom internally to give you a more declarative way to define
+parsers against an SQL database/schema.  It can directly parse Fulcro's query syntax and turn it into SQL queries,
+and handles the N+1 problem on to-many relations automatically.
 +
 * http://www.datomic.com[Datomic]
 +
-If you're lucky enough to be using Datomic, Fulcro's graph query syntax will run in their `pull` API
+If you're lucky enough to be using Datomic, Fulcro's graph query syntax will run in their `pull` API; however, you'll
+quickly find that mismatches in how Datomic does things (and your schema) will make you want higher-level parsing. Use Pathom.
 
 Of these, Pathom is the most general and allows you to easily process a query in a more abstract way. However, you
 should know a little bit about parsing the queries yourself.
