@@ -10,7 +10,7 @@
             [fulcro.util :as util]
             [clojure.spec.alpha :as s]
             [fulcro.logging :as log]
-            [cljs.analyzer :as ana]))
+            #?(:clj [cljs.analyzer :as ana])))
 
 #?(:clj
    (s/def ::mutation-args

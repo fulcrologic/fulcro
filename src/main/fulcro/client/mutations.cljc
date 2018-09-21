@@ -8,7 +8,7 @@
     #?(:cljs [cljs.loader :as loader])
     [fulcro.client.impl.protocols :as p]
     [fulcro.client.impl.parser :as parser]
-    [cljs.analyzer :as ana]))
+    #?(:clj [cljs.analyzer :as ana])))
 
 
 #?(:clj (s/def ::action (s/cat
