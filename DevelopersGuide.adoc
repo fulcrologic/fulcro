@@ -4672,9 +4672,9 @@ the normalized database. Usable from within mutations.
 - `prim/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
 Includes ident integration options, and honors the Fulcro merge clobbering algorithm (if the query doesn't ask for it,
 then merge doesn't affect it). Also queues rendering for affected components (derived from integration of idents). Generally
-*not* used within mutations (use `merge-component` and `integrate-ident!` instead).
+*not* used within mutations (use `merge-component` and `integrate-ident*` instead).
 - `prim/tree->db` - General utility for normalizing data via a query and chunk of data.
-- `prim/integrate-ident!` - A utility for adding an ident into existing to-one and to-many relations in your database.
+- `fulcro.client.mutations/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
 - `fulcro.client.util/deep-merge` - An implementation of merge that is recursive
 
@@ -5094,7 +5094,7 @@ integrating data so that the result is normalized.
 ===  Using `integrate-ident`
 
 When in a mutation you very often need to place an ident in various spots in your graph database. The helper
-function `fulcro.client/integrate-ident` can by used from within mutations to help you do this. It accepts
+function `fulcro.client.mutations/integrate-ident*` can by used from within mutations to help you do this. It accepts
 any number of named parameters that specify operations to do with a given ident:
 
 ```
@@ -5102,7 +5102,7 @@ any number of named parameters that specify operations to do with a given ident:
   (fn [s]
     (-> s
        (do-some-op)
-       (integrate-ident the-ident
+       (integrate-ident* the-ident
          :append [:table id :field]
          :prepend [:other id :field]))))
 ```
@@ -5176,7 +5176,7 @@ Think of this case as: I have some data for a given component (which MUST have a
 component's entry in a table, but I want to make sure the recursive tree of data also gets normalized
 properly.
 
-`merge-component!` also integrates the functionality of `integrate-ident!` to pepper the ident of the merged entity throughout
+`merge-component!` also integrates the functionality of `integrate-ident*` to pepper the ident of the merged entity throughout
 your app database, and can often serve as a total one-stop
 shop for merging data that is coming from some external source.
 
@@ -9378,7 +9378,7 @@ Adding a phone number (which acts as a sub-form) is done via the `add-phone` mut
           person-ident [:people/by-id person]
           phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
       (swap! state assoc-in phone-ident new-phone)
-      (fc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
+      (m/integrate-ident* state phone-ident :append (conj person-ident :person/phone-numbers)))))
 ```
 
 Notice that there is nothing really special going on here. Just add an additional item to the database (which is
