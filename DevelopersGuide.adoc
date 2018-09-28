@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: August 24, 2018
-:revnumber: 19
+:revdate: September 28, 2018
+:revnumber: 22
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -4672,9 +4672,9 @@ the normalized database. Usable from within mutations.
 - `prim/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
 Includes ident integration options, and honors the Fulcro merge clobbering algorithm (if the query doesn't ask for it,
 then merge doesn't affect it). Also queues rendering for affected components (derived from integration of idents). Generally
-*not* used within mutations (use `merge-component` and `integrate-ident!` instead).
+*not* used within mutations (use `merge-component` and `integrate-ident*` instead).
 - `prim/tree->db` - General utility for normalizing data via a query and chunk of data.
-- `prim/integrate-ident!` - A utility for adding an ident into existing to-one and to-many relations in your database.
+- `fulcro.client.mutations/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
 - `fulcro.client.util/deep-merge` - An implementation of merge that is recursive
 
@@ -5094,7 +5094,7 @@ integrating data so that the result is normalized.
 ===  Using `integrate-ident`
 
 When in a mutation you very often need to place an ident in various spots in your graph database. The helper
-function `fulcro.client/integrate-ident` can by used from within mutations to help you do this. It accepts
+function `fulcro.client.mutations/integrate-ident*` can by used from within mutations to help you do this. It accepts
 any number of named parameters that specify operations to do with a given ident:
 
 ```
@@ -5102,7 +5102,7 @@ any number of named parameters that specify operations to do with a given ident:
   (fn [s]
     (-> s
        (do-some-op)
-       (integrate-ident the-ident
+       (integrate-ident* the-ident
          :append [:table id :field]
          :prepend [:other id :field]))))
 ```
@@ -5176,7 +5176,7 @@ Think of this case as: I have some data for a given component (which MUST have a
 component's entry in a table, but I want to make sure the recursive tree of data also gets normalized
 properly.
 
-`merge-component!` also integrates the functionality of `integrate-ident!` to pepper the ident of the merged entity throughout
+`merge-component!` also integrates the functionality of `integrate-ident*` to pepper the ident of the merged entity throughout
 your app database, and can often serve as a total one-stop
 shop for merging data that is coming from some external source.
 
@@ -7685,6 +7685,39 @@ The extra routes are processed right *after* the pre-hook, but just before the
 resource (filesystem) serving. Thus, you can respond to any URI that isn't already
 handled by your pre-hook.
 
+= Fulcro and GraphQL
+
+GraphQL is rapidly becoming the standard for writing graph-based servers.  As a result there are many existing
+ways to deploy such an API, and many businesses have decided that their back-end will simply use the
+standard.  There are BaaS (back-end as a service) providers that also let you quickly define and
+deploy a GraphQL API.
+
+All of this makes GraphQL an attractive server-side solution for Fulcro.
+
+Luckily, https://github.com/wilkerlucio/pathom[Pathom] has all of the tools necessary to make this integration
+simple and easy!
+
+You can see some of it in action in https://youtu.be/Yk7xFry0w2Y[one of the Fulcro video series], and read about
+configuring it in the
+https://github.com/awkay/pathom/blob/doc-improvements/docs/DevelopersGuide.adoc#GraphQL[Pathom Documentation]
+(link goes to a pre-release version at the time of this writing).
+
+The simplest integration is to simply use Pathom's GraphQL remote:
+
+```
+(ns app
+  (:require
+    ...
+    [com.wsscode.pathom.fulcro.network :as pfn]))
+
+(def client (fulcro/new-fulcro-client
+              :networking {:remote (pfn/graphql-network
+                                     {::pfn/url (str "https://api.github.com/graphql?access_token=" token)})})
+```
+
+The more powerful and extensible method allows you to combine GraphQL access with Pathom Connect.  This gives
+you very powerful features, including many useful ones that GraphQL doesn't support natively!
+
 = Dynamic Queries [[DynamicQueries]]
 
 Fulcro supports dynamic queries: the ability the change the query of a component at runtime. This feature is fully
@@ -9378,7 +9411,7 @@ Adding a phone number (which acts as a sub-form) is done via the `add-phone` mut
           person-ident [:people/by-id person]
           phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
       (swap! state assoc-in phone-ident new-phone)
-      (fc/integrate-ident! state phone-ident :append (conj person-ident :person/phone-numbers)))))
+      (m/integrate-ident* state phone-ident :append (conj person-ident :person/phone-numbers)))))
 ```
 
 Notice that there is nothing really special going on here. Just add an additional item to the database (which is

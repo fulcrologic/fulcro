@@ -347,60 +347,7 @@
                           fulcro.client.primitives/*shared* (fulcro.client.primitives/shared this#)
                           fulcro.client.primitives/*instrument* (fulcro.client.primitives/instrument this#)
                           fulcro.client.primitives/*parent* this#]
-                  ~@body))))}
-        :defaults
-        `{~'shouldComponentUpdate
-          ;; Detect if props/state or children changed
-          ([this# next-props# next-state#]
-            (if fulcro.client.primitives/*blindly-render*
-              true
-              (let [next-children# (. next-props# -children)
-                    next-props# (goog.object/get next-props# "fulcro$value")
-                    current-props# (fulcro.client.primitives/props this#)
-                    props-changed?# (not= current-props# next-props#)
-                    next-state# (goog.object/get next-state# "fulcro$state")
-                    state-changed?# (and (.. this# ~'-state)
-                                         (not= (goog.object/get (. this# ~'-state) "fulcro$state")
-                                           next-state#))
-                    children-changed?# (not= (.. this# -props -children) next-children#)]
-                (or props-changed?# state-changed?# children-changed?#))))
-
-          ~'componentDidUpdate
-          ;; Update index of component when its ident changes
-          ([this# prev-props# prev-state#]
-            (let [prev-props# (goog.object/get prev-props# "fulcro$value")]
-              (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
-                (let [ident# (fulcro.client.primitives/ident this# prev-props#)
-                      next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))]
-                  (when (not= ident# next-ident#)
-                    (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
-                      (when-not (nil? idxr#)
-                        (swap! (:indexes idxr#)
-                          (fn [indexes#]
-                            (-> indexes#
-                                (update-in [:ref->components ident#] disj this#)
-                                (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))))
-          ~'componentDidMount
-          ;; Add the component to the indexer when it mounts
-          ([this#]
-            (goog.object/set this# "fulcro$mounted" true)
-            (let [indexer# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
-              (when-not (nil? indexer#)
-                (fulcro.client.impl.protocols/index-component! indexer# this#))))
-          ~'componentWillUnmount
-          ;; Remove the component from the indexer, and remove any dynamic queries for it
-          ([this#]
-            (let [r# (fulcro.client.primitives/get-reconciler this#)
-                  cfg# (:config r#)
-                  st# (:state cfg#)
-                  indexer# (:indexer cfg#)]
-              (goog.object/set this# "fulcro$mounted" false)
-              ;; FIXME: WRONG...queries are not keyed by instance anymore (small possible memory leak)
-              (when (and (not (nil? st#))
-                         (get-in @st# [:fulcro.client.primitives/queries this#]))
-                (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
-              (when-not (nil? indexer#)
-                (fulcro.client.impl.protocols/drop-component! indexer# this#))))}})))
+                  ~@body))))}})))
 
 #?(:clj
    (defn reshape [dt {:keys [reshape defaults]}]
@@ -446,129 +393,6 @@
                 (if (contains? result :params)
                   result
                   (assoc result :params '(fn [this]))))))))
-
-#?(:clj
-   (defn defui*-clj [name forms]
-     (let [docstring              (when (string? (first forms))
-                                    (first forms))
-           forms                  (cond-> forms
-                                    docstring rest)
-           {:keys [dt statics]} (collect-statics forms)
-           [other-protocols obj-dt] (split-with (complement '#{Object}) dt)
-           klass-name             (symbol (str name "_klass"))
-           lifecycle-method-names (set (keys lifecycle-sigs))
-           {obj-dt false non-lifecycle-dt true} (group-by
-                                                  (fn [x]
-                                                    (and (sequential? x)
-                                                      (not (lifecycle-method-names (first x)))))
-                                                  obj-dt)
-           class-methods          (extract-static-methods (:protocols statics))]
-       `(do
-          ~(when-not (empty? non-lifecycle-dt)
-             `(defprotocol ~(symbol (str name "_proto"))
-                ~@(map (fn [[m-name args]] (list m-name args)) non-lifecycle-dt)))
-          (declare ~name)
-          (defrecord ~klass-name [~'state ~'refs ~'props ~'children]
-            ;; TODO: non-lifecycle methods defined in the JS prototype - António
-            fulcro.client.impl.protocols/IReactLifecycle
-            ~@(rest (reshape obj-dt reshape-map-clj))
-
-            ~@other-protocols
-
-            ~@(:protocols statics)
-
-            ~@(when-not (empty? non-lifecycle-dt)
-                (list* (symbol (str name "_proto"))
-                  non-lifecycle-dt))
-
-            fulcro.client.impl.protocols/IReactComponent
-            (~'-render [this#]
-              (p/componentWillMount this#)
-              (p/render this#)))
-          (defmethod clojure.core/print-method ~(symbol (str (munge *ns*) "." klass-name))
-            [o# ^Writer w#]
-            (.write w# (str "#object[" (ns-name *ns*) "/" ~(str name) "]")))
-          (let [c# (fn ~name [state# refs# props# children#]
-                     (~(symbol (str (munge *ns*) "." klass-name ".")) state# refs# props# children#))]
-            (def ~(with-meta name
-                    (merge (meta name)
-                      (when docstring
-                        {:doc docstring})))
-              (with-meta c#
-                (merge {:component      c#
-                        :component-ns   (ns-name *ns*)
-                        :component-name ~(str name)}
-                  ~class-methods))))))))
-
-#?(:clj
-   (defn defui*
-     ([name form] (defui* name form nil))
-     ([name forms env]
-      (letfn [(field-set! [obj [field value]]
-                `(set! (. ^js ~obj ~(symbol (str "-" field))) ~value))]
-        (let [docstring (when (string? (first forms))
-                          (first forms))
-              forms (cond-> forms
-                      docstring rest)
-              {:keys [dt statics]} (collect-statics forms)
-              _ (validate-statics dt)
-              fqn (if env
-                    (symbol (-> env :ns :name str) (str name))
-                    name)
-              ctor `(defn ~(with-meta name
-                             (merge {:jsdoc ["@constructor" "@nocollapse"]}
-                               (meta name)
-                               (when docstring
-                                 {:doc docstring})))
-                      []
-                      (this-as this#
-                        (.apply js/React.Component this# (js-arguments))
-                        (if-not (nil? (.-initLocalState ^js this#))
-                          (set! (.-state this#) (.initLocalState ^js this#))
-                          (set! (.-state this#) (cljs.core/js-obj)))
-                        this#))
-              set-react-proto! `(set! (.-prototype ~name)
-                                  (goog.object/clone js/React.Component.prototype))
-              ctor (if (-> name meta :once)
-                     `(when-not (cljs.core/exists? ~name)
-                        ~ctor
-                        ~set-react-proto!)
-                     `(do
-                        ~ctor
-                        ~set-react-proto!))
-              display-name (if env
-                             (str (-> env :ns :name) "/" name)
-                             'js/undefined)]
-          `(do
-             ~ctor
-             (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
-             (set! (.. ~name -prototype -constructor) ~name)
-             (set! (.. ~name -prototype -constructor -displayName) ~display-name)
-             (set! (.-fulcro$isComponent ^js (.-prototype ^js ~name)) true)
-             ~@(map #(field-set! name %) (:fields statics))
-             (specify! ~name
-               ~@(mapv #(cond-> %
-                          (symbol? %) (vary-meta assoc :static true)) (:protocols statics)))
-             (specify! (. ~name ~'-prototype) ~@(:protocols statics))
-             (set! (.-cljs$lang$type ~name) true)
-             (set! (.-cljs$lang$ctorStr ~name) ~(str fqn))
-             (set! (.-cljs$lang$ctorPrWriter ~name)
-               (fn [this# writer# opt#]
-                 (cljs.core/-write writer# ~(str fqn))))))))))
-
-#?(:clj
-   (defmacro defui [name & forms]
-     (if (boolean (:ns &env))
-       (defui* name forms &env)
-       (defui*-clj name forms))))
-
-#?(:clj
-   (defmacro ui
-     "Declare an anonymous UI component.  If the first argument is a keyword, then it is treated
-     as the React version (defaults to :v15)."
-     [& forms]
-     (let [t (with-meta (gensym "ui_") {:anonymous true})]
-       `(do (defui ~t ~@forms) ~t))))
 
 ;; =============================================================================
 ;; Globals & Dynamics
@@ -3396,3 +3220,187 @@
                     fulcro.client.primitives/*instrument* i#
                     fulcro.client.primitives/*parent* p#]
             ~@body)))))
+
+#?(:clj
+   (defn defui*-clj [name forms]
+     (let [docstring              (when (string? (first forms))
+                                    (first forms))
+           forms                  (cond-> forms
+                                    docstring rest)
+           {:keys [dt statics]} (collect-statics forms)
+           [other-protocols obj-dt] (split-with (complement '#{Object}) dt)
+           klass-name             (symbol (str name "_klass"))
+           lifecycle-method-names (set (keys lifecycle-sigs))
+           {obj-dt false non-lifecycle-dt true} (group-by
+                                                  (fn [x]
+                                                    (and (sequential? x)
+                                                         (not (lifecycle-method-names (first x)))))
+                                                  obj-dt)
+           class-methods          (extract-static-methods (:protocols statics))]
+       `(do
+          ~(when-not (empty? non-lifecycle-dt)
+             `(defprotocol ~(symbol (str name "_proto"))
+                ~@(map (fn [[m-name args]] (list m-name args)) non-lifecycle-dt)))
+          (declare ~name)
+          (defrecord ~klass-name [~'state ~'refs ~'props ~'children]
+            ;; TODO: non-lifecycle methods defined in the JS prototype - António
+            fulcro.client.impl.protocols/IReactLifecycle
+            ~@(rest (reshape obj-dt reshape-map-clj))
+
+            ~@other-protocols
+
+            ~@(:protocols statics)
+
+            ~@(when-not (empty? non-lifecycle-dt)
+                (list* (symbol (str name "_proto"))
+                  non-lifecycle-dt))
+
+            fulcro.client.impl.protocols/IReactComponent
+            (~'-render [this#]
+              (p/componentWillMount this#)
+              (p/render this#)))
+          (defmethod clojure.core/print-method ~(symbol (str (munge *ns*) "." klass-name))
+            [o# ^Writer w#]
+            (.write w# (str "#object[" (ns-name *ns*) "/" ~(str name) "]")))
+          (let [c# (fn ~name [state# refs# props# children#]
+                     (~(symbol (str (munge *ns*) "." klass-name ".")) state# refs# props# children#))]
+            (def ~(with-meta name
+                    (merge (meta name)
+                      (when docstring
+                        {:doc docstring})))
+              (with-meta c#
+                (merge {:component      c#
+                        :component-ns   (ns-name *ns*)
+                        :component-name ~(str name)}
+                  ~class-methods))))))))
+
+#?(:cljs
+   (def default-component-prototype
+     (js-obj
+       "shouldComponentUpdate"
+       ;; Detect if props/state or children changed
+       (fn [next-props next-state]
+         (this-as this
+           (if *blindly-render*
+             true
+             (let [next-children (. next-props -children)
+                   next-props (goog.object/get next-props "fulcro$value")
+                   current-props (props this)
+                   props-changed? (not= current-props next-props)
+                   next-state (goog.object/get next-state "fulcro$state")
+                   state-changed? (and (.. this -state)
+                                       (not= (goog.object/get (. this -state) "fulcro$state")
+                                         next-state))
+                   children-changed? (not= (.. this -props -children) next-children)]
+               (or props-changed? state-changed? children-changed?)))))
+
+       "componentDidUpdate"
+       ;; Update index of component when its ident changes
+       (fn [prev-props prev-state]
+         (this-as this
+           (let [prev-props (goog.object/get prev-props "fulcro$value")]
+             (when (cljs.core/implements? Ident this)
+               (let [ident (ident this prev-props)
+                     next-ident (ident this (props this))]
+                 (when (not= ident next-ident)
+                   (let [idxr (get-in (get-reconciler this) [:config :indexer])]
+                     (when-not (nil? idxr)
+                       (swap! (:indexes idxr)
+                         (fn [indexes]
+                           (-> indexes
+                               (update-in [:ref->components ident] disj this)
+                               (update-in [:ref->components next-ident] (fnil conj #{}) this))))))))))))
+
+       "componentDidMount"
+       ;; Add the component to the indexer when it mounts
+       (fn []
+         (this-as this
+           (goog.object/set this "fulcro$mounted" true)
+           (let [indexer (get-in (get-reconciler this) [:config :indexer])]
+             (when-not (nil? indexer)
+               (p/index-component! indexer this)))))
+
+       "componentWillUnmount"
+       ;; Remove the component from the indexer, and remove any dynamic queries for it
+       (fn []
+         (this-as this
+           (let [r (get-reconciler this)
+                 cfg (:config r)
+                 st (:state cfg)
+                 indexer (:indexer cfg)]
+             (goog.object/set this "fulcro$mounted" false)
+             ;; FIXME: WRONG...queries are not keyed by instance anymore (small possible memory leak)
+             (when (and (not (nil? st))
+                        (get-in @st [:queries this]))
+               (swap! st update-in [:queries] dissoc this))
+             (when-not (nil? indexer)
+               (p/drop-component! indexer this))))))))
+
+#?(:clj
+   (defn defui*
+     ([name form] (defui* name form nil))
+     ([name forms env]
+      (letfn [(field-set! [obj [field value]]
+                `(set! (. ^js ~obj ~(symbol (str "-" field))) ~value))]
+        (let [docstring (when (string? (first forms))
+                          (first forms))
+              forms (cond-> forms
+                      docstring rest)
+              {:keys [dt statics]} (collect-statics forms)
+              _ (validate-statics dt)
+              fqn (if env
+                    (symbol (-> env :ns :name str) (str name))
+                    name)
+              ctor `(defn ~(with-meta name
+                             (merge {:jsdoc ["@constructor" "@nocollapse"]}
+                               (meta name)
+                               (when docstring
+                                 {:doc docstring})))
+                      []
+                      (this-as this#
+                        (.apply js/React.Component this# (js-arguments))
+                        (if-not (nil? (.-initLocalState ^js this#))
+                          (set! (.-state this#) (.initLocalState ^js this#))
+                          (set! (.-state this#) (cljs.core/js-obj)))
+                        this#))
+              set-react-proto! `(goog.object/extend (.-prototype ~name) js/React.Component.prototype default-component-prototype)
+              ctor (if (-> name meta :once)
+                     `(when-not (cljs.core/exists? ~name)
+                        ~ctor
+                        ~set-react-proto!)
+                     `(do
+                        ~ctor
+                        ~set-react-proto!))
+              display-name (if env
+                             (str (-> env :ns :name) "/" name)
+                             'js/undefined)]
+          `(do
+             ~ctor
+             (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
+             (set! (.. ~name -prototype -constructor) ~name)
+             (set! (.. ~name -prototype -constructor -displayName) ~display-name)
+             (set! (.-fulcro$isComponent ^js (.-prototype ^js ~name)) true)
+             ~@(map #(field-set! name %) (:fields statics))
+             (specify! ~name
+               ~@(mapv #(cond-> %
+                          (symbol? %) (vary-meta assoc :static true)) (:protocols statics)))
+             (specify! (. ~name ~'-prototype) ~@(:protocols statics))
+             (set! (.-cljs$lang$type ~name) true)
+             (set! (.-cljs$lang$ctorStr ~name) ~(str fqn))
+             (set! (.-cljs$lang$ctorPrWriter ~name)
+               (fn [this# writer# opt#]
+                 (cljs.core/-write writer# ~(str fqn))))))))))
+
+#?(:clj
+   (defmacro defui [name & forms]
+     (if (boolean (:ns &env))
+       (defui* name forms &env)
+       (defui*-clj name forms))))
+
+#?(:clj
+   (defmacro ui
+     "Declare an anonymous UI component.  If the first argument is a keyword, then it is treated
+     as the React version (defaults to :v15)."
+     [& forms]
+     (let [t (with-meta (gensym "ui_") {:anonymous true})]
+       `(do (defui ~t ~@forms) ~t))))
