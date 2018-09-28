@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 21, 2018
-:revnumber: 21
+:revdate: September 28, 2018
+:revnumber: 22
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -7684,6 +7684,39 @@ The easy server also supplies a way to add in URI handlers via BIDI:
 The extra routes are processed right *after* the pre-hook, but just before the
 resource (filesystem) serving. Thus, you can respond to any URI that isn't already
 handled by your pre-hook.
+
+= Fulcro and GraphQL
+
+GraphQL is rapidly becoming the standard for writing graph-based servers.  As a result there are many existing
+ways to deploy such an API, and many businesses have decided that their back-end will simply use the
+standard.  There are BaaS (back-end as a service) providers that also let you quickly define and
+deploy a GraphQL API.
+
+All of this makes GraphQL an attractive server-side solution for Fulcro.
+
+Luckily, https://github.com/wilkerlucio/pathom[Pathom] has all of the tools necessary to make this integration
+simple and easy!
+
+You can see some of it in action in https://youtu.be/Yk7xFry0w2Y[one of the Fulcro video series], and read about
+configuring it in the
+https://github.com/awkay/pathom/blob/doc-improvements/docs/DevelopersGuide.adoc#GraphQL[Pathom Documentation]
+(link goes to a pre-release version at the time of this writing).
+
+The simplest integration is to simply use Pathom's GraphQL remote:
+
+```
+(ns app
+  (:require
+    ...
+    [com.wsscode.pathom.fulcro.network :as pfn]))
+
+(def client (fulcro/new-fulcro-client
+              :networking {:remote (pfn/graphql-network
+                                     {::pfn/url (str "https://api.github.com/graphql?access_token=" token)})})
+```
+
+The more powerful and extensible method allows you to combine GraphQL access with Pathom Connect.  This gives
+you very powerful features, including many useful ones that GraphQL doesn't support natively!
 
 = Dynamic Queries [[DynamicQueries]]
 
