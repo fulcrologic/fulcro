@@ -6,6 +6,11 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.6
+-----
+- Fixed bug introduced by 2.6.5 optimization
+- Fixed bug in dynamic query code
+
 2.6.5
 -----
 - More optimizations. Reduced adv compile output by about 1.5k/defsc thanks to @thheller.
