@@ -10,7 +10,8 @@
         :cljs [[goog.string :as gstring]
                [cljsjs.react]
                [goog.object :as gobj]])
-    #?(:clj [cljs.analyzer :as ana])
+    #?(:clj
+               [cljs.analyzer :as ana])
     fulcro-css.css-protocols
     fulcro-css.css-implementation
     [clojure.core.async :as async]
@@ -1754,10 +1755,11 @@
                    has-tempid? (tempid? (second id))
                    query       [{id (get-query c @state)}]
                    data-path   (-> (props c) meta ::parser/data-path)
+                   remap-happened? (and has-tempid? (nil? (get-in @state id)))
                    result      (parser (assoc env :replacement-root-path data-path) query)
                    value       (get result id)]
-               (if (and has-tempid? (or (nil? value) (empty? value)))
-                 ::no-ident                                 ; tempid remap happened...cannot do targeted props until full re-render
+               (if (or (not (vector? id)) (nil? (second id)) remap-happened?)
+                 ::no-ident
                  value)))]
     (or ui ::no-ident)))
 
@@ -2501,19 +2503,20 @@
 
 (defn set-query!
   "Set a dynamic query. ALters the query, and then rebuilds internal indexes."
-  [component-or-reconciler ui-factory-or-queryid {:keys [query params follow-on-reads] :as opts}]
+  [component-or-reconciler class-or-factory {:keys [query params follow-on-reads] :as opts}]
   (let [reconciler (if (reconciler? component-or-reconciler)
                      component-or-reconciler
                      (get-reconciler component-or-reconciler))
+        state-atom (app-state reconciler)
         queryid    (cond
-                     (string? ui-factory-or-queryid) ui-factory-or-queryid
-                     (some-> ui-factory-or-queryid meta (contains? :queryid)) (some-> ui-factory-or-queryid meta :queryid)
-                     :otherwise (query-id ui-factory-or-queryid nil))
-        tx         (into `[(fulcro.client.mutations/set-query! {:queryid ~queryid :query ~query :params ~params})] follow-on-reads)]
+                     (string? class-or-factory) class-or-factory
+                     (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
+                     :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
       (do
-        (transact! reconciler tx)                           ; against reconciler, because we need to re-render from root
-        (p/reindex! reconciler))
+        (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
+        (p/reindex! reconciler)
+        (force-root-render! reconciler))
       (log/error "Unable to set query. Invalid arguments."))))
 
 (defn pessimistic-transaction->transaction
@@ -3300,15 +3303,15 @@
          (this-as this
            (let [prev-props (goog.object/get prev-props "fulcro$value")]
              (when (cljs.core/implements? Ident this)
-               (let [ident (ident this prev-props)
+               (let [old-ident  (ident this prev-props)
                      next-ident (ident this (props this))]
-                 (when (not= ident next-ident)
+                 (when (not= old-ident next-ident)
                    (let [idxr (get-in (get-reconciler this) [:config :indexer])]
                      (when-not (nil? idxr)
                        (swap! (:indexes idxr)
                          (fn [indexes]
                            (-> indexes
-                               (update-in [:ref->components ident] disj this)
+                             (update-in [:ref->components old-ident] disj this)
                                (update-in [:ref->components next-ident] (fnil conj #{}) this))))))))))))
 
        "componentDidMount"
