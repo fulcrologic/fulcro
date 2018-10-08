@@ -1,6 +1,6 @@
 (ns fulcro.client.primitives
   #?(:cljs (:require-macros fulcro.client.primitives))
-  (:refer-clojure :exclude #?(:clj  [deftype replace var? force]
+  (:refer-clojure :exclude #?(:clj [deftype replace var? force]
                               :cljs [var? key replace force]))
   (:require
     #?@(:clj  [clojure.main
@@ -12,25 +12,25 @@
                [goog.object :as gobj]])
     #?(:clj
                [cljs.analyzer :as ana])
-    fulcro-css.css-protocols
-    fulcro-css.css-implementation
-    [clojure.core.async :as async]
-    [clojure.set :as set]
-    [fulcro.history :as hist]
-    [fulcro.logging :as log]
-    [fulcro.tempid :as tempid]
-    [fulcro.transit :as transit]
-    [clojure.zip :as zip]
-    [fulcro.client.impl.data-targeting :as targeting]
-    [fulcro.client.impl.protocols :as p]
-    [fulcro.client.impl.parser :as parser]
-    [fulcro.util :as util]
-    [clojure.walk :refer [prewalk]]
-    [clojure.string :as str]
-    [clojure.spec.alpha :as s]
+               fulcro-css.css-protocols
+               fulcro-css.css-implementation
+               [clojure.core.async :as async]
+               [clojure.set :as set]
+               [fulcro.history :as hist]
+               [fulcro.logging :as log]
+               [fulcro.tempid :as tempid]
+               [fulcro.transit :as transit]
+               [clojure.zip :as zip]
+               [fulcro.client.impl.data-targeting :as targeting]
+               [fulcro.client.impl.protocols :as p]
+               [fulcro.client.impl.parser :as parser]
+               [fulcro.util :as util]
+               [clojure.walk :refer [prewalk]]
+               [clojure.string :as str]
+               [clojure.spec.alpha :as s]
     #?(:clj
-       [clojure.future :refer :all])
-    [cognitect.transit :as t])
+               [clojure.future :refer :all])
+               [cognitect.transit :as t])
   #?(:clj
      (:import [java.io Writer])))
 
@@ -191,28 +191,28 @@
 
 #?(:clj
    (def lifecycle-sigs
-     '{initLocalState [this]
-       shouldComponentUpdate [this next-props next-state]
-       componentWillReceiveProps [this next-props]
-       componentWillUpdate [this next-props next-state]
+     '{initLocalState                   [this]
+       shouldComponentUpdate            [this next-props next-state]
+       componentWillReceiveProps        [this next-props]
+       componentWillUpdate              [this next-props next-state]
        ;; TODO: snapshot
-       componentDidUpdate [this prev-props prev-state]
-       componentWillMount [this]
-       componentDidMount [this]
-       componentWillUnmount [this]
-       render [this]
+       componentDidUpdate               [this prev-props prev-state]
+       componentWillMount               [this]
+       componentDidMount                [this]
+       componentWillUnmount             [this]
+       render                           [this]
        ;; react 16
-       componentDidCatch [this error info]
+       componentDidCatch                [this error info]
        UNSAFE_componentWillReceiveProps [this next-props]
-       UNSAFE_componentWillUpdate [this next-props next-state]
-       UNSAFE_componentWillMount [this]
-       getSnapshotBeforeUpdate [this prev-props prev-state]}))
+       UNSAFE_componentWillUpdate       [this next-props next-state]
+       UNSAFE_componentWillMount        [this]
+       getSnapshotBeforeUpdate          [this prev-props prev-state]}))
 
 #?(:clj
    (defn- validate-sig [[name sig :as method]]
      (let [required-signature (get lifecycle-sigs name)]
        (assert
-         (<= (count required-signature) (count sig)) ; allow additional arg (context or snapshot)
+         (<= (count required-signature) (count sig))        ; allow additional arg (context or snapshot)
          (str "Invalid signature for " name " got " sig ", need " required-signature)))))
 
 #?(:clj
@@ -262,99 +262,99 @@
                                  (let [~this this#
                                        ~next-props (goog.object/get next-props# "fulcro$value")]
                                    ~@body)))
-         will-update (fn [[name [this next-props next-state :as args] & body]]
-                       `(~name [this# next-props# next-state#]
-                          (let [~this this#
-                                ~next-props (goog.object/get next-props# "fulcro$value")
-                                ~next-state (goog.object/get next-state# "fulcro$state")]
-                            ~@body)))]
+         will-update        (fn [[name [this next-props next-state :as args] & body]]
+                              `(~name [this# next-props# next-state#]
+                                 (let [~this this#
+                                       ~next-props (goog.object/get next-props# "fulcro$value")
+                                       ~next-state (goog.object/get next-state# "fulcro$state")]
+                                   ~@body)))]
      (def reshape-map
        {:reshape
         {'initLocalState
-         (fn [[name [this :as args] & body]]
-           `(~name ~args
-              (let [ret# (do ~@body)]
-                (cljs.core/js-obj "fulcro$state" ret#))))
-         'componentWillReceiveProps will-receive-props
+                                           (fn [[name [this :as args] & body]]
+                                             `(~name ~args
+                                                (let [ret# (do ~@body)]
+                                                  (cljs.core/js-obj "fulcro$state" ret#))))
+         'componentWillReceiveProps        will-receive-props
          'UNSAFE_componentWillReceiveProps will-receive-props
-         'componentWillUpdate will-update
-         'UNSAFE_componentWillUpdate will-update
-         'componentDidUpdate (fn [[name [this prev-props prev-state & optional :as args] & body]]
-                               (let [snapshot-sym (if (symbol? (first optional)) (first optional) (gensym "snapshot"))]
-                                 `(~name [this# prev-props# prev-state# snapshot#]
-                                    (let [~this this#
-                                          ~snapshot-sym snapshot#
-                                          ~prev-props (goog.object/get prev-props# "fulcro$value")
-                                          ~prev-state (goog.object/get prev-state# "fulcro$state")]
-                                      (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
-                                        (let [ident# (fulcro.client.primitives/ident this# ~prev-props)
-                                              next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))]
-                                          (when (not= ident# next-ident#)
-                                            (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
-                                              (when-not (nil? idxr#)
-                                                (swap! (:indexes idxr#)
-                                                  (fn [indexes#]
-                                                    (-> indexes#
-                                                        (update-in [:ref->components ident#] disj this#)
-                                                        (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))
-                                      ~@body))))
-         'componentDidMount (fn [[name [this :as args] & body]]
-                              `(~name [this#]
-                                 (let [~this this#
-                                       reconciler# (fulcro.client.primitives/get-reconciler this#)
-                                       lifecycle# (get-in reconciler# [:config :lifecycle])
-                                       indexer# (get-in reconciler# [:config :indexer])]
-                                   (goog.object/set this# "fulcro$mounted" true)
-                                   (when-not (nil? indexer#)
-                                     (fulcro.client.impl.protocols/index-component! indexer# this#))
-                                   (when lifecycle#
-                                     (lifecycle# this# :mount))
-                                   ~@body)))
-         'componentWillUnmount (fn [[name [this :as args] & body]]
-                                 `(~name [this#]
-                                    (let [~this this#
-                                          reconciler# (fulcro.client.primitives/get-reconciler this#)
-                                          lifecycle# (get-in reconciler# [:config :lifecycle])
-                                          cfg# (:config reconciler#)
-                                          st# (:state cfg#)
-                                          indexer# (:indexer cfg#)]
-                                      (goog.object/set this# "fulcro$mounted" false)
-                                      (when (and (not (nil? st#))
-                                                 (get-in @st# [:fulcro.client.primitives/queries this#]))
-                                        (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
-                                      (when lifecycle#
-                                        (lifecycle# this# :unmount))
-                                      (when indexer#
-                                        (fulcro.client.impl.protocols/drop-component! indexer# this#))
-                                      ~@body)))
-         'shouldComponentUpdate (fn [[name [this next-props next-state :as args] & body]]
-                                  `(~name [this# next-props# next-state#]
-                                     (let [~this this#
-                                           ~next-props (goog.object/get next-props# "fulcro$value")
-                                           ~next-state (goog.object/get next-state# "fulcro$state")]
-                                       ~@body)))
-         'getSnapshotBeforeUpdate (fn [[name [this prev-props prev-state :as args] & body]]
-                                    `(~name [this# prev-props# prev-state#]
-                                       (let [~this this#
-                                             ~prev-props (goog.object/get prev-props# "fulcro$value")
-                                             ~prev-state (goog.object/get prev-state# "fulcro$state")]
-                                         ~@body)))
+         'componentWillUpdate              will-update
+         'UNSAFE_componentWillUpdate       will-update
+         'componentDidUpdate               (fn [[name [this prev-props prev-state & optional :as args] & body]]
+                                             (let [snapshot-sym (if (symbol? (first optional)) (first optional) (gensym "snapshot"))]
+                                               `(~name [this# prev-props# prev-state# snapshot#]
+                                                  (let [~this this#
+                                                        ~snapshot-sym snapshot#
+                                                        ~prev-props (goog.object/get prev-props# "fulcro$value")
+                                                        ~prev-state (goog.object/get prev-state# "fulcro$state")]
+                                                    (when (cljs.core/implements? fulcro.client.primitives/Ident this#)
+                                                      (let [ident#      (fulcro.client.primitives/ident this# ~prev-props)
+                                                            next-ident# (fulcro.client.primitives/ident this# (fulcro.client.primitives/props this#))]
+                                                        (when (not= ident# next-ident#)
+                                                          (let [idxr# (get-in (fulcro.client.primitives/get-reconciler this#) [:config :indexer])]
+                                                            (when-not (nil? idxr#)
+                                                              (swap! (:indexes idxr#)
+                                                                (fn [indexes#]
+                                                                  (-> indexes#
+                                                                    (update-in [:ref->components ident#] disj this#)
+                                                                    (update-in [:ref->components next-ident#] (fnil conj #{}) this#)))))))))
+                                                    ~@body))))
+         'componentDidMount                (fn [[name [this :as args] & body]]
+                                             `(~name [this#]
+                                                (let [~this this#
+                                                      reconciler# (fulcro.client.primitives/get-reconciler this#)
+                                                      lifecycle# (get-in reconciler# [:config :lifecycle])
+                                                      indexer# (get-in reconciler# [:config :indexer])]
+                                                  (goog.object/set this# "fulcro$mounted" true)
+                                                  (when-not (nil? indexer#)
+                                                    (fulcro.client.impl.protocols/index-component! indexer# this#))
+                                                  (when lifecycle#
+                                                    (lifecycle# this# :mount))
+                                                  ~@body)))
+         'componentWillUnmount             (fn [[name [this :as args] & body]]
+                                             `(~name [this#]
+                                                (let [~this this#
+                                                      reconciler# (fulcro.client.primitives/get-reconciler this#)
+                                                      lifecycle# (get-in reconciler# [:config :lifecycle])
+                                                      cfg# (:config reconciler#)
+                                                      st# (:state cfg#)
+                                                      indexer# (:indexer cfg#)]
+                                                  (goog.object/set this# "fulcro$mounted" false)
+                                                  (when (and (not (nil? st#))
+                                                          (get-in @st# [:fulcro.client.primitives/queries this#]))
+                                                    (swap! st# update-in [:fulcro.client.primitives/queries] dissoc this#))
+                                                  (when lifecycle#
+                                                    (lifecycle# this# :unmount))
+                                                  (when indexer#
+                                                    (fulcro.client.impl.protocols/drop-component! indexer# this#))
+                                                  ~@body)))
+         'shouldComponentUpdate            (fn [[name [this next-props next-state :as args] & body]]
+                                             `(~name [this# next-props# next-state#]
+                                                (let [~this this#
+                                                      ~next-props (goog.object/get next-props# "fulcro$value")
+                                                      ~next-state (goog.object/get next-state# "fulcro$state")]
+                                                  ~@body)))
+         'getSnapshotBeforeUpdate          (fn [[name [this prev-props prev-state :as args] & body]]
+                                             `(~name [this# prev-props# prev-state#]
+                                                (let [~this this#
+                                                      ~prev-props (goog.object/get prev-props# "fulcro$value")
+                                                      ~prev-state (goog.object/get prev-state# "fulcro$state")]
+                                                  ~@body)))
          'render
-         (fn [[name [this :as args] & body]]
-           `(~name [this#]
-              (let [~this this#]
-                (binding [fulcro.client.primitives/*reconciler* (fulcro.client.primitives/get-reconciler this#)
-                          fulcro.client.primitives/*depth* (inc (fulcro.client.primitives/depth this#))
-                          fulcro.client.primitives/*shared* (fulcro.client.primitives/shared this#)
-                          fulcro.client.primitives/*instrument* (fulcro.client.primitives/instrument this#)
-                          fulcro.client.primitives/*parent* this#]
-                  ~@body))))}})))
+                                           (fn [[name [this :as args] & body]]
+                                             `(~name [this#]
+                                                (let [~this this#]
+                                                  (binding [fulcro.client.primitives/*reconciler* (fulcro.client.primitives/get-reconciler this#)
+                                                            fulcro.client.primitives/*depth*      (inc (fulcro.client.primitives/depth this#))
+                                                            fulcro.client.primitives/*shared*     (fulcro.client.primitives/shared this#)
+                                                            fulcro.client.primitives/*instrument* (fulcro.client.primitives/instrument this#)
+                                                            fulcro.client.primitives/*parent*     this#]
+                                                    ~@body))))}})))
 
 #?(:clj
    (defn reshape [dt {:keys [reshape defaults]}]
      (letfn [(reshape* [x]
                (if (and (sequential? x)
-                        (contains? reshape (first x)))
+                     (contains? reshape (first x)))
                  (let [reshapef (get reshape (first x))]
                    (validate-sig x)
                    (reshapef x))
@@ -708,18 +708,6 @@
         {:class     class
          :queryid   (query-id class qualifier)
          :qualifier qualifier}))))
-
-(defn computed-factory
-  "Similar to factory, but returns a function with the signature
-  [props computed] instead of default [props & children]. This makes easier to send
-  computed but will not accept children params."
-  ([class] (computed-factory class {}))
-  ([class options]
-   (let [factory (factory class options)]
-     (fn real-factory
-       ([props] (real-factory props {}))
-       ([props computed]
-        (factory (computed props computed)))))))
 
 (defn denormalize-query
   "Takes a state map that may contain normalized queries and a query ID. Returns the stored query or nil."
@@ -1751,13 +1739,13 @@
   [{:keys [parser state] :as env} c]
   (let [ui (when #?(:clj  (satisfies? Ident c)
                     :cljs (implements? Ident c))
-             (let [id          (ident c (props c))
-                   has-tempid? (tempid? (second id))
-                   query       [{id (get-query c @state)}]
-                   data-path   (-> (props c) meta ::parser/data-path)
+             (let [id              (ident c (props c))
+                   has-tempid?     (tempid? (second id))
+                   query           [{id (get-query c @state)}]
+                   data-path       (-> (props c) meta ::parser/data-path)
                    remap-happened? (and has-tempid? (nil? (get-in @state id)))
-                   result      (parser (assoc env :replacement-root-path data-path) query)
-                   value       (get result id)]
+                   result          (parser (assoc env :replacement-root-path data-path) query)
+                   value           (get result id)]
                (if (or (not (vector? id)) (nil? (second id)) remap-happened?)
                  ::no-ident
                  value)))]
@@ -1787,6 +1775,18 @@
        (if (vector? props)
          (-> props meta (get-in ks))
          (get-in props ks))))))
+
+(defn computed-factory
+  "Similar to factory, but returns a function with the signature
+  [props computed] instead of default [props & children]. This makes easier to send
+  computed but will not accept children params."
+  ([class] (computed-factory class {}))
+  ([class options]
+   (let [f (factory class options)]
+     (fn real-factory
+       ([props] (real-factory props {}))
+       ([props c]
+        (f (computed props c)))))))
 
 (defn children
   "Returns the component's children."
@@ -2639,12 +2639,12 @@
      ([env sym external-args user-arity fn-form user-known-sym]
       (when-not (<= user-arity (count (second fn-form)))
         (throw (ana/error (merge env (meta fn-form)) (str "Invalid arity for " user-known-sym ". Expected " user-arity " or more."))))
-      (let [user-args (second fn-form)
+      (let [user-args    (second fn-form)
             updated-args (into (vec (or external-args [])) user-args)
-            body-forms (drop 2 fn-form)]
+            body-forms   (drop 2 fn-form)]
         (->> body-forms
-             (cons updated-args)
-             (cons sym))))))
+          (cons updated-args)
+          (cons sym))))))
 
 #?(:clj
    (defn- build-query-forms
@@ -3212,16 +3212,16 @@
      (if-not (:ns &env)
        `(do ~@body)
        `(let [parent# ~outer-parent
-              r# (or fulcro.client.primitives/*reconciler* (fulcro.client.primitives/get-reconciler parent#))
-              d# (or fulcro.client.primitives/*depth* (inc (fulcro.client.primitives/depth parent#)))
-              s# (or fulcro.client.primitives/*shared* (fulcro.client.primitives/shared parent#))
-              i# (or fulcro.client.primitives/*instrument* (fulcro.client.primitives/instrument parent#))
-              p# (or fulcro.client.primitives/*parent* parent#)]
+              r#      (or fulcro.client.primitives/*reconciler* (fulcro.client.primitives/get-reconciler parent#))
+              d#      (or fulcro.client.primitives/*depth* (inc (fulcro.client.primitives/depth parent#)))
+              s#      (or fulcro.client.primitives/*shared* (fulcro.client.primitives/shared parent#))
+              i#      (or fulcro.client.primitives/*instrument* (fulcro.client.primitives/instrument parent#))
+              p#      (or fulcro.client.primitives/*parent* parent#)]
           (binding [fulcro.client.primitives/*reconciler* r#
-                    fulcro.client.primitives/*depth* d#
-                    fulcro.client.primitives/*shared* s#
+                    fulcro.client.primitives/*depth*      d#
+                    fulcro.client.primitives/*shared*     s#
                     fulcro.client.primitives/*instrument* i#
-                    fulcro.client.primitives/*parent* p#]
+                    fulcro.client.primitives/*parent*     p#]
             ~@body)))))
 
 #?(:clj
@@ -3237,7 +3237,7 @@
            {obj-dt false non-lifecycle-dt true} (group-by
                                                   (fn [x]
                                                     (and (sequential? x)
-                                                         (not (lifecycle-method-names (first x)))))
+                                                      (not (lifecycle-method-names (first x)))))
                                                   obj-dt)
            class-methods          (extract-static-methods (:protocols statics))]
        `(do
@@ -3286,12 +3286,12 @@
          (this-as this
            (if *blindly-render*
              true
-             (let [next-children (. next-props -children)
-                   next-props (goog.object/get next-props "fulcro$value")
-                   current-props (props this)
-                   props-changed? (not= current-props next-props)
-                   next-state (goog.object/get next-state "fulcro$state")
-                   state-changed? (and (.. this -state)
+             (let [next-children     (. next-props -children)
+                   next-props        (goog.object/get next-props "fulcro$value")
+                   current-props     (props this)
+                   props-changed?    (not= current-props next-props)
+                   next-state        (goog.object/get next-state "fulcro$state")
+                   state-changed?    (and (.. this -state)
                                        (not= (goog.object/get (. this -state) "fulcro$state")
                                          next-state))
                    children-changed? (not= (.. this -props -children) next-children)]
@@ -3312,7 +3312,7 @@
                          (fn [indexes]
                            (-> indexes
                              (update-in [:ref->components old-ident] disj this)
-                               (update-in [:ref->components next-ident] (fnil conj #{}) this))))))))))))
+                             (update-in [:ref->components next-ident] (fnil conj #{}) this))))))))))))
 
        "componentDidMount"
        ;; Add the component to the indexer when it mounts
@@ -3327,14 +3327,14 @@
        ;; Remove the component from the indexer, and remove any dynamic queries for it
        (fn []
          (this-as this
-           (let [r (get-reconciler this)
-                 cfg (:config r)
-                 st (:state cfg)
+           (let [r       (get-reconciler this)
+                 cfg     (:config r)
+                 st      (:state cfg)
                  indexer (:indexer cfg)]
              (goog.object/set this "fulcro$mounted" false)
              ;; FIXME: WRONG...queries are not keyed by instance anymore (small possible memory leak)
              (when (and (not (nil? st))
-                        (get-in @st [:queries this]))
+                     (get-in @st [:queries this]))
                (swap! st update-in [:queries] dissoc this))
              (when-not (nil? indexer)
                (p/drop-component! indexer this))))))))
@@ -3345,38 +3345,38 @@
      ([name forms env]
       (letfn [(field-set! [obj [field value]]
                 `(set! (. ^js ~obj ~(symbol (str "-" field))) ~value))]
-        (let [docstring (when (string? (first forms))
-                          (first forms))
-              forms (cond-> forms
-                      docstring rest)
+        (let [docstring        (when (string? (first forms))
+                                 (first forms))
+              forms            (cond-> forms
+                                 docstring rest)
               {:keys [dt statics]} (collect-statics forms)
-              _ (validate-statics dt)
-              fqn (if env
-                    (symbol (-> env :ns :name str) (str name))
-                    name)
-              ctor `(defn ~(with-meta name
-                             (merge {:jsdoc ["@constructor" "@nocollapse"]}
-                               (meta name)
-                               (when docstring
-                                 {:doc docstring})))
-                      []
-                      (this-as this#
-                        (.apply js/React.Component this# (js-arguments))
-                        (if-not (nil? (.-initLocalState ^js this#))
-                          (set! (.-state this#) (.initLocalState ^js this#))
-                          (set! (.-state this#) (cljs.core/js-obj)))
-                        this#))
+              _                (validate-statics dt)
+              fqn              (if env
+                                 (symbol (-> env :ns :name str) (str name))
+                                 name)
+              ctor             `(defn ~(with-meta name
+                                         (merge {:jsdoc ["@constructor" "@nocollapse"]}
+                                           (meta name)
+                                           (when docstring
+                                             {:doc docstring})))
+                                  []
+                                  (this-as this#
+                                    (.apply js/React.Component this# (js-arguments))
+                                    (if-not (nil? (.-initLocalState ^js this#))
+                                      (set! (.-state this#) (.initLocalState ^js this#))
+                                      (set! (.-state this#) (cljs.core/js-obj)))
+                                    this#))
               set-react-proto! `(goog.object/extend (.-prototype ~name) js/React.Component.prototype default-component-prototype)
-              ctor (if (-> name meta :once)
-                     `(when-not (cljs.core/exists? ~name)
-                        ~ctor
-                        ~set-react-proto!)
-                     `(do
-                        ~ctor
-                        ~set-react-proto!))
-              display-name (if env
-                             (str (-> env :ns :name) "/" name)
-                             'js/undefined)]
+              ctor             (if (-> name meta :once)
+                                 `(when-not (cljs.core/exists? ~name)
+                                    ~ctor
+                                    ~set-react-proto!)
+                                 `(do
+                                    ~ctor
+                                    ~set-react-proto!))
+              display-name     (if env
+                                 (str (-> env :ns :name) "/" name)
+                                 'js/undefined)]
           `(do
              ~ctor
              (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
