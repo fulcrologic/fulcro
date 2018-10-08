@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.7
+-----
+- Fixed computed-factory. It was shadowing things.
+
 2.6.6
 -----
 - Fixed bug introduced by 2.6.5 optimization
