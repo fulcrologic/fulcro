@@ -37,7 +37,10 @@
                             (client-dropped l websockets uid))
       :fulcro.client/API (let [result (server/handle-api-request parser env ?data)]
                            (if ?reply-fn
-                             (?reply-fn result)
+                             (try
+                               (?reply-fn result)
+                               (catch Exception e
+                                 (log/error "Failed to encode result onto websocket. Make sure your query or mutation returned a properly serializable value.  The errant value was: " result)))
                              (log/error "Reply function missing on API call!")))
       :chsk/bad-event (log/error "Corrupt message. Websocket client sent a corrupt message." event)
       nil (log/error "Sente event handler received a nil event ID in event" event ". This indicates a corrupt websocket message from the client, or a failure in transit encode/decode.")

@@ -9,6 +9,7 @@ small and tractable.
 2.6.7
 -----
 - Fixed computed-factory. It was shadowing things.
+- Improved websocket response encoding error messages.
 
 2.6.6
 -----
