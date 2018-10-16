@@ -4971,6 +4971,14 @@ should throw an exception.
 
 This should be considered an experimental part of the API.  Feedback is welcome.
 
+=== IDE Integration
+
+The syntax of `defmutation` and `declare-mutation` are both intentionally "shaped" like `defn` and `def` so that you
+can tell your IDE how to resolve them.  In IntelliJ, you can do this by clicking on the macro name (e.g. `defmutation`)
+and waiting for the light bulb.  Then select "Resolve as" and then `defn` for `defmutation` and `def` for `delcare-mutation`.
+
+You may not need to do this for `defmutation`, as IntelliJ does have some predefined resolutions for Fulcro built-in.
+
 === Future Status of `declare-mutation`
 
 Expect this to make it into Fulcro proper in the near future, but for now we've got it in incubator while we work
