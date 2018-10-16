@@ -4943,7 +4943,7 @@ and then declare your mutations together in some namespace:
   (s/keys :req-un [::a ::b])) ; spec not currently optional, probably should be :)
 ```
 
-and now you can use `boo` without quoting, or circular references!
+and now you can use `boo` without quoting!
 
 ```
 (ns real-ui
@@ -4955,6 +4955,18 @@ and now you can use `boo` without quoting, or circular references!
 
    (prim/transact! this [(boo {:a "hello" :b 22})])
 ```
+
+There's really not much to the magic.  `boo` becomes a function-like thing that just returns a list with the proper
+stuff in it:
+
+```
+(boo {:a "hello"}) => '(real-ns.of.mutations/boo {:a "hello"})
+```
+
+Additionally, since your real mutation is in a
+whole different namespace that is never required by the UI or the interface you are now free to
+require the UI in the mutation namespace if you need it for merges and other component-centric mutations concerns
+without causing circular references.
 
 This requires an extra namespace and a little extra declaration work, but cleans up the UI and ns requires quite well.
 
