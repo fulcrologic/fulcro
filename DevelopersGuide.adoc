@@ -4907,6 +4907,60 @@ This demonstrates that the refresh is working for full-stack operations.
 include::src/book/book/demos/declarative_mutation_refresh.cljs[]
 ----
 
+== Mutations Without Quoting or Circular References
+
+There are times when using just `defmutation` is inconvenient.  If you need to use a component in a mutation (for a merge, for example),
+then you can easily end up with circular references in your code.  You could just use the fully-qualified mutation name in
+the UI, but that is quite inconvenient (we'd rather alias it, but circular refs are not allowed).
+
+Another inconvenience is quoting.  It is very easy to foget to unquote values in a tx.
+
+What if you could write your transactions "as-if" they were functions, but have them work as data?  Well, we live in
+Clojure-land, so that is not only possible, but relatively easy.
+
+Fulcro Incubator now includes suppport for declaring mutations in any namespace (think of it like an interface
+namespace), and those declarations can be used quote-free!
+
+To use this support, add Fulcro Incubator to your project:
+
+```
+[fulcrologic/fulcro-incubator "0.0.2"]
+```
+
+and then declare your mutations together in some namespace:
+
+```
+(ns my-mutations
+  (:require [fulcro.incubator.mutation-interface :refer [declare-mutation]]
+            [cljs.spec.alpha :as s])
+
+(s/def ::a string?)
+(s/def ::b pos-int?)
+
+(declare-mutation boo
+  "Mutation to do blah" ; doc string optional
+  'real-ns.of.mutations/boo
+  (s/keys :req-un [::a ::b])) ; spec not currently optional, probably should be :)
+```
+
+and now you can use `boo` without quoting, or circular references!
+
+```
+(ns real-ui
+  (:require
+    [my-mutations :refer [boo]]
+    ...))
+
+...
+
+   (prim/transact! this [(boo {:a "hello" :b 22})])
+```
+
+This requires an extra namespace and a little extra declaration work, but cleans up the UI and ns requires quite well.
+
+Expect this to make it into Fulcro proper in the near future, but for now we've got it in incubator while we work
+on the API.
+
 == Recommendations About Writing Mutations
 
 Mutations themselves are meant to be abstractions across the entire stack; however, the optimistic side of them are
