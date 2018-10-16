@@ -4931,7 +4931,7 @@ and then declare your mutations together in some namespace:
 
 ```
 (ns my-mutations
-  (:require [fulcro.incubator.mutation-interface :refer [declare-mutation]]
+  (:require [fulcro.incubator.mutation-interface :as mi :refer [declare-mutation]]
             [cljs.spec.alpha :as s])
 
 (s/def ::a string?)
@@ -4958,8 +4958,23 @@ and now you can use `boo` without quoting, or circular references!
 
 This requires an extra namespace and a little extra declaration work, but cleans up the UI and ns requires quite well.
 
+=== Parameter specs
+
+Currently the specs are not enforced unless `*checked-mutations*` is bound to true in the context they are used:
+
+```
+(binding [mi/*checked-mutations* true]
+  (prim/transact! this [(boo {:a 22})]))
+```
+
+should throw an exception.
+
+This should be considered an experimental part of the API.  Feedback is welcome.
+
+=== Future Status of `declare-mutation`
+
 Expect this to make it into Fulcro proper in the near future, but for now we've got it in incubator while we work
-on the API.
+on refining the API.
 
 == Recommendations About Writing Mutations
 
