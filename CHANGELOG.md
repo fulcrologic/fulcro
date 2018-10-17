@@ -6,6 +6,12 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.8
+-----
+- Added wrap-csrf-token request middleware
+- Added security chapter in Developer's Guide
+-
+
 2.6.7
 -----
 - Fixed computed-factory. It was shadowing things.

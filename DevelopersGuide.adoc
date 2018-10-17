@@ -11156,6 +11156,270 @@ You should port to using the raw `sente-message` for this concern.
 want that, then store your application in a top level atom (e.g. `app`) and use this as your new `push-method` parameter
 when creating the networking: `(fn [m] (when @app (fulcro.websockets.networking/push-received @app m)))`.
 
+= Security [[Security]]
+
+Full production Fulco apps, just like any other web-based software need some additional attention to ensure that there
+are no security holes that can be exploited.  Fulcro can do nothing for you if you trust user strings in SQL string
+composition or make any of the other "old school" errors like thos in
+https://www.owasp.org/index.php/OWASP_Top_Ten_Cheat_Sheet[The OWASP Top Ten List].
+
+The most critical part of your application to secure is your network-based API.  This involves low-level network
+security measures, authentication, and then often some additional authorization.
+
+If you're using unmodified Fulcro server code and client remotes then it is likely that you have not done enough to
+ensure your user's safety.  Here are the minimum measures (also note that I am not a security expert, and you system
+may have additional needs.  You should do your homework.):
+
+. Use HTTPS for all authenticated access.  Most people put something like nginx in front of thier webapp for this.
+. Use secure cookies for authenticated sessions, to ensure you don't accidentally send an authenticated session cookie over a non-secure connection.
+** If you're using `wrap-session` and assign a cookie to your user on pre-login HTTP access and then "upgrade" it on login you
+  are opening your users to man-in-the-middle attacks.
+. Add middleware that checks for unexpected cross-origin requests.
+. Add code to prevent websocket hijacking (if you use websockets). Sente with its built-in CSRF is *not* sufficient.
+. Add code to do proper cross-site scripting prevention.
+** If you can *see* the CSRF token go across *any* AJAX interaction as payload data that requires nothing more than the session
+cookie (or less), then your security is broken.
+See https://stackoverflow.com/questions/20504846/why-is-it-common-to-put-csrf-prevention-tokens-in-cookies[this Stack Overflow Discussion]
+for more information on correct ways to use CSRF tokens, and their relative pros/cons.
+
+Fulcro 2.6.8+ includes some built-in support that implement *some* of these.  Your application auth logic and
+server deployment matter, so *do not trust* that any web application (using Fulcro or any other library) is
+secure.  You should always go through a complete security checklist and penetration testing.
+
+== Low-Level Network Security
+
+First, start by reviewing your server middleware.  You should read through
+https://github.com/ring-clojure/ring-defaults/blob/master/src/ring/middleware/defaults.clj[Ring Defaults] and understand
+what each one of the recommended middleware bits does, and add the ones that apply for you.  Pay particular attention
+to any related to SSL and cross-site things (`wrap-frame-options`, `wrap-xss-protection`, `wrap-content-type-options`, etc.).
+
+Fulcro is not involved in your cookie/session/auth/SSL story.  You will need to design, add, and configure that middleware
+and logic yourself.  Do *not* trust Fulcro templates for security.  They are meant to be starting points, and
+not production-ready code.  These, by necessity, do not force SSL for example.
+
+The `ring.middleware.ssl` has a few things you should throw in once you've got SSL working.  If you're forcing all access
+to HTTPS before `wrap-session` can assign a cookie, then you won't have to *re*-assign a different cookie for authenticated
+access, and it also allows you to add the `:secure true` option to `wrap-session` so that you can stop worrying about
+that mess.
+
+See the https://github.com/ring-clojure/ring/wiki/Sessions[Ring wrap-session documentation] for more details
+about things like how to handle cookie regeneration on privilege escalation if you started out (i.e. need) a non-secure cookie
+for pre-authenticated session things.
+
+=== CSRF
+
+The most difficult and intricate thing to secure in your application is cross-site API requests.  Much of the "official"
+documentation on the web about XSS is about form submission, and `wrap-anti-forgery` middleware is built to allow you
+to secure form POST in exactly this scenario.
+
+Fulcro *does* use POST for both *queries and mutations*, so adding this middleware will "work", in that all of your API
+requests will not fail everywhere!  This is probably stronger security than your users will find useful.
+
+There are a number of approaches you can take to correct this.  The easiest is to:
+
+. Configure your deployment for *SSL always*.  Development mode can be configurable to turn off the middleware redirects and
+the secure marker on cookies, but you might want to have a careful deployment test to ensure non-SSL requests are always redirected
+in production and cookies are secure.
+. Put the CSRF token in a secure (but js-accessible) cookie *or* embed it in the HTML of the page of your
+Fulcro application.  This will allow the startup code to access it.  Make sure you understand the security around
+the generation of this token and how it works.
+. Add the CSRF to the headers of your Fulcro remote(s) as `X-CSRF-Token`.  This will allow your POSTs to get past
+the `wrap-anti-forgery` middleware.
+. I also recommend that you enforce an origin header check just before the API handler.  As you expand your software
+you might add endpoints that make you want to open up things with `Access-Control-Allow-Origin` on your server, but you
+probably don't want those requests ever making it to your API as possible cross-site attacks. Fulcro comes
+with (as of 2.6.8) `fulcro.server/wrap-protect-origins` for this purpose.
+
+=== Example Securing a Normal Remote
+
+When deploying to production you should stop using the "easy" server and roll your own. This section will cover the steps
+you need to do so, and you can also clone the https://github.com/fulcrologic/fulcro-security-demo[complete source of this example].
+
+==== The Server Config and Middleware
+
+Our demo app is going to take the approach of embedding the CSRF token in the HTML page that serves our Fulcro app.  This
+is relatively easy to understand, and is as secure as form-based CSRF embedding.  Hiccup makes short work of generating
+such a page:
+
+```
+(defn generate-index [{:keys [anti-forgery-token]}]
+  (timbre/info "Embedding CSRF token in index page")
+  (-> (h.page/html5 {}
+        [:head {:lang "en"}
+         [:meta {:charset "UTF-8"}]
+         [:script (str "var fulcro_network_csrf_token = '" anti-forgery-token "';")]]
+        [:body
+         [:div#app]
+         [:script {:src "/js/main/app.js"}]
+         [:script "security_demo.client.init()"]])
+    response/response
+    (response/content-type "text/html")))
+```
+
+For middleware we can adopt `ring-defaults` to get most of the bits we need.
+You want to be able to work in development, and also safely deploy to production, and since
+ring-defaults needs a number of config options we'd like to be able to tweak between the two we'll
+put a secure set of those into our Fulcro `defaults.edn` config file as follows:
+
+```
+{:http-kit/config
+ {:port 3000}
+
+ :legal-origins
+ #{"localhost" "security-demo.lvh.me"}
+
+ :ring.middleware/defaults-config
+ {:params    {:keywordize true
+              :multipart  true
+              :nested     true
+              :urlencoded true}
+  :cookies   true
+  :responses {:absolute-redirects     true
+              :content-types          true
+              :default-charset        "utf-8"
+              :not-modified-responses true}
+  :session   {:cookie-attrs {:http-only true, :same-site :strict}}
+  :static    {:resources "public"}
+  :security  {:anti-forgery   true
+              :hsts           true
+              :ssl-redirect   true
+              :frame-options  :deny
+              :xss-protection {:enable? true
+                               :mode    :block}}}}
+```
+
+and then create a middleware stack like this:
+
+```
+(ns security-demo.components.middleware
+  (:require
+    [clojure.pprint :refer [pprint]]
+    [fulcro.server :as server]
+    [hiccup.page :as h.page]
+    [mount.core :refer [defstate]]
+    [ring.middleware.defaults :refer [wrap-defaults]]
+    [ring.middleware.gzip :refer [wrap-gzip]]
+    [ring.util.response :as response]
+    [ring.util.response :refer [response file-response resource-response]]
+    [security-demo.api.mutations]                           ;; ensure reads/mutations are loaded
+    [security-demo.api.read]
+    [security-demo.components.config :refer [config]]
+    [security-demo.components.server-parser :refer [server-parser]]
+    [taoensso.timbre :as timbre]
+    [clojure.string :as str]))
+
+(def ^:private not-found-handler
+  (fn [_]
+    {:status  404
+     :headers {"Content-Type" "text/plain"}
+     :body    "NOPE"}))
+
+(defn wrap-api
+  "Fulcro's API handler"
+  [handler]
+  (fn [request]
+    (if (= "/api" (:uri request))
+      (server/handle-api-request
+        server-parser
+        {:config config}
+        (:transit-params request))
+      (handler request))))
+
+(defn generate-index [{:keys [anti-forgery-token]}]
+  (timbre/info "Embedding CSRF token in index page")
+  (-> (h.page/html5 {}
+        [:head {:lang "en"}
+         [:meta {:charset "UTF-8"}]
+         [:script (str "var fulcro_network_csrf_token = '" anti-forgery-token "';")]]
+        [:body
+         [:div#app]
+         [:script {:src "/js/main/app.js"}]
+         [:script "security_demo.client.init()"]])
+    response/response
+    (response/content-type "text/html")))
+
+(defn wrap-uris
+  "Wrap the given request URIs to a generator function."
+  [handler uri-map]
+  (fn [{:keys [uri] :as req}]
+    (if-let [generator (get uri-map uri)]
+      (generator req)
+      (handler req))))
+
+(defstate middleware
+  :start
+  (let [defaults-config (:ring.middleware/defaults-config config)
+        legal-origins   (get config :legal-origins #{"localhost"})]
+    (timbre/debug "Configuring middleware-defaults with" (with-out-str (pprint defaults-config)))
+    (timbre/info "Restricting origins to " legal-origins)
+    (when-not (get-in defaults-config [:security :ssl-redirect])
+      (timbre/warn "SSL IS NOT ENFORCED: YOU ARE RUNNING IN AN INSECURE MODE (only ok for development)"))
+    (-> not-found-handler
+      wrap-api
+      server/wrap-transit-params
+      server/wrap-transit-response
+      (server/wrap-protect-origins {:allow-when-origin-missing? false
+                                    :legal-origins              legal-origins})
+      (wrap-uris {"/"           generate-index
+                  "/index.html" generate-index})
+      (wrap-defaults defaults-config)
+      wrap-gzip)))
+```
+
+NOTE: We delete `index.html` from our public resources, so that the `wrap-uris` middleware can dynamically generate it.  This
+is also handy for embedding things like hashed javascript names (e.g. from a shadow-cljs manifest.edn file).
+
+Really, there is no change to how you set up APIs, but by putting it behind the CSRF protection of `ring-defaults` all
+POSTs will be rejected before they reach it.  The `wrap-protect-origins` is really paranoia, since a cross-site script
+would never know the token; however, the paranoia could be nice if the token was somehow exposed (or guessed).
+
+Of course, now your client won't be able to run queries or mutations against the server!  Let's fix that.
+
+==== Securing the Client
+
+Really all the client has to do is add CSRF headers to the request.  You can do this with a very simple bit of
+Fulcro client middleware (supplied in 2.6.8+, but trivial to write):
+
+```
+;; in fulcro.client.network as of 2.6.8
+(defn wrap-csrf-token
+  "Client remote request middleware. This middleware can be added to add an X-CSRF-Token header to the request."
+  [handler csrf-token]
+  (fn [request]
+    (update request :headers assoc "X-CSRF-Token" csrf-token)))
+```
+
+The client should be change to look like this:
+
+```
+(def secured-request-middleware
+  (->
+    (net/wrap-csrf-token identity (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!"))
+    (net/wrap-fulcro-request)))
+
+...
+
+(fc/new-fulcro-client
+  :networking {:remote (net/fulcro-http-remote {:url                "/api"
+                                                :request-middleware secured-request-middleware})})
+```
+
+The client simply pulls the token out of the js var, and puts it in the correct header.
+
+==== Sente Websockets
+
+Sente has an internal CSRF support, which it uses to deal with augmenting the POST requests it might make (it supports
+alternate network techniques to get around missing websocket support).  Unfortunately,
+it exchanges the CSRF from `wrap-anti-forgery` within a (js-accessible) handshake.  This *can* be ok *as long as that
+handshake never happens without CSRF protection *already in place*.  Otherwise you are open to websocket hijacking, and
+also exposing the CSRF token and compromising your *normal* remote as well!
+
+Fulcro's websocket contruction function allows you to pass an initial params through sente, and you can use these to
+include a CSRF token, and then add a bit of additional middleware to require that on your websocket setup. This ensures
+that Sente cannot do a handshake (and expose the token) without proving that the source page *already knows* the token.
+
+TODO: Code example
+
 = Internationalization [[I18N]]
 
 Fulcro has had internationalization support since inception. That original support worked well from the call-site; however,
