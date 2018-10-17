@@ -1,7 +1,7 @@
 (ns fulcro.server-spec
   (:require [fulcro-spec.core :refer [specification assertions provided component behavior when-mocking]]
-            [clojure.test :as t]
-            [fulcro.server :as server :refer [augment-response]]
+            [clojure.test :as t :refer [are is]]
+            [fulcro.server :as server :refer [augment-response legal-origin?]]
             [fulcro.easy-server :as easy :refer [make-web-server]]
             [org.httpkit.server :refer [run-server]]
             [com.stuartsierra.component :as component]
@@ -724,3 +724,20 @@
           (run-server :fake/all-routes opts) => (do (assertions opts => ok-cfg) :ok)
           (assertions
             (-> (make-test-system ok-cfg+bad) .start :web-server :server) => :ok))))))
+
+(specification "legal-origin?"
+  (behavior "do NOT allow subdomains (subdomain hijacking attack)"
+    (are [origin] (not (legal-origin? {:headers {"origin" origin}} #{"myplace.com"} false))
+                  "http://www.myplace.com"
+                  "http://a.b.myplace.com"))
+  (behavior "are anchored on the root domain"
+    (is (not (legal-origin? {:headers {"origin" "http://myplace.com.bagguy.url"}} #{"myplace.com"} false))))
+  (behavior "are case insensitive"
+    (are [origin] (legal-origin? {:headers {"origin" origin}} #{"www.myplace.com"} false)
+                  "HTTP://WwW.MYplace.Com"))
+  (behavior "can have ports and URIs"
+    (are [origin] (legal-origin? {:headers {"origin" origin}} #{"www.myplace.com"} false)
+                  "http://www.myplace.com:1/asd.asd.asd.ads:2233"
+                  "http://www.myplace.com:222"
+                  "http://www.myplace.com/index.html"
+                  "http://www.myplace.com/")))
