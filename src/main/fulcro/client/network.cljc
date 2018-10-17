@@ -2,10 +2,10 @@
   (:refer-clojure :exclude [send])
   (:require [fulcro.logging :as log]
             [clojure.spec.alpha :as s]
-            #?(:clj
-               [clojure.future :refer :all])
+    #?(:clj
+            [clojure.future :refer :all])
             [cognitect.transit :as ct]
-            #?(:cljs [goog.events :as events])
+    #?(:cljs [goog.events :as events])
             [fulcro.transit :as t]
             [clojure.string :as str])
   #?(:cljs (:import [goog.net XhrIo EventType ErrorCode])))
@@ -134,6 +134,12 @@
                   (handler (merge request {:body body :headers headers :method :post})))))))
   ([handler] (wrap-fulcro-request handler nil))
   ([] (wrap-fulcro-request identity nil)))
+
+(defn wrap-csrf-token
+  "Client remote request middleware. This middleware can be added to add an X-CSRF-Token header to the request."
+  [handler csrf-token]
+  (fn [request]
+    (update request :headers assoc "X-CSRF-Token" csrf-token)))
 
 (defn wrap-fulcro-response
   "Client remote middleware to transform a network response to a standard Fulcro form.

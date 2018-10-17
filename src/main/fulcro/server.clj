@@ -9,7 +9,8 @@
     [fulcro.transit :as transit]
     [fulcro.client.impl.parser :as parser]
     [fulcro.util :as util]
-    [fulcro.logging :as log])
+    [fulcro.logging :as log]
+    [clojure.string :as str])
   (:import (clojure.lang ExceptionInfo)
            [java.io ByteArrayOutputStream]))
 
@@ -355,6 +356,36 @@ default-malformed-response
       (if (valid-response? parse-result)
         (merge {:status 200 :body parse-result} (augment-map parse-result))
         (process-errors parse-result)))))
+
+(defn legal-origin?
+  "Returns true if the given Ring request is covered by the set in legal-origins.
+
+  This can be used with `wrap-cors` standard middleware instead of a regex.
+
+  Returns `default` if origin header is missing.  If `default` is not supplied, it is assumed to be `true`."
+  ([request legal-origins]
+   (legal-origin? request legal-origins true))
+  ([{:keys [headers] :as request} legal-origins default]
+   (let [{:strs [origin]} headers]
+     (if-not (seq origin)
+       default
+       (let [match (re-matches #"^[^:]*://([^:/]+).*$" origin)
+             host  (str/lower-case (second match))]
+         (boolean (some #(= host (str/lower-case %)) legal-origins)))))))
+
+(defn wrap-protect-origins
+  "Middleware.  Denies requests that don't pass `fulcro.server/legal-origin?` test.  If your site sets
+   access-control-allow-origin headers for things like REST APIs, then you can protect
+   your Fulcro API endpoint by putting this in front of it.  This, and CSRF protections
+   should be used to ensure a normal Fulcro remote are not XSS vulnerable."
+  [handler {:keys [legal-origins allow-when-origin-missing?]
+            :or   {allow-when-origin-missing? true}}]
+  (fn [req]
+    (if (legal-origin? req legal-origins allow-when-origin-missing?)
+      (handler req)
+      {:status  403
+       :headers {"Content-Type" "text/plain"}
+       :body    "Forbidden"})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Pre-built parser support
