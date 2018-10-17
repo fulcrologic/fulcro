@@ -11373,7 +11373,16 @@ Really, there is no change to how you set up APIs, but by putting it behind the 
 POSTs will be rejected before they reach it.  The `wrap-protect-origins` is really paranoia, since a cross-site script
 would never know the token; however, the paranoia could be nice if the token was somehow exposed (or guessed).
 
-Of course, now your client won't be able to run queries or mutations against the server!  Let's fix that.
+WARNING: When you deploy this to production behind a proxy server, you'll want to set the `:proxy` option in Ring
+or you'll get infinite redirects.  The production EDN config file for this example is shown below:
+
+```
+{:http-kit/config                 {:port 8080}
+ :ring.middleware/defaults-config {:proxy true}}
+```
+
+Of course, now your client won't be able to run queries or mutations against the server (since it isn't
+sending the CSRF token)!  Let's fix that.
 
 ==== Securing the Client
 
@@ -11406,17 +11415,23 @@ The client should be change to look like this:
 
 The client simply pulls the token out of the js var, and puts it in the correct header.
 
+You could also use a js-accessible cookie for this step, which would let you go back to static HTML serving. See the
+earlier comments and links about CSRF.
+
 ==== Sente Websockets
 
 Sente has an internal CSRF support, which it uses to deal with augmenting the POST requests it might make (it supports
 alternate network techniques to get around missing websocket support).  Unfortunately,
 it exchanges the CSRF from `wrap-anti-forgery` within a (js-accessible) handshake.  This *can* be ok *as long as that
 handshake never happens without CSRF protection *already in place*.  Otherwise you are open to websocket hijacking, and
-also exposing the CSRF token and compromising your *normal* remote as well!
+also exposing the CSRF token and compromising your *other* remote processing as well!
 
-Fulcro's websocket contruction function allows you to pass an initial params through sente, and you can use these to
-include a CSRF token, and then add a bit of additional middleware to require that on your websocket setup. This ensures
-that Sente cannot do a handshake (and expose the token) without proving that the source page *already knows* the token.
+Fulcro's websocket contruction function allows you to pass a parameters through sente, and you can use these to
+include the CSRF token, and then add a bit of additional middleware to require that in front of your websocket setup
+code on the server. This ensures that Sente cannot do a handshake (and expose the token) without proving that
+the source page *already knows* the token.
+
+
 
 TODO: Code example
 
