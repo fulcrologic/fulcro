@@ -8,9 +8,9 @@ small and tractable.
 
 2.6.8
 -----
-- Added wrap-csrf-token request middleware
+- Added wrap-csrf-token client request middleware.
+- Added wrap-protect-origins for protecting GET across origins for API CSRF.
 - Added security chapter in Developer's Guide
--
 
 2.6.7
 -----
