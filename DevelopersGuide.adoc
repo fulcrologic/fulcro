@@ -11431,9 +11431,90 @@ include the CSRF token, and then add a bit of additional middleware to require t
 code on the server. This ensures that Sente cannot do a handshake (and expose the token) without proving that
 the source page *already knows* the token.
 
+WARNING: I know I've said this more than once now, but here it is a different way: Sente will stop warning about the
+lack of CSRF as *soon* as you add the anti-forgery middleware; however, that does not secure your app.  You must verify
+that the client talking to you is valid before starting the handshake or you are open to websocket hijacking attacks.
 
+The code to do this all is very similar to the normal remotes, so we'll just show the differences.
 
-TODO: Code example
+Of course, you need websocket middleware, and it needs to do CSRF checks *before* the Sente handshake:
+
+```
+...
+
+(defn- is-wsrequest? [{:keys [uri]}] (= "/chsk" uri))
+
+(defn enforce-csrf!
+  "Checks the CSRF token. If it is ok, runs the `ok-response-handler`; otherwise returns a 403 response
+  and logs the CSRF violation."
+  [{:keys [anti-forgery-token params]} ok-response-handler]
+  (let [{:keys [csrf-token]} params
+        token-matches? (and (seq csrf-token) (= csrf-token anti-forgery-token))]
+    (timbre/debug "Setting up websocket request. Incoming security token is: " csrf-token)
+    (timbre/debug "Expected CSRF token is " anti-forgery-token)
+    (if token-matches?
+      (ok-response-handler)
+      (do
+        (timbre/error "CSRF FAILURE. The token received does not match the expected value.")
+        (-> (response/response "Cross site requests are not supported.")
+          (response/status 403))))))
+
+(defn wrap-websockets
+  "Add websocket middleware.  This middleware does a CSRF check on the GET (normal Ring only checks POSTS)
+  to ensure we don't start a Sente handshake unless the client has already proven it knows the CSRF token."
+  [base-request-handler]
+  (fn [{:keys [request-method] :as req}]
+    (if (is-wsrequest? req)
+      (let [{:keys [ring-ajax-post ring-ajax-get-or-ws-handshake]} websockets]
+        ;; The enforcement is really on GET, which ring's middleware won't block,
+        ;; but which exposes the token in the handshake
+        (enforce-csrf! req (fn []
+                             (case request-method
+                               :get (ring-ajax-get-or-ws-handshake req)
+                               :post (ring-ajax-post req)))))
+      (base-request-handler req))))
+
+...
+
+(defstate middleware
+  :start
+  (let [defaults-config (:ring.middleware/defaults-config config)
+        legal-origins   (get config :legal-origins #{"localhost"})]
+    (timbre/debug "Configuring middleware-defaults with" (with-out-str (pprint defaults-config)))
+    (timbre/info "Restricting origins to " legal-origins)
+    (when-not (get-in defaults-config [:security :ssl-redirect])
+      (timbre/warn "SSL IS NOT ENFORCED: YOU ARE RUNNING IN AN INSECURE MODE (only ok for development)"))
+    (-> not-found-handler
+      wrap-websockets
+      server/wrap-transit-params
+      server/wrap-transit-response
+      (server/wrap-protect-origins {:allow-when-origin-missing? false
+                                    :legal-origins              legal-origins})
+      (wrap-uris {"/"           generate-index
+                  "/index.html" generate-index})
+      (wrap-defaults defaults-config)
+      wrap-gzip)))
+```
+
+The only thing different in the stack itself is switching from normal remoting to websockets.
+
+The client change is also quite small: switch over to using websockets and send the page-embedded token with the
+websocket startup request:
+
+```
+(fc/new-fulcro-client
+      :networking {:remote
+                   (fws/make-websocket-networking
+                     {:websockets-uri "/chsk"
+                      :push-handler   push-handler
+                      ;; we use params instead of Sente's ajax-options (which would be nice for setting headers)
+                      ;; because Sente doesn't use those for the initial socket request :(
+                      ;; Not ideal, since the CSRF token might end up stored in browser caches, proxy servers, etc.
+                      ;; Perhaps someone would make a PR to Sente?
+                      :req-params     {:csrf-token (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!")}})})
+```
+
+You can play with this by cloning the https://github.com/fulcrologic/security-websockets-demo[complete source for this demo].
 
 = Internationalization [[I18N]]
 
