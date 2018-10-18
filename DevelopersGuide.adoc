@@ -11393,9 +11393,10 @@ Fulcro client middleware (supplied in 2.6.8+, but trivial to write):
 ;; in fulcro.client.network as of 2.6.8
 (defn wrap-csrf-token
   "Client remote request middleware. This middleware can be added to add an X-CSRF-Token header to the request."
-  [handler csrf-token]
-  (fn [request]
-    (update request :headers assoc "X-CSRF-Token" csrf-token)))
+  ([csrf-token] (wrap-csrf-token identity csrf-token))
+  ([handler csrf-token]
+    (fn [request]
+      (handler (update request :headers assoc "X-CSRF-Token" csrf-token)))))
 ```
 
 The client should be change to look like this:
@@ -11403,7 +11404,7 @@ The client should be change to look like this:
 ```
 (def secured-request-middleware
   (->
-    (net/wrap-csrf-token identity (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!"))
+    (net/wrap-csrf-token (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!"))
     (net/wrap-fulcro-request)))
 
 ...
