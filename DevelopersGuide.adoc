@@ -11160,7 +11160,7 @@ when creating the networking: `(fn [m] (when @app (fulcro.websockets.networking/
 
 Full production Fulco apps, just like any other web-based software need some additional attention to ensure that there
 are no security holes that can be exploited.  Fulcro can do nothing for you if you trust user strings in SQL string
-composition or make any of the other "old school" errors like thos in
+composition or make any of the other "old school" errors like those in
 https://www.owasp.org/index.php/OWASP_Top_Ten_Cheat_Sheet[The OWASP Top Ten List].
 
 The most critical part of your application to secure is your network-based API.  This involves low-level network
@@ -11213,7 +11213,7 @@ documentation on the web about XSS is about form submission, and `wrap-anti-forg
 to secure form POST in exactly this scenario.
 
 Fulcro *does* use POST for both *queries and mutations*, so adding this middleware will "work", in that all of your API
-requests will not fail everywhere!  This is probably stronger security than your users will find useful.
+requests will fail everywhere!  This is probably stronger security than your users will find useful.
 
 There are a number of approaches you can take to correct this.  The easiest is to:
 
@@ -11399,7 +11399,7 @@ Fulcro client middleware (supplied in 2.6.8+, but trivial to write):
       (handler (update request :headers assoc "X-CSRF-Token" csrf-token)))))
 ```
 
-The client should be change to look like this:
+The client should be changed to look like this:
 
 ```
 (def secured-request-middleware
