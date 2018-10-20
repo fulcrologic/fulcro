@@ -137,9 +137,10 @@
 
 (defn wrap-csrf-token
   "Client remote request middleware. This middleware can be added to add an X-CSRF-Token header to the request."
-  [handler csrf-token]
-  (fn [request]
-    (update request :headers assoc "X-CSRF-Token" csrf-token)))
+  ([csrf-token] (wrap-csrf-token identity csrf-token))
+  ([handler csrf-token]
+   (fn [request]
+     (handler (update request :headers assoc "X-CSRF-Token" csrf-token)))))
 
 (defn wrap-fulcro-response
   "Client remote middleware to transform a network response to a standard Fulcro form.

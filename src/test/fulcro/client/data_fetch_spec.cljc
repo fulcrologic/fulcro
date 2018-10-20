@@ -758,6 +758,7 @@
 
 (defmutation f [params]
   (action [env] true)
+  (custom-action [env] true)
   (remote [env] true))
 (defmutation g [params]
   (action [env] true)
@@ -784,8 +785,9 @@
 
 (specification "get-remotes"
   (assertions
-    "Returns the correct remote for a given mutation"
+    "Only returns remotes, not custom actions"
     (df/get-remotes {} `f) => #{:remote}
+    "Returns the correct remote for a given mutation"
     (df/get-remotes {} `g) => #{:rest-remote}
     "Returns all remotes that are active for the given mutation"
     (df/get-remotes {} `i) => #{:remote :rest-remote}

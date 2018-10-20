@@ -6,6 +6,14 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.9
+-----
+- Fixed oversight in new wrapper
+- Added support for custom actions in defmutation: NOTE POSSIBLE CONFLICT
+  If you named a remote with a name that ends in action, that will no longer
+  work right as a remote. Rename it.
+- Removed ordering requirement in defmutation.
+
 2.6.8
 -----
 - Added wrap-csrf-token client request middleware.

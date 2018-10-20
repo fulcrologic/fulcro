@@ -8,16 +8,17 @@
     #?(:cljs [cljs.loader :as loader])
     [fulcro.client.impl.protocols :as p]
     [fulcro.client.impl.parser :as parser]
-    #?(:clj [cljs.analyzer :as ana])))
+    #?(:clj [cljs.analyzer :as ana])
+    [clojure.string :as str]))
 
 
 #?(:clj (s/def ::action (s/cat
-                          :action-name (fn [sym] (= sym 'action))
+                          :action-name (fn [sym] (and (symbol? sym) (str/ends-with? (name sym) "action")))
                           :action-args (fn [a] (and (vector? a) (= 1 (count a))))
                           :action-body (s/+ (constantly true)))))
 
 #?(:clj (s/def ::remote (s/cat
-                          :remote-name symbol?
+                          :remote-name (fn [sym] (and (symbol? sym) (not (str/ends-with? (name sym) "action"))))
                           :remote-args (fn [a] (and (vector? a) (= 1 (count a))))
                           :remote-body (s/+ (constantly true)))))
 
@@ -25,8 +26,50 @@
                                  :sym symbol?
                                  :doc (s/? string?)
                                  :arglist vector?
-                                 :action (s/? #(and (list? %) (= 'action (first %))))
-                                 :remote (s/* #(and (list? %) (not= 'action (first %)))))))
+                                 :sections (s/* (s/or :action ::action :remote ::remote)))))
+#?(:clj
+   (defn defmutation* [macro-env args]
+     (let [conform!        (fn [element spec value]
+                             (when-not (s/valid? spec value)
+                               (throw (ana/error macro-env (str "Syntax error in " element ": " (s/explain-str spec value)))))
+                             (s/conform spec value))
+           {:keys [sym doc arglist sections]} (conform! "defmutation" ::mutation-args args)
+           {:keys [actions remotes]} (reduce (fn [result [k v]]
+                                               (if (= :action k)
+                                                 (update result :actions conj v)
+                                                 (update result :remotes conj v)))
+                                       {:actions [] :remotes []}
+                                       sections)
+           fqsym           (if (namespace sym)
+                             sym
+                             (symbol (name (ns-name *ns*)) (name sym)))
+           intern?         (-> sym meta :intern)
+           interned-symbol (cond
+                             (string? intern?) (symbol (namespace fqsym) (str (name fqsym) intern?))
+                             (symbol? intern?) intern?
+                             :else fqsym)
+           env-symbol      'fulcro-incoming-env
+           action-blocks   (map (fn [{:keys [action-name action-args action-body]}]
+                                  `(let [~(first action-args) ~env-symbol]
+                                     {~(keyword (name action-name)) (fn [] ~@action-body)}))
+                             actions)
+           primary-action  (first (filter #(= 'action (:action-name %)) action-blocks))
+           doc             (or doc "")
+           remote-blocks   (map (fn [{:keys [remote-name remote-args remote-body]}]
+                                  `(let [~(first remote-args) ~env-symbol]
+                                     {~(keyword (name remote-name)) (do ~@remote-body)}))
+                             remotes)
+           multimethod     `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
+                              (merge
+                                ~@action-blocks
+                                ~@remote-blocks))]
+       (if (and primary-action intern?)
+         `(def ~interned-symbol ~doc
+            (do
+              ~multimethod
+              (fn [~(first (:action-args primary-action)) ~(first arglist)]
+                ~@(:action-body primary-action))))
+         multimethod))))
 
 #?(:clj
    (defmacro ^{:doc      "Define a Fulcro mutation.
@@ -61,43 +104,7 @@
                             [sym docstring? arglist action remote]
                             [sym docstring? arglist remote])} defmutation
      [& args]
-     (let [conform!        (fn [element spec value]
-                             (when-not (s/valid? spec value)
-                               (throw (ana/error &env (str "Syntax error in " element ": " (s/explain-str spec value)))))
-                             (s/conform spec value))
-           {:keys [sym doc arglist action remote]} (conform! "defmutation" ::mutation-args args)
-           fqsym           (if (namespace sym)
-                             sym
-                             (symbol (name (ns-name *ns*)) (name sym)))
-           intern?         (-> sym meta :intern)
-           interned-symbol (cond
-                             (string? intern?) (symbol (namespace fqsym) (str (name fqsym) intern?))
-                             (symbol? intern?) intern?
-                             :else fqsym)
-           {:keys [action-args action-body]} (if action
-                                               (conform! "mutation action" ::action action)
-                                               {:action-args ['env] :action-body []})
-           remotes         (if (seq remote)
-                             (map #(conform! (str remote) ::remote %) remote)
-                             [{:remote-name :remote :remote-args ['env] :remote-body [false]}])
-           env-symbol      (gensym "env")
-           doc             (or doc "")
-           remote-blocks   (map (fn [{:keys [remote-name remote-args remote-body]}]
-                                  `(let [~(first remote-args) ~env-symbol]
-                                     {~(keyword (name remote-name)) (do ~@remote-body)})
-                                  ) remotes)
-           multimethod     `(defmethod fulcro.client.mutations/mutate '~fqsym [~env-symbol ~'_ ~(first arglist)]
-                              (merge
-                                (let [~(first action-args) ~env-symbol]
-                                  {:action (fn [] ~@action-body)})
-                                ~@remote-blocks))]
-       (if intern?
-         `(def ~interned-symbol ~doc
-            (do
-              ~multimethod
-              (fn [~(first action-args) ~(first arglist)]
-                ~@action-body)))
-         multimethod))))
+     (defmutation* &env args)))
 
 ;; Add methods to this to implement your local mutations
 (defmulti mutate prim/dispatch)

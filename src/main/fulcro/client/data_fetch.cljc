@@ -9,6 +9,7 @@
     [fulcro.logging :as log]
     [fulcro.client :as fc]
     [fulcro.util :as util]
+    [clojure.string :as str]
     [clojure.set :as set]))
 
 (declare load load-action load-field load-field-action)
@@ -82,8 +83,8 @@
                  (map? params) [(list server-property-or-ident params)]
                  :else [server-property-or-ident])
         marker (if (and (true? marker) (impl/special-target? target)) (do
-                                                                (log/warn (str "Load of " server-property-or-ident ": Boolean load marker not allowed. Turned off so load target will not overwrite a to-many relation. To fix this warning, set :marker to false or a marker ID."))
-                                                                false) marker)]
+                                                                        (log/warn (str "Load of " server-property-or-ident ": Boolean load marker not allowed. Turned off so load target will not overwrite a to-many relation. To fix this warning, set :marker to false or a marker ID."))
+                                                                        false) marker)]
     {:query                query
      :remote               remote
      :target               target
@@ -468,8 +469,8 @@
      (reduce (fn [remotes r]
                (try
                  (let [mutation-map     (run-mutation r)
-                       ks               (set (keys mutation-map))
-                       possible-remotes (set/difference ks #{:action :refresh :keys :value})
+                       ks               (set (keep #(when-not (str/ends-with? (name %) "action") %) (keys mutation-map)))
+                       possible-remotes (set/difference ks #{:refresh :keys :value})
                        active-now?      #(get mutation-map % false)]
                    (into remotes (filter active-now? possible-remotes)))
                  (catch #?(:clj Throwable :cljs :default) e

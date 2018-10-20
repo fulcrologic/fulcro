@@ -197,7 +197,9 @@
 (defn detect-errant-remotes [{:keys [reconciler send-queues] :as app}]
   (let [state           (prim/app-state reconciler)
         all-items       (get @state :fulcro/ready-to-load)
-        item-remotes    (into #{} (map f/data-remote all-items))
+        item-remotes    (into #{}
+                          (map f/data-remote)
+                          all-items)
         all-remotes     (set (keys send-queues))
         invalid-remotes (clojure.set/difference item-remotes all-remotes)]
     (when (not-empty invalid-remotes) (log/error "Use of invalid remote(s) detected! " invalid-remotes))))
