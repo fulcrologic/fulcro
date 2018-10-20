@@ -34,7 +34,6 @@
                                (throw (ana/error macro-env (str "Syntax error in " element ": " (s/explain-str spec value)))))
                              (s/conform spec value))
            {:keys [sym doc arglist sections]} (conform! "defmutation" ::mutation-args args)
-           _               (.println System/err (with-out-str (clojure.pprint/pprint sections)))
            {:keys [actions remotes]} (reduce (fn [result [k v]]
                                                (if (= :action k)
                                                  (update result :actions conj v)
