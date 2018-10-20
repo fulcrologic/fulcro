@@ -9,6 +9,8 @@ small and tractable.
 2.6.9
 -----
 - Fixed oversight in new wrapper
+- Added support for custom actions in defmutation
+- Removed ordering requirement in defmutation
 
 2.6.8
 -----
