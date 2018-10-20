@@ -9,8 +9,10 @@ small and tractable.
 2.6.9
 -----
 - Fixed oversight in new wrapper
-- Added support for custom actions in defmutation
-- Removed ordering requirement in defmutation
+- Added support for custom actions in defmutation: NOTE POSSIBLE CONFLICT
+  If you named a remote with a name that ends in action, that will no longer
+  work right as a remote. Rename it.
+- Removed ordering requirement in defmutation.
 
 2.6.8
 -----
