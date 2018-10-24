@@ -189,7 +189,8 @@
 
 (specification "Network payload processing (sequential networking)"
   (component "send-payload"
-    (let [error          (atom 0)
+    (let [reconciler     (prim/reconciler {})
+          error          (atom 0)
           update         (atom 0)
           done           (atom 0)
           query          :the-tx
@@ -208,7 +209,7 @@
                                              tx => :the-tx)
                                            (on-done))
 
-          (app/send-payload :network :reconciler load-payload send-complete)
+          (app/send-payload :network reconciler load-payload send-complete)
 
           (assertions
             "Triggers update and send-complete once"
@@ -226,7 +227,7 @@
                                              tx => :the-tx)
                                            (on-error))
 
-          (app/send-payload :network :reconciler load-payload send-complete)
+          (app/send-payload :network reconciler load-payload send-complete)
 
           (assertions
             "Triggers error and send-complete once"
@@ -247,7 +248,7 @@
                                            (on-load)
                                            (on-done))
 
-          (app/send-payload :network :reconciler load-payload send-complete)
+          (app/send-payload :network reconciler load-payload send-complete)
 
           (assertions
             "Only one update is actually done."
@@ -265,7 +266,7 @@
                                              tx => :the-tx)
                                            (on-done))
 
-          (app/send-payload :network :reconciler mutate-payload send-complete)
+          (app/send-payload :network reconciler mutate-payload send-complete)
 
           (assertions
             "Triggers update and send-complete once"
@@ -283,7 +284,7 @@
                                              tx => :the-tx)
                                            (on-error))
 
-          (app/send-payload :network :reconciler mutate-payload send-complete)
+          (app/send-payload :network reconciler mutate-payload send-complete)
 
           (assertions
             "Triggers error and send-complete once"
@@ -304,7 +305,7 @@
                                            (on-load)
                                            (on-done))
 
-          (app/send-payload :network :reconciler mutate-payload send-complete)
+          (app/send-payload :network reconciler mutate-payload send-complete)
 
           (assertions
             "Updates are triggered for each update and once at completion"

@@ -67,16 +67,30 @@
   network requests. If you're doing something really low level in the networking, you want this over real-send."
   ([net {:keys [reconciler payload tx on-done on-error on-load]}]
    (let [{:keys [::hist/history-atom ::hist/tx-time ::prim/remote ::net/abort-id]} payload
-         with-history-recording (fn [handler]
-                                  (fn [resp items-or-tx]
-                                    (when (and history-atom remote tx-time)
-                                      (swap! history-atom hist/remote-activity-finished remote tx-time))
-                                    (handler resp items-or-tx)))
-         on-done                (with-history-recording on-done)
-         on-error               (with-history-recording on-error)]
+         uuid                           (futil/unique-key)
+         network-activity               (prim/get-network-activity reconciler)
+         with-network-activity-tracking (fn [handler]
+                                          (fn [resp items-or-tx]
+                                            (swap! network-activity update-in [remote :active-requests] #(dissoc % uuid))
+                                            #?(:cljs (js/setTimeout
+                                                      #(when (= (-> @network-activity (get remote) :active-requests count) 0)
+                                                         (swap! (prim/app-state reconciler) assoc-in [::net/status remote] :idle)
+                                                         (swap! network-activity assoc-in [remote :status] :idle)
+                                                         (p/queue! reconciler [::net/status]))
+                                                      0))
+                                            (handler resp items-or-tx)))
+         with-history-recording         (fn [handler]
+                                          (fn [resp items-or-tx]
+                                            (when (and history-atom remote tx-time)
+                                              (swap! history-atom hist/remote-activity-finished remote tx-time))
+                                            (handler resp items-or-tx)))
+         on-done                        (with-network-activity-tracking (with-history-recording on-done))
+         on-error                       (with-network-activity-tracking (with-history-recording on-error))]
      (if (and history-atom tx-time remote)
        (swap! history-atom hist/remote-activity-started remote tx-time)
        (log/warn "Payload had no history details."))
+     (swap! network-activity update-in [remote :active-requests] assoc uuid {:query    (::prim/query payload)
+                                                                             :abort-id (::net/abort-id payload)})
      (real-send net {:reconciler reconciler :tx tx :on-done on-done :on-error on-error :on-load on-load :abort-id abort-id})))
   ([payload net tx on-done on-error on-load]
    (send-with-history-tracking net {:payload payload :tx tx :on-done on-done :on-error on-error :on-load on-load})))
@@ -278,18 +292,22 @@
                                       (prim/rewrite-tempids-in-request-queue queue tempids))
                                     (let [state-migrate (or migrate prim/resolve-tempids)]
                                       (state-migrate pure tempids)))
-        initial-state-with-locale (let [set-default-locale (fn [s] (update s :ui/locale (fnil identity :en)))
-                                        is-atom?           (futil/atom? initial-state)]
+        complete-initial-state    (let [set-default-locale  (fn [s] (update s :ui/locale (fnil identity :en)))
+                                        set-network-markers (fn [s] (assoc s ::net/status (zipmap remotes (repeat :idle))))
+                                        is-atom?            (futil/atom? initial-state)]
                                     (if is-atom?
                                       (do
                                         (swap! initial-state set-default-locale)
+                                        (swap! initial-state set-network-markers)
                                         initial-state)
                                       (do
-                                        (set-default-locale initial-state))))
+                                        (-> initial-state
+                                            set-default-locale
+                                            set-network-markers))))
         config                    (merge {}
                                     reconciler-options
                                     {:migrate     tempid-migrate
-                                     :state       initial-state-with-locale
+                                     :state       complete-initial-state
                                      :send        (fn [sends-keyed-by-remote result-merge-callback]
                                                     (server-send (assoc app :reconciler @rec-atom) sends-keyed-by-remote result-merge-callback))
                                      :normalize   true

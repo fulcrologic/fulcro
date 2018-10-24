@@ -238,6 +238,12 @@
   :args (s/cat :mw ::response-middleware :tx any? :req ::request :xhrio ::xhrio)
   :ret (s/fspec :ret ::response))
 
+(defn active?
+  ([network-markers]
+   (->> network-markers vals (some #{:active}) boolean))
+  ([network-markers remote]
+   (= :active (get network-markers remote))))
+
 (defn cleanup-routine*
   [abort-id active-requests xhrio]
   #?(:cljs (fn []
