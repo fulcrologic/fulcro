@@ -2,7 +2,8 @@
   (:require
     [fulcro.client :as fc]
     [fulcro.client.primitives :as prim]
-    [fulcro.client.util :as util]))
+    [fulcro.client.util :as util]
+    [fulcro.util :as futil]))
 
 
 #?(:clj
@@ -46,3 +47,29 @@
   (let [base-state (prim/tree->db root-class state-tree true)
         base-state (fc/merge-alternate-union-elements base-state root-class)]
     base-state))
+
+#?(:cljs
+   (defn defer-until-network-idle
+     "Schedule a function to run when all remotes (or the specified one) have become idle.  The function will not
+      be called on transition edges (idle but outstanding queued items).  This function is meant for scheduling
+      server-side rendering in `node.js` when you're running a real client against loopback remotes in order to
+      get pre-rendered html.  Of course, it can only detect network activity on remotes the reconciler controls.
+      Side-band networking through external APIs is not detected.
+
+      This function is not meant for general-purpose use in a client and is not supported for anything but SSR
+      in node.  Using it in other contexts should work, but are discouraged as a poor pattern for Fulcro."
+     ([reconciler callback]
+      (defer-until-network-idle reconciler callback nil))
+     ([reconciler callback remote]
+      (let [network-activity (prim/get-network-activity reconciler)
+            watch-key        (futil/unique-key)
+            networks-active? (if remote
+                               #(= :active (get-in % [remote :status]))
+                               #(->> % vals (map :status) (some #{:active}) boolean))]
+        (if-not (networks-active? @network-activity)
+          (callback)
+          (add-watch network-activity watch-key
+            (fn [key atom _ new-state]
+              (when-not (networks-active? new-state)
+                (remove-watch atom key)
+                (callback)))))))))

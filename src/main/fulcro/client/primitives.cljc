@@ -3422,21 +3422,3 @@
      (let [t (with-meta (gensym "ui_") {:anonymous true})]
        `(do (defui ~t ~@forms) ~t))))
 
-
-#?(:cljs
-   (defn defer-until-network-idle
-     ([reconciler callback]
-      (defer-until-network-idle reconciler callback nil))
-     ([reconciler callback remote]
-      (let [network-activity (get-network-activity reconciler)
-            watch-key        (util/unique-key)
-            networks-active? (if remote
-                               #(= :active (get-in % [remote :status]))
-                               #(->> % vals (map :status) (some #{:active}) boolean))]
-        (if-not (networks-active? @network-activity)
-          (callback)
-          (add-watch network-activity watch-key
-                     (fn [key atom _ new-state]
-                       (when-not (networks-active? new-state)
-                         (remove-watch atom key)
-                         (callback)))))))))

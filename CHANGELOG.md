@@ -6,6 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.10
+------
+- Added low-level network activity tracking, so that loads and mutations can be on even
+  ground when it comes to detecting network activity.
+- Added a function that can be used to defer a call until network is idle, for SSR
+  via client running in node.
+
 2.6.9
 -----
 - Fixed oversight in new wrapper

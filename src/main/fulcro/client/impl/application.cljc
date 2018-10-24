@@ -72,7 +72,7 @@
          with-network-activity-tracking (fn [handler]
                                           (fn [resp items-or-tx]
                                             (swap! network-activity update-in [remote :active-requests] #(dissoc % uuid))
-                                            #?(:cljs (js/setTimeout
+                                            #?(:cljs (js/setTimeout ; delay necessary so we don't mark things inactive too soon
                                                       #(when (= (-> @network-activity (get remote) :active-requests count) 0)
                                                          (swap! (prim/app-state reconciler) assoc-in [::net/status remote] :idle)
                                                          (swap! network-activity assoc-in [remote :status] :idle)

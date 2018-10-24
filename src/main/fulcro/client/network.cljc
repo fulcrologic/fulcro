@@ -239,6 +239,8 @@
   :ret (s/fspec :ret ::response))
 
 (defn active?
+  "Returns true if any of networks (obtained by querying `[::net/status '_]`) are active.  If passed a remote
+  as a second argument if returns whether or not that particular remote is active."
   ([network-markers]
    (->> network-markers vals (some #{:active}) boolean))
   ([network-markers remote]
