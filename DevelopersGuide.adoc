@@ -12058,9 +12058,8 @@ main application knows to provide the link, but it does not yet have the renderi
 
 == Dynamic Routing and Code Splitting
 
-WARNING: There is known bug in dynamic queries, which are used by dynamic routers.  That means using dynamic routers will
-cause problems when used with load facilities.  At the moment it is recommended that you do not split your Fulcro UI code with
-code splitting.
+WARNING: There was a bug in dynamic queries prior to 2.6.0, which are used by dynamic routers.  Make sure you're using
+a newer version of Fulcro for this support.
 
 The `fulcro.client.routing` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
 

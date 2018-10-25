@@ -24,6 +24,7 @@
                [fulcro.client.impl.data-targeting :as targeting]
                [fulcro.client.impl.protocols :as p]
                [fulcro.client.impl.parser :as parser]
+               [fulcro.client.network :as net]
                [fulcro.util :as util]
                [clojure.walk :refer [prewalk]]
                [clojure.string :as str]
@@ -101,6 +102,12 @@
   [reconciler]
   (when reconciler
     (p/get-history reconciler)))
+
+(defn get-network-activity
+  ""
+  [reconciler]
+  (when reconciler
+    (p/get-network-activity reconciler)))
 
 (defn add-basis-time* [{:keys [children]} props time]
   (if (map? props)
@@ -1893,6 +1900,7 @@
   (get-id [_] (:id @state))
   (basis-t [_] (:t @state))
   (get-history [_] history)
+  (get-network-activity [_] (:network-activity @state))
 
   (add-root! [this root-class target options]
     (let [ret      (atom nil)
@@ -2141,6 +2149,9 @@
                         (atom {:queue        []
                                :remote-queue {}
                                :id           id
+                               :network-activity (atom (zipmap remotes
+                                                               (repeat {:status :idle
+                                                                        :active-requests {}})))
                                :queued       false :queued-sends {}
                                :sends-queued false
                                :target       nil :root nil :render nil :remove nil
@@ -2185,7 +2196,10 @@
       (p/queue! reconciler (into xs (remove symbol?) (keys v)))
       (when-not (empty? snds)
         (doseq [[remote _] snds]
+          (swap! (get-network-activity reconciler) assoc-in [remote :status] :active)
+          (swap! (:state cfg) assoc-in [::net/status remote] :active)
           (p/queue! reconciler xs remote))
+        (p/queue! reconciler [::net/status])
         (p/queue-sends! reconciler snds)
         (schedule-sends! reconciler))
       (when-let [f (:tx-listen cfg)]
@@ -3407,3 +3421,4 @@
      [& forms]
      (let [t (with-meta (gensym "ui_") {:anonymous true})]
        `(do (defui ~t ~@forms) ~t))))
+
