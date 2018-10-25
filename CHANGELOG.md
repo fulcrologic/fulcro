@@ -8,6 +8,9 @@ small and tractable.
 
 2.6.10
 ------
+- Made ex-info that do not contain response keys into proper errors on network
+- Fixed bugs where load markers were not being updated to failed state when
+they were not keywords.
 - Added low-level network activity tracking, so that loads and mutations can be on even
   ground when it comes to detecting network activity.
 - Added a function that can be used to defer a call until network is idle, for SSR

@@ -289,8 +289,9 @@ default-malformed-response
    Returns ex-map if the ex-data matches the API, otherwise returns the whole exception."
   [ex]
   (let [valid-response-keys #{:status :headers :body}
-        ex-map              (ex-data ex)]
-    (if (every? valid-response-keys (keys ex-map))
+        ex-map              (ex-data ex)
+        ex-keys             (some-> ex-map keys)]
+    (if (and (seq ex-keys) (every? valid-response-keys (keys ex-map)))
       ex-map
       (unknow-error->response ex))))
 
