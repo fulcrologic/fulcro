@@ -4272,7 +4272,7 @@ Sadly, even if you compose it into your UI properly it may not receive any data:
 
 ```
 (defsc Root [this {:keys [locale-switcher]}]
-  {:query [{:locale-selector (prim/get-query LocaleSwitcher)}]}
+  {:query [{:locale-switcher (prim/get-query LocaleSwitcher)}]}
   (ui-locale-switcher locale-switcher)) ; data comes back nil!!!
 ```
 
