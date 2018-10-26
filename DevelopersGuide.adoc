@@ -4271,13 +4271,13 @@ When the database is constructed for such components they will have no state of 
 Sadly, even if you compose it into your UI properly it may not receive any data:
 
 ```
-(defsc Root [this {:keys [locale-selector]}]
-  {:query [{:locale-selector (prim/get-query LocaleSelector)}]}
-  (ui-locale-selector locale-selector)) ; data comes back nil!!!
+(defsc Root [this {:keys [locale-switcher]}]
+  {:query [{:locale-switcher (prim/get-query LocaleSwitcher)}]}
+  (ui-locale-switcher locale-switcher)) ; data comes back nil!!!
 ```
 
 The problem is that the query engine walks the database and query in tandem. When it sees a join
-(`:locale-selector` in this case) it goes looking for an entry in the database *at the current location*
+(`:locale-switcher` in this case) it goes looking for an entry in the database *at the current location*
 (root node in this case) to process the subquery against. If it finds an ident it follows it and processes
 the subquery. If it is a map it uses that to fulfill the subquery. If it is a vector then it processes the
 subquery against every entry. But if it is _missing_ *then it stops*.
@@ -4290,10 +4290,10 @@ The fix is simple: make sure the component has a presence in the database, even 
    :initial-state {}} ; empty map
   (dom/div ...))
 
-(defsc Root [this {:keys [locale-selector]}]
-  {:query [{:locale-selector (prim/get-query LocaleSelector)}]
-   :initial-state (fn [params] {:locale-selector (prim/get-initial-state LocaleSwitcher)})} ; empty map from child
-  (ui-locale-selector locale-selector)) ; link query data is found/passed
+(defsc Root [this {:keys [locale-switcher]}]
+  {:query [{:locale-switcher (prim/get-query LocaleSwitcher)}]
+   :initial-state (fn [params] {:locale-switcher (prim/get-initial-state LocaleSwitcher)})} ; empty map from child
+  (ui-locale-switcher locale-switcher)) ; link query data is found/passed
 ```
 
 === Using Shared State [[SharedState]]
