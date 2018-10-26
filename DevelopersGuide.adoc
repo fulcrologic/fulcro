@@ -6362,10 +6362,10 @@ the interactions). That means that you're going to need some help when it comes 
 The first and easiest thing to use is a global activity marker that is automatically maintained at the root node of
 your client database.
 
-=== Global network activity marker
+=== Global loading activity marker
 
 Fulcro will automatically maintain a global network activity marker at the top level of the app state under the
-keyword `:ui/loading-data`. This key will have a `true` value when there are network requests awaiting a response from
+keyword `:ui/loading-data`. This key will have a `true` value when there are network *loads* awaiting a response from
 the server, and will have a `false` value when there are no network requests in process.
 
 You can access this marker from any component that composes to root by including a link in your component's query:
@@ -6387,12 +6387,21 @@ You can access this marker from any component that composes to root by including
 Because the global loading marker is at the top level of the application state, do not use the keyword as a follow-on
 read to mutations because it may unnecessarily trigger a re-render of the entire application.
 
+In Fulcro 2.6.10+ there is a top-level key called :fulcro.client.network/status that holds a map from remotes to their
+current general status (`:inactive` or `:active`).  These are correct for all Fulcro remotes you've added to the
+application, and can be used (via a link query) to watch for global activity.  Since these are not tied to specific
+requests, they have only minor advantages over the older `:ui/loading-data` marker: They are correct for loads
+and mutations, and are split out by remote.
+
 === Mutation Activity
 
 Mutations can be passed off silently to the server. You may choose to block the UI if you have reason to believe there
 will be a problem, but there is usually no other reason to prevent the user from just continuing to use your application
-while the server processes the mutation. Thus, only the global activity marker is available for mutations. See
+while the server processes the mutation. See
 <<PTransact, Pessimistic Transactions>> for a method of controlling UI around the network activity of remote mutations.
+
+Fulcro Incubator also has "pessimistic mutations", an extention of the mutation system that allows for
+more pessimistic general operation, and is easier to use.
 
 === Tracking Specific Loads
 
@@ -10495,6 +10504,22 @@ There is a complete working example of these techniques (including the HTML5 rou
 * [Client-side Initial State Generation and Modifications](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/ui/root.cljc) (see `initial-app-state-tree`)
 * [Client Start-up](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/client.cljs) Note this example tolerates a failure of the server to send
 initial state, so it runs initial startup steps if it detects that.
+
+== Rendering via Node.js
+
+Users have reported that rendering a Fulcro Client by running it on node and reassigning the remotes to loopback is
+relatively easy.  It is reported that Fulcro networking will work if you just set the global XMLHttpRequest up:
+
+```
+(set! js/global.XMLHttpRequest (.-XMLHttpRequest xhr3))
+```
+
+At that point you need a way to start the client and wait for it to finish the started callback loads.  Fulcro
+2.6.10 includes a contributed function `fulcro.server-render/defer-until-network-idle` that will trigger a callback
+when all of the remotes in the client become idle.
+
+You can override the react rendering function using the `:reconciler-options` of the fulcro client.  A link to a demo
+project will be available soon, but please ask on the Fulcro Slack channel for more details.
 
 == True Isomorphic Support with Nashorn (JVM Javascript engine)
 
