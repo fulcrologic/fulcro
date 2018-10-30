@@ -1166,10 +1166,14 @@
   (let [union-recur? (and union-expr recurse-key)
         recur-ident  (when union-recur?
                        data)
-        data         (loop [data data]
-                       (if (mappable-ident? refs data)
-                         (recur (get-in refs (map-ident data)))
-                         data))]
+        data         (loop [data data limit 100]
+                       (if (pos-int? limit)
+                         (if (mappable-ident? refs data)
+                          (recur (get-in refs (map-ident data)) (dec limit))
+                          data)
+                         (do
+                           (log/error "An infinite loop was detected in your app state on ident: " data)
+                           {})))]
     (cond
       (vector? data)
       ;; join
@@ -1230,11 +1234,15 @@
                                   (get data key))
                     key         (cond-> key (util/unique-ident? key) first)
                     v           (if (mappable-ident? refs v)
-                                  (loop [v v]
-                                    (let [next (get-in refs (map-ident v))]
-                                      (if (mappable-ident? refs next)
-                                        (recur next)
-                                        (map-ident v))))
+                                  (loop [v v limit 100]
+                                    (if (pos-int? limit)
+                                      (let [next (get-in refs (map-ident v))]
+                                        (if (mappable-ident? refs next)
+                                          (recur next (dec limit))
+                                          (map-ident v)))
+                                      (do
+                                        (log/error "An ident loop was detected in your app state on ident:" v)
+                                        {})))
                                   v)
                     limit       (if (number? sel) sel :none)
                     union-entry (if (util/union? join)

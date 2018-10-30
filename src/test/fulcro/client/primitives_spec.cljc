@@ -2,9 +2,9 @@
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
-    #?(:cljs [fulcro.client.dom :as dom]
-       :clj
-            [fulcro.client.dom-server :as dom])
+            #?(:cljs [fulcro.client.dom :as dom]
+               :clj
+                     [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -17,7 +17,7 @@
             [clojure.test.check :as tc]
             [clojure.spec.test.alpha :as check]
             [clojure.test :refer [is are]]
-    #?@(:cljs [[goog.object :as gobj]])
+            #?@(:cljs [[goog.object :as gobj]])
             [fulcro.client.impl.protocols :as p]
             [fulcro.util :as util]
             [clojure.walk :as walk]
@@ -2080,13 +2080,17 @@
     => [:a {:b {:c [:d :e] :f [:g]}}]))
 
 (specification "db->tree"
-  (assertions
-    (prim/db->tree [:foo] {:foo 42} {})
-    => {:foo 42}
+  (behavior "Inadequate tests"
+    (assertions
+      (prim/db->tree [:foo] {:foo 42} {})
+      => {:foo 42}
 
-    (prim/db->tree [{:foo [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
-    => {:foo {:bar "baz"}}
+      (prim/db->tree [{:foo [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
+      => {:foo {:bar "baz"}}
 
-    (prim/db->tree [{'(:foo {:param "123"}) [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
-    => {:foo {:bar "baz"}}))
+      (prim/db->tree [{'(:foo {:param "123"}) [:bar]}] {:foo [:item 123]} {:item {123 {:bar "baz"}}})
+      => {:foo {:bar "baz"}}))
+  (behavior "Tolerates weird infinite loops in state"
+    (assertions
+      (prim/db->tree [{:boo [:a]}] {:boo [:item 1] :item {1 [:item 1]}} {:boo [:item 1] :item {1 [:item 1]}}) => {:boo {}})))
 
