@@ -7,7 +7,8 @@
     [com.stuartsierra.component :as component]
     [fulcro-spec.selectors :as sel]
     [clojure.spec.test.alpha :as st]
-    [fulcro-spec.suite :as suite]))
+    [fulcro-spec.suite :as suite]
+    [fulcro.easy-server :as easy]))
 
 ;t(st/instrument)
 (set-refresh-dirs "src/main" "src/test" "src/dev" "src/tutorial" "src/cards")
@@ -42,3 +43,16 @@
      (swap! figwheel component/start)
      (fig/cljs-repl (:figwheel-system @figwheel)))))
 
+(comment
+
+  (server/defmutation fulcro.democards.pessimistic-transaction-cards/a [_]
+    (action [_] (println "A")
+      (Thread/sleep 2000)))
+
+  (server/defmutation fulcro.democards.pessimistic-transaction-cards/c [_]
+    (action [_] (println "C") (Thread/sleep 2000)))
+
+  (def server (atom (easy/make-fulcro-server :config-path "config/dev.edn")))
+  (swap! server component/start)
+  (swap! server component/stop)
+  )

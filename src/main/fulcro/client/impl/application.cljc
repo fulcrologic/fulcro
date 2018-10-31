@@ -226,6 +226,11 @@
   (enqueue-mutations app remote-tx-map merge-result-callback)
   (enqueue-reads app))
 
+(defn is-sequential? [network]
+  (if #?(:clj false :cljs (satisfies? net/NetworkBehavior network))
+    (net/serialize-requests? network)
+    true))
+
 (defn- send-payload
   "Sends a network payload. There are two kinds of payloads in Fulcro. The first is
   for reads, which are tracked by load descriptors in the app state. These load descriptors
@@ -247,15 +252,13 @@
         on-error   (comp send-complete on-error)
         on-done    (comp send-complete merge-data)]
     (if (f/is-deferred-transaction? query)
-      (on-done {})                                          ; immediately let the deferred tx go by pretending that the load is done
+      (do
+        (on-done {}); immediately let the deferred tx go by pretending that the load is done
+        (when-not (is-sequential? network)
+          (log/error "Attempt to defer a transaction on a non-sequential remote. `ptransact!` will fail to work correctly with `serial? false` remotes.")))
       (send-with-history-tracking network {:payload payload :tx query :reconciler reconciler
                                            :on-done on-done :on-error on-error
                                            :on-load on-update :abort-id abort-id}))))
-
-(defn is-sequential? [network]
-  (if #?(:clj false :cljs (satisfies? net/NetworkBehavior network))
-    (net/serialize-requests? network)
-    true))
 
 (defn start-network-sequential-processing
   "Starts a async go loop that sends network requests on networking object's request queue.
