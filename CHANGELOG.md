@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.12
+------
+- Added warning to console log about using non-serial remotes with deferred transactions.
+
 2.6.11
 ------
 - Fixed bug in db->tree that caused infinite loops on invalid app state
