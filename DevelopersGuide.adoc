@@ -3911,15 +3911,16 @@ and use that in both your component's ident implementation and all of your mutat
 Fulcro's `defui` is identical in syntax to Om Next's `defui`. Porting
 Om Next UI code to Fulcro is a simple matter of changing namespaces.
 
-= The Query and Mutation Language
+= EQL -- The Query and Mutation Language
 
 Before reading this chapter you should make sure you've read <<GraphDB,The Graph Database Section>>. It details
 the low-level format of the application state, and talks about general details that
 are referenced in this chapter.
 
-In Fulcro all data is pulled from the database using a notation that is a subset of Datomic's pull query syntax. Since
-the query is a graph walk it is a relative notation: it must start at some specific spot, but that spot is not
-always named in the query itself. On the client side the starting point is usually the root node of your database. Thus,
+In Fulcro all data is queried and manipulated from the UI using the EDN Query Language (EQL). EQL is a subset of
+Datomic's pull query syntax with extensions for unions and mutations. A query is a graph walk, so it is a relative notation: it must start at some specific spot,
+but that spot is not always named in the query itself. On the client side the starting point is usually the root node
+of your database. Thus,
 a complete query from the Root UI component will be a graph query that can start at the root node of the database.
 
 However, you'll note that any query *fragment* is implied to be relative to where we are in the walk of the graph
@@ -3927,7 +3928,7 @@ database. This is important to understand: no component's query can just be grab
 as-is. Then again, if you know the `ident` of a component, then you can *start* at that table entry in the database
 and go from there.
 
-The mutation language is a data representation of the abstract actions you'd like to take on the data model. It is
+The mutation portion of the language is a data representation of the abstract actions you'd like to take on the data model. It is
 intended to be network agnostic: The UI need not be aware that a given mutation does local-only modifications and/or
 remote operations against any number of remote servers. As such, the mutations, like queries, are simply data. Data
 that can be interpreted by local logic, or data that can be sent over the wire to be interpreted by a server.
@@ -4337,7 +4338,7 @@ in the history support viewer.
 
 == Recursive Queries
 
-Fulcro's query syntax includes support for recursive queries. Recursion is *always* expressed on a join,
+EQL includes support for recursive queries. Recursion is *always* expressed on a join,
 and it *always* means that the recursive item has the same type as the component you're on.
 There are two notations for this: `...` and a number. The former means "recurse until there are no more links
 (circular detection is included to prevent infinite loops)", and the other is the recursion limit:
@@ -4421,7 +4422,7 @@ include::src/book/book/queries/recursive_demo_bullets.cljs[]
 
 == The AST
 
-You can convert any expression in the query/mutation language into an AST (abstract syntax tree) and vice
+You can convert any expression of EQL into an AST (abstract syntax tree) and vice
 versa. This lends itself to doing complex parsing of the query (typically on the server). The functions
 of interest are `fulcro.client.primitives/query->ast` and `ast->query`.
 
@@ -7955,7 +7956,7 @@ configuration and invocatin code. This library is contributor maintained, so it 
 * https://github.com/walkable-server/walkable[Walkable]
 +
 Another SQL-centric offering.  This one actually uses Pathom internally to give you a more declarative way to define
-parsers against an SQL database/schema.  It can directly parse Fulcro's query syntax and turn it into SQL queries,
+parsers against an SQL database/schema.  It can directly parse EQL and turn it into SQL queries,
 and handles the N+1 problem on to-many relations automatically.
 +
 * http://www.datomic.com[Datomic]
@@ -10869,9 +10870,81 @@ installed with:
 (def client (fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {:url "/api" :response-middleware middleware})})
 ```
 
-=== Interfacing with REST Servers
+=== Interfacing with Alternate Network Protocols
 
-See the <<RESTAPI, REST API>> section for an example of working with REST.
+Fulcro's pluggable remotes make it relatively easy to plug in alternate communication methods.  You can interface
+with things like REST or GraphQL servers with relative ease, especially if you use the
+https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
+
+Here's a simple example to give you an idea of how simple it can be:
+
+```
+(ns app.rest-remote
+  (:require [com.wsscode.pathom.connect :as pc]
+            [com.wsscode.pathom.core :as p]
+            [com.wsscode.pathom.fulcro.network :as pn]
+            [clojure.core.async :as async]
+            [fulcro.client.primitives :as prim]
+            [fulcro.client.network :as net]))
+
+(defmulti resolver-fn pc/resolver-dispatch)
+(defonce indexes (atom {}))
+(defonce defresolver (pc/resolver-factory resolver-fn indexes))
+
+(defn rest-parser
+  "Create a REST parser. Make sure you've required all nses that define rest resolvers. The given app-atom will be available
+  to all resolvers in `env` as `:app-atom`."
+  [extra-env]
+  (p/async-parser
+    {::p/plugins [(p/env-plugin
+                    (merge extra-env
+                      {::p/reader             [p/map-reader
+                                               pc/all-async-readers]
+                       :app-atom              app-atom
+                       ::pc/resolver-dispatch resolver-fn
+                       ::pc/indexes           @indexes}))
+                  p/request-cache-plugin
+                  (p/post-process-parser-plugin p/elide-not-found)]}))
+
+(defn rest-remote [extra-env]
+  (pn/pathom-remote (rest-parser extra-env)))
+```
+
+The `rest-remote` function creates a remote that can resolve REST requests via Pathom resolvers. It is written to
+take an atom that will hold your Fulcro app, so that resolvers for REST can interact with your database.
+
+Simply add the remote into your networking on the client:
+
+```
+(fc/new-fulcro-client
+  :networking {:remote     (fulcro-http-remote ...)
+               :rest       (rr/rest-remote app)})
+```
+
+and you can use the newly defined `defresolver` to define Pathom resolvers for satisfying REST API requests, like so:
+
+```
+(defresolver `ofac
+{::pc/output [:rest/thing]}
+(fn [env _]
+  (let [name    (-> env :ast :params :name)
+        params  {"name"      name}]
+    (go
+      (let [{:keys [body]} (<!
+       (http/get "https://myrest.com/search" {:query-params      params}))]
+        {:rest/thing body})))))
+```
+
+which can then be used with:
+
+```
+(df/load this :rest/thing nil {:params {:name "Simon"}})
+```
+
+and can be targeted, use load markers, etc.
+
+Of course, you can also define resolvers that "compute" derived data with normal resolver tricks. See Pathom
+documentation.
 
 = Websockets [[Websockets]]
 
@@ -12309,17 +12382,16 @@ the dynamic queries won't be seen, and rendering will be incorrect.
 
 = Hacking the Client Query Engine
 
-Om Next pioneered the data-driven space, and Fulcro is based upon many of the original concepts defined there. One of those
-was the client parser. Fulcro is implemeted internally with a client query parser that is identical to Om Next's. Fulcro
+Fulcro is implemented internally with a client query parser that processes EQL. Fulcro
 provides a default implementation of this parser, but allows you to hook into it to add your own code for interpreting
 queries! Doing so allows you to interpret the
 query of a component instead of pulling it from your database. This gives you an extreme amount of power, but at the
-cost of some added complexity that is disconnected from your graph reasoning about the data graph itself.
+cost of some added complexity that is disconnected from your reasoning about the concrete data graph .
 
 This feature also allows you to leverage parameters on props and joins which are legal parts of the query syntax that
 cannot be encoded in the database itself.
 
-The mechansim is exactly as described for parsing on the server. The client-side notes are:
+The mechanism is exactly as described for parsing on the server. The client-side notes are:
 
 * The read is always called starting at root. If you want to handle something, you have to handle the path from root to
 that item.
@@ -13134,7 +13206,7 @@ include::src/book/book/demos/paginating_large_lists_from_server.cljs[]
 
 == UI Query Security
 
-If you examine any UI query it will have a tree form. That is the nature of Fulcro's query and Datomic pull syntax. It
+If you examine any UI query it will have a tree form. That is the nature of EQL. It
 is also the nature of UI's. For any such query, you can imagine it as a graph walk:
 
 Take this query:
@@ -13476,251 +13548,6 @@ The complete source for this demo is:
                               (fn [app]
                                 (df/load app :graph-demo/accounts Account {:target [:accounts]})))))) `#?(:cljs (swap! app fc/mount Root "app"))
 ----
-
-== Using a legacy REST API [[RESTAPI]]
-
-NOTE: This chapter uses an older legacy networking API, and is harder than it needs to be. If you need to do this with Fulcro, then
-you should be reading about the https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom Library]
-
-Fulcro is really meant to be a full-stack solution. That said, it isn't really that hard to make it talk to other kinds
-of servers. As an example, this addendum talks you through what it takes to talk to a legacy REST service.
-
-Working with legacy REST APIs is a simple, though tedious, task. Basically you need to add an additional remote to the Fulcro Client
-that knows how to talk via JSON instead of EDN.
-
-The basic steps are:
-
-1. Implement `FulcroNetwork`. See the `fulcro.client.network` namespace for the protocol and built-in implementation.
-    a. Your `send` method will be passed the query/mutations the client wants to do. You must translate them to a REST
-    call and translate the REST response into the desired tree of client data, which you then pass to the `ok` callback
-    that `send` is given.
-2. Install your network handler on the client (using the `:networking` option)
-3. Add the `:remote` option to your loads, or use your remote name as the remote side of a mutation
-
-=== Writing the Networking Code
-
-For this example we're going to use the following public REST API endpoint: `http://jsonplaceholder.typicode.com/posts`
-which returns a list of posts (try it to make sure it is working).
-
-It should return an array of JSON maps, with strings as keys.
-
-Basically, when you run a transaction (read or
-write) the raw transaction that is intended to go remote is passed into the `send` method of a networking protocol.
-The networking can send that unchanged, or it can choose to modify it in some way. Since REST servers don't understand
-our Fulcro requests, we have to add a layer at the network to convert one to the other, and back (for the response).
-
-=== The UI and Queries
-
-First, let's talk about the UI code for dealing with these posts, since the UI defines the queries. Here is
-a very simple UI we can add to our program:
-
-```
-(defsc Post [this {:keys [post/title post/body]}]           ; <1>
-  {:ident [:posts/by-id :db/id]
-   :query [:db/id :post/user-id :post/body :post/title]}
-  (dom/div nil
-    (dom/h4 nil title)
-    (dom/p nil body)))
-
-(def ui-post (prim/factory Post {:keyfn :db/id}))
-
-(defsc Posts [this {:keys [posts]}]                         ; <2>
-  {:initial-state {:posts []}
-   :ident         (fn [] [:post-list/by-id :the-one])
-   :query         [{:posts (prim/get-query Post)}]}
-  (dom/ul nil
-    (map ui-post posts)))
-
-(def ui-posts (prim/factory Posts))
-
-; ...
-
-(defsc Root [this {:keys [ui/react-key blog-posts current-user friends enemies]}] ; <5>
-  {:query         [:ui/react-key
-                   :ui/person-id
-                   {:current-user (prim/get-query Person)}
-                   {:blog-posts (prim/get-query Posts)}     ; <3>
-                   {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:blog-posts (prim/get-initial-state Posts {}) ; <4>
-                                :friends    (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies    (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
-  (dom/div #js {:key react-key}
-    (dom/h4 nil (str "Current User: " (:person/name current-user)))
-    (dom/button #js {:onClick (fn [] (df/load this [:person/by-id 3] Person))} "Refresh User with ID 3")
-    (ui-person-list friends)
-    (ui-person-list enemies)
-    (dom/h4 nil "Blog Posts")                               ; <6>
-    (ui-posts blog-posts)))
-```
-<1> A component to represent the post itself
-<2> A component to represent the list of the posts
-<3> Composing the Posts UI into root query
-<4> Composing the Posts UI into root initial data
-<5> Pull the resulting app db data from props
-<6> Render the list
-
-Of course, there are no posts yet, so all you'll see is the heading. Notice that there is *nothing new here*. The UI
-is completely network agnostic, as it should be.
-
-Now for the networking code. This bit is a little longer, but most of it is the details around network communcation
-itself, rather than the work you have to do. Create a new namespace `src/main/app/rest.cljs`:
-
-```
-(ns app.rest
-  (:refer-clojure :exclude [send])
-  (:require [fulcro.logging :as log]
-            [fulcro.client.network :as net]
-            [cognitect.transit :as ct]
-            [goog.events :as events]
-            [fulcro.transit :as t]
-            [clojure.string :as str]
-            [clojure.set :as set]
-            [fulcro.client.primitives :as prim])
-  (:import [goog.net XhrIo EventType]))
-
-(defn make-xhrio [] (XhrIo.))
-
-(defrecord Network [url request-transform global-error-callback complete-app transit-handlers]
-  net/NetworkBehavior
-  (serialize-requests? [this] true)
-  net/IXhrIOCallbacks
-  (response-ok [this xhr-io valid-data-callback]
-    ;; Implies:  everything went well and we have a good response
-    ;; (i.e., got a 200).
-    (try
-      (let [read-handlers (:read transit-handlers)
-            ; STEP 3: Convert the JSON response into a proper tree structure to match the query
-            response      (.getResponseJson xhr-io)
-            edn           (js->clj response) ; convert it to clojure
-            ; Rename the keys from strings to the desired UI keywords
-            posts         (mapv #(set/rename-keys % {"id"     :db/id
-                                                     "title"  :post/title
-                                                     "userId" :post/user-id
-                                                     "body"   :post/body})
-                            edn)
-            ; IMPORTANT: structure of the final data we send to the callback must match the nesting structure of the query
-            ; [{:posts [...]}] or it won't merge correctly:
-            fixed-response      {:posts posts}]
-        (js/console.log :converted-response fixed-response)
-        ; STEP 4; Send the fixed up response back to the client DB
-        (when (and response valid-data-callback) (valid-data-callback fixed-response)))
-      (finally (.dispose xhr-io))))
-  (response-error [this xhr-io error-callback]
-    ;; Implies:  request was sent.
-    ;; *Always* called if completed (even in the face of network errors).
-    ;; Used to detect errors.
-    (try
-      (let [status                 (.getStatus xhr-io)
-            log-and-dispatch-error (fn [str error]
-                                     ;; note that impl.application/initialize will partially apply the
-                                     ;; app-state as the first arg to global-error-callback
-                                     (log/error str)
-                                     (error-callback error)
-                                     (when @global-error-callback
-                                       (@global-error-callback status error)))]
-        (if (zero? status)
-          (log-and-dispatch-error
-            (str "NETWORK ERROR: No connection established.")
-            {:type :network})
-          (log-and-dispatch-error (str "SERVER ERROR CODE: " status) {})))
-      (finally (.dispose xhr-io))))
-  net/FulcroNetwork
-  (send [this edn ok error]
-    (let [xhrio       (make-xhrio)
-          ; STEP 1: Convert the request(s) from query notation to REST...
-          ; some logic to morph the incoming request into REST (assume you'd factor this out to handle numerous kinds)
-          request-ast (-> (prim/query->ast edn) :children first)
-          uri         (str "/" (name (:key request-ast)))   ; in this case, posts
-          url         (str "http://jsonplaceholder.typicode.com" uri)]
-      (js/console.log :REQUEST request-ast :URI uri)
-      ; STEP 2: Send the request
-      (.send xhrio url "GET")
-      ; STEP 3 (see response-ok above)
-      (events/listen xhrio (.-SUCCESS EventType) #(net/response-ok this xhrio ok))
-      (events/listen xhrio (.-ERROR EventType) #(net/response-error this xhrio error))))
-  (start [this] this))
-
-(defn make-rest-network [] (map->Network {}))
-```
-
-The steps you need to customize are annotated in the comments of the code. There are just a few basic steps:
-
-. Fulcro comes with a handy function that can convert a query into an AST, which is easier to process. We don't really
-care too much about the whole query, we just want to detect what is being asked for (we're going to ask for
-`:posts`).
-. Once we've understood what is wanted, we create a REST URL and GET the data from the REST server.
-. When we get a successful response we need to convert the JSON into the proper EDN that the client expects. In
-this case we're looking for `{ :posts [ {:db/id 1 :post/body "..." :post/title "..." ] ... }`.
-. Once we have the properly structure tree of data to match the query, we simply pass it to the ok callback that
-our send was given.
-
-In a more complete program, you'd put hooks at steps (2) and (3) to handle all of the different REST requests, so that
-the majority of this code would be a one-time thing.
-
-=== Installing our Networking Code
-
-Fulcro lets you set up networking yourself. We'd still like to talk to our server, but now we also want to be able
-to talk to the REST server. The modification is done in our client options. For example, our devcard playground could
-be changed to this:
-
-```
-(ns app.intro
-  (:require [fulcro.client.cards :refer [defcard-fulcro]]
-            [app.ui.root :as root]
-            [fulcro.client.data-fetch :as df]
-            [app.rest :as rest]
-            [app.api.mutations :as api]
-            [fulcro.client.network :as net]))
-
-(defcard-fulcro sample-app
-  root/Root
-  {}
-  {:inspect-data true
-   :fulcro       {
-                  :networking {:remote (net/make-fulcro-network "/api" :global-error-callback (constantly nil))
-                               :rest   (rest/make-rest-network)}
-                  :started-callback
-                              (fn [app] (df/load app :current-user root/Person)
-                                (df/load app :my-friends root/Person {:target        [:person-list/by-id :friends :person-list/people]
-                                                                      :post-mutation `api/sort-friends})
-                                (df/load app :my-enemies root/Person {:target [:person-list/by-id :enemies :person-list/people]}))}})
-```
-
-=== Requesting Data from the Alternate Remote
-
-IMPORTANT NOTE: If you're using the dev cards, you might want to change `:inspect-data true` to `false`. Devcards get
-a bit slow if you put a lot of data in the app and ask the card to format it all in the inspector. In those cases
-it can be better to use Fulcro Inspect instead).
-
-All the hard stuff is done. Loading is now triggered just like you would have before, except with a `:remote` option
-to specify which network to talk over:
-
-```
-                       :started-callback (fn [app]
-
-                                           (df/load app :posts root/Post {:remote :rest :target [:post-list/by-id :the-one :posts]})
-
-                                           ... as before ...
-```
-
-=== Mutations over REST
-
-The same technique is used. Everything you've read is accurate for mutations as well (you'll see the mutation come
-into the `send` function). To trigger a mutation, just add another section to your client mutation (a mutation can
-be sent to any number of remotes, in fact):
-
-```
-(defmutation delete-post
-  [{:keys [id]}]
-  (action [env] ...stuff to affect local db...)
-  ; you could also include this: (remote [env] true)
-  (rest [env] true)) ; tell the :rest networking to send this mutation
-```
-
-So, `action` names the local (optimistic) effect. Each other method name *must* match a remote's name as configured
-in the `:networking` of the client. If you return true (or an AST) from one of these "remote" sections, it will trigger
-the mutation to be sent to that network handler.
 
 ++++
 <style>
