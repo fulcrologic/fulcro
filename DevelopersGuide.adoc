@@ -262,9 +262,13 @@ You should see the application printing "Hello World" at: http://localhost:3449[
 Now that you have a basic project working, let's understand how to add some
 content!
 
-IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there),
-have the developer's console open, and in the developer console settings: "Network, Disable cache (while
-DevTools is open)", and "Console, Enable custom formatters".
+IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there) *and install the
+Fulcro Inspect extension* from the Chrome store. Keep the developer's console open, and in the developer console settings:
+"Network, Disable cache (while DevTools is open)", and "Console, Enable custom formatters".
+
+The Fulcro Inspect tab will show the state of your Fulcro application (along with lot of other useful details
+like your transaction log) if you've included the proper dependencies and preloads
+(which the template should have done for you).
 
 Cached files can, as everywhere else, cause you lots of headaches. Fortunately they only really affect you poorly
 on the initial load in Fulcro. Hot reloads typically work very well.
