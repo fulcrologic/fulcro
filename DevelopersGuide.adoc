@@ -10772,7 +10772,7 @@ add any keys it wishes. The final result of the middleware stack will be used as
 * `:url` - The network target. Can be relative or a complete URL, assuming you have security set to allow you to talk to the given server.
 * `:method` - Converted to an upper-case HTTP verb as a string.
 
-=== File Uploads
+=== File Uploads [[FileUpload]]
 
 Fulcro may soon include pre-written software to accomplish file uploads for you. In the meantime you
 can just copy code from http://github.com/awkay/file-upload-demo[the file upload demo project]
@@ -10876,6 +10876,8 @@ Fulcro's pluggable remotes make it relatively easy to plug in alternate communic
 with things like REST or GraphQL servers with relative ease, especially if you use the
 https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
 
+==== A REST Example
+
 Here's a simple example to give you an idea of how simple it can be:
 
 ```
@@ -10945,6 +10947,21 @@ and can be targeted, use load markers, etc.
 
 Of course, you can also define resolvers that "compute" derived data with normal resolver tricks. See Pathom
 documentation.
+
+==== GraphQL
+
+The Pathom library also includes a pre-built GraphQL remote for Fulcro, along with tools that allow you to combine
+resolvers with GraphQL servers easily.  Pathom's connect feature can be combined in, which allows you to morph
+your perception of the server's graph in ways that are more convenient for your application. This results in a remote
+for Fulcro that is far more powerful than standard GraphQL, even when GraphQL is what the server is providing!
+
+==== File Upload and Low-Level Protocols
+
+Submission of binary data as file uploads via multipart POST encodings is one area where you're going
+to need to speak something other than EQL over transit. Fulcro's built-in client remote includes support for
+middleware that can transform requests and responses.
+
+See the section on <<FileUpload, file uploads>> for more details.
 
 = Websockets [[Websockets]]
 
