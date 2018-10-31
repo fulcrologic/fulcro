@@ -109,6 +109,21 @@ amount of actual code. This can save you hours of setup.
 IMPORTANT: This document assumes you're working with Fulcro 2.5 and above. The differences are minor, but the DOM
 factories changed to be more succinct.
 
+== Install Fulcro Inspect
+
+You should use Chrome for development because we have a developer tool called Fulcro Inspect that is available
+from the chrome store for free.  There are also devtools that are installed via preloads which will autoformat
+EDN that is sent via `console.log`.  When properly configured, these tool will let you view the internal state of your
+Fulcro application, the local and remote transaction history, save "snapshots" of state so you can quickly retry a
+UI flow by hitting a "reset" button, "scroll" over state history and watch the UI change, run queries (with autocomplete
+if you're using Pathom) against your EQL server, and even (via binaryage devtools) source-level debug your Fulcro application in CLJS with
+stack frame analysis and proper clojure names for things!  Doing without either of these tools will be like working
+in the dark.
+
+Fulcro Inspect is a free extension for Chrome, and Binaryage devtools is a library that can be injected via a preload.
+The setup for these is done automatically when you use the Fulcro lein template, but you still have to install the
+chrome extension via Chrome itself.
+
 == Project setup
 
 You can get a basic app with no prewritten demo code using:
@@ -127,7 +142,7 @@ is laid out.
 
 === Choosing a React Version
 
-Fulcro supports React 15 and 16 (and may even be fine with 17 with it is released). You can exclude the versions
+Fulcro supports React 15 and 16 (and should even be fine with 17 with it is released). You can exclude the versions
 of React and React DOM from Fulcro's dependency list (using Leiningen exclusions, for example( and include your preferred version.
 
 === Figwheel Startup Script
@@ -262,9 +277,13 @@ You should see the application printing "Hello World" at: http://localhost:3449[
 Now that you have a basic project working, let's understand how to add some
 content!
 
-IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there),
-have the developer's console open, and in the developer console settings: "Network, Disable cache (while
-DevTools is open)", and "Console, Enable custom formatters".
+IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there) *and install the
+Fulcro Inspect extension* from the Chrome store. Keep the developer's console open, and in the developer console settings:
+"Network, Disable cache (while DevTools is open)", and "Console, Enable custom formatters".
+
+The Fulcro Inspect tab will show the state of your Fulcro application (along with lot of other useful details
+like your transaction log) if you've included the proper dependencies and preloads
+(which the template should have done for you).
 
 Cached files can, as everywhere else, cause you lots of headaches. Fortunately they only really affect you poorly
 on the initial load in Fulcro. Hot reloads typically work very well.

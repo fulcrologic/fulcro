@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.6.12"
+(defproject fulcrologic/fulcro "2.6.13"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -10,7 +10,7 @@
                  [cljsjs/react "16.4.1-0"]
                  [cljsjs/react-dom "16.4.1-0"]
                  [cljsjs/react-dom-server "16.4.1-0"]
-                 [com.cognitect/transit-clj "0.8.309"]
+                 [com.cognitect/transit-clj "0.8.313"]
                  [com.cognitect/transit-cljs "0.8.256"]
                  [org.clojure/core.async "0.4.474"]
                  [com.stuartsierra/component "0.3.2"]
@@ -27,7 +27,7 @@
                  [com.taoensso/sente "1.12.0" :scope "provided"]
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.1.0-1" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.1.2" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "62.1" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha3" :scope "test"]]
