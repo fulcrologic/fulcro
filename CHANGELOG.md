@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.13
+------
+- Added console errors when form fields are used but undeclared.
+
 2.6.12
 ------
 - Added warning to console log about using non-serial remotes with deferred transactions.

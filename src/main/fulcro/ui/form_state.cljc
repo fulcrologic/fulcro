@@ -1,14 +1,14 @@
 (ns fulcro.ui.form-state
   (:require [clojure.spec.alpha :as s]
-    #?(:clj
-            [clojure.future :refer :all])
+            #?(:clj
+               [clojure.future :refer :all])
             [clojure.set :as set]
             [fulcro.logging :as log]
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
-    #?(:cljs [fulcro.client.dom :as dom]
-       :clj [fulcro.client.dom-server :as dom])))
+            #?(:cljs [fulcro.client.dom :as dom]
+               :clj  [fulcro.client.dom-server :as dom])))
 
 (defprotocol IFormFields
   (form-fields [this] "Returns a set of keywords that define the form fields of interest on an entity"))
@@ -34,6 +34,10 @@
                           :ret (s/cat :entity map? :config ::config)))
 (s/def ::validity #{:valid :invalid :unchecked})
 (s/def ::denormalized-form (s/keys :req [::config]))
+
+(defn- assume-field [config field]
+  (when-not (contains? (::fields config) field)
+    (log/error (str "It appears you're using " field " as a form field, but it is *not* declared as a form field on the component. It will fail to function properly."))))
 
 (defn form-id
   "Returns the form database table ID for the given entity ident."
@@ -242,6 +246,7 @@
    (let [{{pristine-state ::pristine-state} ::config} ui-entity-props
          current  (get ui-entity-props field)
          original (get pristine-state field)]
+     (assume-field (::config ui-entity-props) field)
      (not= current original)))
   ([ui-entity-props]
    (let [{:keys [::subforms ::fields]} (::config ui-entity-props)
@@ -322,6 +327,7 @@
     ([ui-entity-props field]
      (let [{{complete? ::complete?} ::config} ui-entity-props
            complete? (or complete? #{})]
+       (assume-field (::config ui-entity-props) field)
        (cond
          (not (complete? field)) :unchecked
          (not (field-valid? ui-entity-props field)) :invalid
@@ -374,7 +380,9 @@
     "Returns true if the field (or entire denormalized (UI) form) is ready to be checked for validation.
     Until this returns true validators will simply return :unchecked for a form/field."
     ([ui-form] (not= :unchecked (carefree-validator ui-form)))
-    ([ui-form field] (not= :unchecked (carefree-validator ui-form field)))))
+    ([ui-form field]
+     (assume-field (::config ui-form) field)
+     (not= :unchecked (carefree-validator ui-form field)))))
 
 (defn- immediate-subform-idents
   "Get the idents of the immediate subforms that are joined into entity by
@@ -550,21 +558,21 @@
   "Removes copies of entities used by form-state logic."
   [state-map entity-ident-or-idents]
   (let [entity-idents (if (util/ident? entity-ident-or-idents)
-                       [entity-ident-or-idents]
-                       entity-ident-or-idents)
+                        [entity-ident-or-idents]
+                        entity-ident-or-idents)
 
-        ks (mapv (fn [[t r]]
-                   {:table t :row r})
-                 entity-idents)]
+        ks            (mapv (fn [[t r]]
+                              {:table t :row r})
+                        entity-idents)]
     (update state-map ::forms-by-ident
-            (fn [s]
-              (apply dissoc s ks)))))
+      (fn [s]
+        (apply dissoc s ks)))))
 
 (s/fdef delete-form-state*
-        :args (s/cat :state-map map?
-                     :entity-ident-or-idents (s/or :entity-ident util/ident?
-                                                   :entity-idents (s/coll-of util/ident?)))
-        :ret map?)
+  :args (s/cat :state-map map?
+          :entity-ident-or-idents (s/or :entity-ident util/ident?
+                                    :entity-idents (s/coll-of util/ident?)))
+  :ret map?)
 
 (defn pristine->entity*
   "Copy the pristine state over top of the originating entity of the given form. Meant to be used inside of a
