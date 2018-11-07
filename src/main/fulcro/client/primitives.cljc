@@ -458,6 +458,10 @@
                (some-> x meta :component))
        :cljs (true? (some-> ^js x (.-prototype) .-fulcro$isComponent)))))
 
+(s/def ::component-class
+  (s/with-gen component-class? #(s/gen #?(:clj  #{(with-meta {} {:component true})}
+                                    :cljs #{#js {:prototype #js {:fulcro$isComponent true}}}))))
+
 #?(:clj
    (defn react-type
      "Returns the component type, regardless of whether the component has been
