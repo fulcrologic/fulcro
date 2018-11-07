@@ -2094,3 +2094,16 @@
     (assertions
       (prim/db->tree [{:boo [:a]}] {:boo [:item 1] :item {1 [:item 1]}} {:boo [:item 1] :item {1 [:item 1]}}) => {:boo {}})))
 
+(defsc Thing [_ _])
+
+(specification "component-class?"
+  (assertions
+    "Correctly identifies fulcro classes"
+    (prim/component-class? Thing) => true
+    "Tolerates a variety of invalid inputs"
+    (prim/component-class? 1M) => false
+    (prim/component-class? 22) => false
+    (prim/component-class? 3.55) => false
+    (prim/component-class? nil) => false
+    (prim/component-class? "") => false
+    (prim/component-class? (fn [x])) => false))
