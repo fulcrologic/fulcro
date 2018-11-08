@@ -2940,11 +2940,11 @@ or
 
 ```
 (defsc X [this props]
-  [(dom/p "a") (dom/p "b")])
+  [(dom/p {:key "a"} "a") (dom/p {:key "b"} "b")])
 ```
 
 allows your component to return multiple elements that are spliced into the parent without any "wrapping" elements
-in the DOM.
+in the DOM. Notice when returning a vector you need to supply React keys.
 
 ```
 (dom/div (ui-x)) => <div><p>a</p><p>b</p></div>

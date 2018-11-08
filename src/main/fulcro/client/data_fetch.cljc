@@ -10,7 +10,10 @@
     [fulcro.client :as fc]
     [fulcro.util :as util]
     [clojure.string :as str]
-    [clojure.set :as set]))
+    [clojure.set :as set]
+    [clojure.spec.alpha :as s]))
+
+(s/def ::target vector?)
 
 (declare load load-action load-field load-field-action)
 

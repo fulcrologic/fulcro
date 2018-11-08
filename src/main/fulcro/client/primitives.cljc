@@ -434,9 +434,9 @@
          (str (. cl -name) "_" idx)
          js/undefined))))
 
-
 (defn component?
-  "Returns true if the argument is a component."
+  "Returns true if the argument is a component. A component is defined as a *mounted React-based javascript component*.
+   This function returns false for component classes, and also returns false for the output of a Fulcro component factory."
   #?(:cljs {:tag boolean})
   [x]
   (if-not (nil? x)
@@ -444,6 +444,23 @@
                (satisfies? p/IReactComponent x))
        :cljs (true? (.-fulcro$isComponent ^js x)))
     false))
+
+(s/def ::component
+  (s/with-gen component? #(s/gen #?(:clj  #{(reify p/IReactComponent (-render [_]))}
+                                    :cljs #{#js {:fulcro$isComponent true}}))))
+
+(defn component-class?
+  "Returns true if the given `x` is a `defsc` or `defui` component class definition."
+  [x]
+  (boolean
+    #?(:clj  (and x
+               (fn? x)
+               (some-> x meta :component))
+       :cljs (true? (some-> ^js x (.-prototype) .-fulcro$isComponent)))))
+
+(s/def ::component-class
+  (s/with-gen component-class? #(s/gen #?(:clj  #{(with-meta {} {:component true})}
+                                    :cljs #{#js {:prototype #js {:fulcro$isComponent true}}}))))
 
 #?(:clj
    (defn react-type
