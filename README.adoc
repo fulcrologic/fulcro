@@ -238,7 +238,7 @@ and then add a `src/app/server.clj`:
 create a `resources/config/defaults.edn` that contains:
 
 ```
-{:port 3000}
+{:port 8080}
 ```
 
 You can run this server with
