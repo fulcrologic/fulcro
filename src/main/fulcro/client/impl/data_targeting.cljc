@@ -20,7 +20,7 @@
 (defn multiple-targets? [t] (-> t meta ::multiple-targets boolean))
 
 (defn special-target? [target]
-  (boolean (seq (set/intersection (-> target meta keys) #{::replace-target ::append-target ::prepend-target ::multiple-targets}))))
+  (boolean (seq (set/intersection (-> target meta keys set) #{::replace-target ::append-target ::prepend-target ::multiple-targets}))))
 
 (defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation

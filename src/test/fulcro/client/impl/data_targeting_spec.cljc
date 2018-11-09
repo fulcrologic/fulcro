@@ -1,11 +1,21 @@
 (ns fulcro.client.impl.data-targeting-spec
   (:require
     [fulcro.client.impl.data-targeting :as targeting]
+    [fulcro.client.primitives :refer [defsc]]
     [fulcro-spec.core :refer
      [specification behavior assertions provided component when-mocking]]))
 
-(specification "Special targeting"
+(defsc A [_ _])
+
+(specification "Special targeting" :focused
   (assertions
+    "Reports false for non-special targets"
+    (targeting/special-target? [:class]) => false
+    (targeting/special-target? [::class]) => false
+    "Allows for arbitrary metadata on the target"
+    (targeting/special-target? (with-meta [::x :y :z] {:class A})) => false
+    "Tolerates an empty target"
+    (targeting/special-target? nil) => false
     "Is detectable"
     (targeting/special-target? (targeting/append-to [])) => true
     (targeting/special-target? (targeting/prepend-to [])) => true
