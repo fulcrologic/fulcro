@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.6.15"
+(defproject fulcrologic/fulcro "2.6.16-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -14,7 +14,7 @@
                  [com.cognitect/transit-cljs "0.8.256"]
                  [org.clojure/core.async "0.4.474"]
                  [com.stuartsierra/component "0.3.2"]
-                 [garden "1.3.5"]
+                 [garden "1.3.6"]
 
                  ;; In case someone is still using 1.8
                  [clojure-future-spec "1.9.0-beta4"]
