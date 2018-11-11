@@ -925,9 +925,11 @@ When a transaction runs in Fulcro it passes things off to a multimethod. The mul
 detail in the section on <<MutationMultimethod,the mutation multimethod>>, but Fulcro provides a macro that makes
 building (and using) mutations easier: `defmutation`.
 
-The template application comes with a pre-built namespace for these `src/main/app/api/mutations.cljs`, but you can put them anywhere as long
-as the namespace in question is required by your application at runtime. Note there is also a `mutations.clj`, which is
-for the server-side handling of these same mutations.
+Mutations typically can go wherever you want.  The macro augments a multimethod, so you need to make sure that
+namespace is required by files that your program already uses.  Something like `src/main/app/api/mutations.cljs`
+is fine, but you might also find it useful to place your mutations in something topical so you can write
+the server mutations in the CLJ version of the file, and the client ones in the cljs.  Mutations are namespaced,
+so this makes things easier.
 
 A mutation looks a bit like a method. It can have a docstring, and the argument list will always receive a
 single argument (params) that will be a map (which then allows destructuring).
@@ -1488,11 +1490,12 @@ You now need to converting the raw CLJ query into a response. You can read more
 about the gory details of that in the developer's guide; however, Fulcro's has some
 helpers that make our job much easier.
 
-The template has a spot to put your query handlers in `src/main/app/api/read.clj`.
+You'll need to put your read handling code somewhere. For example you could create
+`src/main/app/api/read.clj`.
 Since we're on the server and we're going to be supplying and manipulating people, we'll just make a single atom-based
 in-memory database. This could easily be stored in a database of any kind.
 To handle the incoming "current user" request, we can use a macro to write the handler for us.
-Change the file to look like this:
+Something like this:
 
 ```
 (ns app.api.read
@@ -1511,8 +1514,10 @@ Change the file to look like this:
     (get @people-db 99)))
 ```
 
-This actually augments a multimethod, which means we need to make sure this namespace is loaded by our server. The
-`user` namespace already does this. So, you should be able to simply restart/refresh the server at the SERVER REPL:
+This macro actually augments a multimethod, which means we need to make sure this namespace is loaded by our server,
+so edit one of your components (like the middleware.clj) and require it there.
+
+Now you should be able to restart/refresh the server at the SERVER REPL:
 
 ----
 user=> (restart)
@@ -1657,6 +1662,10 @@ in the friends list could be (in `mutations.cljs`):
     (swap! state sort-friends-by* :person/name)))
 ```
 
+NOTE: When building larger applications we've often found it useful to put the client mutations in one
+topically-named file (e.g. `person.cljs`) and the server mutations right next to it in (e.g. `person.clj`).  This makes
+code navigation very easy.
+
 Of course this mutation could be triggered anywhere you could run a `transact!`, but since we're interested in morphing
 just-loaded data, we'll add it there. Our dev card would now look like this:
 
@@ -1781,10 +1790,10 @@ Mutations are handled on the server using the server's `defmutation` macro (if y
 This has the identical syntax to the client version!
 
 IMPORTANT: You want to place your mutations in the same namespace on the client and server since the `defmutation`
-macros namespace the symbol into the current namespace.
-
-So, this is really why we have a duplicated namespace in Clojure called `mutations.clj` right
-next to our `mutations.cljs`.
+macros namespace the symbol into the current namespace. So, this is really why we have a duplicated namespace in
+Clojure called `mutations.clj` right next to our `mutations.cljs`. The `defmutation` macro will accept a fully-qualified
+symbol as well, but that becomes painful for code navigation.  If many of your mutations are full-stack, you might
+even consider using `cljc` files and placing the server/client mutations in the same exact code block.
 
 So, let's add an implementation for our server-side `delete-person`. Your `mutations.clj` should end
 up looking like this (don't forget the require to get access to the people db):
@@ -6002,7 +6011,7 @@ to configure that when you study how to <<BuildingAServer, build a server>>.
 The recommended approach to writing a server mutation is to use the pre-written server-side parser and multimethods, which allow you
 to mimic the same code structure of the client (there is a `defmutation` in `fulcro.server` for this).
 
-If you're using this approach (which is the default in the easy server), then here are the client-side and server-side
+If you're using this approach (which is the default in the lein template and easy server), then here are the client-side and server-side
 implementations of the same mutation:
 
 ```
@@ -6026,6 +6035,26 @@ implementations of the same mutation:
 (defmutation do-something [{:keys [p]}]
   (action [{:keys [some-server-database]}]
      ... server code to make change ...))
+```
+
+or even a CLJC file:
+
+```
+(ns my-app.mutations
+  (:require
+    #?(:cljs [fulcro.client.mutations :refer [defmutation]]
+       :clj [fulcro.server :as server])))
+
+#?(:cljs
+    (defmutation do-something [{:keys [p]}]
+      (action [{:keys [state]}]
+        (swap! state assoc :value p))
+      (remote [env] true))
+
+   :clj
+    (server/defmutation do-something [{:keys [p]}]
+      (action [{:keys [some-server-database]}]
+         ... server code to make change ...)))
 ```
 
 It is recommended that you use the same namespace on the client and server for mutations so it is easy to find them,
