@@ -141,6 +141,7 @@ is laid out.
 === Starting the Compiler
 
 The Fulcro template uses `shadow-cljs`.  We've been using this tool for over a year and it is a really great experience.
+The additions over the stock Clojurescript compiler make for a much more polished experience.
 It allows you to use the normal js ecosystem of components very easily, is really good about caching, doesn't get easily
 confused (I almost never have to do a clean of project builds, which I used to have to do with the standard tools
 all the time).  You should check out the https://shadow-cljs.github.io/docs/UsersGuide.html[User's Guide] when
@@ -152,6 +153,8 @@ $ npx shadow-cljs server
 
 and navigate to the URL it prints out for the compiler server (usually http://localhost:9630). You can then use the
 "Builds" menu to turn on/off different client builds and see the progress live as it happens!
+
+It also has hot-code reload built in, so there is no need for an additional tool like figwheel.
 
 === Starting the Server
 
@@ -10477,7 +10480,7 @@ Some notes:
 
 * Server-side use of the compiled Javascript works best with advanced-optimized builds. Development
 builds of the javascript won't work right, and we've even seen problems with builds that don't use advanced optimizations.
-* (1) means that your SSR is going to be hard to work with if you're in dev (figwheel) mode. The recommendation is that
+* (1) means that your SSR is going to be hard to work with if you're in dev (hot code reload) mode. The recommendation is that
 you test SSR as a separate step (where you can have an auto incremental build with advanced compilation).
 
 The basics are:
@@ -12348,7 +12351,7 @@ One of the most annoying performance problems when building your application is 
 rebuilds on our code base so that we can continue to work quickly.  Here are some tips about keeping your compile times
 low:
 
-. Use shadow-cljs instead of Figwheel. *Especially* if you plan on using external Javascript libraries from npm.
+. Use shadow-cljs instead of the plain CLJS compiler. *Especially* if you plan on using external Javascript libraries from npm.
 The `lein new fulcro app` command will get you a pre-configured
 template with everything set up.
 . Keep your namespaces small, and `:require` sections pruned. This is about "size of code to compile", but it's more
