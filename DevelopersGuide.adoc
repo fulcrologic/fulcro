@@ -10449,19 +10449,55 @@ initial state, so it runs initial startup steps if it detects that.
 
 == Rendering via Node.js
 
-Users have reported that rendering a Fulcro Client by running it on node and reassigning the remotes to loopback is
-relatively easy.  It is reported that Fulcro networking will work if you just set the global XMLHttpRequest up:
+
+
+Since node.js is powered by V8, the same javascript engine that powers chrome web browser getting isomorphic support including fulcro networking is really easy.
+
+
+For fulcro networking to work in nodejs you need to provide a substitute for the browser's XMLHttpRequest that is used by xhrio.
+You can install the https://www.npmjs.com/package/xmlhttprequest npm package and then set it globally.
 
 ```
-(set! js/global.XMLHttpRequest (.-XMLHttpRequest xhr3))
+(ns app.server
+ (:require
+    ["xmlhttprequest" :as npm-xmlhttprequest]))
+
+(set! js/global.XMLHttpRequest (.-XMLHttpRequest npm-xmlhttprequest))
 ```
 
-At that point you need a way to start the client and wait for it to finish the started callback loads.  Fulcro
-2.6.10 includes a contributed function `fulcro.server-render/defer-until-network-idle` that will trigger a callback
-when all of the remotes in the client become idle.
+One approach for getting SSR on node.js with the data loaded from the network is to create a fulcro headless client and use the built-in helper `fulcro.server-render/defer-until-network-idle` (available as of fulcro 2.6.10) for deferring the server request until fulcro has finished loading all network data.
 
-You can override the react rendering function using the `:reconciler-options` of the fulcro client.  A link to a demo
-project will be available soon, but please ask on the Fulcro Slack channel for more details.
+
+```
+(ns app.server
+  (:require
+   [fulcro.client.primitives :as prim :refer [defsc]]
+   [fulcro.client.data-fetch :as df]
+   [fulcro.client :as fc]
+   [fulcro.client.network :as fcn]
+   [fulcro.server-render :refer [defer-until-network-idle]]
+   ["react-dom/server" :as rdom :refer (render)]
+   ["xmlhttprequest" :as npm-xmlhttprequest]))
+
+(defn ssr-enpdpoint [req resp]
+  (let [started-callback (fn [{:keys [reconciler]}]
+                           (df/load reconciler ...))
+        fulcro-client    (fc/new-fulcro-client
+                          :started-callback started-callback
+                          :networking {:remote (fcn/fulcro-http-remote {:url "http://localhost:3000/api"})})
+        mounted-app      (fc/mount fulcro-client root/Root nil) ; nil as the last argument creates a headless client
+        reconciler       (:reconciler mounted-app)]
+    (defer-until-network-idle
+     reconciler
+     (fn []
+       (let [app-state      (-> reconciler deref)
+             app-state-tree (prim/db->tree (prim/get-query root/Root app-state) app-state app-state)]
+         (.send resp (get-html (rdom/renderToString (ui-root app-state-tree)) app-state)))))))
+
+```
+
+A minimal example app with fulcro & nodejs server side rendering can be found at https://github.com/claudiu-apetrei/fulcro-nodejs-ssr-example
+
 
 == True Isomorphic Support with Nashorn (JVM Javascript engine)
 
