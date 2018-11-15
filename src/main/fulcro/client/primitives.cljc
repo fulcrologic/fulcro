@@ -2232,6 +2232,7 @@
                          :root-render root-render :root-unmount root-unmount :root-hydrate root-hydrate
                          :render-mode render-mode
                          :pathopt     true
+                         :load-marker-default (:load-marker-default config)
                          :migrate     migrate
                          :lifecycle   lifecycle
                          :instrument  instrument :tx-listen tx-listen}

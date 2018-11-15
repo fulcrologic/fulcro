@@ -184,12 +184,13 @@
             (prim/reconciler? app-or-comp-or-reconciler)
             #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
                :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler)))]}
-   (let [config                  (merge {:marker true :parallel false :refresh [] :without #{}} config)
-         component-or-reconciler (if #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
+   (let [component-or-reconciler (if #?(:cljs (implements? fc/FulcroApplication app-or-comp-or-reconciler)
                                         :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler))
                                    (get app-or-comp-or-reconciler :reconciler)
                                    app-or-comp-or-reconciler)
          reconciler              (if (prim/reconciler? component-or-reconciler) component-or-reconciler (prim/get-reconciler component-or-reconciler))
+         load-marker-default     (-> reconciler :config :load-marker-default)
+         config                  (merge {:marker load-marker-default :parallel false :refresh [] :without #{}} config)
          state                   (prim/app-state reconciler)
          mutation-args           (load-params* @state server-property-or-ident class-or-factory config)]
      (prim/transact! component-or-reconciler (load-mutation mutation-args)))))
@@ -220,7 +221,9 @@
      ([env server-property-or-ident SubqueryClass] (load-action env server-property-or-ident SubqueryClass {}))
      ([env server-property-or-ident SubqueryClass config]
       {:pre [(and (map? env) (contains? env :state))]}
-      (let [config    (merge {:marker true :parallel false :refresh [] :without #{}} config)
+      (let [reconciler (:reconciler env)
+            load-marker-default (-> reconciler :config :load-marker-default)
+            config    (merge {:marker load-marker-default :parallel false :refresh [] :without #{}} config)
             state-map @(:state env)]
         (impl/mark-ready (assoc (load-params* state-map server-property-or-ident SubqueryClass config) :env env))))))
 
@@ -254,10 +257,12 @@
   is what this function will use).
   "
   [component field & params]
-  (let [params    (if (map? (first params)) (first params) params)
+  (let [params              (if (map? (first params)) (first params) params)
+        reconciler          (prim/get-reconciler component)
+        load-marker-default (-> reconciler :config :load-marker-default)
         {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id]
-         :or   {remote :remote refresh [] marker true}} params
-        state-map (some-> component prim/get-reconciler prim/app-state deref)]
+         :or   {remote :remote refresh [] marker load-marker-default}} params
+        state-map           (some-> reconciler prim/app-state deref)]
     (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
     (prim/transact! component (into [(list 'fulcro/load
                                        {:ident                (prim/get-ident component)
@@ -296,13 +301,19 @@
   be available for post mutations and fallbacks.
   "
   [env-or-app-state component-class ident field & params]
-  (let [params    (if (map? (first params)) (first params) params)
+  (let [params              (if (map? (first params)) (first params) params)
+        env?                (and (map? env-or-app-state) (contains? env-or-app-state :state))
+        env                 (if env?
+                              env-or-app-state
+                              {:state env-or-app-state})
+        load-marker-default (if env?
+                              (-> env :reconciler :config :load-marker-default)
+                              true)
         {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id]
-         :or   {remote :remote refresh [] marker true}} params
-        env       (if (and (map? env-or-app-state) (contains? env-or-app-state :state))
-                    env-or-app-state
-                    {:state env-or-app-state})
-        state-map (some-> env :state deref)]
+         :or   {remote :remote refresh [] marker load-marker-default}} params
+        state-map           (some-> env :state deref)]
+    (when-not env?
+      (log/warn "load-field-action for field " field " was called with app state instead of env. This is a deprecated usage and some features may not work when using it." ))
     (impl/mark-ready
       {:env                  env
        :field                field
