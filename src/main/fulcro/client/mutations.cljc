@@ -158,7 +158,7 @@
      data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
      [v]
      (let [rv (js/parseInt v)]
-       (if (js/isNaN v) 0 rv)))
+       (if (js/isNaN rv) 0 rv)))
    :clj
    (defn- ensure-integer [v] (Integer/parseInt v)))
 
