@@ -5748,6 +5748,7 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 `:fallback`:: A mutation to run if the server throws an error during the load.
 `:focus`:: A subquery to filter from your component query. Covered in Incremental Loading.
 `:without`:: A set of keywords to elide from the query. Covered in Incremental Loading.
+`:update-query`:: A function that will take the component original query and should return a query that will be sent to the remote
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
 `:initialize bool|map`:: If true, uses component's initial state as a basis for incoming merge. If a map, uses the map as the basis for incoming merge.
 
