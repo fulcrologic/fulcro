@@ -148,6 +148,7 @@ all the time).  You should check out the https://shadow-cljs.github.io/docs/User
 you have a chance, but for now you can simply start the compiler server:
 
 ```
+$ npm install  # only need to do this once
 $ npx shadow-cljs server
 ```
 
