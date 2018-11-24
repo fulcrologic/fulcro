@@ -774,6 +774,10 @@
   (remote [{:keys [state]}]
     (get @state :go?)))
 
+(defmutation conditional-on-parameter [{:keys [remote?]}]
+  (remote [{:keys [state]}]
+    remote?))
+
 (defmethod m/mutate `j [{:keys [target]} _ params]
   (cond
     (= target :remote) {:remote true}
@@ -783,24 +787,27 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "get-remotes"
+(specification "mutation-remotes" :focused
   (assertions
     "Only returns remotes, not custom actions"
-    (df/get-remotes {} `f) => #{:remote}
+    (df/mutation-remotes {} (prim/query->ast1 `[(f {})]) #{:remote}) => #{:remote}
     "Returns the correct remote for a given mutation"
-    (df/get-remotes {} `g) => #{:rest-remote}
+    (df/mutation-remotes {} (prim/query->ast1 `[(g {})]) #{:rest-remote}) => #{:rest-remote}
     "Returns all remotes that are active for the given mutation"
-    (df/get-remotes {} `i) => #{:remote :rest-remote}
+    (df/mutation-remotes {} (prim/query->ast1 `[(i)]) #{:remote :rest-remote}) => #{:remote :rest-remote}
     "Returns all remotes that are active even if the mutation responds via target (as long as legal remotes list is passed in)"
-    (df/get-remotes {} `j #{:remote :rest-remote}) => #{:remote :rest-remote}
+    (df/mutation-remotes {} (prim/query->ast1 `[(j)]) #{:remote :rest-remote}) => #{:remote :rest-remote}
     "Returns #{:remote} if the mutation throws an exception"
-    (df/get-remotes {} `unhappy-mutation) => #{:remote}
+    (df/mutation-remotes {} (prim/query->ast1 `[(unhappy-mutation {})]) #{:remote :rest-remote}) => #{:remote}
     "Returns an empty set if the mutation is not remote"
-    (df/get-remotes {} `h) => #{}
+    (df/mutation-remotes {} (prim/query->ast1 `[(h)]) #{:remote :rest-remote}) => #{}
+    "Conditionally remote mutations can make decisions based on paramters"
+    (df/mutation-remotes {} (prim/query->ast1 `[(conditional-on-parameter {})]) #{:remote :rest-remote}) => #{}
+    (df/mutation-remotes {} (prim/query->ast1 `[(conditional-on-parameter {:remote? true})]) #{:remote :rest-remote}) => #{:remote}
     "Conditionally remote mutations are not included if they return false from the remote."
-    (df/get-remotes {} `conditional-mutation) => #{}
+    (df/mutation-remotes {} (prim/query->ast1 `[(conditional-mutation {})]) #{:remote :rest-remote}) => #{}
     "Conditionally remote mutations are included if they return true from the remote."
-    (df/get-remotes {:go? true} `conditional-mutation) => #{:remote}))
+    (df/mutation-remotes {:go? true} (prim/query->ast1 `[(conditional-mutation {})]) #{:remote :rest-remote}) => #{:remote}))
 
 (specification "fallback (the mutation)"
   (behavior "On parse (run of `transact!`)"

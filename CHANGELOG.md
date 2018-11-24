@@ -8,7 +8,8 @@ small and tractable.
 
 2.6.16
 ------
-- Fixed compiler warning about garden
+- Fixed custom remote detection bug in pessimistic mutations.
+
 
 2.6.15
 ------

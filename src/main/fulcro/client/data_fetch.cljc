@@ -448,6 +448,31 @@
 
 (defmethod mutate `fallback [env _ params] (mutate env 'tx/fallback params))
 
+(defn mutation-remotes
+  "Returns the remote against which the given mutation will try to execute. Returns nil if it is not a remote mutation.
+  `legal-remotes` is a set of legal remote names. Defaults to `#{:remote}`.
+
+  Returns a set of the remotes that will be triggered for this mutation, which may be empty.
+  "
+  [state-map {:keys [dispatch-key params] :as dispatch-ast} legal-remotes]
+  (let []
+    (letfn [(run-mutation [remote]
+              (mutate {:ast    dispatch-ast
+                       :parser (constantly nil)
+                       :target remote
+                       :state  (atom state-map)} dispatch-key params))]
+      (reduce (fn [remotes r]
+                (try
+                  (let [mutation-map     (run-mutation r)
+                        ks               (set (keep #(when-not (str/ends-with? (name %) "action") %) (keys mutation-map)))
+                        possible-remotes (set/difference ks #{:refresh :keys :value})
+                        active-now?      #(get mutation-map % false)]
+                    (into remotes (filter active-now? possible-remotes)))
+                  (catch #?(:clj Throwable :cljs :default) e
+                    (log/error "Attempting to get the remotes for mutation " dispatch-ast " threw an exception. Make sure that mutation is side-effect free!" e)
+                    (reduced (if (seq remotes) remotes #{:remote})))))
+        #{} legal-remotes))))
+
 (defn fallback
   "Mutation: Add a fallback to the current tx. `action` is the symbol of the mutation to run if this tx fails due to
   network or server errors (bad status codes)."
@@ -461,6 +486,8 @@
   `legal-remotes` is a set of legal remote names. Defaults to `#{:remote}`.
 
   Returns a set of the remotes that will be triggered for this mutation, which may be empty.
+
+  DEPRECATED. Do not use.  Use `mutation-remotes` instead.
   "
   ([state-map dispatch-symbol] (get-remotes state-map dispatch-symbol #{:remote}))
   ([state-map dispatch-symbol legal-remotes]
