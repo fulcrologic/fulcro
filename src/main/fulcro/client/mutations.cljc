@@ -158,7 +158,7 @@
      data (e.g. data that is used for display purposes) and write clear top-level transactions for anything else."
      [v]
      (let [rv (js/parseInt v)]
-       (if (js/isNaN v) 0 rv)))
+       (if (js/isNaN rv) 0 rv)))
    :clj
    (defn- ensure-integer [v] (Integer/parseInt v)))
 
@@ -172,6 +172,23 @@
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (ensure-integer (if event (target-value event) value))]
+    (set-value! component field value)))
+
+#?(:cljs
+   (defn- ensure-double [v]
+     (let [rv (js/parseFloat v)]
+       (if (js/isNaN rv) 0 rv)))
+   :clj
+   (defn- ensure-double [v] (Double/parseDouble v)))
+
+(defn set-double!
+  "Set the given double on the given `field` of a `component`. Allows same parameters as `set-string!`.
+
+   It is recommended you use this function only on UI-related data (e.g. data that is used for display purposes)
+   and write clear top-level transactions for anything else. Calls to this are compressed in history."
+  [component field & {:keys [event value]}]
+  (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
+  (let [value (ensure-double (if event (target-value event) value))]
     (set-value! component field value)))
 
 (defn set-string!

@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: October 31, 2018
-:revnumber: 26
+:revdate: November 10, 2018
+:revnumber: 27
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -92,8 +92,7 @@ code. This book adopts the following general set of requires and aliases:
 others will be identified as they are used.
 
 The next chapter, "Getting Started", is an exception. The code you see in that chapter is meant to be added to
-a template that you create and run on your own machine. A complete running version of it is available on GitHub
-as described at the end of the chapter.
+a template that you create and run on your own machine.
 
 = Getting Started
 
@@ -103,16 +102,15 @@ go, and given a very cursory definition in the interest of concision. Once you'v
 can use other materials to refine your understanding.
 
 The Leiningen template is the very quickest way to get started. It gives you a number of useful
-things like devcards, production builds, CI integration and more while also giving you the minimal
-amount of actual code. This can save you hours of setup.
+things like workspaces (a place to build components and even apps in cards), production builds, CI integration and more
+while also giving you the minimal amount of actual code. This can save you hours of setup.
 
-IMPORTANT: This document assumes you're working with Fulcro 2.5 and above. The differences are minor, but the DOM
-factories changed to be more succinct.
+IMPORTANT: This document assumes you're working with Fulcro 2.6 and above. Any differences should be minor.
 
 == Install Fulcro Inspect
 
 You should use Chrome for development because we have a developer tool called Fulcro Inspect that is available
-from the chrome store for free.  There are also devtools that are installed via preloads which will autoformat
+from the Chrome store for free.  There are also devtools that are installed via preloads which will autoformat
 EDN that is sent via `console.log`.  When properly configured, these tool will let you view the internal state of your
 Fulcro application, the local and remote transaction history, save "snapshots" of state so you can quickly retry a
 UI flow by hitting a "reset" button, "scroll" over state history and watch the UI change, run queries (with autocomplete
@@ -126,40 +124,56 @@ chrome extension via Chrome itself.
 
 == Project setup
 
-You can get a basic app with no prewritten demo code using:
+You can get a basic working app using:
 
 [source,bash]
 ----
-$ lein new fulcro app nodemo
+$ lein new fulcro app
 ----
 
-The `nodemo` option tells the template not to include demonstration full-stack code. It gives you a
-shell of a project that still contains everything you'd want to set up (cards, testing, a development
-web server, figwheel, etc.) without much actual code to understand or delete.
+This gives you a shell of a project that still contains everything you'd want to set up
+(workspaces, testing, a development web server, shadow-cljs, etc.) without much actual code
+to understand or delete.
 
 You should stop here for a moment and read the README in your generated project to see how that
 is laid out.
 
+=== Starting the Compiler
+
+The Fulcro template uses `shadow-cljs`.  We've been using this tool for over a year and it is a really great experience.
+The additions over the stock Clojurescript compiler make for a much more polished experience.
+It allows you to use the normal js ecosystem of components very easily, is really good about caching, doesn't get easily
+confused (I almost never have to do a clean of project builds, which I used to have to do with the standard tools
+all the time).  You should check out the https://shadow-cljs.github.io/docs/UsersGuide.html[User's Guide] when
+you have a chance, but for now you can simply start the compiler server:
+
+```
+$ npm install  # only need to do this once
+$ npx shadow-cljs server
+```
+
+and navigate to the URL it prints out for the compiler server (usually http://localhost:9630). You can then use the
+"Builds" menu to turn on/off different client builds and see the progress live as it happens!
+
+It also has hot-code reload built in, so there is no need for an additional tool like figwheel.
+
+=== Starting the Server
+
+Simply start a REPL and use:
+
+```
+(start)
+```
+
+to start the server (which defaults to port 3000). If you've turn on the `main` build in shadow-cljs, then you
+should see the base template page.  Please refer to the README in your template app if this doesn't work, as
+this could get out of date with respect to the template.
+
 === Choosing a React Version
 
-Fulcro supports React 15 and 16 (and should even be fine with 17 with it is released). You can exclude the versions
-of React and React DOM from Fulcro's dependency list (using Leiningen exclusions, for example( and include your preferred version.
-
-=== Figwheel Startup Script
-
-Figwheel is a hot-reload development tool. We recommend using figwheel sidecar so
-you can easily start the project from the command line or use it from the REPL
-support built into IntelliJ. The template already has the code for doing this. Part of
-it is in `user.clj`, and the other part is a simple script `script/figwheel.clj` to invoke it:
-
-[source]
-----
-(require '[user :refer [start-figwheel]])
-
-(start-figwheel)
-----
-
-The `README` of your project describes how to start the various builds of your cljs code.
+Fulcro supports React 15 and 16 (and should even be fine with 17 with it is released).  The template uses `shadow-cljs`
+for compiles, so you simple include the version you'd like to use in the standard `package.json` file.  This is already
+done for you in the template.
 
 == The Code Client Files
 
@@ -170,57 +184,83 @@ Your project should have a `src/main/app/client.cljs` file that looks something 
 
 ```
 (ns app.client
-  (:require [fulcro.client :as fc]))
+  (:require [fulcro.client :as fc]
+            [app.ui.root :as root]
+            [fulcro.client.network :as net]))
 
-(defonce app (atom (fc/new-fulcro-client)))
+(defonce app (atom nil))
+
+(defn mount []
+  (reset! app (fc/mount @app root/Root "app")))
+
+(defn start []
+  (mount))
+
+(def secured-request-middleware
+  ;; The CSRF token is embedded in the server_components/html.clj
+  (->
+    (net/wrap-csrf-token (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!"))
+    (net/wrap-fulcro-request)))
+
+(defn ^:export init []
+  (reset! app (fc/new-fulcro-client
+                ;; This ensures your client can talk to a CSRF-protected server.
+                ;; See middleware.clj to see how the token is embedded into the HTML
+                :networking {:remote (net/fulcro-http-remote
+                                       {:url                "/api"
+                                        :request-middleware secured-request-middleware})}))
+  (start))
 ```
 
-This creates a client and stores it in an atom. The client isn't active until you mount it. In
-order to do *that*, you need a UI. The file `src/main/ui/root.cljc` contains something like
-this:
+These functions are used from the HTML page to initialize the application. The reason things
+are split into multiple functions is to allow the application to be remounted on hot-code reload.
+The client isn't active until you mount it, and to mount it
+you need a UI. The file `src/main/ui/root.cljc` contains some simple UI.
 
 ```
 (ns app.ui.root
   (:require
-    translations.es
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [fulcro.client.dom :as dom :refer [div]]
+    [fulcro.client.primitives :as prim :refer [defsc]]
+    [app.ui.components :as comp]))
 
-(defsc Root [this {:keys [ui/react-key]}]
-  (dom/div "TODO"))
+(defsc Root [this {:keys [root/message]}]
+  {:query         [:root/message]
+   :initial-state {:root/message "Hello!"}}
+  (div :.ui.segments
+    (div :.ui.top.attached.segment
+      (div :.content
+        "Welcome to Fulcro!"))
+    (div :.ui.attached.segment
+      (div :.content
+        (comp/ui-placeholder {:w 50 :h 50})
+        (div message)
+        (div "Some content here would be nice.")))))
 ```
 
-The actual mount is done by code that figwheel is configured to load/run in
-`src/dev/user.cljs`:
+If you look at the `shadow-cljs.edn` file you'll see it is configured to re-call `start` after every hot load.
+Mounting an already mounted app is the same as asking for a forced UI refresh.  This ensures you'll see UI changes
+even if your props don't change (all Fulcro components are pure and don't render unless forced to, or see a prop change).
 
 ```
-(ns cljs.user
-  (:require
-    [fulcro.client :as fc]
-    [app.client :as core]
-    [app.ui.root :as root]
-    [cljs.pprint :refer [pprint]]
-    [fulcro.logging :as log]))
-
-(enable-console-print!)
-
-(log/set-level! :all)
-
-(defn mount []
-  (reset! core/app (fc/mount @core/app root/Root "app")))
-
-(mount)
+...
+ :builds {:main       {...
+                       :devtools   {:after-load app.client/start}
+                       ...
 ```
-
-If you look at your `project.clj` file you'll see it is configured to re-call `mount` on every hot load.
-Mounting an already mounted app is the same as asking for a forced UI refresh.
 
 This is all the real code you need to get started with a hot-code reload capable application! However, the
 browser needs instructions to load this stuff up, and the target `div` of the mount needs to exist.
 
-=== HTML
+=== The HTML
 
-The most basic HTML file you can start with (and it won't get much bigger) is:
+Your HTML file to load the app needs these things:
+
+- Include a DIV on the DOM with the ID you want to mount on.
+- Include the generated JS file.
+- Call your exported `init` function.
+
+This corresponds to:
 
 [source,html]
 ----
@@ -229,97 +269,44 @@ The most basic HTML file you can start with (and it won't get much bigger) is:
     <body>
         <div id="app"></div>
         <script src="js/app.js" type="text/javascript"></script>
+        <script>app.client.init();</script>
     </body>
 </html>
 ----
 
-Save this in `resources/public/index.html`.
+but you won't find this in your template resources.  The template generates a secure app with CSRF (cross-site request forgery) protection.
+This means a CSRF token needs to be embedded in the page,
+and this is a complication you can ignore for the most part right now; however, it explains why we dynamically
+generate the HTML file in the server using `hiccup` (in `middleware.clj`):
 
-=== Running Figwheel
-
-You can now run this project in various ways.
-
-From the command line:
-
-[source,bash]
-----
-$ lein run -m clojure.main script/figwheel.clj
-----
-
-Within IntelliJ:
-
-* Run -> Edit Configurations...
-* Press the '+' button, and choose Clojure REPL -> Local
-** Give it a name (like `dev`)
-** Choose "Use clojure.main in normal JVM process" (important: it defaults to nREPL which won't work right)
-** In `JVM Args` specify `-Ddev`. This is a trick of the template's figwheel script that lets you pick
-one or more build from your build config easily. This selects just the `dev` build.
-** In `Parameters` add `script/figwheel.clj`
-
-Now you should be able to start it from the Run menu.
-
-For Emacs + Cider:
-
-* Make sure a piggieback dev-time dependency and repl-option are in `project.clj`:
 ```
-  :profiles {:dev {:source-paths ["src/dev" "src/main"]
-                   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :dependencies [[binaryage/devtools "0.9.9"]
-                                  [com.cemerick/piggieback "0.2.1"]
-                                  [org.clojure/tools.namespace "0.3.0-alpha4"]
-                                  [figwheel-sidecar "0.5.15"]
-                                  [org.clojure/tools.nrepl "0.2.13"]]}})
+(defn index [csrf-token]
+  (html5
+    [:html {:lang "en"}
+     [:head {:lang "en"}
+      [:title "Application"]
+      [:meta {:charset "utf-8"}]
+      [:meta {:name "viewport" :content "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"}]
+      [:link {:href "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"
+              :rel  "stylesheet"}]
+      [:link {:rel "shortcut icon" :href "data:image/x-icon;," :type "image/x-icon"}]
+      [:script (str "var fulcro_network_csrf_token = '" csrf-token "';")]]
+     [:body
+      [:div#app]
+      [:script {:src "js/main/app.js"}]
+      [:script "app.client.init();"]]]))
 ```
-* With `src/dev/user.clj` open in a buffer, choose `M-x cider-jack-in`. In the clojure repl, run `(start-figwheel)`, which will launch a cljs repl.
 
-You should see the application printing "Hello World" at: http://localhost:3449[]
-
-Now that you have a basic project working, let's understand how to add some
-content!
-
-IMPORTANT: When developing it is a good idea to: Use Chrome (the devtools only work there) *and install the
+REMINDER: When developing it is a good idea to: Use Chrome (the devtools only work there) *and install the
 Fulcro Inspect extension* from the Chrome store. Keep the developer's console open, and in the developer console settings:
 "Network, Disable cache (while DevTools is open)", and "Console, Enable custom formatters".
-
-The Fulcro Inspect tab will show the state of your Fulcro application (along with lot of other useful details
-like your transaction log) if you've included the proper dependencies and preloads
-(which the template should have done for you).
 
 Cached files can, as everywhere else, cause you lots of headaches. Fortunately they only really affect you poorly
 on the initial load in Fulcro. Hot reloads typically work very well.
 
-=== Fixing Things
-
-One of the most maddening things that can happen during development is mystery around build errors. Nothing is
-more frustrating than not understanding what is wrong.
-
-As you work on your code your compiler errors and warnings will show in the browser. DO NOT RELOAD THE PAGE! If
-you reload the page you'll lose the warning or error, and that makes it harder to figure out what is wrong!
-
-Instead, edit your code and re-save.
-
-If you are having problems and you've lost your way, it is sometimes useful to ask figwheel to clean and recompile
-everything:
-
-----
-cljs.user=> (reset-autobuild)
-----
-
-will typically get you back on track.
-
-==== Fixing Stubborn Things
-
-Sometimes stuff just fails for reasons we fail to understand. There are times when
-you may want to completely kill your REPL, clean the project with `lein clean`, and start again. Make sure all
-of the generated Javascript is removed when you clean, or things might not clear up.
-
-It is also true that problems in your project configuration may cause problems that are very difficult to
-understand. If this happens to you (especially if you've never run a project with the current project setup) then
-it is good to look at things like dependency problems with `lein deps :tree` and fix those.
-
-In general, if you see a conflict on versions it will work to place the newest version of the conflicted dependency into
-your own dependency list. This can cause problems as well, but is less likely to fail than using an older version
-of a library that doesn't have some needed feature of bug fix.
+The Fulcro Inspect tab will show the state of your Fulcro application (along with lot of other useful details
+like your transaction log) if you've included the proper dependencies and preloads
+(which the template should have done for you).
 
 == Basic UI Components
 
@@ -336,38 +323,48 @@ The basic code to build a simple component has the following form:
 (defsc ComponentName
   [this props] ; parameters. Available in body, and in *some* of the options
   ; optional:  { ...options... }
-  (dom/div #js {:className "a"}
-    (dom/p nil "Hello")))
+  (dom/div {:className "a" :id "id" :style {:color "red"}}
+    (dom/p "Hello")))
 ```
 
-NOTE: As of Fulcro 2.5 properties no longer need `#js`, are optional, and classname keywords exist as a shortcut, so
-the body of that example could be written `(dom/div :.a (dom/p "Hello"))` instead.
+This macro emits the equivalent of a React component with a `render` method.
+
+Class names and IDs can be written in a more compact format instead of the map (or in front of it if you have other
+props to pass):
+
+```
+(dom/div :.a#id {:style {:color "red"}}
+  (dom/p "Hello"))
+```
+
+of course you can also `:refer` the common tags in your namespace declaration:
+
+```
+(ns ui
+  (:require [fulcro.client.dom :as dom :refer [div p]]))
+```
+
+and make this even tighter:
+
+```
+(div :.a#id {:style {:color "red"}}
+  (p "Hello"))
+```
 
 For our purposes we won't be saying much about the React lifecycle methods, though they can be added. The basic
 intention of this macro's syntax is to declare a component that can render UI and participate in our
 data-driven story.
 
-This macro emits the equivalent of a React component with a `render` method.
-
 === The `render` method.
 
 The body of `defsc` is the render for the component and can do whatever work you need, but it should return
 a react element (see https://facebook.github.io/react/blog/2015/12/18/react-components-elements-and-instances.html[React Components, Elements, and Instances]).
+As of React 16 you can return a sequence of elements as well (though each must have a unique `:key`).
 
-Luckily, there are factory methods for all of HTML5 in `fulcro.client.dom`. These functions generally take a Javascript map
-as their first argument (for things like classname and event handlers) and any children. There are two ways to
-generate the Javascript map: with the reader tag `#js` or with `clj->js`.
+There are factory methods for all of HTML5 in `fulcro.client.dom`. These functions can take an optional keyword that
+specifies classes and an ID, followed by an optional map or additional props. If the tag allows children then
+they are simply placed after these two optional things:
 
-All versions of Fulcro:
-```
-(dom/div #js {:className "a" :id "thing"} "Hi")
-(dom/div (clj->js {:className "a" :id "thing"}) "Hi")
-```
-
-Version 2.5 no longer requires the `#js`, the properties are optional, and they support an optional shorthand keyword
-for adding CSS class and DOM ids:
-
-Fulcro 2.5+:
 ```
 (dom/div :.a#thing "Hi") ; keyword can contain any number of classes preceeded by dots, and an id with #
 (dom/div :.a#thing {:data-prop 3} "Hi") ; props can still be supplied with the keyword
@@ -376,21 +373,22 @@ Fulcro 2.5+:
 (dom/div {:classes [(when hidden "hidden") (if tall :.tall :.short)]} ...) ; :classes is nice for expressions (2.5.12+)
 ```
 
-The 2.5 versions are macros that obtain the same runtime speed as the older versions in the most cases. Note that supplying
-props as nil (instead of omitting them) will result in a very slight performance improvement if the element has children.
+These are macros that obtain very good runtime speed by converting the maps and such to low-level js at compile time.
 
-IMPORTANT: If you're writing your UI in CLJC files in 2.5, then you need to make sure you use a conditional
+NOTE: The class keyword requires each class to be preceeded by a `.`, and will give a compile error if you forget to do that.
+
+IMPORTANT: If you're writing your UI in CLJC files then you need to make sure you use a conditional
 reader to pull in the proper server DOM functions for Clojure:
 
 ```
 (ns app.ui
   (:require #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))
 
-... same as before
+... the actual code is the same as before
 ```
 
-The reason this is necessary is that CLJS requires macros to be in CLJ files, but in order to get higher-order
-operation in CLJ the DOM elements must be functions. In CLJS, you can have both a macro and function with
+The reason this is necessary is that CLJS requires macros to be in CLJ files, but in order to get higher-order functions to
+operate in CLJ the DOM elements must be functions. In CLJS, you can have both a macro and function with
 the same name, but this is not true in CLJ. Therefore, in order to get the optimal (inlined) client performance two namespaces are
 required.
 
@@ -931,9 +929,11 @@ When a transaction runs in Fulcro it passes things off to a multimethod. The mul
 detail in the section on <<MutationMultimethod,the mutation multimethod>>, but Fulcro provides a macro that makes
 building (and using) mutations easier: `defmutation`.
 
-The template application comes with a pre-built namespace for these `src/main/app/api/mutations.cljs`, but you can put them anywhere as long
-as the namespace in question is required by your application at runtime. Note there is also a `mutations.clj`, which is
-for the server-side handling of these same mutations.
+Mutations typically can go wherever you want.  The macro augments a multimethod, so you need to make sure that
+namespace is required by files that your program already uses.  Something like `src/main/app/api/mutations.cljs`
+is fine, but you might also find it useful to place your mutations in something topical so you can write
+the server mutations in the CLJ version of the file, and the client ones in the cljs.  Mutations are namespaced,
+so this makes things easier.
 
 A mutation looks a bit like a method. It can have a docstring, and the argument list will always receive a
 single argument (params) that will be a map (which then allows destructuring).
@@ -1145,7 +1145,7 @@ contains the ID of the entity.
 <5> The list will have an ID, and an Ident as well
 
 If you reload the web page (needed to reinitialize the database state), then you can look at the newly normalized
-database at the REPL:
+database at the REPL (*NOTE: It is much easier to look at this using Fulcro Inspect in your developer tools tab*):
 
 ----
 dev:cljs.user=> @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler))
@@ -1265,48 +1265,19 @@ on Fulcro applications, and now that we've got one basically working, let's take
 
 === Fulcro Inspect
 
-A relatively recent (late 2017) addition to the ecosystem is Fucro Inspect. A set of tools you can load into your
-environment during development. In fact, the template already has them (for the `dev` build)! On OSX or Linux, simply hit
-`CTRL-F`.  See Fulcro Inspect's documentation for how to set the keyboard shortcut in Windows.
-
-The DB tab of this tool shows you your application's database *and* has a time slider to see the history of states! It also
+We've mentioned this before, but now that you know about the centralized database, we want to mention it again: Use it!
+The DB tab of this tool shows you your application's database *and* has a time slider to see the history of states.  It also
 has tabs for showing you transactions that have run, and network interactions. See the tool's documentation for more
-information. In fact, by the time you read this it will probably have even more exciting features!
+information. In fact, by the time you read this it will probably have even more features.
 
-=== Dev Cards
+=== Workspaces
 
-There is a build in the template project called `cards`. This starts up a development environment where you can
-code entire applications (or portions of them) in an environment that can show you live state and is quite handy, particularly
-for working with small parts of your program (remember, we can actually split off chunks of the application because they
-are all relative to their parent).
+There is a build in the template project called `workspaces`. This starts up a development environment where you can
+code components, full-stack elements, or even entire applications in a flexible environment.
+Remember, we can actually split off chunks of the application because they are all fed data via a normalized database
+and coupled only to their parent.
 
-You can start this build just as we did near the start of this guide, and load it via `http://localhost:3449/cards.html`.
-
-In fact, you don't even have to start a new REPL! You can run `switch-to-build`:
-
-```
-dev:cljs.user=> (switch-to-build "cards" "dev")
-Figwheel: Watching build - cards
-Figwheel: Cleaning build - cards
-Compiling "resources/public/js/cards.js" from ["src/main" "src/cards"]...
-```
-
-Then you can embed a full-funcional Fulcro application into a card environment with very little code. Replace the
-content of `src/cards/app/intro.cljs` with:
-
-```
-(ns app.intro
-  (:require [fulcro.client.cards :refer [defcard-fulcro]]
-            [app.ui.root :as root]))
-
-(defcard-fulcro sample-app
-  root/Root
-  {}
-  {:inspect-data true})
-```
-
-save and go to http://localhost:3449/cards.html#!/app.intro. You should see your app running in a card, and
-you should be able to see the live database (which will change as you interact)!.
+See the README of your template for instructions on using it.
 
 == Going Remote!
 
@@ -1316,84 +1287,59 @@ Believe it or not, there's not much to add/change on the client to get it talkin
 to a server, and there is also a relatively painless way to get a server up and
 running.
 
-Your template already has one :)
+Of course, your template already has a server.
 
 === Setting up a Server
 
-WARNING: Starting in Fulcro 2.5 the prebuilt servers for Fulcro require that you add some dependencies to your project.
-These namespaces dynamically resolve these so that you won't end up with extra dependencies in your product unless you
-need them:
+The template generates a pretty complete server that uses ring-defaults and has CSRF protection configured.
+
+The code in the template is pretty well documented, and it is mostly standard Ring stuff.  The main part
+of interest is the `wrap-api` handler:
 
 ```
-[http-kit "2.2.0"]
-[ring/ring-core "1.6.3"]]
-[bk/ring-gzip "0.2.1"]
-[bidi "2.1.3"]
+(def server-parser (server/fulcro-parser))
+
+(defn wrap-api [handler uri]
+  (fn [request]
+    (if (= uri (:uri request))
+      (server/handle-api-request
+        ;; Sub out a pathom parser here if you want to use pathom.
+        server-parser
+        ;; this map is `env`. Put other defstate things in this map and they'll be
+        ;; in the mutations/query env on server.
+        {:config config}
+        (:transit-params request))
+      (handler request))))
 ```
 
-You can always hand-build a server in Fulcro, but the `fulcro.easy-server` is a great option for getting started.
+This generates a Fulcro query/mutation parser and sets it up to be called on some `uri` (which the server sets to
+`/api`).
 
-The template generates the easy one for you in `src/main/app/server.clj`.
+Fulcro includes an EDN configuration file reader that allows for easy configuration of your server.  It bases
+all configs on `config/defaults.edn`, and deep merges a runtime-selected EDN file over that so that each developer,
+test environment, or production system can make it's own configuration changes.
 
-==== Using the Easy Server
+Your template already has these in `src/main/config`. See your template content for their content.
 
-The easy server is based upon the component system. It is set up so that it can be stopped, code refreshed,
-and restarted very quickly. The management functions are already written in `src/dev/user.clj` underneath
-the Figwheel startup code.
+The `config/defaults.edn` file is always looked for by the server (on CLASSPATH, so in your source or resources folder),
+and should contain all of the default settings you think you want independent of where the server is started.
 
-The server code itself is very light:
-
-```
-(ns app.server
-  (:require
-    [fulcro.easy-server :refer [make-fulcro-server]]
-    ; MUST require these, or you won't get them installed.
-    [app.api.read]
-    [app.api.mutations]))
-
-(defn build-server
-  [{:keys [config] :or {config "config/dev.edn"}}]
-  (make-fulcro-server
-    :parser-injections #{:config}
-    :config-path config))
-```
-
-The `make-fulcro-server` function needs to know where to find the server config file. You can tell it a number
-of other things, including which components you'd like to be available when parsing the incoming
-client requests. In the template, the only component available is the one that reads the application
-config (which contains the port on which to run the web server).
-
-The configuration is meant for production environments, and requires a default file that spells out
-defaults in case the main config does not have values for them, and a primary config file that can
-override any defaults.
-
-Your template already has these in `src/main/config` (the config component looks for `defaults.edn` on the
-CLASSPATH at relative location `config/`):
-
-`defaults.edn`:
-
-[source]
-----
-{:port 3000}
-----
-
-`dev.edn`:
-
-[source]
-----
-{}
-----
-
-The first file is always looked for by the server, and should contain all of the default settings you think you
-want independent of where the server is started.
-
-The server (for safety reasons in production) will not start if there isn't a user-specified file containing potential
+The server (for safety reasons in production) will not start if there isn't *also* a user-specified file containing potential
 overrides.
 
 Basically, it will deep-merge the two and have the latter override things in the former. This makes mistakes in
-production harder to make. If you read the source of the `go` function in the `user.clj` file you'll see that
-we supply this development config file as an argument. In production systems you'll typically want this file to be
-on the filesystem when an admin can tweak it.
+production harder to make. If you read the source of the `config.clj` file you'll see that it defaults to development mode.
+If you look in `server_main.clj` (the production main) you'll see this is overridden.
+
+You can also override this with the JVM option `-Dconfig=path-to-file`.  If the path is relative, it will look for it
+in application resources.  If it is absolute, it will look for it on the disk:
+
+```
+java -Dconfig=/usr/local/etc/app.edn -jar app.jar
+```
+
+This command-line option overrides any config file that was specified in the application itself (except for `defaults.edn`,
+which is always the base).
 
 ===== Starting the Server
 
@@ -1402,7 +1348,7 @@ You can kick off your own application's easy web server with:
 
 [source]
 ----
-user=> (go)
+user=> (start)
 ----
 
 The console should tell you the URL, and if you browse there you should see your `index.html` file.
@@ -1425,71 +1371,16 @@ to recover using:
 [source]
 ----
 user=> (tools-ns/refresh)
-user=> (go)
+user=> (start)
 ----
 
 WARNING: Don't call refresh while the server is running. It will refresh the code, *but it will lose* the reference to
 the running server, meaning you won't be able to stop it and free up the network port. If you do this, you'll have to
 restart your REPL.
 
-===== Serving your App
-
-Figwheel comes with a server that we've been using to serve our client. When you want to build a full-stack app
-*you must* serve your client from your own server. Thus, if you load your page with the figwheel server (which is still
-available on an alternate port) you'll see your app, but the server interactions won't succeed.
-
-One might ask: "If I don't use figwheel's server, do I lose hot code reload on the client?"
-
-The answer is no. When figwheel compiles your application it embeds its own websocket code in your application for
-hot code reload. When you load that compiled code (in any way) it will try to connect to the figwheel websocket.
-
-So your network topology was:
-
-[ditaa,target=client-network-topo]
-----
-+----------+
-| Browser  |                  +-------------------+
-|  app     +-----+            |                   |
-|          |     |            |  port 3449        |
-+----------+     | http load  |  +-------------+  |
-                 +----------->|  | Figwheel    |  |
-                 |            |  |             |  |
-                 +----------->|  |             |  |
-                ws hot code   |  +-------------+  |
-                              +-------------------+
-----
-
-where both the HTML/CSS/JS resources and the hot code were coming from different connections to the same server.
-
-The networking picture during full-stack development just splits these like this:
-
-[ditaa,target=network-topo]
-----
-                           localhost
-                           +-------------------+
-                           |                   |
-                           |  port 3000        |
-              app requests |  +-------------+  |
-+----------+     +-------->|  |Your Server  |  |
-| Browser  |     |         |  +-------------+  |
-|  app     +-----+         |                   |
-|          |     |         |  port 3449        |
-+----------+     |         |  +-------------+  |
-                 +-------->|  | Figwheel    |  |
-             ws hot code   |  +-------------+  |
-                           |                   |
-                           +-------------------+
-----
-
-Fulcro's client will automatically route requests to the `/api` URI of the source URL that was used to load the page,
-and Fulcro's server is built to watch for communications at this endpoint.
-
-=== Setup for Playing with Loads
-
-It is very handy to be able to look at your application's state to see what might be wrong. We've been manually
-dumping application state at the REPL using a rather long expression. So, at this point make sure
-you are either running your application in a devcard, or you know how to look at things with Fulcro
-Inspect. The output in the devcards is typically easier for beginners to read.
+WARNING: If you've built an AOT compiled uberjar, then you might end up with classes loaded into your VM, and hot
+code reload on the server can then fail for very strange reasons. Clear your `target` folder if you're seeing
+mysterious behavior.
 
 === Loading Data [[Loading]]
 
@@ -1568,21 +1459,23 @@ To do this, we can add an option to our client. In `app.client` change `app`:
 <1> Require the `data-fetch` namespace
 <2> Issue the load in the application's `started-callback`
 
-NOTE: *If you are using devcards* you will need to place the option for the application in the devcard's options
-under the `:fulcro` key:
+NOTE: *If you are using workspaces* you will need to place the option for the application under a special app key:
 
 ```
-(ns app.intro
-  (:require [fulcro.client.cards :refer [defcard-fulcro]]
-            [app.ui.root :as root]
-            [fulcro.client.data-fetch :as df]))
+(ns myapp.workspaces.fulcro-demo-cards
+  (:require [fulcro.client.primitives :as fp]
+            [fulcro.client.localized-dom :as dom]
+            [nubank.workspaces.core :as ws]
+            [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+            [nubank.workspaces.lib.fulcro-portal :as f.portal]))
+...
 
-(defcard-fulcro sample-app
-  root/Root
-  {}
-  {:inspect-data true
-   :fulcro       {:started-callback
-                  (fn [app] (df/load app :current-user root/Person))}})
+(ws/defcard fulcro-demo-card
+  (ct.fulcro/fulcro-card
+    {::f.portal/root FulcroDemo
+     ::f.portal/wrap-root? true  ; generates a root. Useful for embedding normalized components with a placeholder root.
+     ::f.portal/app {:started-callback (fn [app] ...)}}))
+
 ```
 
 Of course hot code reload does not restart the app (it just hot patches the code), so to see this load trigger we must
@@ -1590,7 +1483,7 @@ reload the browser page.
 
 If you do that at the moment, you should see an error in the various consoles related to the failure of the load.
 
-IMPORTANT: Make sure your application (or dev card) is running from *your* server (port 3000) and not the figwheel one!
+IMPORTANT: Make sure any card is running from *your* server (port 3000), and not the workspaces dev server.
 
 Technically, `load` is just writing a query for you (in this case `[{:current-user (prim/get-query Person)}]`) and sending it to the
 server. The server will receive *exactly* that query as a CLJ data structure.
@@ -1601,11 +1494,12 @@ You now need to converting the raw CLJ query into a response. You can read more
 about the gory details of that in the developer's guide; however, Fulcro's has some
 helpers that make our job much easier.
 
-The template has a spot to put your query handlers in `src/main/app/api/read.clj`.
+You'll need to put your read handling code somewhere. For example you could create
+`src/main/app/api/read.clj`.
 Since we're on the server and we're going to be supplying and manipulating people, we'll just make a single atom-based
 in-memory database. This could easily be stored in a database of any kind.
 To handle the incoming "current user" request, we can use a macro to write the handler for us.
-Change the file to look like this:
+Something like this:
 
 ```
 (ns app.api.read
@@ -1624,8 +1518,10 @@ Change the file to look like this:
     (get @people-db 99)))
 ```
 
-This actually augments a multimethod, which means we need to make sure this namespace is loaded by our server. The
-`user` namespace already does this. So, you should be able to simply restart/refresh the server at the SERVER REPL:
+This macro actually augments a multimethod, which means we need to make sure this namespace is loaded by our server,
+so edit one of your components (like the middleware.clj) and require it there.
+
+Now you should be able to restart/refresh the server at the SERVER REPL:
 
 ----
 user=> (restart)
@@ -1643,6 +1539,12 @@ via the dev card visualization on Fulcro Inspect. It should look something like 
 
 Notice that the top-level key is a normalized FK reference to the person, which has been placed into the correct database
 table.
+
+NOTE: The `defquery` macros make it easy to get started, but we recommend migrating away from them to
+Pathom as soon as you have the basic hang of Fulcro.  The Pathom library provides a much more powerful GraphQL-like
+experience for writing your Fulcro server.  You can also use Pathom to create a GraphQL *client remote* that can interface
+between a Fulcro front-end and regular GraphQL servers.  The Fulcro template can easily be modified to use Pathom by
+substituting a Pathom parser in `middleware.clj` (search for fulcro-parser).
 
 ===== Using Data from Root
 
@@ -1763,6 +1665,10 @@ in the friends list could be (in `mutations.cljs`):
   (action [{:keys [state]}]
     (swap! state sort-friends-by* :person/name)))
 ```
+
+NOTE: When building larger applications we've often found it useful to put the client mutations in one
+topically-named file (e.g. `person.cljs`) and the server mutations right next to it in (e.g. `person.clj`).  This makes
+code navigation very easy.
 
 Of course this mutation could be triggered anywhere you could run a `transact!`, but since we're interested in morphing
 just-loaded data, we'll add it there. Our dev card would now look like this:
@@ -1888,10 +1794,10 @@ Mutations are handled on the server using the server's `defmutation` macro (if y
 This has the identical syntax to the client version!
 
 IMPORTANT: You want to place your mutations in the same namespace on the client and server since the `defmutation`
-macros namespace the symbol into the current namespace.
-
-So, this is really why we have a duplicated namespace in Clojure called `mutations.clj` right
-next to our `mutations.cljs`.
+macros namespace the symbol into the current namespace. So, this is really why we have a duplicated namespace in
+Clojure called `mutations.clj` right next to our `mutations.cljs`. The `defmutation` macro will accept a fully-qualified
+symbol as well, but that becomes painful for code navigation.  If many of your mutations are full-stack, you might
+even consider using `cljc` files and placing the server/client mutations in the same exact code block.
 
 So, let's add an implementation for our server-side `delete-person`. Your `mutations.clj` should end
 up looking like this (don't forget the require to get access to the people db):
@@ -2357,12 +2263,9 @@ So, there are functions for every possible HTML5 element. These are in the
     (dom/li ...)))
 ```
 
-WARNING: Fulcro 2.4 and below required you to specify props as a `#js` map or nil.
-
-IMPORTANT: If you're writing your UI in CLJC files in 2.5, then you need to make sure you use a conditional
+IMPORTANT: If you're writing your UI in CLJC files then you need to make sure you use a conditional
 reader to pull in the proper server DOM functions for Clojure:
 `(ns app.ui (:require #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))`
-
 
 The notation allowed is as follows:
 
@@ -2374,7 +2277,7 @@ The notation allowed is as follows:
 (dom/div :.cls {:data-x 2} "Ho") ; shorthand + props
 ```
 
-Fulcro 2.5.12+ also includes a `:classes` property that can be used to add (typically via expressions) additional
+There is also a `:classes` property that can be used to add (typically via expressions) additional
 classes. It drops nil, and allows classname keywords and strings as well:
 
 ```
@@ -2383,7 +2286,7 @@ classes. It drops nil, and allows classname keywords and strings as well:
 
 Assuming `hidden` and `(not tall)` would yield classes "a other hidden short" on output. Of course you probably don't need
 all of these at once, but supporting them all lets you programmatically combine them when generating props. NOTE: This feature
-does not work on props sent with the legacy `#js` notation.
+does not work on props sent with `#js` notation.
 
 Remember that this (nested) call of functions results in a representation (VDOM) of
 what you'd like to end up on the screen.
@@ -5846,6 +5749,7 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 `:fallback`:: A mutation to run if the server throws an error during the load.
 `:focus`:: A subquery to filter from your component query. Covered in Incremental Loading.
 `:without`:: A set of keywords to elide from the query. Covered in Incremental Loading.
+`:update-query`:: A function that will take the component original query and should return a query that will be sent to the remote
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
 `:initialize bool|map`:: If true, uses component's initial state as a basis for incoming merge. If a map, uses the map as the basis for incoming merge.
 
@@ -6112,7 +6016,7 @@ to configure that when you study how to <<BuildingAServer, build a server>>.
 The recommended approach to writing a server mutation is to use the pre-written server-side parser and multimethods, which allow you
 to mimic the same code structure of the client (there is a `defmutation` in `fulcro.server` for this).
 
-If you're using this approach (which is the default in the easy server), then here are the client-side and server-side
+If you're using this approach (which is the default in the lein template and easy server), then here are the client-side and server-side
 implementations of the same mutation:
 
 ```
@@ -6136,6 +6040,26 @@ implementations of the same mutation:
 (defmutation do-something [{:keys [p]}]
   (action [{:keys [some-server-database]}]
      ... server code to make change ...))
+```
+
+or even a CLJC file:
+
+```
+(ns my-app.mutations
+  (:require
+    #?(:cljs [fulcro.client.mutations :refer [defmutation]]
+       :clj [fulcro.server :as server])))
+
+#?(:cljs
+    (defmutation do-something [{:keys [p]}]
+      (action [{:keys [state]}]
+        (swap! state assoc :value p))
+      (remote [env] true))
+
+   :clj
+    (server/defmutation do-something [{:keys [p]}]
+      (action [{:keys [some-server-database]}]
+         ... server code to make change ...)))
 ```
 
 It is recommended that you use the same namespace on the client and server for mutations so it is easy to find them,
@@ -10527,19 +10451,55 @@ initial state, so it runs initial startup steps if it detects that.
 
 == Rendering via Node.js
 
-Users have reported that rendering a Fulcro Client by running it on node and reassigning the remotes to loopback is
-relatively easy.  It is reported that Fulcro networking will work if you just set the global XMLHttpRequest up:
+
+
+Since node.js is powered by V8, the same javascript engine that powers chrome web browser getting isomorphic support including fulcro networking is really easy.
+
+
+For fulcro networking to work in nodejs you need to provide a substitute for the browser's XMLHttpRequest that is used by xhrio.
+You can install the https://www.npmjs.com/package/xmlhttprequest npm package and then set it globally.
 
 ```
-(set! js/global.XMLHttpRequest (.-XMLHttpRequest xhr3))
+(ns app.server
+ (:require
+    ["xmlhttprequest" :as npm-xmlhttprequest]))
+
+(set! js/global.XMLHttpRequest (.-XMLHttpRequest npm-xmlhttprequest))
 ```
 
-At that point you need a way to start the client and wait for it to finish the started callback loads.  Fulcro
-2.6.10 includes a contributed function `fulcro.server-render/defer-until-network-idle` that will trigger a callback
-when all of the remotes in the client become idle.
+One approach for getting SSR on node.js with the data loaded from the network is to create a fulcro headless client and use the built-in helper `fulcro.server-render/defer-until-network-idle` (available as of fulcro 2.6.10) for deferring the server request until fulcro has finished loading all network data.
 
-You can override the react rendering function using the `:reconciler-options` of the fulcro client.  A link to a demo
-project will be available soon, but please ask on the Fulcro Slack channel for more details.
+
+```
+(ns app.server
+  (:require
+   [fulcro.client.primitives :as prim :refer [defsc]]
+   [fulcro.client.data-fetch :as df]
+   [fulcro.client :as fc]
+   [fulcro.client.network :as fcn]
+   [fulcro.server-render :refer [defer-until-network-idle]]
+   ["react-dom/server" :as rdom :refer (render)]
+   ["xmlhttprequest" :as npm-xmlhttprequest]))
+
+(defn ssr-enpdpoint [req resp]
+  (let [started-callback (fn [{:keys [reconciler]}]
+                           (df/load reconciler ...))
+        fulcro-client    (fc/new-fulcro-client
+                          :started-callback started-callback
+                          :networking {:remote (fcn/fulcro-http-remote {:url "http://localhost:3000/api"})})
+        mounted-app      (fc/mount fulcro-client root/Root nil) ; nil as the last argument creates a headless client
+        reconciler       (:reconciler mounted-app)]
+    (defer-until-network-idle
+     reconciler
+     (fn []
+       (let [app-state      (-> reconciler deref)
+             app-state-tree (prim/db->tree (prim/get-query root/Root app-state) app-state app-state)]
+         (.send resp (get-html (rdom/renderToString (ui-root app-state-tree)) app-state)))))))
+
+```
+
+A minimal example app with fulcro & nodejs server side rendering can be found at https://github.com/claudiu-apetrei/fulcro-nodejs-ssr-example
+
 
 == True Isomorphic Support with Nashorn (JVM Javascript engine)
 
@@ -10556,11 +10516,10 @@ If you're willing to work just a little bit harder then you can maintain a true 
 
 Some notes:
 
-* Server-side use of the compiled Javascript works best with advanced-optimized builds. Figwheel and other development
+* Server-side use of the compiled Javascript works best with advanced-optimized builds. Development
 builds of the javascript won't work right, and we've even seen problems with builds that don't use advanced optimizations.
-* (1) means that your SSR is going to be hard to work with if you're in dev (figwheel) mode. The recommendation is that
-you test SSR as a separate step (where you can have an auto incremental build with advanced compilation). Figwheel hot loads
-code updates anyhow, so not having SSR when working in development mode isn't really a big loss.
+* (1) means that your SSR is going to be hard to work with if you're in dev (hot code reload) mode. The recommendation is that
+you test SSR as a separate step (where you can have an auto incremental build with advanced compilation).
 
 The basics are:
 
@@ -11967,11 +11926,14 @@ The message formatter could be:
         "???"))))
 ```
 
-= Dev Cards [[DevCards]]
+= Dev Cards [[DevCards]] and Workspaces
 
-Devcards is an external library by Bruce Hauman that is excellent for working up components,
+Devcards is an external library by Bruce Hauman that is also good for working up components,
 active documentation, or even complete applications piece by piece. Fulcro comes with a macro
 that makes embedding Fulcro Applications into a devcard trivial.
+
+The Fulcro template now include Workspaces instead, but both are quite good. This chapter's
+concepts apply equally to both.
 
 == The Project Setup
 
@@ -11982,22 +11944,19 @@ Simply include devcards in your dependencies:
 ```
 
 and follow the basic setup instructions from that project's documentation. Typically, a build
-configuration like this when using Figwheel:
+configuration like this when using shadow-cljs:
 
 ```
-(defproject app "1.0.0"
-  :cljsbuild {:builds
-              [{:id           "cards"
-                :figwheel     {:devcards true}
-                :source-paths ["src/cards"]
-                :compiler     {:main           app.cards-ui
-                               :asset-path     "js/cards"
-                               :devcards       true
-                               :output-to      "resources/public/js/cards.js"
-                               :output-dir     "resources/public/js/cards"}}]})
+ :cards    {:target           :browser
+            :output-dir       "resources/public/js/cards"
+            :asset-path       "/js/cards"
+            :compiler-options {:devcards true}
+            :modules          {:main {:entries [app.cards]}}
+            :devtools         {:after-load app.cards/refresh
+                               :preloads [fulcro.inspect.preload]
+                               :http-root "resources/public"
+                               :http-port 8023}}
 ```
-
-then run that build through figwheel.
 
 == Developing Component UI
 
@@ -12038,9 +11997,12 @@ to be passed to the client, but generates the mount into the card internally. It
 
 === Running Devcards Against a Real Server
 
-Figwheel embeds the hot loading websocket code into the compiled Javascript. This means
+Shadow-cljs and figwheel embed the hot loading websocket code into the compiled Javascript. This means
 that you can serve devcards *from your real application server* simply by making
 sure the HTML and Javascript for it are accessible through your server.
+
+The Fulcro template even serves a dynamic `/wslive.html` to embed the CSRF token so that this works under the
+security restrictions of your server.
 
 This means that full-stack operations against your real application are trivial
 from within cards.
@@ -12416,30 +12378,6 @@ bidi match format, which can be used with `route-to*`. The critical pieces are m
 * When you generate the UI tree with `db->tree`, be sure to pass the `get-query` the *final* db state after routing, otherwise
 the dynamic queries won't be seen, and rendering will be incorrect.
 
-= Hacking the Client Query Engine
-
-Fulcro is implemented internally with a client query parser that processes EQL. Fulcro
-provides a default implementation of this parser, but allows you to hook into it to add your own code for interpreting
-queries! Doing so allows you to interpret the
-query of a component instead of pulling it from your database. This gives you an extreme amount of power, but at the
-cost of some added complexity that is disconnected from your reasoning about the concrete data graph .
-
-This feature also allows you to leverage parameters on props and joins which are legal parts of the query syntax that
-cannot be encoded in the database itself.
-
-The mechanism is exactly as described for parsing on the server. The client-side notes are:
-
-* The read is always called starting at root. If you want to handle something, you have to handle the path from root to
-that item.
-
-== Adding to `read-local`
-
-TODO
-
-== Demo – Writing a Pagination and Sort Routine
-
-TODO
-
 = Performance [[Performance]]
 
 Fulcro and React behave in a very performant manner for most data-driven applications. There are ways, however,
@@ -12451,14 +12389,14 @@ One of the most annoying performance problems when building your application is 
 rebuilds on our code base so that we can continue to work quickly.  Here are some tips about keeping your compile times
 low:
 
-. Use shadow-cljs instead of Figwheel. *Especially* if you plan on using external Javascript libraries from npm.
-The `lein new fulcro app shadow-cljs` command will get you a pre-configured
-template with everything set up.  This will be the default in a future version as soon as I have time to rewrite this
-entire book around it.
+. Use shadow-cljs instead of the plain CLJS compiler. *Especially* if you plan on using external Javascript libraries from npm.
+The `lein new fulcro app` command will get you a pre-configured
+template with everything set up.
 . Keep your namespaces small, and `:require` sections pruned. This is about "size of code to compile", but it's more
 about the dependency graph. Whenever a save happens that new file needs to be compiled along with everything that 
-depends on it, and files that depend on those files up the dependency tree. Having large files or many `require`s means 
-a high branch factor. If a file has just a few artifacts (e.g. functions) per file then less code will depend on
+*depends* on it, *and* files that depend on those files up the dependency tree. Having large files and/or many `require`s means
+a high false-positive factor in these reloads (reloading files whose code didn't really depend on what you changed).
+If a file has just a few artifacts (e.g. functions) per file then less code will depend on
 it and the recompile tree will be smaller for a given change.
 When you put large amounts of code in a single namespace then many of your other
 namespaces will likely depend on it (the probability of needing to `require` it
@@ -12473,7 +12411,7 @@ it is a "hard problem" that may not be solved for some time (if ever).
 
 == Poor Query Performance
 
-This is by far the most common source of performance issues. Evaluating the UI query is relatively fast, but *relative* is
+This is by far the most common source of performance issues in Fulcro UIs. Evaluating the UI query is relatively fast, but *relative* is
 the key word. The larger the query, the more work that has to be done to get the data for it. Remember that you compose all
 component queries to the root. If you do this with *only* joins and props, then your root query will ask for *everything* that
 your UI could ever show, on every frame! This will perform very badly as your application gets large.

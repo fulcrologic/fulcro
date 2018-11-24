@@ -1,6 +1,6 @@
 (ns fulcro.client.primitives
   #?(:cljs (:require-macros fulcro.client.primitives))
-  (:refer-clojure :exclude #?(:clj [deftype replace var? force]
+  (:refer-clojure :exclude #?(:clj  [deftype replace var? force]
                               :cljs [var? key replace force]))
   (:require
     #?@(:clj  [clojure.main
@@ -11,27 +11,27 @@
                [cljsjs.react]
                [goog.object :as gobj]])
     #?(:clj
-               [cljs.analyzer :as ana])
-               fulcro-css.css-protocols
-               fulcro-css.css-implementation
-               [clojure.core.async :as async]
-               [clojure.set :as set]
-               [fulcro.history :as hist]
-               [fulcro.logging :as log]
-               [fulcro.tempid :as tempid]
-               [fulcro.transit :as transit]
-               [clojure.zip :as zip]
-               [fulcro.client.impl.data-targeting :as targeting]
-               [fulcro.client.impl.protocols :as p]
-               [fulcro.client.impl.parser :as parser]
-               [fulcro.client.network :as net]
-               [fulcro.util :as util]
-               [clojure.walk :refer [prewalk]]
-               [clojure.string :as str]
-               [clojure.spec.alpha :as s]
+       [cljs.analyzer :as ana])
+    fulcro-css.css-protocols
+    fulcro-css.css-implementation
+    [clojure.core.async :as async]
+    [clojure.set :as set]
+    [fulcro.history :as hist]
+    [fulcro.logging :as log]
+    [fulcro.tempid :as tempid]
+    [fulcro.transit :as transit]
+    [clojure.zip :as zip]
+    [fulcro.client.impl.data-targeting :as targeting]
+    [fulcro.client.impl.protocols :as p]
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.client.network :as net]
+    [fulcro.util :as util]
+    [clojure.walk :refer [prewalk]]
+    [clojure.string :as str]
+    [clojure.spec.alpha :as s]
     #?(:clj
-               [clojure.future :refer :all])
-               [cognitect.transit :as t])
+       [clojure.future :refer :all])
+    [cognitect.transit :as t])
   #?(:clj
      (:import [java.io Writer])))
 
@@ -460,7 +460,7 @@
 
 (s/def ::component-class
   (s/with-gen component-class? #(s/gen #?(:clj  #{(with-meta {} {:component true})}
-                                    :cljs #{#js {:prototype #js {:fulcro$isComponent true}}}))))
+                                          :cljs #{#js {:prototype #js {:fulcro$isComponent true}}}))))
 
 #?(:clj
    (defn react-type
@@ -1186,8 +1186,8 @@
         data         (loop [data data limit 100]
                        (if (pos-int? limit)
                          (if (mappable-ident? refs data)
-                          (recur (get-in refs (map-ident data)) (dec limit))
-                          data)
+                           (recur (get-in refs (map-ident data)) (dec limit))
+                           data)
                          (do
                            (log/error "An infinite loop was detected in your app state on ident: " data)
                            {})))]
@@ -2576,14 +2576,14 @@
    (let [ast-nodes             (:children (query->ast tx))
          {ast-calls true ast-reads false} (group-by #(= :call (:type %)) ast-nodes)
          ast-follow-on-reads   (ast->query {:type :root :children ast-reads})
-         remote-for-ast-call   (fn [c] (let [dispatch-key (:dispatch-key c)
-                                             get-remotes  (or (some-> (resolve 'fulcro.client.data-fetch/get-remotes) deref)
+         remote-for-ast-call   (fn [c] (let [{:keys [dispatch-key]} c
+                                             mutation-remotes (or (some-> (resolve 'fulcro.client.data-fetch/mutation-remotes) deref)
                                                             (fn [state-map sym]
-                                                              (log/error "FAILED TO FIND get-remotes. CANNOT DERIVE REMOTES FOR ptransact! Assuming :remote")
+                                                             (log/error "FAILED TO FIND mutation-remotes. CANNOT DERIVE REMOTES FOR ptransact! Assuming :remote")
                                                               #{:remote}))
                                              remotes      (if (= "fallback" (name dispatch-key)) ; fallbacks are a special case
                                                             #{}
-                                                            (get-remotes state-map dispatch-key))]
+                                                           (mutation-remotes state-map c valid-remotes))]
                                          (when (seq remotes)
                                            (first remotes))))
          is-local?             (fn [c] (not (remote-for-ast-call c)))

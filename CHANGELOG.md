@@ -6,6 +6,11 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.16
+------
+- Fixed custom remote detection bug in pessimistic mutations.
+
+
 2.6.15
 ------
 - Fixed bug where targets would not tolerate metadata
