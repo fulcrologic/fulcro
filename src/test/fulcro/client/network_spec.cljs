@@ -60,7 +60,9 @@
             "Includes the original tx"
             (:transaction r) => [:a?]
             "Includes the outgoing request"
-            (:outgoing-request r) => {:a? false}))
+            (:outgoing-request r) => {:a? false}
+            "Transforms headers to clj map"
+            (:headers r) => {}))
         (finally
           (.dispose xhrio)))))
 
