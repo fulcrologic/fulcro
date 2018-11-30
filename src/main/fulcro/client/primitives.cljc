@@ -8,6 +8,7 @@
                [clojure.reflect :as reflect]
                [cljs.util]]
         :cljs [[goog.string :as gstring]
+               [goog.async.Throttle]
                [cljsjs.react]
                [goog.object :as gobj]])
     #?(:clj
@@ -1753,9 +1754,11 @@
        (js/requestAnimationFrame f))))
 
 #?(:cljs
-   (defn schedule-render! [reconciler]
-     (when (p/schedule-render! reconciler)
-       (queue-render! #(p/reconcile! reconciler)))))
+   (let [throttle (new goog.async.Throttle
+                    (fn [reconciler]
+                      (queue-render! #(p/reconcile! reconciler)))
+                    16)]
+     (defn schedule-render! [reconciler] (.fire throttle reconciler))))
 
 (defn mounted?
   "Returns true if the component is mounted."
@@ -2019,11 +2022,8 @@
       (:merge-sends config) sends))
 
   (schedule-render! [_]
-    (if-not (:queued @state)
-      (do
-        (swap! state assoc :queued true)
-        true)
-      false))
+    ; noop
+    )
 
   (schedule-sends! [_]
     (if-not (:sends-queued @state)
@@ -2051,7 +2051,6 @@
                                     (log/error "Render skipped. Renderer was nil. Possibly a hot code reload?")))]
       ;; IMPORTANT: Unfortunate naming that would require careful refactoring. `state` here is the RECONCILER's state, NOT
       ;; the application's state. That is in (:state config).
-      (swap! state update-in [:queued] not)
       (if (not (nil? remote))
         (swap! state assoc-in [:remote-queue remote] [])
         (swap! state assoc :queue []))
@@ -2177,7 +2176,7 @@
                                :network-activity (atom (zipmap remotes
                                                                (repeat {:status :idle
                                                                         :active-requests {}})))
-                               :queued       false :queued-sends {}
+                               :queued-sends     {}
                                :sends-queued false
                                :target       nil :root nil :render nil :remove nil
                                :t            0 :normalized norm?})
