@@ -18,7 +18,7 @@
   those things in their queries."
   ([reconciler keywords]
    (proto/queue! reconciler keywords)
-   (proto/schedule-render! reconciler))
+   (prim/schedule-render! reconciler))
   ([reconciler]
    (prim/force-root-render! reconciler)))
 

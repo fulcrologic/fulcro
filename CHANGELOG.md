@@ -6,10 +6,13 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.17
+------
+- Fixed a bug where rapid refresh requests could lose an animation frame.
+
 2.6.16
 ------
 - Fixed custom remote detection bug in pessimistic mutations.
-
 
 2.6.15
 ------
