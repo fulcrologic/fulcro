@@ -1753,12 +1753,13 @@
        :else
        (js/requestAnimationFrame f))))
 
-#?(:cljs
-   (let [throttle (new goog.async.Throttle
-                    (fn [reconciler]
-                      (queue-render! #(p/reconcile! reconciler)))
-                    16)]
-     (defn schedule-render! [reconciler] (.fire throttle reconciler))))
+#?(:clj (defn schedule-render! [r] :noop)
+   :cljs
+        (let [throttle (new goog.async.Throttle
+                         (fn [reconciler]
+                           (queue-render! #(p/reconcile! reconciler)))
+                         16)]
+          (defn schedule-render! [reconciler] (.fire throttle reconciler))))
 
 (defn mounted?
   "Returns true if the component is mounted."
@@ -2170,16 +2171,16 @@
                          :migrate     migrate
                          :lifecycle   lifecycle
                          :instrument  instrument :tx-listen tx-listen}
-                        (atom {:queue        []
-                               :remote-queue {}
-                               :id           id
+                        (atom {:queue            []
+                               :remote-queue     {}
+                               :id               id
                                :network-activity (atom (zipmap remotes
-                                                               (repeat {:status :idle
-                                                                        :active-requests {}})))
+                                                         (repeat {:status          :idle
+                                                                  :active-requests {}})))
                                :queued-sends     {}
-                               :sends-queued false
-                               :target       nil :root nil :render nil :remove nil
-                               :t            0 :normalized norm?})
+                               :sends-queued     false
+                               :target           nil :root nil :render nil :remove nil
+                               :t                0 :normalized norm?})
                         (atom (hist/new-history history)))]
     ret))
 
@@ -2577,12 +2578,12 @@
          ast-follow-on-reads   (ast->query {:type :root :children ast-reads})
          remote-for-ast-call   (fn [c] (let [{:keys [dispatch-key]} c
                                              mutation-remotes (or (some-> (resolve 'fulcro.client.data-fetch/mutation-remotes) deref)
-                                                            (fn [state-map sym]
-                                                             (log/error "FAILED TO FIND mutation-remotes. CANNOT DERIVE REMOTES FOR ptransact! Assuming :remote")
-                                                              #{:remote}))
-                                             remotes      (if (= "fallback" (name dispatch-key)) ; fallbacks are a special case
-                                                            #{}
-                                                           (mutation-remotes state-map c valid-remotes))]
+                                                                (fn [state-map sym]
+                                                                  (log/error "FAILED TO FIND mutation-remotes. CANNOT DERIVE REMOTES FOR ptransact! Assuming :remote")
+                                                                  #{:remote}))
+                                             remotes          (if (= "fallback" (name dispatch-key)) ; fallbacks are a special case
+                                                                #{}
+                                                                (mutation-remotes state-map c valid-remotes))]
                                          (when (seq remotes)
                                            (first remotes))))
          is-local?             (fn [c] (not (remote-for-ast-call c)))
