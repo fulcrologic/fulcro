@@ -6,7 +6,7 @@
   (ns app.ui
     (:require
       #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom])))"
-  (:refer-clojure :exclude [map meta time mask select use])
+  (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [fulcro.client.dom-common :as cdom]
     [clojure.string :as str]
@@ -50,13 +50,20 @@
                      :component component?
                      :element element?))))
 
-(declare a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite
-  code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form
-  h1 h2 h3 h4 h5 h6 head header hr html i iframe img ins input textarea select option kbd keygen
-  label legend li link main map mark menu menuitem meta meter nav noscript object ol optgroup output p param picture
-  pre progress q rp rt ruby s samp script section small source span strong style sub summary sup table tbody
-  td tfoot th thead time title tr track u ul var video wbr circle clipPath ellipse g line mask path
-  pattern polyline rect svg text defs linearGradient polygon radialGradient stop tspan)
+(declare a abbr address altGlyph altGlyphDef altGlyphItem animate animateColor animateMotion animateTransform area
+  article aside audio b base bdi bdo big blockquote body br button canvas caption circle cite clipPath code
+  col colgroup color-profile cursor data datalist dd defs del desc details dfn dialog discard div dl dt
+  ellipse em embed feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting
+  feDisplacementMap feDistantLight feDropShadow feFlood feFuncA feFuncB feFuncG feFuncR feGaussianBlur
+  feImage feMerge feMergeNode feMorphology feOffset fePointLight feSpecularLighting feSpotLight feTile feTurbulence
+  fieldset figcaption figure filter font font-face font-face-format font-face-name font-face-src font-face-uri
+  footer foreignObject form g glyph glyphRef h1 h2 h3 h4 h5 h6 hatch hatchpath head header hkern hr html
+  i iframe image img input ins kbd keygen label legend li line linearGradient link main map mark marker mask
+  menu menuitem mesh meshgradient meshpatch meshrow meta metadata meter missing-glyph
+  mpath nav noscript object ol optgroup option output p param path pattern picture polygon polyline pre progress q radialGradient
+  rect rp rt ruby s samp script section select set small solidcolor source span stop strong style sub summary
+  sup svg switch symbol table tbody td text textPath textarea tfoot th thead time title tr track tref tspan
+  u ul unknown use var video view vkern wbr)
 
 ;; https://github.com/facebook/react/blob/57ae3b/src/renderers/dom/shared/SVGDOMPropertyConfig.js
 ;; https://github.com/facebook/react/blob/57ae3b/src/renderers/dom/shared/HTMLDOMPropertyConfig.js

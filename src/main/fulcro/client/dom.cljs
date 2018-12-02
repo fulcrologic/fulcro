@@ -1,6 +1,6 @@
 (ns fulcro.client.dom
   "Client-side DOM macros and functions. For isomorphic (server) support, see also fulcro.client.dom-server"
-  (:refer-clojure :exclude [map meta time mask select use])
+  (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require-macros [fulcro.client.dom])
   (:require
     [clojure.spec.alpha :as s]
@@ -170,8 +170,6 @@
       "option" (apply wrapped-option props children))))
 
 (defonce form-elements? #{"input" "select" "option" "textarea"})
-
-
 
 ;; fallback if the macro didn't do this
 (defn macro-create-element

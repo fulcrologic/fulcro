@@ -1,6 +1,6 @@
 (ns fulcro.client.dom
   "MACROS for generating CLJS code. See dom.cljs"
-  (:refer-clojure :exclude [map meta time mask select use])
+  (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [clojure.spec.alpha :as s]
     [fulcro.util :as util]
