@@ -1341,7 +1341,7 @@ java -Dconfig=/usr/local/etc/app.edn -jar app.jar
 This command-line option overrides any config file that was specified in the application itself (except for `defaults.edn`,
 which is always the base).
 
-===== Starting the Server
+==== Starting the Server
 
 If you now start a local Clojure REPL (with *no special options*), it should start in the `user` namespace.
 You can kick off your own application's easy web server with:
@@ -1353,7 +1353,7 @@ user=> (start)
 
 The console should tell you the URL, and if you browse there you should see your `index.html` file.
 
-===== Server Refresh
+==== Server Refresh
 
 When you add/change code on the server you will want to see those changes in the live server without having to restart
 your REPL.
@@ -8492,6 +8492,9 @@ making sure the ident function can resolve the ident correctly for the props of 
 
 You may also include most other `defsc` options, other than `:query` and `:initial-state`, which are set internally.
 
+The optional body of `defsc-router` is what to render if the route is bad (e.g. the ident in state for the route doesn't
+point to a valid routing target).
+
 ++++
 <div class="example" id="simple-router-1"> </div>
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-1').toggle()">Show/Hide Source</a>
@@ -8505,6 +8508,49 @@ include::src/book/book/simple_router_1.cljs[]
 Be sure to look at the database view in the example above. Notice that all that has to happen is a change
 of a single ident. This as the effect of switching the rendering, and choosing the
 subquery for the remainder of the visible UI.
+
+=== Rendering a "Bad Route"
+
+If the app state doesn't point to a proper router target then the router won't know what to render. This is the
+purpose of the body of the `defsc-router`.
+
+```
+(defsc-router Router [this props]
+  {...}
+  (dom/div "Bad route!"))
+```
+
+It is *very important* to note that the `props` arg can be destructured in the *context* of a route target, but when
+you're rendering the "bad route" the props will be the props of the *router itself*.  We recommend you use a pattern
+like this if you want to examine the "current route" in the body of the "bad route" rendering:
+
+```
+(defsc-router Router [this props]
+  {...}
+  (let [{:fulcro.client.routing/keys [id current-route]} (prim/props this)]
+    (dom/div "Bad route: " current-route)))
+```
+
+but most likely the current route is just going to be `nil`, since you're looking at denormalized props, and the ident
+that is in state is pointing at something wrong. So, instead you can pull the state map and see what the bad ident is
+instead:
+
+```
+(ns ...
+  (:require [fulcro.client.routing :as r :refer [defsc-router]]))
+
+(defsc-router Router [this props]
+  {...}
+  (let [state-map (prim/component->state-map this)
+        {:fulcro.client.routing/keys [id]} (prim/props this)]
+        current-route (get-in state-map [r/routers-table ::r/id id ::r/current-route])]
+    (dom/div "Bad route ident: " current-route)))
+```
+
+of course you probably don't want to render that to the user, but in case you find it useful at least you know how to
+get it.
+
+=== Composing Routers
 
 It is very easy from here to compose together as many of these as you'd like in order to
 build a more complicated UI. For example, the settings could have several subscreens as in this
