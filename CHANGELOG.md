@@ -6,6 +6,11 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.18
+------
+- Added a bunch of missing SVG tags to DOM.
+- Added a new defsc-router to routing ns that lets you declare routers to be more controllable components
+
 2.6.17
 ------
 - Fixed a bug where rapid refresh requests could lose an animation frame.

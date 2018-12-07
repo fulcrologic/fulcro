@@ -4,6 +4,7 @@
             [fulcro.client.dom :as dom :refer [div span]]
             [fulcro-css.css-injection :as injection]
             [goog.object :as gobj]
+            [fulcro.client.routing :as r :refer [defsc-router]]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]
             [fulcro.client.localized-dom :as ldom]))
@@ -221,7 +222,7 @@
   (dom/div
     #_(injection/style-element {:react-key (rand-int 120)   ; Include this to recompute CSS on every refresh
                                 :component this})
-    (injection/style-element {:react-key (rand-int 120) ; Include this to recompute CSS on every refresh
+    (injection/style-element {:react-key (rand-int 120)     ; Include this to recompute CSS on every refresh
                               :order     :breadth-first
                               :component this})
     (dom/button {:onClick #(prim/set-state! this {:n (rand-int 20)})} "Bump")

@@ -1,5 +1,5 @@
 (ns book.simple-router-2
-  (:require [fulcro.client.routing :as r :refer-macros [defrouter]]
+  (:require [fulcro.client.routing :as r :refer-macros [defsc-router]]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]
             [fulcro.client.primitives :as prim :refer [defsc]]
@@ -23,10 +23,13 @@
    :initial-state {:db/id 1 :router/page :PAGE/color}}
   (dom/div "Color Settings"))
 
-(defrouter SettingsRouter :settings/router
-  [:router/page :db/id]
-  :PAGE/email EmailSettings
-  :PAGE/color ColorSettings)
+(defsc-router SettingsRouter [this {:keys [router/page db/id]}]
+  {:router-id      :settings/router
+   :ident          (fn [] [page id])
+   :router-targets {:PAGE/email EmailSettings
+                    :PAGE/color ColorSettings}
+   :default-route  EmailSettings}
+  (dom/div "Bad route"))
 
 (def ui-settings-router (prim/factory SettingsRouter))
 
@@ -47,11 +50,13 @@
     (js/console.log :p (prim/props this))
     (ui-settings-router subpage)))
 
-(defrouter RootRouter :root/router
-  ; OR (fn [t p] [(:router/page p) (:db/id p)])
-  [:router/page :db/id]
-  :PAGE/index Index
-  :PAGE/settings Settings)
+(defsc-router RootRouter [this {:keys [router/page db/id]}]
+  {:router-id      :root/router
+   :ident          (fn [] [page id])
+   :default-route  Index
+   :router-targets {:PAGE/index    Index
+                    :PAGE/settings Settings}}
+  (dom/div "Bad route"))
 
 (def ui-root-router (prim/factory RootRouter))
 

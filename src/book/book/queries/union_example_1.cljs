@@ -1,6 +1,6 @@
 (ns book.queries.union-example-1
   (:require [fulcro.client.dom :as dom]
-            [fulcro.client.routing :as r :refer [defrouter]]
+            [fulcro.client.routing :as r :refer [defsc-router]]
             [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client :as fc]
             [fulcro.ui.bootstrap3 :as b]
@@ -20,9 +20,9 @@
 (defn make-thing [id n] {:db/id id :kind :thing/by-id :thing/label n})
 
 (defsc PersonDetail [this {:keys [db/id person/name] :as props}]
-  ; defrouter expects there to be an initial state for each possible target. We'll cause this to be a "no selection"
+  ; defsc-router expects there to be an initial state for each possible target. We'll cause this to be a "no selection"
   ; state so that the detail screen that starts out will show "Nothing selected". We initialize all three in case
-  ; we later re-order them in the defrouter.
+  ; we later re-order them in the defsc-router.
   {:ident         (fn [] (item-ident props))
    :query         [:kind :db/id :person/name]
    :initial-state {:db/id :no-selection :kind :person/by-id}}
@@ -75,11 +75,14 @@
 
 (def ui-thing (prim/factory ThingListItem item-key))
 
-(defrouter ItemDetail :detail-router
-  (ident [this props] (item-ident props))
-  :person/by-id PersonDetail
-  :place/by-id PlaceDetail
-  :thing/by-id ThingDetail)
+(defsc-router ItemDetail [this props]
+  {:router-id      :detail-router
+   :ident          (fn [] (item-ident props))
+   :default-route  PersonDetail
+   :router-targets {:person/by-id PersonDetail
+                    :place/by-id  PlaceDetail
+                    :thing/by-id  ThingDetail}}
+  (dom/div "No route"))
 
 (def ui-item-detail (prim/factory ItemDetail))
 

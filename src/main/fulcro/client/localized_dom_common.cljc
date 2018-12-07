@@ -1,5 +1,5 @@
 (ns fulcro.client.localized-dom-common
-  (:refer-clojure :exclude [map meta time])
+  (:refer-clojure :exclude [map meta time set symbol filter])
   (:require
     fulcro-css.css
     #?(:clj [cljs.tagged-literals :refer [->JSValue]])
@@ -22,11 +22,11 @@
     [k]
     (if k
       (let [tokens         (get-tokens k)
-            id             (->> tokens (filter #(re-matches #"^#.*" %)) first)
-            classes        (->> tokens (filter #(re-matches #"^\..*" %)))
+            id             (->> tokens (clojure.core/filter #(re-matches #"^#.*" %)) first)
+            classes        (->> tokens (clojure.core/filter #(re-matches #"^\..*" %)))
             global-classes (into []
                              (comp
-                               (filter #(re-matches #"^[$].*" %))
+                               (clojure.core/filter #(re-matches #"^[$].*" %))
                                (clojure.core/map (fn [k] (-> k
                                                            name
                                                            (str/replace "$" "")))))
