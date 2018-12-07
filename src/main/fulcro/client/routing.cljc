@@ -484,3 +484,81 @@ NOTES:
       (route-to-impl! env params)
       (catch #?(:clj Throwable :cljs :default) t
         (log/error "Routing failed!" t)))))
+
+#?(:clj
+   (defn compile-error [env form message ex]
+     (throw (ana/error (merge env (some-> form meta)) message ex))))
+
+#?(:clj
+   (defn- defsc-router-union-element* [env sym arglist {:keys [ident router-targets]} bad-route-render]
+     (let [this-target         (first arglist)
+           props-target        (second arglist)
+           real-router-targets (into {} (map (fn [[k v]] [k (if (symbol? v) v (second v))])) router-targets)
+           first-screen        (->> router-targets vals (filter (complement symbol?)) first second)
+           _                   (when-not first-screen (compile-error env router-targets
+                                                        "Please put ^:default-route in front of the class that should be the default route." nil))
+           screen-render       (fn [cls] `((prim/factory ~cls) ~'props))
+           query               (reduce (fn [q [kw sym]] (assoc q kw `(prim/get-query ~sym))) {} real-router-targets)
+           render-cases        (reduce
+                                 (fn [cases [kw sym]]
+                                   (-> cases
+                                     (conj kw (screen-render sym))))
+                                 []
+                                 real-router-targets)]
+       `(prim/defsc ~sym [~'this ~'props]
+          {:initial-state (~'fn [~'params] (prim/get-initial-state ~first-screen ~'params))
+           :query         (~'fn [] ~query)
+           :ident         ~ident}
+          (let [page# (first (prim/get-ident ~'this ~'props))]
+            (case page#
+              ~@render-cases
+              (let [~this-target ~'this
+                    ~props-target ~'props]
+                ~@bad-route-render)))))))
+
+#?(:clj (s/def ::router-targets (s/map-of keyword? symbol?)))
+#?(:clj (s/def ::ident list?))
+#?(:clj (s/def ::router-id any?))
+#?(:clj (s/def ::defsc-router-options (s/keys :req-un [::router-targets ::ident ::router-id])))
+
+#?(:clj (defn defsc-router-router-element* [env router-sym arglist options]
+          (let [{:keys [router-id]} options
+                this-sym          (first arglist)
+                union-sym         (symbol (str (name router-sym) "-Union"))
+                union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
+                options           (merge
+                                    (dissoc options :router-targets :router-id)
+                                    `{:initial-state (~'fn [_ params#] {::id ~router-id ::current-route (prim/get-initial-state ~union-sym params#)})
+                                      :ident         (~'fn [] [:fulcro.client.routing.routers/by-id ~router-id])
+                                      :query         [::id {::current-route (prim/get-query ~union-sym)}]})]
+            (when-not (symbol? this-sym)
+              (compile-error env arglist "'this' argument MUST be a symbol." nil))
+            `(defsc ~router-sym ~arglist
+               ~options
+               (let [computed#            (fulcro.client.primitives/get-computed ~this-sym)
+                     props#               (::current-route (fulcro.client.primitives/props ~this-sym))
+                     props-with-computed# (fulcro.client.primitives/computed props# computed#)]
+                 (~union-factory-sym props-with-computed#))))))
+
+#?(:clj
+   (defn defsc-router* [env router-sym arglist options body]
+     (when-not (and (vector? arglist) (<= 2 (count arglist)))
+       (compile-error env options "defsc-router argument list must have entries for this and props." nil))
+     (when-not (map? options)
+       (compile-error env options "defsc-router requires a literal map of options that contain at least :ident and the :router-targets map." nil))
+     (when-not (s/valid? ::defrouter-options options)
+       (compile-error env options (str "defsc-router :router-targets option must be a literal map from Fulcro table names (keyword) to UI class, The :ident option MUST be the lambda form, and the :router-id must be set.") nil))
+     (let [{:keys [router-id]} options
+           union-sym         (symbol (str (name router-sym) "-Union"))
+           union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
+           union-component   (defsc-router-union-element* env union-sym arglist options body)
+           union-factory     `(def ~union-factory-sym (prim/factory ~union-sym))
+           router-component  (defsc-router-router-element* env router-sym arglist options)]
+       `(do
+          ~union-component
+          ~union-factory
+          ~router-component))))
+
+#?(:clj
+   (defmacro defsc-router [sym arglist options & body]
+     (defsc-router* &env sym arglist options body)))

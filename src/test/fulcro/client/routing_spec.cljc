@@ -1,8 +1,8 @@
 (ns fulcro.client.routing-spec
   (:require [fulcro-spec.core :refer [specification behavior assertions when-mocking component provided]]
             [fulcro.client.routing :as r :refer [defrouter]]
-    #?(:cljs [fulcro.client.dom :as dom]
-       :clj [fulcro.client.dom-server :as dom])
+            #?(:cljs [fulcro.client.dom :as dom]
+               :clj  [fulcro.client.dom-server :as dom])
             [fulcro.client.util :as util]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.client.mutations :as m]
@@ -115,8 +115,8 @@
     (when-mocking
       (r/update-routing-queries s r m) =1x=> (do
                                                (assertions
-                                                "Updates the queries on dynamic routers"
-                                                m => {:handler :boo})
+                                                 "Updates the queries on dynamic routers"
+                                                 m => {:handler :boo})
                                                s)
       (r/update-routing-links s m) =1x=> (assertions
                                            "Updates the routing links"
@@ -140,3 +140,60 @@
     "Leaves all other values alone"
     (#'r/set-ident-route-params [:param/a :param/b] {:a "9person" :b 2.6}) => ["9person" 2.6]
     (#'r/set-ident-route-params [:param/a :param/b] {:a :x :b :y}) => [:x :y]))
+
+#?(:clj
+   (specification "defsc-router"
+     (component "defsc-router-union-element*"
+       (let [code          (#'r/defsc-router-union-element* {} 'Union '[t p] {:ident `(~'fn [] [:a :b]) :router-targets `{:a (~'default ~'A) :b ~'B}} [`(dom/div "Missing!")])
+             options       (nth code 3)
+             ident         (:ident options)
+             initial-state (:initial-state options)
+             query         (:query options)
+             body          (nth code 4)
+             page-sym      (-> body second first)]
+         (assertions
+           "has the proper ident function"
+           ident => `(~'fn [] [:a :b])
+           "has the proper initial state"
+           initial-state => `(~'fn [~'params] (prim/get-initial-state ~'A ~'params))
+           "has the correct union query"
+           query => `(~'fn [] {:a (prim/get-query ~'A) :b (prim/get-query ~'B)})
+           "renders the correct body"
+           body => `(let [~page-sym (first (prim/get-ident ~'this ~'props))]
+                      (case ~page-sym
+                        :b ((prim/factory ~'B) ~'props)
+                        :a ((prim/factory ~'A) ~'props)
+                        (let [~'t ~'this
+                              ~'p ~'props]
+                          (dom/div "Missing!")))))))
+     (component "defsc-router-router-element*"
+       (let [code     (#'r/defsc-router-router-element* {} 'Router '[t {:keys [a]} {:keys [y]} {:keys [boo]}]
+                        {:ident          [:a :b]
+                         :query          [:x]
+                         :router-id      42
+                         :router-targets {:x 'X}})
+             sym      (second code)
+             arglist  (nth code 2)
+             options  (nth code 3)
+             body     (nth code 4)
+             let-args (second body)
+             [computed-sym _ props-sym _ pwcomputed-sym _] let-args]
+         (assertions
+           "uses the provided symbol"
+           sym => 'Router
+           "uses the provided args list"
+           arglist => '[t {:keys [a]} {:keys [y]} {:keys [boo]}]
+           "Provides/Overrides the ident based on the supplied router id"
+           (:ident options) => `(~'fn [] [:fulcro.client.routing.routers/by-id 42])
+           "Provides/Overrides the query "
+           (:query options) => `[::r/id {::r/current-route (prim/get-query ~'Router-Union)}]
+           "Removes the custom options"
+           (contains? options :router-id) => false
+           (contains? options :router-targets) => false
+           "body properly extracts props and computed and passes through through to the union"
+           body => `(let [~computed-sym (prim/get-computed ~'t)
+                          ~props-sym (:fulcro.client.routing/current-route (prim/props ~'t))
+                          ~pwcomputed-sym (prim/computed ~props-sym ~computed-sym)]
+                      (~'ui-Router-Union ~pwcomputed-sym)))))))
+
+

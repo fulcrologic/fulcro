@@ -9,6 +9,7 @@ small and tractable.
 2.6.18
 ------
 - Added a bunch of missing SVG tags to DOM.
+- Added a new defsc-router to routing ns that lets you declare routers to be more controllable components
 
 2.6.17
 ------
