@@ -1341,7 +1341,7 @@ java -Dconfig=/usr/local/etc/app.edn -jar app.jar
 This command-line option overrides any config file that was specified in the application itself (except for `defaults.edn`,
 which is always the base).
 
-===== Starting the Server
+==== Starting the Server
 
 If you now start a local Clojure REPL (with *no special options*), it should start in the `user` namespace.
 You can kick off your own application's easy web server with:
@@ -1353,7 +1353,7 @@ user=> (start)
 
 The console should tell you the URL, and if you browse there you should see your `index.html` file.
 
-===== Server Refresh
+==== Server Refresh
 
 When you add/change code on the server you will want to see those changes in the live server without having to restart
 your REPL.
