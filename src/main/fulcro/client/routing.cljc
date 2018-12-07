@@ -76,7 +76,9 @@
                           :kws-and-screens (s/+ (s/cat :kw keyword? :sym symbol?)))))
 
 #?(:clj
-   (defmacro ^{:doc      "Generates a component with a union query that can route among the given screens.
+   (defmacro ^{:doc      "DEPRECATED: Use `defsc-router` instead.
+
+   Generates a component with a union query that can route among the given screens.
 
 ```
 (defrouter ComponentName keyword-for-router-id
