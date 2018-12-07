@@ -516,7 +516,7 @@ NOTES:
                     ~props-target ~'props]
                 ~@bad-route-render)))))))
 
-#?(:clj (s/def ::router-targets (s/map-of keyword? symbol?)))
+#?(:clj (s/def ::router-targets (s/map-of keyword? (s/or :sym symbol? :dflt list?))))
 #?(:clj (s/def ::ident list?))
 #?(:clj (s/def ::router-id any?))
 #?(:clj (s/def ::defsc-router-options (s/keys :req-un [::router-targets ::ident ::router-id])))
@@ -528,7 +528,7 @@ NOTES:
                 union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
                 options           (merge
                                     (dissoc options :router-targets :router-id)
-                                    `{:initial-state (~'fn [_ params#] {::id ~router-id ::current-route (prim/get-initial-state ~union-sym params#)})
+                                    `{:initial-state (~'fn [~'_ params#] {::id ~router-id ::current-route (prim/get-initial-state ~union-sym params#)})
                                       :ident         (~'fn [] [:fulcro.client.routing.routers/by-id ~router-id])
                                       :query         [::id {::current-route (prim/get-query ~union-sym)}]})]
             (when-not (symbol? this-sym)
@@ -546,8 +546,8 @@ NOTES:
        (compile-error env options "defsc-router argument list must have entries for this and props." nil))
      (when-not (map? options)
        (compile-error env options "defsc-router requires a literal map of options that contain at least :ident and the :router-targets map." nil))
-     (when-not (s/valid? ::defrouter-options options)
-       (compile-error env options (str "defsc-router :router-targets option must be a literal map from Fulcro table names (keyword) to UI class, The :ident option MUST be the lambda form, and the :router-id must be set.") nil))
+     (when-not (s/valid? ::defsc-router-options options)
+       (compile-error env options (str "defsc-router options are invalid:\n" (s/explain-str ::defsc-router-options options)) nil))
      (let [{:keys [router-id]} options
            union-sym         (symbol (str (name router-sym) "-Union"))
            union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
