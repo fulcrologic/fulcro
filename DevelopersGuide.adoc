@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: November 10, 2018
-:revnumber: 27
+:revdate: December 6, 2018
+:revnumber: 28
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -3973,7 +3973,10 @@ kind of data (among the options) that you actually receive, and pass that on to 
 
 === Demo – Using Unions as a UI Type Selector
 
-The `fulcro.client.routing/defrouter` macro emits a union component that can be switched to point at any kind
+IMPORTANT: There is an older `defrouter` that is supported but no longer recommended. It has been superceeded by the
+more functional macro called `defsc-router` in the same namespace in Fulcro 2.6.18+.
+
+The `fulcro.client.routing/defsc-router` macro (2.6.18+) emits a union component that can be switched to point at any kind
 of component that it knows about. The support for parameterized routers in the routing tree makes it possible
 to very easily reuse the UI router as a component that can show one of many screens in the same location.
 
@@ -3987,18 +3990,21 @@ To write such a thing one would follow these steps:
 . Join (1) together into a union component and use it in a component that shows them as a list. In other words
   the union will represent a to-many edge in your graph. Remember that unions cannot stand alone, so there
   will be a union component (to switch the UI) and a list component to iterate through the items.
-. Combine the detail components from (2) into a `defrouter` (e.g. named :detail-router).
+. Combine the detail components from (2) into a `defsc-router` (e.g. with ID :detail-router).
 . Create a routing tree that includes the :detail-router, and parameterize both elements of the target ident (kind and id)
 . Hook a click event from the items to a `route-to` mutation, and send route parameters for the kind and id.
 
-The output of this defrouter (macro):
+The output of the macro:
 
 ```
-(defrouter ItemDetail :detail-router
-  (ident [this props] (item-ident props))
-  :person/by-id PersonDetail
-  :place/by-id PlaceDetail
-  :thing/by-id ThingDetail)
+(defsc-router ItemDetail [this props]
+  {:router-id :detail-router
+   :ident (fn [] (item-ident props))
+   :default-route PersonDetail
+   :router-targets {:person/by-id PersonDetail
+                    :place/by-id PlaceDetail
+                    :thing/by-id ThingDetail}}
+  (dom/div "Route not set"))
 ```
 
 is roughly this (cleaned up from macro output):
@@ -8425,11 +8431,18 @@ query that are active on the UI are processed.
 Unfortunately many people find hand-writing union components a litle challenging. Fulcro provides a nice
 pre-written facility that can write much of the code for you, making the process more conceptual as UI Routing.
 
+NOTE: Fulcro Incubator includes a new routing namespace that is more feature complete, and as of
+version 2.6.18 Fulcro's routing namespace includes `defsc-router`, which is a replacement for
+`defrouter`.
+
 == A Basic Router [[BasicRouter]]
 
 A basic router looks like this:
 
 ```
+(ns app
+  (:require [fulcro.client.routing :refer [defrouter defsc-router]]) ; requires 2.6.18 for defsc-router
+
 (defsc Index [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
    :ident         (fn [] [page id])
@@ -8442,30 +8455,42 @@ A basic router looks like this:
    :initial-state {:db/id 1 :router/page :PAGE/settings}}
   ...)
 
+;; Pre-2.6.18
 (defrouter RootRouter :root/router
   ; OR (fn [t p] [(:router/page p) (:db/id p)])
   [:router/page :db/id]
   :PAGE/index Index
   :PAGE/settings Settings)
+
+;; Post 2.6.18
+(defsc-router RootRouter [this {:keys [router/page db/id]]
+ {:router-id :root/router
+  :ident (fn [] [page id]) ; props are destructured in the context of the route TARGET
+  :default-route Index
+  :route-targets {:PAGE/index Index
+                  :PAGE/settings Settings}}
+  (dom/div "What to render if the route is bad"))
 ```
 
-The important points are:
+The newer form lets you define React lifecycle methods, and also lets you define what to render when the route is
+invalid (the body is only rendered under that circumstance, otherwise is renders the routed component). It can also
+be set to resolve like `defsc` in Cursive, so you get proper symbol resolution.
 
-. The ident generator for the components and router must all work the same. The router uses the first element of the
-ident to pick the screen.
-. The list of screens to route to in the router are keyed by that first element of the ident.
-. The components that act as screens should:
-.. Have initial state that will work with ident
-.. Use an ident function that returns the same thing that the router will extract.
+See old versions of the book in Fulcro's git history for docs on the old `defrouter`.
 
-The router itself then works like any other Fulcro component. You make a factory for it, join it into your query, and render it
-by passing the queried props to it.
+=== Details on `defsc-router`
 
-WARNING: The `defrouter` macro allows you to specify a vector for the ident argument where *both* keys are looked up in
-the component's props; However, the `defsc` macro assumes that a vector shorthand for idents contains a table name and
-something to look up. This is the most convenient behavior for both, but since it does not match use this rule: If you're
-using `defsc` to make a screen component that will be used with a router then you *always* want the lambda form, not
-the vector template in that `defsc`.
+The required parameters of `defsc-router` are:
+
+`:router-id`:: An ID to give the router
+`:ident`:: MUST be in `fn` form, and can use destructured parameters from `props` (which are in the context of the route target)
+`:default-route`:: The component that should be shown by default. Should have initial state so it exists on app start.
+`:router-targets`:: A map from the component's Fulcro database table to the component that can be routed to. Routing switches
+on the FIRST element of the ident (the table name). This is because unions are used, and this allows sub-screens to have
+ID's that vary. For example, you could router to `[:user/by-id 44]` by adding `:user/by-id User` as an entry to this map and
+making sure the ident function can resolve the ident correctly for the props of a user.
+
+You may also include most other `defsc` options, other than `:query` and `:initial-state`, which are set internally.
 
 ++++
 <div class="example" id="simple-router-1"> </div>
@@ -8515,6 +8540,9 @@ two different routers:
 ```
 
 == Routing Tree Support
+
+NOTE: Fulcro Incubator's Dynamic Routers automatically compose and understand paths, so there is no need to declare a
+routing tree with them.  You might want to try those as an alternative.
 
 Fulcro includes some routing tree primitives to do the mapping from single conceptual "routes" like `/settings/colors`
 to a set of instructions that you need to send to your UI routers. There is an additional concern as well: route
@@ -8632,10 +8660,12 @@ table) to check the route:
   (:require [fulcro.client.routing :as r]
             [fulcro.client.primitives :as prim]))
 
-(r/defrouter SomeRouter :top-router
-  (ident [this props] ...)
-  :home-page HomePage
-  :about-page AboutPage
+(r/defsc-router SomeRouter [this props]
+ {:router-id :top-router
+  :ident (fn [] ...)
+  :default-route HomePage
+  :router-targets {:home-page HomePage
+                   :about-page AboutPage}}
   ...)
 
 (defmutation do-something-with-routes [params]
@@ -8721,11 +8751,11 @@ the routing is in progress.
 There is nothing special about this technique. There are several functions in the `routing` namespace
 that can be used easily within your own mutations:
 
-- `update-routing-links` - For standard union-based `defrouter` (does not support dynamic code loading routers): Takes
+- `update-routing-links` - For standard union-based `defsc-router` (does not support dynamic code loading routers): Takes
 the state map and a route match (map with :handler and :route-params) and returns a new state map with the routes updated.
 - `route-to-impl!` - For all kinds of routers (including dynamic): Takes the mutation `env` and a bidi-style match {:handler/:params}.
  Works with dynamic routes. Does swaps against app state, but is safe to use within a mutation.
-- `set-route` - Changes the current route on a *specific* `defrouter` instance. Takes a state map, router ID, and a target ident.
+- `set-route` - Changes the current route on a *specific* `defsc-router` instance. Takes a state map, router ID, and a target ident.
 Used if *not* using routing trees or dynamic routers.
 
 == HTML5 Routing
@@ -10124,7 +10154,7 @@ The server query handler is just:
 
 === The UI
 
-We're using a UI router via defrouter to create two screens: A phone list and phone editor screen.
+We're using a UI router via defsc-router to create two screens: A phone list and phone editor screen.
 
 The basic UI tree looks like this:
 

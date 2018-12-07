@@ -9,24 +9,6 @@
             [fulcro.client.mutations :as m]
             [fulcro.client.localized-dom :as ldom]))
 
-(defsc A [this {:keys [:db/id] :as props}]
-  {:query         [:db/id]
-   :ident         [:a/by-id :db/id]
-   :initial-state {:db/id :param/id}}
-  (dom/div nil "TODO"))
-
-(defsc B [this {:keys [:db/id] :as props}]
-  {:query         [:db/id]
-   :ident         [:a/by-id :db/id]
-   :initial-state {:db/id :param/id}}
-  (dom/div nil "TODO"))
-
-(defsc-router Router [this props]
-  {:router-id      :a
-   :ident          (fn [] [:x 1])
-   :router-targets {:a (default A) :b B}}
-  (dom/div "Bummer"))
-
 ;; normally we get macro expansion, this will let us force calling the functions
 (def fdiv div)
 (def fspan span)

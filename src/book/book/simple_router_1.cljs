@@ -1,5 +1,5 @@
 (ns book.simple-router-1
-  (:require [fulcro.client.routing :as r :refer-macros [defrouter]]
+  (:require [fulcro.client.routing :as r :refer-macros [defsc-router]]
             [fulcro.client.dom :as dom]
             [fulcro.client :as fc]
             [fulcro.client.data-fetch :as df]
@@ -18,11 +18,13 @@
    :initial-state {:db/id 1 :router/page :PAGE/settings}}
   (dom/div "Settings Page"))
 
-(defrouter RootRouter :root/router
-  ; OR (fn [t p] [(:router/page p) (:db/id p)])
-  [:router/page :db/id]
-  :PAGE/index Index
-  :PAGE/settings Settings)
+(defsc-router RootRouter [this {:keys [router/page db/id]}]
+  {:router-id      :root/router
+   :default-route  Index
+   :ident          (fn [] [page id])
+   :router-targets {:PAGE/index    Index
+                    :PAGE/settings Settings}}
+  (dom/div "Bad route"))
 
 (def ui-root-router (prim/factory RootRouter))
 

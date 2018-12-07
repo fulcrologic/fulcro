@@ -144,13 +144,18 @@
 #?(:clj
    (specification "defsc-router"
      (component "defsc-router-union-element*"
-       (let [code          (#'r/defsc-router-union-element* {} 'Union '[t p] {:ident `(~'fn [] [:a :b]) :router-targets `{:a (~'default ~'A) :b ~'B}} [`(dom/div "Missing!")])
+       (let [code          (#'r/defsc-router-union-element* {} 'Union '[t p]
+                             {:ident          `(~'fn [] [:a :b])
+                              :router-id      :top-router
+                              :router-targets {:a 'A :b 'B}
+                              :default-route  'A}
+                             [`(dom/div "Missing!")])
              options       (nth code 3)
              ident         (:ident options)
              initial-state (:initial-state options)
              query         (:query options)
              body          (nth code 4)
-             page-sym      (-> body second first)]
+             [_ _ page-sym] (-> body second)]
          (assertions
            "has the proper ident function"
            ident => `(~'fn [] [:a :b])
@@ -159,15 +164,15 @@
            "has the correct union query"
            query => `(~'fn [] {:a (prim/get-query ~'A) :b (prim/get-query ~'B)})
            "renders the correct body"
-           body => `(let [~page-sym (first (prim/get-ident ~'this ~'props))]
+           body => `(let [~'props (prim/props ~'this)
+                          ~page-sym (first (prim/get-ident ~'this ~'props))]
                       (case ~page-sym
-                        :b ((prim/factory ~'B) ~'props)
                         :a ((prim/factory ~'A) ~'props)
-                        (let [~'t ~'this
-                              ~'p ~'props]
+                        :b ((prim/factory ~'B) ~'props)
+                        (let [~'t ~'this]
                           (dom/div "Missing!")))))))
      (component "defsc-router-router-element*"
-       (let [code     (#'r/defsc-router-router-element* {} 'Router '[t {:keys [a]} {:keys [y]} {:keys [boo]}]
+       (let [code     (#'r/defsc-router-router-element* {} 'Router 'Router-Union '[t {:keys [a]} {:keys [y]} {:keys [boo]}]
                         {:ident          [:a :b]
                          :query          [:x]
                          :router-id      42
@@ -186,7 +191,7 @@
            "Provides/Overrides the ident based on the supplied router id"
            (:ident options) => `(~'fn [] [:fulcro.client.routing.routers/by-id 42])
            "Provides/Overrides the query "
-           (:query options) => `[::r/id {::r/current-route (prim/get-query ~'Router-Union)}]
+           (:query options) => `(~'fn [] [::r/id {::r/current-route (prim/get-query ~'Router-Union)}])
            "Removes the custom options"
            (contains? options :router-id) => false
            (contains? options :router-targets) => false

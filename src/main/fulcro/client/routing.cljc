@@ -490,50 +490,54 @@ NOTES:
      (throw (ana/error (merge env (some-> form meta)) message ex))))
 
 #?(:clj
-   (defn- defsc-router-union-element* [env sym arglist {:keys [ident router-targets]} bad-route-render]
-     (let [this-target         (first arglist)
-           props-target        (second arglist)
-           real-router-targets (into {} (map (fn [[k v]] [k (if (symbol? v) v (second v))])) router-targets)
-           first-screen        (->> router-targets vals (filter (complement symbol?)) first second)
-           _                   (when-not first-screen (compile-error env router-targets
-                                                        "Please put ^:default-route in front of the class that should be the default route." nil))
-           screen-render       (fn [cls] `((prim/factory ~cls) ~'props))
-           query               (reduce (fn [q [kw sym]] (assoc q kw `(prim/get-query ~sym))) {} real-router-targets)
-           render-cases        (reduce
-                                 (fn [cases [kw sym]]
-                                   (-> cases
-                                     (conj kw (screen-render sym))))
-                                 []
-                                 real-router-targets)]
-       `(prim/defsc ~sym [~'this ~'props]
-          {:initial-state (~'fn [~'params] (prim/get-initial-state ~first-screen ~'params))
-           :query         (~'fn [] ~query)
+   (defn- defsc-router-union-element* [env sym arglist {:keys [ident router-targets default-route] :as options} bad-route-render]
+     (when-not default-route (compile-error env options "`:default-route Class` is required in options." nil))
+     (let [this-target      (first arglist)
+           props-target     (second arglist)
+           screen-render    (fn [cls] `((prim/factory ~cls) ~'props))
+           query            (reduce (fn [q [kw sym]] (assoc q kw `(prim/get-query ~sym))) {} router-targets)
+           query-fn         (apply list `(~'fn [] ~query))
+           initial-state-fn (apply list `(~'fn [~'params] (fulcro.client.primitives/get-initial-state ~default-route ~'params)))
+           render-cases     (reduce
+                              (fn [cases [kw sym]]
+                                (-> cases
+                                  (conj kw (screen-render sym))))
+                              []
+                              router-targets)]
+       `(fulcro.client.primitives/defsc ~sym [~'this ~props-target]
+          {:initial-state ~initial-state-fn
+           :query         ~query-fn
            :ident         ~ident}
-          (let [page# (first (prim/get-ident ~'this ~'props))]
+          (let [~'props (prim/props ~'this)
+                page# (first (prim/get-ident ~'this ~'props))]
             (case page#
               ~@render-cases
-              (let [~this-target ~'this
-                    ~props-target ~'props]
+              (let [~this-target ~'this]
                 ~@bad-route-render)))))))
 
 #?(:clj (s/def ::router-targets (s/map-of keyword? (s/or :sym symbol? :dflt list?))))
 #?(:clj (s/def ::ident list?))
 #?(:clj (s/def ::router-id any?))
-#?(:clj (s/def ::defsc-router-options (s/keys :req-un [::router-targets ::ident ::router-id])))
+#?(:clj (s/def ::default-route symbol?))
+#?(:clj (s/def ::defsc-router-options (s/keys :req-un [::router-targets ::ident ::router-id ::default-route])))
 
-#?(:clj (defn defsc-router-router-element* [env router-sym arglist options]
+#?(:clj (defn defsc-router-router-element* [env router-sym union-sym arglist options]
+          (when-not (contains? options :router-id)
+            (compile-error env options ":router-id is required in optoins." nil))
           (let [{:keys [router-id]} options
                 this-sym          (first arglist)
-                union-sym         (symbol (str (name router-sym) "-Union"))
                 union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
+                initial-state     (apply list `(~'fn [params#] {::id ~router-id ::current-route (prim/get-initial-state ~union-sym params#)}))
+                ident             (apply list `(~'fn [] [:fulcro.client.routing.routers/by-id ~router-id]))
+                query-fn          (apply list `(~'fn [] [::id {::current-route (prim/get-query ~union-sym)}]))
                 options           (merge
                                     (dissoc options :router-targets :router-id)
-                                    `{:initial-state (~'fn [~'_ params#] {::id ~router-id ::current-route (prim/get-initial-state ~union-sym params#)})
-                                      :ident         (~'fn [] [:fulcro.client.routing.routers/by-id ~router-id])
-                                      :query         [::id {::current-route (prim/get-query ~union-sym)}]})]
+                                    `{:initial-state ~initial-state
+                                      :ident         ~ident
+                                      :query         ~query-fn})]
             (when-not (symbol? this-sym)
               (compile-error env arglist "'this' argument MUST be a symbol." nil))
-            `(defsc ~router-sym ~arglist
+            `(fulcro.client.primitives/defsc ~router-sym ~arglist
                ~options
                (let [computed#            (fulcro.client.primitives/get-computed ~this-sym)
                      props#               (::current-route (fulcro.client.primitives/props ~this-sym))
@@ -545,20 +549,76 @@ NOTES:
      (when-not (and (vector? arglist) (<= 2 (count arglist)))
        (compile-error env options "defsc-router argument list must have entries for this and props." nil))
      (when-not (map? options)
-       (compile-error env options "defsc-router requires a literal map of options that contain at least :ident and the :router-targets map." nil))
+       (compile-error env options "defsc-router requires a literal map of options." nil))
      (when-not (s/valid? ::defsc-router-options options)
        (compile-error env options (str "defsc-router options are invalid:\n" (s/explain-str ::defsc-router-options options)) nil))
-     (let [{:keys [router-id]} options
-           union-sym         (symbol (str (name router-sym) "-Union"))
+     (let [union-sym         (symbol (str (name router-sym) "-Union"))
            union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
            union-component   (defsc-router-union-element* env union-sym arglist options body)
            union-factory     `(def ~union-factory-sym (prim/factory ~union-sym))
-           router-component  (defsc-router-router-element* env router-sym arglist options)]
+           router-component  (defsc-router-router-element* env router-sym union-sym arglist options)]
        `(do
           ~union-component
           ~union-factory
           ~router-component))))
 
 #?(:clj
-   (defmacro defsc-router [sym arglist options & body]
+   (defmacro
+     ^{:doc
+       "Define a router component.
+
+       This is just like `defsc`, BUT generates a pair of components that optimize query performance and allow for efficient
+       UI changes.  The options are identical to `defsc`, except:
+
+       Required Options:
+
+       - `:router-id` - An ID for the router
+       - `:ident` - An ident that works across all of the routing targets. This kind of router generates a union query,
+                    so this ident function must work on ALL router targets, and MUST vary the FIRST elements of the ident
+                    to identiy which screen to show.
+       - `:default-route` - The Class of the router target that is the default (initial) route.
+       - `:router-targets` - A map of ident tables to router targets.  This map MUST correspond to the TABLE name that
+       the router target lives in, and the Class of the router target component.
+
+       You may NOT define a `:query`, `:ident`, or `:initial-state` for a router.
+
+       All other `defsc` options are supported.
+
+        ```
+        (defsc-router TopRouter [this props]
+          {
+           ;; REQUIRED for router:
+           :router-id :top-router
+           :ident (fn [] [(:table props) (:id props)]
+           :router-targets  {:A A :B B :C C}
+           :default-route A
+
+           :css [] ; garden css rules
+           :css-include [] ; list of components that have CSS to compose towards root.
+
+           ; React Lifecycle Methods (this in scope)
+           :initLocalState            (fn [] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
+           :shouldComponentUpdate     (fn [next-props next-state] ...)
+
+           :componentDidUpdate        (fn [prev-props prev-state snapshot] ...) ; snapshot is optional, and is 16+. Is context for 15
+           :componentDidMount         (fn [] ...)
+           :componentWillUnmount      (fn [] ...)
+
+           ;; DEPRECATED IN REACT 16 (to be removed in 17):
+           :componentWillReceiveProps        (fn [next-props] ...)
+           :componentWillUpdate              (fn [next-props next-state] ...)
+           :componentWillMount               (fn [] ...)
+
+           ;; Replacements for deprecated methods in React 16.3+
+           :UNSAFE_componentWillReceiveProps (fn [next-props] ...)
+           :UNSAFE_componentWillUpdate       (fn [next-props next-state] ...)
+           :UNSAFE_componentWillMount        (fn [] ...)
+
+           ;; ADDED for React 16:
+           :componentDidCatch         (fn [error info] ...)
+           :getSnapshotBeforeUpdate   (fn [prevProps prevState] ...)
+           :getDerivedStateFromProps  (fn [props state] ...)
+        ```
+        "}
+     defsc-router [sym arglist options & body]
      (defsc-router* &env sym arglist options body)))
