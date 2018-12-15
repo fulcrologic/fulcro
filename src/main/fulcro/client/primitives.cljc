@@ -934,8 +934,8 @@
                   (let [x (normalize* sel v refs union-entry transform)]
                     (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
                                                      :cljs (implements? Ident class))))
-                      (let [i #?(:clj ((-> class meta :ident) class v)
-                                 :cljs (get-ident class v))]
+                      (let [i #?(:clj ((-> class meta :ident) class x)
+                                 :cljs (get-ident class x))]
                         (swap! refs update-in [(first i) (second i)] merge x)
                         (recur (next q) (assoc ret k i)))
                       (recur (next q) (assoc ret k x))))
@@ -1614,7 +1614,7 @@
     (letfn [(step [tree' [ident props]]
               (if (:normalize config)
                 (let [c-or-q (or (get ident-joins ident) (ref->any indexer ident))
-                      props' (tree->db c-or-q props)
+                      props' (tree->db c-or-q props false pre-merge-transform)
                       refs   (meta props')]
                   ((:merge-tree config)
                     (merge-ident config tree' ident props') refs))

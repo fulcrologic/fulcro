@@ -22,7 +22,8 @@
             [fulcro.util :as util]
             [clojure.walk :as walk]
             [fulcro.ui.form-state :as f]
-            [fulcro.test-helpers :as th])
+            [fulcro.test-helpers :as th]
+            [fulcro.client.primitives :as fp])
   #?(:clj
      (:import (clojure.lang ExceptionInfo))))
 
@@ -2028,6 +2029,27 @@
    :query     [::scoreboard-id
                {::scores (prim/get-query Score)}]})
 
+(defonce id-counter (atom 0))
+
+(defsc UiItem
+  [_ _]
+  {:pre-merge (fn [x] (merge {::id (swap! id-counter inc)}))
+   :ident     [::id ::id]
+   :query     [::id ::title]})
+
+(defsc UiLoadedItem
+  [_ _]
+  {:pre-merge (fn [x] (merge {:ui/item {}} x))
+   :ident     [::loaded-id ::loaded-id]
+   :query     [::loaded-id ::name
+               {:ui/item (fp/get-query UiItem)}]})
+
+(defsc UiCollectionHolder
+  [_ _]
+  {:ident [::col-id ::col-id]
+   :query [::col-id
+           {::load-items (fp/get-query UiLoadedItem)}]})
+
 (specification "merge-component" :focused
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
         sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
@@ -2079,7 +2101,37 @@
                                :ui/expanded? true}
                             3 {::score-id    3
                                ::points      7
-                               :ui/expanded? false}}})))
+                               :ui/expanded? false}}}
+
+       (do
+         (reset! id-counter 0)
+         (prim/merge-component {} UiLoadedItem
+           {::loaded-id 1
+            ::name      "a"}))
+       => {::loaded-id {1 {::loaded-id 1
+                           ::name      "a"
+                           :ui/item    [::id 1]}}
+           ::id        {1 {::id 1}}}
+
+       (do
+         (reset! id-counter 0)
+         (prim/merge-component {} UiCollectionHolder
+           {::col-id     123
+            ::load-items [{::loaded-id 1
+                           ::name      "a"}
+                          {::loaded-id 2
+                           ::name      "b"}]}))
+       => {::col-id    {123 {::col-id     123
+                             ::load-items [[::loaded-id 1]
+                                           [::loaded-id 2]]}}
+           ::loaded-id {1 {::loaded-id 1
+                           ::name      "a"
+                           :ui/item    [::id 1]}
+                        2 {::loaded-id 2
+                           ::name      "b"
+                           :ui/item    [::id 2]}}
+           ::id        {1 {::id 1}
+                        2 {::id 2}}})))
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defui Table
