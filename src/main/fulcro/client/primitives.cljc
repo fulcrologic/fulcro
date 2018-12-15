@@ -882,90 +882,91 @@
     (map? query) (-> query keys set)                        ; a union component, which has a map for a query
     :else #{}))
 
-(defn- normalize* [query data refs union-seen]
-  (cond
-    (= '[*] query) data
+(defn- normalize* [query data refs union-seen transform]
+  (let [data (if transform (transform query data) data)]
+    (cond
+      (= '[*] query) data
 
-    ;; union case
-    (map? query)
-    (let [class         (-> query meta :component)
-          ident #?(:clj (when-let [ident (-> class meta :ident)]
-                          (ident class data))
-                   :cljs (when (implements? Ident class)
-                           (get-ident class data)))]
-      (if-not (nil? ident)
-        (vary-meta (normalize* (get query (first ident)) data refs union-seen)
-          assoc ::tag (first ident))                        ; FIXME: What is tag for?
-        (throw #?(:clj  (IllegalArgumentException. "Union components must implement Ident")
-                  :cljs (js/Error. "Union components must implement Ident")))))
+      ;; union case
+      (map? query)
+      (let [class         (-> query meta :component)
+            ident #?(:clj (when-let [ident (-> class meta :ident)]
+                            (ident class data))
+                     :cljs (when (implements? Ident class)
+                             (get-ident class data)))]
+        (if-not (nil? ident)
+          (vary-meta (normalize* (get query (first ident)) data refs union-seen transform)
+            assoc ::tag (first ident)) ; FIXME: What is tag for?
+          (throw #?(:clj  (IllegalArgumentException. "Union components must implement Ident")
+                    :cljs (js/Error. "Union components must implement Ident")))))
 
-    (vector? data) data                                     ;; already normalized
+      (vector? data) data ;; already normalized
 
-    :else
-    (loop [q (seq query) ret data]
-      (if-not (nil? q)
-        (let [expr (first q)]
-          (if (util/join? expr)
-            (let [[k sel] (util/join-entry expr)
-                  recursive?  (util/recursion? sel)
-                  union-entry (if (util/union? expr) sel union-seen)
-                  sel         (if recursive?
-                                (if-not (nil? union-seen)
-                                  union-seen
-                                  query)
-                                sel)
-                  class       (-> sel meta :component)
-                  v           (get data k)]
-              (cond
-                ;; graph loop: db->tree leaves ident in place
-                (and recursive? (util/ident? v)) (recur (next q) ret)
-                ;; normalize one
-                (map? v)
-                (let [x (normalize* sel v refs union-entry)]
-                  (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
-                                                   :cljs (implements? Ident class))))
-                    (let [i #?(:clj ((-> class meta :ident) class v)
-                               :cljs (get-ident class v))]
-                      (swap! refs update-in [(first i) (second i)] merge x)
-                      (recur (next q) (assoc ret k i)))
-                    (recur (next q) (assoc ret k x))))
+      :else
+      (loop [q (seq query) ret data]
+        (if-not (nil? q)
+          (let [expr (first q)]
+            (if (util/join? expr)
+              (let [[k sel] (util/join-entry expr)
+                    recursive?  (util/recursion? sel)
+                    union-entry (if (util/union? expr) sel union-seen)
+                    sel         (if recursive?
+                                  (if-not (nil? union-seen)
+                                    union-seen
+                                    query)
+                                  sel)
+                    class       (-> sel meta :component)
+                    v           (get data k)]
+                (cond
+                  ;; graph loop: db->tree leaves ident in place
+                  (and recursive? (util/ident? v)) (recur (next q) ret)
+                  ;; normalize one
+                  (map? v)
+                  (let [x (normalize* sel v refs union-entry transform)]
+                    (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
+                                                     :cljs (implements? Ident class))))
+                      (let [i #?(:clj ((-> class meta :ident) class v)
+                                 :cljs (get-ident class v))]
+                        (swap! refs update-in [(first i) (second i)] merge x)
+                        (recur (next q) (assoc ret k i)))
+                      (recur (next q) (assoc ret k x))))
 
-                ;; normalize many
-                (vector? v)
-                (let [xs (into [] (map #(normalize* sel % refs union-entry)) v)]
-                  (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
-                                                   :cljs (implements? Ident class))))
-                    (let [is (into [] (map #?(:clj  #((-> class meta :ident) class %)
-                                              :cljs #(get-ident class %))) xs)]
-                      (if (vector? sel)
-                        (when-not (empty? is)
+                  ;; normalize many
+                  (vector? v)
+                  (let [xs (into [] (map #(normalize* sel % refs union-entry transform)) v)]
+                    (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
+                                                     :cljs (implements? Ident class))))
+                      (let [is (into [] (map #?(:clj  #((-> class meta :ident) class %)
+                                                :cljs #(get-ident class %))) xs)]
+                        (if (vector? sel)
+                          (when-not (empty? is)
+                            (swap! refs
+                              (fn [refs]
+                                (reduce (fn [m [i x]]
+                                          (update-in m i merge x))
+                                  refs (zipmap is xs)))))
+                          ;; union case
                           (swap! refs
-                            (fn [refs]
-                              (reduce (fn [m [i x]]
-                                        (update-in m i merge x))
-                                refs (zipmap is xs)))))
-                        ;; union case
-                        (swap! refs
-                          (fn [refs']
-                            (reduce
-                              (fn [ret [i x]]
-                                (update-in ret i merge x))
-                              refs' (map vector is xs)))))
-                      (recur (next q) (assoc ret k is)))
-                    (recur (next q) (assoc ret k xs))))
+                            (fn [refs']
+                              (reduce
+                                (fn [ret [i x]]
+                                  (update-in ret i merge x))
+                                refs' (map vector is xs)))))
+                        (recur (next q) (assoc ret k is)))
+                      (recur (next q) (assoc ret k xs))))
 
-                ;; missing key
-                (nil? v)
-                (recur (next q) ret)
+                  ;; missing key
+                  (nil? v)
+                  (recur (next q) ret)
 
-                ;; can't handle
-                :else (recur (next q) (assoc ret k v))))
-            (let [k (if (seq? expr) (first expr) expr)
-                  v (get data k)]
-              (if (nil? v)
-                (recur (next q) ret)
-                (recur (next q) (assoc ret k v))))))
-        ret))))
+                  ;; can't handle
+                  :else (recur (next q) (assoc ret k v))))
+              (let [k (if (seq? expr) (first expr) expr)
+                    v (get data k)]
+                (if (nil? v)
+                  (recur (next q) ret)
+                  (recur (next q) (assoc ret k v))))))
+          ret)))))
 
 (defn tree->db
   "Given a component class or instance and a tree of data, use the component's
@@ -976,13 +977,14 @@
   ([x data]
    (tree->db x data false))
   ([x data #?(:clj merge-idents :cljs ^boolean merge-idents)]
+   (tree->db x data merge-idents nil))
+  ([x data #?(:clj merge-idents :cljs ^boolean merge-idents) transform]
    (let [refs (atom {})
          x    (if (vector? x) x (get-query x data))
-         ret  (normalize* x data refs nil)]
+         ret  (normalize* x data refs nil transform)]
      (if merge-idents
        (let [refs' @refs] (merge ret refs'))
        (with-meta ret @refs)))))
-
 
 (defn- focused-join [expr ks full-expr union-expr]
   (let [expr-meta (meta expr)

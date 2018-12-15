@@ -2048,6 +2048,14 @@
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))
 
+(specification "tree->db" :focused
+  (assertions
+    (prim/tree->db AQuery {:x "value"}) => {:x "value"}
+
+    "accepts custom transform fn"
+    (prim/tree->db AQuery {:x "value"} true #(assoc %2 :ui/data "extra"))
+    => {:x "value" :ui/data "extra"}))
+
 (specification "Detection of static protocols"
   (assertions
     #?(:cljs "works on client" :clj "works on server")
