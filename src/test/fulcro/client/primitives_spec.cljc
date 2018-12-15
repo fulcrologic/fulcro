@@ -2004,7 +2004,7 @@
 (defsc MPhonePM [_ _]
   {:ident     [:phone/by-id :id]
    :query     [:id :number]
-   :pre-merge #(assoc % :ui/initial-flag :start)})
+   :pre-merge (fn [o x] (merge {:ui/initial-flag :start} o x))})
 
 (defsc MPersonPM [_ _]
   {:ident [:person/by-id :id]
@@ -2012,13 +2012,13 @@
 
 (defsc Score
   [this {::keys []}]
-  {:pre-merge (fn [score] (merge {:ui/expanded? false} score))
+  {:pre-merge (fn [cur score] (merge {:ui/expanded? false} cur score))
    :ident     [::score-id ::score-id]
    :query     [::score-id ::points :ui/expanded?]})
 
 (defsc Scoreboard
   [this {::keys []}]
-  {:pre-merge (fn [{::keys [scores] :as scoreboard}]
+  {:pre-merge (fn [_ {::keys [scores] :as scoreboard}]
                 (let [high-score (apply max (map ::points scores))
                       scores     (mapv
                                    (fn [{::keys [points] :as score}]
@@ -2033,13 +2033,13 @@
 
 (defsc UiItem
   [_ _]
-  {:pre-merge (fn [x] (merge {::id (swap! id-counter inc)}))
+  {:pre-merge (fn [o n] (merge {::id (swap! id-counter inc)} o n))
    :ident     [::id ::id]
    :query     [::id ::title]})
 
 (defsc UiLoadedItem
   [_ _]
-  {:pre-merge (fn [x] (merge {:ui/item {}} x))
+  {:pre-merge (fn [o n] (merge {:ui/item {}} o n))
    :ident     [::loaded-id ::loaded-id]
    :query     [::loaded-id ::name
                {:ui/item (fp/get-query UiItem)}]})

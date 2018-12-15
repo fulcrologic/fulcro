@@ -49,7 +49,7 @@
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
 (defprotocol IPreMerge
-  (pre-merge [this tree] "Modify data before merging."))
+  (pre-merge [this entity tree] "Modify data before merging."))
 
 (defn has-initial-app-state?
   #?(:cljs {:tag boolean})
@@ -1554,17 +1554,21 @@
     target
     source))
 
-(defn component-pre-merge [component data]
-  (if (has-pre-merge? component)
-    (pre-merge component data)
+(defn component-pre-merge [class state data]
+  (if (has-pre-merge? class)
+    (let [entity (if #?(:clj  (-> class meta :ident)
+                        :cljs (implements? Ident class))
+                   (get-in state (get-ident class data)))]
+      (pre-merge class entity data))
     data))
 
 (defn pre-merge-transform
   "Transform function that modifies data using component pre-merge hook."
-  [query data]
-  (if-let [class (-> query meta :component)]
-    (component-pre-merge class data)
-    data))
+  [state]
+  (fn pre-merge-transform-internal [query data]
+    (if-let [class (-> query meta :component)]
+      (component-pre-merge class state data)
+      data)))
 
 (defn merge-handler
   "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
@@ -1597,7 +1601,7 @@
                         norm-query       [{idnt subquery}]
                         norm-tree        {idnt subtree}
                         norm-tree-marked (mark-missing norm-tree norm-query)
-                        db               (tree->db norm-query norm-tree-marked true pre-merge-transform)]
+                        db               (tree->db norm-query norm-tree-marked true (pre-merge-transform state))]
                     (cond-> (sweep-merge updated-state db)
                       target (targeting/process-target idnt target)
                       (not target) (dissoc db idnt)))
@@ -1614,7 +1618,7 @@
     (letfn [(step [tree' [ident props]]
               (if (:normalize config)
                 (let [c-or-q (or (get ident-joins ident) (ref->any indexer ident))
-                      props' (tree->db c-or-q props false pre-merge-transform)
+                      props' (tree->db c-or-q props false (pre-merge-transform tree))
                       refs   (meta props')]
                   ((:merge-tree config)
                     (merge-ident config tree' ident props') refs))
@@ -1636,7 +1640,7 @@
                              (tree->db
                                (or query (:root @(:state reconciler)))
                                result-tree true
-                               pre-merge-transform)
+                               (pre-merge-transform state-map))
                              result-tree)]
      (-> state-map
        (merge-mutation-joins query result-tree)
@@ -2893,10 +2897,10 @@
                   (build-and-validate-initial-state-map env sym template legal-keys children is-a-form?)))))
 
 #?(:clj
-   (defn- build-pre-merge [env sym thissym pre-merge]
+   (defn- build-pre-merge [env thissym pre-merge]
      (when pre-merge
        `(~'static fulcro.client.primitives/IPreMerge
-          ~(replace-and-validate-fn env 'pre-merge [thissym] 1 pre-merge)))))
+          ~(replace-and-validate-fn env 'pre-merge [thissym] 2 pre-merge)))))
 
 #?(:clj (s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?)))
@@ -3003,7 +3007,7 @@
                                               (mapcat identity))
            ident-forms                      (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-forms                      (build-initial-state env sym thissym initial-state-template-or-method legal-key-checker query-template-or-method false #_(vector? form-fields))
-           pre-merge-forms                  (build-pre-merge env sym thissym pre-merge)
+           pre-merge-forms                  (build-pre-merge env thissym pre-merge)
            query-forms                      (build-query-forms env sym thissym propsym query-template-or-method)
            form-forms                       (build-form env (some-> form-fields second) (:template query-template-or-method))
            css-forms                        (build-css env thissym css-template-or-method css-include-template-or-method)
@@ -3176,7 +3180,7 @@
   (if-let [top-ident (get-ident component component-data)]
     (let [query          [{top-ident (get-query component)}]
           state-to-merge {top-ident component-data}
-          table-entries  (-> (tree->db query state-to-merge true pre-merge-transform)
+          table-entries  (-> (tree->db query state-to-merge true (pre-merge-transform state-map))
                            (dissoc ::tables top-ident))]
       (util/deep-merge state-map table-entries))
     state-map))
