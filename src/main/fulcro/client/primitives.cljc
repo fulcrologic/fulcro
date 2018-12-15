@@ -48,6 +48,9 @@
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
+(defprotocol IPreMerge
+  (pre-merge [this tree] "Modify data before merging."))
+
 (defn has-initial-app-state?
   #?(:cljs {:tag boolean})
   [component]
@@ -2870,6 +2873,12 @@
                       children (or (children-by-prop query) {})]
                   (build-and-validate-initial-state-map env sym template legal-keys children is-a-form?)))))
 
+#?(:clj
+   (defn- build-pre-merge [env sym thissym pre-merge]
+     (when pre-merge
+       `(~'static fulcro.client.primitives/IPreMerge
+          ~(replace-and-validate-fn env 'pre-merge [thissym] 1 pre-merge)))))
+
 #?(:clj (s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/initial-state (s/or :template map? :method list?)))
@@ -2949,7 +2958,7 @@
                                                           :path) " is invalid."))))
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
            [thissym propsym computedsym csssym] arglist
-           {:keys [ident query initial-state protocols form-fields css css-include]} options
+           {:keys [ident query initial-state protocols form-fields css css-include pre-merge]} options
            body                             (or body ['nil])
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
@@ -2975,6 +2984,7 @@
                                               (mapcat identity))
            ident-forms                      (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-forms                      (build-initial-state env sym thissym initial-state-template-or-method legal-key-checker query-template-or-method false #_(vector? form-fields))
+           pre-merge-forms                  (build-pre-merge env sym thissym pre-merge)
            query-forms                      (build-query-forms env sym thissym propsym query-template-or-method)
            form-forms                       (build-form env (some-> form-fields second) (:template query-template-or-method))
            css-forms                        (build-css env thissym css-template-or-method css-include-template-or-method)
@@ -2992,6 +3002,7 @@
           ~@addl-protocols
           ~@css-forms
           ~@state-forms
+          ~@pre-merge-forms
           ~@ident-forms
           ~@query-forms
           ~@form-forms
@@ -3018,6 +3029,8 @@
       :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id]) ; this and props in scope
       ;; initial-state template is magic..see dev guide. Lambda version is normal.
       :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
+      ;; pre-merge, use a lamba to modify new merged data with component needs
+      :pre-merge (fn [tree] (merge {:ui/default-value :start} tree))
       :css [] ; garden css rules
       :css-include [] ; list of components that have CSS to compose towards root.
 

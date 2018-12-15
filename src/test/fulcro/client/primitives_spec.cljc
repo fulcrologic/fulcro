@@ -1506,6 +1506,25 @@
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo"))))
+       "allows pre merge hook"
+       (prim/defsc* nil '(Person
+                           [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                           {:query     [:db/id {:person/job (prim/get-query Job)}]
+                            :pre-merge (fn [tree] (merge {:ui/default :value} tree))
+                            :ident     [:PERSON/by-id :db/id]}
+                           (dom/div nil "Boo")))
+       => `(fulcro.client.primitives/defui ~'Person
+             ~'static fulcro.client.primitives/IPreMerge
+             (~'pre-merge [~'this ~'tree] (merge {:ui/default :value} ~'tree))
+             ~'static fulcro.client.primitives/Ident
+             (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
+             ~'static fulcro.client.primitives/IQuery
+             (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
+             ~'Object
+             (~'render [~'this]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
+                 (~'dom/div nil "Boo"))))
        "works without initial state"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
