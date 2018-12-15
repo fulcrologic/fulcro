@@ -2000,7 +2000,35 @@
   static prim/Ident
   (ident [this props] [:person/by-id (:id props)]))
 
-(specification "merge-component"
+(defsc MPhonePM [_ _]
+  {:ident     [:phone/by-id :id]
+   :query     [:id :number]
+   :pre-merge #(assoc % :ui/initial-flag :start)})
+
+(defsc MPersonPM [_ _]
+  {:ident [:person/by-id :id]
+   :query [:id :name {:numbers (prim/get-query MPhonePM)}]})
+
+(defsc Score
+  [this {::keys []}]
+  {:pre-merge (fn [score] (merge {:ui/expanded? false} score))
+   :ident     [::score-id ::score-id]
+   :query     [::score-id ::points :ui/expanded?]})
+
+(defsc Scoreboard
+  [this {::keys []}]
+  {:pre-merge (fn [{::keys [scores] :as scoreboard}]
+                (let [high-score (apply max (map ::points scores))
+                      scores     (mapv
+                                   (fn [{::keys [points] :as score}]
+                                     (assoc score :ui/expanded? (= points high-score)))
+                                   scores)]
+                  (assoc scoreboard ::scores scores)))
+   :ident     [::scoreboard-id ::scoreboard-id]
+   :query     [::scoreboard-id
+               {::scores (prim/get-query Score)}]})
+
+(specification "merge-component" :focused
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
         sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
         phone-3          {:id 3 :number "111-2222"}
@@ -2020,7 +2048,38 @@
       "leaves the original state untouched"
       (contains? new-state-map :people) => true
       (get-in new-state-map [:person/by-id :sally]) => sally
-      (get-in new-state-map [:phone/by-id 3]) => phone-3)))
+      (get-in new-state-map [:phone/by-id 3]) => phone-3))
+
+  #?(:cljs
+     (assertions
+       (prim/merge-component {} MPersonPM (person :wilker "Wilker" [(phone-number 55 "98765-4321")]))
+       => {:person/by-id {:wilker {:id      :wilker
+                                   :name    "Wilker"
+                                   :numbers [[:phone/by-id 55]]}}
+           :phone/by-id  {55 {:id              55
+                              :number          "98765-4321"
+                              :ui/initial-flag :start}}}
+
+       (prim/merge-component {} Scoreboard {::scoreboard-id 123
+                                            ::scores        [{::score-id 1
+                                                              ::points   4}
+                                                             {::score-id 2
+                                                              ::points   8}
+                                                             {::score-id 3
+                                                              ::points   7}]})
+       => {::scoreboard-id {123 {::scoreboard-id 123
+                                 ::scores        [[::score-id 1]
+                                                  [::score-id 2]
+                                                  [::score-id 3]]}}
+           ::score-id      {1 {::score-id    1
+                               ::points      4
+                               :ui/expanded? false}
+                            2 {::score-id    2
+                               ::points      8
+                               :ui/expanded? true}
+                            3 {::score-id    3
+                               ::points      7
+                               :ui/expanded? false}}})))
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defui Table

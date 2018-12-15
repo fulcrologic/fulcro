@@ -78,6 +78,12 @@
                (extends? IQuery class)))
      :cljs (implements? IQuery component)))
 
+(defn has-pre-merge?
+  #?(:cljs {:tag boolean})
+  [component]
+  #?(:clj  false
+     :cljs (implements? IPreMerge component)))
+
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
   [class params]
@@ -1548,6 +1554,18 @@
     target
     source))
 
+(defn component-pre-merge [component data]
+  (if (has-pre-merge? component)
+    (pre-merge component data)
+    data))
+
+(defn pre-merge-transform
+  "Transform function that modifies data using component pre-merge hook."
+  [query data]
+  (if-let [class (-> query meta :component)]
+    (component-pre-merge class data)
+    data))
+
 (defn merge-handler
   "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
   if available."
@@ -1579,7 +1597,7 @@
                         norm-query       [{idnt subquery}]
                         norm-tree        {idnt subtree}
                         norm-tree-marked (mark-missing norm-tree norm-query)
-                        db               (tree->db norm-query norm-tree-marked true)]
+                        db               (tree->db norm-query norm-tree-marked true pre-merge-transform)]
                     (cond-> (sweep-merge updated-state db)
                       target (targeting/process-target idnt target)
                       (not target) (dissoc db idnt)))
@@ -1617,7 +1635,8 @@
          normalized-result (if (:normalize config)
                              (tree->db
                                (or query (:root @(:state reconciler)))
-                               result-tree true)
+                               result-tree true
+                               pre-merge-transform)
                              result-tree)]
      (-> state-map
        (merge-mutation-joins query result-tree)
@@ -3157,7 +3176,7 @@
   (if-let [top-ident (get-ident component component-data)]
     (let [query          [{top-ident (get-query component)}]
           state-to-merge {top-ident component-data}
-          table-entries  (-> (tree->db query state-to-merge true)
+          table-entries  (-> (tree->db query state-to-merge true pre-merge-transform)
                            (dissoc ::tables top-ident))]
       (util/deep-merge state-map table-entries))
     state-map))
