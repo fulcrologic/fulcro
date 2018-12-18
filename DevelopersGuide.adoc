@@ -203,12 +203,12 @@ Your project should have a `src/main/app/client.cljs` file that looks something 
     (net/wrap-fulcro-request)))
 
 (defn ^:export init []
-  (reset! app (fc/new-fulcro-client
+  (reset! app (fc/make-fulcro-client
                 ;; This ensures your client can talk to a CSRF-protected server.
                 ;; See middleware.clj to see how the token is embedded into the HTML
-                :networking {:remote (net/fulcro-http-remote
-                                       {:url                "/api"
-                                        :request-middleware secured-request-middleware})}))
+                {:networking {:remote (net/fulcro-http-remote
+                                        {:url                "/api"
+                                         :request-middleware secured-request-middleware})}}))
   (start))
 ```
 
@@ -1451,10 +1451,10 @@ To do this, we can add an option to our client. In `app.client` change `app`:
             [app.ui.root :as root]))
 
 ...
-    (fc/new-fulcro-client
-                 :started-callback
-                 (fn [app]  ; <2>
-                   (df/load app :current-user root/Person)))))
+    (fc/make-fulcro-client
+      {:started-callback
+       (fn [app]  ; <2>
+         (df/load app :current-user root/Person))})
 ...
 ```
 
@@ -4314,9 +4314,9 @@ Say we wanted all components to be able to see `:pi` (a constant) and `:current-
 the database). We could declare this as follows:
 
 ```
-(fc/new-fulcro-client
-  :reconciler-options {:shared {:pi 3.14} ; never changes
-                       :shared-fn #(select-keys % :current-user)} ; updates on root render
+(fc/make-fulcro-client
+  {:reconciler-options {:shared {:pi 3.14} ; never changes
+                        :shared-fn #(select-keys % :current-user)}}) ; updates on root render
 ```
 
 Now *any* component can access these as follows:
@@ -5617,13 +5617,13 @@ This example shows two very common ways that data is loaded (or reloaded) in an 
 On startup, the following loads are run via the started callback:
 
 ```
-(fc/new-fulcro-client
-  :started-callback
+(fc/make-fulcro-client
+  {:started-callback
     (fn [app]
       (df/load app :load-samples/people Person {:target [:lists/by-type :enemies :people]
                                                 :params {:kind :enemy}})
       (df/load app :load-samples/people Person {:target [:lists/by-type :friends :people]
-                                                :params {:kind :friend}})))
+                                                :params {:kind :friend}}))})
 ```
 
 In this demo we're loading lists of people (thus the keyword's name). There are two kinds of people available from the
@@ -6794,7 +6794,7 @@ markers.
 include::src/book/book/demos/legacy_load_indicators.cljs[]
 ----
 
-This is still supported (and is still currently the default); however, it is deprecated because it was found to be less than ideal:
+This is still supported; however, it is deprecated because it was found to be less than ideal:
 
 . It caused the old data to disappear. There was no place else to put the targeted load marker except *over* the old data.
 This caused flicker and workarounds (such as mis-targeting the data and using post-mutations to put it in place at the end)
@@ -7097,7 +7097,7 @@ use a multi-method, then it will make it easier to co-locate your return value l
 (defmulti return-merge (fn [state mutation-sym return-value] mutation-sym))
 (defmethod return-merge :default [s m r] s)
 
-(new-fulcro-client :mutation-merge return-merge ...)
+(make-fulcro-client {:mutation-merge return-merge ...})
 ```
 
 Now you should be able to write your return merging logic next to the mutation that it goes with. For example:
@@ -7159,7 +7159,7 @@ Our mutation asks a remote server to increase the volume. The client and server 
 The remainder of the setup is just giving the merge handler function to the application at startup:
 
 ```
-(fc/new-fulcro-client :mutation-merge merge-return-value)
+(fc/make-fulcro-client {:mutation-merge merge-return-value})
 ```
 
 ++++
@@ -7542,7 +7542,7 @@ remote support simply write a function like this:
 and install it:
 
 ```
-(fc/new-fulcro-client :network-error-callback error-handler)
+(fc/make-fulcro-client {:network-error-callback error-handler})
 ```
 
 ==== Server Error Demo
@@ -8116,7 +8116,7 @@ will also need to have manual configuration of networking to ensure that it trie
 API calls.
 
 ```
-(def client (fc/new-fulcro-client :networking {:remote (fulcro.client.network/fulcro-http-remote {:url "/app1/api"})}))
+(def client (fc/make-fulcro-client {:networking {:remote (fulcro.client.network/fulcro-http-remote {:url "/app1/api"})})})
 ```
 
 === Adding Non-API Routes
@@ -8164,9 +8164,9 @@ The simplest integration is to simply use Pathom's GraphQL remote:
     ...
     [com.wsscode.pathom.fulcro.network :as pfn]))
 
-(def client (fulcro/new-fulcro-client
-              :networking {:remote (pfn/graphql-network
-                                     {::pfn/url (str "https://api.github.com/graphql?access_token=" token)})})
+(def client (fulcro/make-fulcro-client
+              {:networking {:remote (pfn/graphql-network
+                                      {::pfn/url (str "https://api.github.com/graphql?access_token=" token)})}})
 ```
 
 The more powerful and extensible method allows you to combine GraphQL access with Pathom Connect.  This gives
@@ -10914,7 +10914,7 @@ When creating your client, you will now be explicit about initial state and use 
 to decode the server-sent state:
 
 ```
-(defonce app (atom (fc/new-fulcro-client :initial-state (fulcro.server-render/get-SSR-initial-state))))
+(defonce app (atom (fc/make-fulcro-client {:initial-state (fulcro.server-render/get-SSR-initial-state}))))
 ```
 
 Of course, you could use `:started-callback` to do various other bits (like start your HTML5 routing), but this
@@ -10966,9 +10966,9 @@ One approach for getting SSR on node.js with the data loaded from the network is
 (defn ssr-enpdpoint [req resp]
   (let [started-callback (fn [{:keys [reconciler]}]
                            (df/load reconciler ...))
-        fulcro-client    (fc/new-fulcro-client
-                          :started-callback started-callback
-                          :networking {:remote (fcn/fulcro-http-remote {:url "http://localhost:3000/api"})})
+        fulcro-client    (fc/make-fulcro-client
+                          {:started-callback started-callback
+                           :networking {:remote (fcn/fulcro-http-remote {:url "http://localhost:3000/api"}})})
         mounted-app      (fc/mount fulcro-client root/Root nil) ; nil as the last argument creates a headless client
         reconciler       (:reconciler mounted-app)]
     (defer-until-network-idle
@@ -11084,7 +11084,7 @@ low-level networking. A remote can now manipulate everything from the request he
 A remote with these new features requires very little code:
 
 ```
-(fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {:url "/api"})})
+(fc/make-fulcro-client {:networking {:remote (net/fulcro-http-remote {:url "/api"})}})
 ```
 
 This will give you support for the abort and progress features.
@@ -11327,7 +11327,7 @@ installed with:
 
 ...
 
-(def client (fc/new-fulcro-client :networking {:remote (net/fulcro-http-remote {:url "/api" :response-middleware middleware})})
+(def client (fc/make-fulcro-client {:networking {:remote (net/fulcro-http-remote {:url "/api" :response-middleware middleware})}})
 ```
 
 === Interfacing with Alternate Network Protocols
@@ -11378,9 +11378,9 @@ take an atom that will hold your Fulcro app, so that resolvers for REST can inte
 Simply add the remote into your networking on the client:
 
 ```
-(fc/new-fulcro-client
-  :networking {:remote     (fulcro-http-remote ...)
-               :rest       (rr/rest-remote app)})
+(fc/make-fulcro-client
+  {:networking {:remote     (fulcro-http-remote ...)
+                :rest       (rr/rest-remote app)}})
 ```
 
 and you can use the newly defined `defresolver` to define Pathom resolvers for satisfying REST API requests, like so:
@@ -11658,12 +11658,12 @@ See the Sente documentation for information on connected UIDs.
 Installing websockets on the client is equally trivial:
 
 ```
-(fc/new-fulcro-client
-   :networking {:remote (fw/make-websocket-networking
-                          {:websockets-uri "/chsk"
-                           :push-handler push-handler
-                           :state-callback state-callback
-                           :global-error-callback (fn [& args] (apply println "Network error " args))})})
+(fc/make-fulcro-client
+   {:networking {:remote (fw/make-websocket-networking
+                           {:websockets-uri "/chsk"
+                            :push-handler push-handler
+                            :state-callback state-callback
+                            :global-error-callback (fn [& args] (apply println "Network error " args))})}})
 ```
 
 The `push-handler` is a function that will receive server push notifications (as a map with `:topic` and `:msg` keys),
@@ -11688,13 +11688,13 @@ an atom you can easily write the callbacks to use it:
   (reset! app (fc/mount @app root/Root "app")))
 
 (defn ^:export init []
-  (reset! app (fc/new-fulcro-client
+  (reset! app (fc/make-fulcro-client
                 ; replace the default remote with websockets
-                :networking {:remote (fw/make-websocket-networking "/chsk"
-                                       :push-handler push-handler
-                                       :state-callback state-callback
-                                       :global-error-callback (fn [& args]
-                                                                (apply println "Network error " args)))}))
+                {:networking {:remote (fw/make-websocket-networking "/chsk"
+                                        :push-handler push-handler
+                                        :state-callback state-callback
+                                        :global-error-callback (fn [& args]
+                                                                 (apply println "Network error " args)))}}))
   (mount))
 ```
 
@@ -11984,9 +11984,9 @@ The client should be changed to look like this:
 
 ...
 
-(fc/new-fulcro-client
-  :networking {:remote (net/fulcro-http-remote {:url                "/api"
-                                                :request-middleware secured-request-middleware})})
+(fc/make-fulcro-client
+  {:networking {:remote (net/fulcro-http-remote {:url                "/api"
+                                                 :request-middleware secured-request-middleware})}})
 ```
 
 The client simply pulls the token out of the js var, and puts it in the correct header.
@@ -12103,16 +12103,16 @@ The client change is also quite small: switch over to using websockets and send 
 websocket startup request:
 
 ```
-(fc/new-fulcro-client
-      :networking {:remote
-                   (fws/make-websocket-networking
-                     {:websockets-uri "/chsk"
-                      :push-handler   push-handler
-                      ;; we use params instead of Sente's ajax-options (which would be nice for setting headers)
-                      ;; because Sente doesn't use those for the initial socket request :(
-                      ;; Not ideal, since the CSRF token might end up stored in browser caches, proxy servers, etc.
-                      ;; Perhaps someone would make a PR to Sente?
-                      :req-params     {:csrf-token (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!")}})})
+(fc/make-fulcro-client
+      {:networking {:remote
+                    (fws/make-websocket-networking
+                      {:websockets-uri "/chsk"
+                       :push-handler   push-handler
+                       ;; we use params instead of Sente's ajax-options (which would be nice for setting headers)
+                       ;; because Sente doesn't use those for the initial socket request :(
+                       ;; Not ideal, since the CSRF token might end up stored in browser caches, proxy servers, etc.
+                       ;; Perhaps someone would make a PR to Sente?
+                       :req-params     {:csrf-token (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!")}})}})
 ```
 
 You can play with this by cloning the https://github.com/fulcrologic/security-websockets-demo[complete source for this demo].
@@ -12255,9 +12255,9 @@ When creating your client:
 
 (defn message-formatter ...)
 
-(defonce app (atom (fc/new-fulcro-client
-                     :reconciler-options {:shared    {::i18n/message-formatter message-formatter}
-                                          :shared-fn ::i18n/current-locale}}})))
+(defonce app (atom (fc/make-fulcro-client
+                     {:reconciler-options {:shared    {::i18n/message-formatter message-formatter}
+                                           :shared-fn ::i18n/current-locale}}}})))
 ```
 +
 . Your `Root` UI component *MUST* query for `::i18n/current-locale` and should also set the initial locale in
@@ -12723,7 +12723,7 @@ is:
   (loader/set-loaded! :entry-point))
 
 ...
-(new-fulcro-client Root :started-callback application-loaded!)
+(make-fulcro-client Root {:started-callback application-loaded!})
 ```
 
 === The Demo
@@ -14025,9 +14025,11 @@ The complete source for this demo is:
     (dom/h3 "Accounts with settings and users")
     (map ui-account accounts)))
 
-#?(:cljs (defonce app (atom (fc/new-fulcro-client :started-callback
-                              (fn [app]
-                                (df/load app :graph-demo/accounts Account {:target [:accounts]})))))) `#?(:cljs (swap! app fc/mount Root "app"))
+
+#?(:cljs (defonce app (atom (fc/make-fulcro-client
+                              {:started-callback
+                               (fn [app]
+                                 (df/load app :graph-demo/accounts Account {:target [:accounts]}))})))) `#?(:cljs (swap! app fc/mount Root "app"))
 ----
 
 ++++
