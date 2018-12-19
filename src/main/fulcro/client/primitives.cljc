@@ -956,7 +956,6 @@
                       (recur (next q) (assoc ret k x))))
 
                   ;; normalize many
-
                   (and (vector? v) (not (util/ident? v)) (not (util/ident? (first v))))
                   (let [xs (into [] (map #(normalize* sel % refs union-entry transform)) v)]
                     (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
@@ -1570,12 +1569,15 @@
     target
     source))
 
-(defn component-pre-merge [class state data]
+(defn component-pre-merge [class query state data]
   (if (has-pre-merge? class)
     (let [entity (if #?(:clj  (-> class meta :ident)
                         :cljs (implements? Ident class))
                    (get-in state (get-ident class data)))]
-      (pre-merge class {:state-map state :current-normalized entity :data-tree data}))
+      (pre-merge class {:state-map          state
+                        :current-normalized entity
+                        :data-tree          data
+                        :query              query}))
     data))
 
 (defn pre-merge-transform
@@ -1583,7 +1585,7 @@
   [state]
   (fn pre-merge-transform-internal [query data]
     (if-let [class (-> query meta :component)]
-      (component-pre-merge class state data)
+      (component-pre-merge class query state data)
       data)))
 
 (defn merge-handler

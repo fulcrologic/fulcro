@@ -2093,10 +2093,10 @@
 
   #?(:cljs
      (assertions
-       (prim/merge-component {} MPersonPM (person :wilker "Wilker" [(phone-number 55 "98765-4321")]))
-       => {:person/by-id {:wilker {:id      :wilker
-                                   :name    "Wilker"
-                                   :numbers [[:phone/by-id 55]]}}
+       (prim/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
+       => {:person/by-id {:mary {:id      :mary
+                                 :name    "Mary"
+                                 :numbers [[:phone/by-id 55]]}}
            :phone/by-id  {55 {:id              55
                               :number          "98765-4321"
                               :ui/initial-flag :start}}}
