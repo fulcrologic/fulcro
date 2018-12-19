@@ -12,7 +12,7 @@
                                    :list/items [{:item/id 1 :item/label "A"}
                                                 {:item/id 2 :item/label "B"}]}})
 
-(defonce app (atom (fc/new-fulcro-client :initial-state initial-state)))
+(defonce app (atom (fc/make-fulcro-client {:initial-state initial-state})))
 
 (m/defmutation delete-item
   "Mutation: Delete an item from a list"

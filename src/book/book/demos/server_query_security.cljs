@@ -80,12 +80,11 @@
 
 (def initial-state {:ui/react-key "abc"})
 
-(defonce app (atom (fc/new-fulcro-client
-                     :initial-state initial-state
-                     :started-callback
-                     (fn [{:keys [reconciler]}]
-                       ; TODO
-                       ))))
+(defonce app (atom (fc/make-fulcro-client
+                     {:initial-state    initial-state
+                      :started-callback (fn [{:keys [reconciler]}]
+                                          ; TODO
+                                          )})))
 
 (defsc Person [this {:keys [name address cc-number]}]
   {:query [:ui/fetch-state :name :address :cc-number]}
