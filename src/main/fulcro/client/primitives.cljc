@@ -49,7 +49,17 @@
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
 (defprotocol IPreMerge
-  (pre-merge [this entity tree] "Modify data before merging."))
+  (pre-merge* [this data] "Modify data before merging."))
+
+(defn pre-merge [class data]
+  #?(:clj  (if-let [pre-merge (if (component? class)
+                                pre-merge*
+                                (-> class meta :pre-merge*))]
+             (pre-merge class data)
+             (log/warn "pre-merge called with something that is either not a class or does not implement pre-merge: " class))
+     :cljs (if (implements? IPreMerge class)
+             (pre-merge* class data)
+             (log/warn "pre-merge called with something that is either not a class or does not implement pre-merge: " class))))
 
 (defn has-initial-app-state?
   #?(:cljs {:tag boolean})
@@ -81,7 +91,10 @@
 (defn has-pre-merge?
   #?(:cljs {:tag boolean})
   [component]
-  #?(:clj  false
+  #?(:clj  (if (fn? component)
+             (some? (-> component meta :pre-merge*))
+             (let [class (cond-> component (component? component) class)]
+               (extends? IPreMerge class)))
      :cljs (implements? IPreMerge component)))
 
 (defn get-initial-state
@@ -892,7 +905,9 @@
     :else #{}))
 
 (defn- normalize* [query data refs union-seen transform]
-  (let [data (if transform (transform query data) data)]
+  (let [data (if (and transform (not (vector? data)))
+               (transform query data)
+               data)]
     (cond
       (= '[*] query) data
 
@@ -941,7 +956,8 @@
                       (recur (next q) (assoc ret k x))))
 
                   ;; normalize many
-                  (vector? v)
+
+                  (and (vector? v) (not (util/ident? v)) (not (util/ident? (first v))))
                   (let [xs (into [] (map #(normalize* sel % refs union-entry transform)) v)]
                     (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
                                                      :cljs (implements? Ident class))))
@@ -1559,7 +1575,7 @@
     (let [entity (if #?(:clj  (-> class meta :ident)
                         :cljs (implements? Ident class))
                    (get-in state (get-ident class data)))]
-      (pre-merge class entity data))
+      (pre-merge class {:state-map state :current-normalized entity :data-tree data}))
     data))
 
 (defn pre-merge-transform
@@ -2900,7 +2916,7 @@
    (defn- build-pre-merge [env thissym pre-merge]
      (when pre-merge
        `(~'static fulcro.client.primitives/IPreMerge
-          ~(replace-and-validate-fn env 'pre-merge [thissym] 2 pre-merge)))))
+          ~(replace-and-validate-fn env 'pre-merge* [thissym] 1 pre-merge)))))
 
 #?(:clj (s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?)))

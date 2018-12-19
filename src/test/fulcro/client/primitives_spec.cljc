@@ -2004,7 +2004,11 @@
 (defsc MPhonePM [_ _]
   {:ident     [:phone/by-id :id]
    :query     [:id :number]
-   :pre-merge (fn [o x] (merge {:ui/initial-flag :start} o x))})
+   :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {:ui/initial-flag :start}
+                  current-normalized
+                  data-tree))})
 
 (defsc MPersonPM [_ _]
   {:ident [:person/by-id :id]
@@ -2012,19 +2016,26 @@
 
 (defsc Score
   [this {::keys []}]
-  {:pre-merge (fn [cur score] (merge {:ui/expanded? false} cur score))
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {:ui/expanded? false}
+                  current-normalized
+                  data-tree))
    :ident     [::score-id ::score-id]
    :query     [::score-id ::points :ui/expanded?]})
 
 (defsc Scoreboard
   [this {::keys []}]
-  {:pre-merge (fn [_ {::keys [scores] :as scoreboard}]
-                (let [high-score (apply max (map ::points scores))
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (let [{::keys [scores]} data-tree
+                      high-score (apply max (map ::points scores))
                       scores     (mapv
                                    (fn [{::keys [points] :as score}]
                                      (assoc score :ui/expanded? (= points high-score)))
                                    scores)]
-                  (assoc scoreboard ::scores scores)))
+                  (merge
+                    current-normalized
+                    (assoc data-tree ::scores scores))))
    :ident     [::scoreboard-id ::scoreboard-id]
    :query     [::scoreboard-id
                {::scores (prim/get-query Score)}]})
@@ -2033,13 +2044,21 @@
 
 (defsc UiItem
   [_ _]
-  {:pre-merge (fn [o n] (merge {::id (swap! id-counter inc)} o n))
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {::id (swap! id-counter inc)}
+                  current-normalized
+                  data-tree))
    :ident     [::id ::id]
    :query     [::id ::title]})
 
 (defsc UiLoadedItem
   [_ _]
-  {:pre-merge (fn [o n] (merge {:ui/item {}} o n))
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {:ui/item {}}
+                  current-normalized
+                  data-tree))
    :ident     [::loaded-id ::loaded-id]
    :query     [::loaded-id ::name
                {:ui/item (fp/get-query UiItem)}]})
@@ -2178,13 +2197,53 @@
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))
 
+(defsc AUIChild [_ _] {:ident     [:ui/id :ui/id]
+                       :query     [:ui/id :ui/name]
+                       :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                                    (merge
+                                      {:ui/id   "child-id"
+                                       :ui/name "123"}
+                                      current-normalized data-tree))})
+
+(defsc AUIParent [_ _] {:ident     [:id :id]
+                        :query     [:id {:ui/child (fp/get-query AUIChild)}]
+                        :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                                     (merge
+                                       {:ui/child {}}
+                                       current-normalized
+                                       data-tree))})
+
 (specification "tree->db" :focused
   (assertions
     (prim/tree->db AQuery {:x "value"}) => {:x "value"}
 
     "accepts custom transform fn"
     (prim/tree->db AQuery {:x "value"} true #(assoc %2 :ui/data "extra"))
-    => {:x "value" :ui/data "extra"}))
+    => {:x "value" :ui/data "extra"}
+
+    (prim/tree->db AUIParent {:id 123} true (prim/pre-merge-transform {}))
+    => {:id       123
+        :ui/child [:ui/id "child-id"]
+        :ui/id    {"child-id" {:ui/id "child-id", :ui/name "123"}}}
+
+    "to one idents"
+    (prim/tree->db AUIParent {:id 123} true
+      (prim/pre-merge-transform {:id    {123 {:id       123
+                                              :ui/child [:ui/id "child-id"]}}
+                                 :ui/id {"child-id" {:ui/id "child-id", :ui/name "123"}}}))
+    => {:id       123
+        :ui/child [:ui/id "child-id"]}
+
+    "to many idents"
+    (prim/tree->db AUIParent {:id 123} true
+      (prim/pre-merge-transform {:id    {123 {:id       123
+                                              :ui/child [[:ui/id "child-id"]
+                                                         [:ui/id "child-id2"]]}}
+                                 :ui/id {"child-id"  {:ui/id "child-id", :ui/name "123"}
+                                         "child-id2" {:ui/id "child-id2", :ui/name "456"}}}))
+    => {:id       123
+        :ui/child [[:ui/id "child-id"]
+                   [:ui/id "child-id2"]]}))
 
 (specification "Detection of static protocols"
   (assertions
