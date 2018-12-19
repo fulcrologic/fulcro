@@ -5,7 +5,7 @@
     [fulcro.client.mutations :as m]
     [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]))
 
-(defonce app (atom (fc/new-fulcro-client)))
+(defonce app (atom (fc/make-fulcro-client {})))
 
 (defmethod m/mutate 'nav/settings [{:keys [state]} sym params]
   {:action (fn [] (swap! state assoc :panes [:settings :singleton]))})
