@@ -6,7 +6,7 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
-2.7.0
+2.6.19
 ------
 - Added pre-merge support
 
