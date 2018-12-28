@@ -2753,13 +2753,18 @@
 
 #?(:clj
    (defn- make-static-lifecycle [options]
-     (when (contains? options :getDerivedStateFromProps)
-       (let [lambda (get options :getDerivedStateFromProps)]
-         ['static 'field 'getDerivedStateFromProps `(fn [p# s#]
-                                                      (let [fp#        (goog.object/get p# "fulcro$value")
-                                                            fs#        (goog.object/get s# "fulcro$state")
-                                                            new-state# (merge fs# (~lambda fp# fs#))]
-                                                        (cljs.core/js-obj "fulcro$state" new-state#)))]))))
+     (when (or (contains? options :getDerivedStateFromProps) (contains? options :getDerivedStateFromError))
+       (cond-> []
+         (:getDerivedStateFromProps options) (into ['static 'field 'getDerivedStateFromProps
+                                                    `(fn [p# s#]
+                                                       (let [fp#        (goog.object/get p# "fulcro$value")
+                                                             fs#        (goog.object/get s# "fulcro$state")
+                                                             new-state# (merge fs# (~(:getDerivedStateFromProps options) fp# fs#))]
+                                                         (cljs.core/js-obj "fulcro$state" new-state#)))])
+         (:getDerivedStateFromError options) (into ['static 'field 'getDerivedStateFromError
+                                                    `(fn [e#]
+                                                       (let [new-state# (~(:getDerivedStateFromError options) e#)]
+                                                         (cljs.core/js-obj "fulcro$state" new-state#)))])))))
 
 (defn make-state-map
   "Build a component's initial state using the defsc initial-state-data from
@@ -3041,6 +3046,9 @@
       :componentDidCatch         (fn [error info] ...)
       :getSnapshotBeforeUpdate   (fn [prevProps prevState] ...)
       :getDerivedStateFromProps  (fn [props state] ...)
+
+      ;; ADDED for React 16.6:
+      :getDerivedStateFromError  (fn [error] ...)  **NOTE**: OVERWRITES entire state. This differs slightly from React.
 
       NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
       that other libraries can control the sub-dom. If you do want to implement it, then old props can
