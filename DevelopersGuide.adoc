@@ -11573,7 +11573,7 @@ and then create a middleware stack like this:
       wrap-api
       server/wrap-transit-params
       server/wrap-transit-response
-      (server/wrap-protect-origins {:allow-when-origin-missing? false
+      (server/wrap-protect-origins {:allow-when-origin-missing? true
                                     :legal-origins              legal-origins})
       (wrap-uris {"/"           generate-index
                   "/index.html" generate-index})
@@ -11634,13 +11634,38 @@ The client simply pulls the token out of the js var, and puts it in the correct 
 You could also use a js-accessible cookie for this step, which would let you go back to static HTML serving. See the
 earlier comments and links about CSRF.
 
-==== Sente Websockets
+==== Securing Sente Websockets (Fulcro 2.7+ with Sente 1.14+)
+
+Older versions of Sente had a CSRF security hole, for which we had the <<OldSenteCSRF,documented workaround>>.
+ New versions of Sente have a fix, so the implementation is much easier:
+
+. Make sure to include `wrap-anti-forgery` (or enable it in `wrap-defaults`) in your middleware.
+. Embed the CSRF token in your HTML as a js var or in the DOM itself.  Serving the CSRF token in the HTML is an
+accepted security practice that prevents external discovery.
+. Send the CSRF token you find in cljs to the websocket constructor.
+
+The websocket remote need only be passed the CSRF token:
+
+```
+(let [csrf-token js/embedded_csrf_token]
+  (fulcro.websockets/make-websocket-networking {:uri "/chsk"
+                                                :csrf-token csrf-token
+                                                ...)
+```
+
+See the documentation on general websockets for more information on their server-side setup other general options, but
+be sure to include the anti-forgery middleware so it runs before your API if you want to enforce CSRF protections.
+
+==== Securing Sente Websockets (Fulcro 2.6.x and Sente Prior to 1.14) [[OldSenteCSRF]]
+
+WARNING: Do not use this approach for new apps!  Upgrade Fulcro and sente instead.
 
 Sente has an internal CSRF support, which it uses to deal with augmenting the POST requests it might make (it supports
 alternate network techniques to get around missing websocket support).  Unfortunately,
 it exchanges the CSRF from `wrap-anti-forgery` within a (js-accessible) handshake.  This *can* be ok *as long as that
 handshake never happens without CSRF protection *already in place*.  Otherwise you are open to websocket hijacking, and
-also exposing the CSRF token and compromising your *other* remote processing as well!
+also exposing the CSRF token and compromising your *other* remote processing as well!  (This was a reported issue
+on Sente, and is fixed in 1.14.0-RC1)
 
 Fulcro's websocket contruction function allows you to pass a parameters through sente, and you can use these to
 include the CSRF token, and then add a bit of additional middleware to require that in front of your websocket setup
@@ -11704,7 +11729,7 @@ Of course, you need websocket middleware, and it needs to do CSRF checks *before
       wrap-websockets
       server/wrap-transit-params
       server/wrap-transit-response
-      (server/wrap-protect-origins {:allow-when-origin-missing? false
+      (server/wrap-protect-origins {:allow-when-origin-missing? true
                                     :legal-origins              legal-origins})
       (wrap-uris {"/"           generate-index
                   "/index.html" generate-index})
