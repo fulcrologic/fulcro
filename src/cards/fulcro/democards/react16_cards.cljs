@@ -118,12 +118,14 @@
                        (update-in [:lists/by-id 1 :items] (fn [v]
                                                             (into [[:items/by-id id]] v)))))))))
 
+(defonce boom (atom :a/b))
+
 (defsc MyItem [this {:keys [value] :as props}]
   {:query         [:id :value]
    :ident         [:items/by-id :id]
    :initial-state {:id :param/id :value :param/v}}
-  (js/console.log (-> props meta))
   (dom/li
+    (name @boom)
     (dom/a {:onClick #(prim/transact! this `[(insert-in-front {}) :items])} value)))
 
 (def ui-item (prim/factory MyItem {:keyfn :id}))
@@ -139,14 +141,28 @@
 
 (defsc Root [this {:keys [ROOT] :as props}]
   {:query                    [{:ROOT (prim/get-query MyList)}]
+   :getDerivedStateFromError (fn [error]
+                               (js/console.log :gdsfe error)
+                               {:error true
+                                :cause error})
    :getDerivedStateFromProps (fn [props state]
                                (js/console.log :gdsfp props state)
                                {:x 42})
    :initial-state            {:ROOT {}}}
-  (js/console.log :root-props props :st (prim/get-state this))
-  (dom/div
-    (dom/button {:onClick #(prim/set-state! this {:n 1})})
-    (ui-list ROOT)))
+  (let [{:keys [error cause]} (prim/get-state this)]
+    (js/console.log :root-props props :error error :cause cause)
+    (if error
+      (dom/div
+        (dom/span (str cause))
+        (dom/button {:onClick #(do
+                                 (reset! boom :x/y)
+                                 (prim/set-state! this {:error false}))} "try again"))
+      (dom/div
+        (dom/button {:onClick #(prim/set-state! this {:n 1})} "Set State")
+        (dom/button {:onClick (fn []
+                                (reset! boom nil)
+                                (prim/set-state! this {:n 2}))} "Kill it")
+        (ui-list ROOT)))))
 
 (defcard-fulcro reordering-to-many-and-get-derived-state-from-props
   Root

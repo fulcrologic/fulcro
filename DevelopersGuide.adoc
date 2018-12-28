@@ -2620,9 +2620,55 @@ The signatures are:
     :componentWillMount        (fn [] ...)
     :componentDidMount         (fn [] ...)
     :componentWillUnmount      (fn [] ...)
+
+    ;; Replacements for deprecated methods in React 16.3+
+    :UNSAFE_componentWillReceiveProps (fn [next-props] ...)
+    :UNSAFE_componentWillUpdate       (fn [next-props next-state] ...)
+    :UNSAFE_componentWillMount        (fn [] ...)
+
+    ;; ADDED for React 16:
+    :componentDidCatch         (fn [error info] ...)
+    :getSnapshotBeforeUpdate   (fn [prevProps prevState] ...)
+    :getDerivedStateFromProps  (fn [props state] ...)
+
+    ;; ADDED for React 16.6:
+    :getDerivedStateFromError  (fn [error] ...)  **NOTE**: Sets low-level state, Use get-react-state.
 ```
 
 See the React documentation for more details on how these work.
+
+==== Component Local State and Errors
+
+Fulcro wraps React's state such that you can easily store cljs data in the component (e.g.
+arguments to methods like `componentDidUpdate` `prev-state` will be a cljs map, NOT the raw JS one
+that React uses).
+
+The same is true for the return value of `initLocalState`: You return a CLJS map, and it is safely stored in react
+state and behave just like the native.
+
+The advantage of this is twofold:
+
+. Convenience: You get to use immutable data for component-local state
+. Speed: Fulcro is able to very quickly compare and short-circuit React rendering because immutable state is very
+fast to compare (it can mostly be a single reference compare).
+
+This is accomplished by storing the "Fulcro" version of component state under the `fulcro$state` key in the low-level js
+state.  Normally, this is of no concern to you at all, but React 16.7 added a *static* lifecycle method
+called `getDerivedStateFromError` whose return value is meant to be a js map that gets *merged* to the low-level state,
+and there is no internal hook or hack (yet found) to merge that into the correct Fulcro location.
+
+Thus, if you provide a `getDerivedStateFromError` your return value (a CLJS map) will *overwrite* your current
+component local state.
+
+If you're not using component local state for anything else, then this is probably just fine, but if you have
+important information in component-local state you may want to choose an alternative.
+
+One workaround is to set state in `componentDidCatch`.  This is deprecated by React because it happens in a different
+phase of the React processing, so you should read up on that in the React docs to see if it is acceptable for your
+case.
+
+Another (trivial but possibly annoying) workaround is to write a wrapper component that does nothing but deal with errors, so
+that the state is never used for anything *but* error handling.
 
 ==== Additional Protocol Support
 

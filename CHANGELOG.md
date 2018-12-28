@@ -6,6 +6,10 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
+2.6.19
+------
+- Added getDerivedStateFromError lifecycle support
+
 2.6.18
 ------
 - Added a bunch of missing SVG tags to DOM.
