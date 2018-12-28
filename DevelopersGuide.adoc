@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: December 6, 2018
-:revnumber: 28
+:revdate: December 27, 2018
+:revnumber: 29
 :lang: en
 :encoding: UTF-8
 :doctype: book
