@@ -8,8 +8,13 @@
     [fulcro.util :as util :refer [unique-key]]
     [cognitect.transit :as t]
     [fulcro.client.impl.parser :as parser]
-    #?(:clj
-    [clojure.spec.gen.alpha :as sg])))
+    [clojure.string :as str]
+    #?(:cljs [cljs.pprint :refer [char-code]])
+    #?(:cljs [goog.crypt :as crypt])
+    #?(:cljs [goog.crypt.base64 :as b64])
+    #?(:clj  [clojure.spec.gen.alpha :as sg]))
+  #?(:clj (:import [java.util Base64]
+                   [java.nio.charset StandardCharsets])))
 
 (defn force-render
   "Re-render components. If only a reconciler is supplied then it forces a full React DOM refresh.
@@ -52,6 +57,19 @@
   ([str opts]
    #?(:cljs (t/read (prim/reader opts) str)
       :clj  (t/read (prim/reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8")) opts)))))
+
+(defn base64-encode
+  "Encode a string to UTF-8 and encode the result to base 64"
+  [str]
+  #?(:clj  (.encodeToString (Base64/getEncoder) (.getBytes str "UTF-8"))
+     :cljs (let [bytes (crypt/stringToUtf8ByteArray (clj->js str))]  ;; First convert our JavaScript string from UCS-2/UTF-16 to UTF-8 bytes
+             (b64/encodeString (str/join "" (map char bytes))))))    ;; base64 encode that byte array to a string
+
+(defn base64-decode
+  [str]
+  #?(:clj  (String. (.decode (Base64/getDecoder) ^String str) (StandardCharsets/UTF_8))
+     :cljs (let [bytes (map char-code (vec (b64/decodeString str)))] ;; b64/decodeString produces essentially a byte array
+             (crypt/utf8ByteArrayToString (clj->js bytes)))))        ;; Convert the byte array to a valid JavaScript string (either UCS-2 or UTF-16)
 
 (defn strip-parameters
   "Removes parameters from the query, e.g. for PCI compliant logging."
