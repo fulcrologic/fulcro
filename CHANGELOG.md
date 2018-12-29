@@ -16,6 +16,7 @@ workaround) but the official fix required an API change. The
 now requires a CSRF token.
 - You MUST upgrade your sente version (if you're using websockets) to
 14.0-RC1 or better.
+- Fix for SSR encoding/decoding of state (thanks @lennartbuit)
 
 2.6.19
 ------
