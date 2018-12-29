@@ -46,21 +46,37 @@
    (specification "SSR script tag generation"
      (assertions
        "puts an assignment on the document window"
-       (ssr/initial-state->script-tag []) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = '[]'\n</script>\n")))
+       (ssr/initial-state->script-tag []) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = 'W10='\n</script>\n"))
+   :cljs
+   (specification "SSR initial-state extraction"
+     (set! (.-INITIAL_APP_STATE js/window) "W10=")
+     (assertions
+       "Can pull the initial state from the document's window"
+       (ssr/get-SSR-initial-state) => [])))
 
 #?(:clj
-   (specification "SSR script tag generation w/ apos"
+   (specification "SSR script tag generation w/ emoji"
      (assertions
-       "puts an assignment on the document window with some tricky content"
-       (ssr/initial-state->script-tag {:some-field "some text's apostrophe"}) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = '[\"^ \",\"~:some-field\",\"some text\\'s apostrophe\"]'\n</script>\n")))
+       "puts an assignment on the document window with some emoji content"
+       (ssr/initial-state->script-tag {:emoji "\u26d1"}) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = 'WyJeICIsIn46ZW1vamkiLCLim5EiXQ=='\n</script>\n"))
+   :cljs
+   (specification "SSR initial-state extraction w/ emoji"
+     (set! (.-INITIAL_APP_STATE js/window) "WyJeICIsIn46ZW1vamkiLCLim5EiXQ==")
+     (assertions
+       "Can pull the initial state from the document's window"
+       (ssr/get-SSR-initial-state) => {:emoji "\u26d1"})))
 
-#?(:cljs
-   (specification "SSR initial-state extraction"
-     (let [state (util/transit-clj->str [])]
-       (set! (.-INITIAL_APP_STATE js/window) state)
-       (assertions
-         "Can pull the initial state from the document's window"
-         (ssr/get-SSR-initial-state) => []))))
+#?(:clj
+   (specification "SSR script tag generation w/ naughty strings"
+     (assertions
+       "puts an assignment on the document window with some nefarious content"
+       (ssr/initial-state->script-tag {:naughty "\u0001\u0002\u0003\u0004\u0005"}) => "<script type='text/javascript'>\nwindow.INITIAL_APP_STATE = 'WyJeICIsIn46bmF1Z2h0eSIsIlx1MDAwMVx1MDAwMlx1MDAwM1x1MDAwNFx1MDAwNSJd'\n</script>\n"))
+   :cljs
+   (specification "SSR initial-state extraction w/ naughty string"
+     (set! (.-INITIAL_APP_STATE js/window) "WyJeICIsIn46bmF1Z2h0eSIsIlx1MDAwMVx1MDAwMlx1MDAwM1x1MDAwNFx1MDAwNSJd")
+     (assertions
+       "Can pull the initial state from the document's window"
+       (ssr/get-SSR-initial-state) => {:naughty "\u0001\u0002\u0003\u0004\u0005"})))
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defui Table

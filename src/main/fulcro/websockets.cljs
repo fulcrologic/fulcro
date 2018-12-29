@@ -18,19 +18,21 @@
 (defrecord Websockets [queue ready? channel-socket push-handler
                        websockets-uri host state-callback
                        global-error-callback transit-handlers
-                       req-params stop app auto-retry? sente-options]
+                       req-params stop app auto-retry? sente-options
+                       csrf-token]
   FulcroNetwork
   (send [this edn ok err] (async/go (async/>! queue {:this this :edn edn :ok ok :err err})))
   (start [this]
-    (let [{:keys [ch-recv state] :as cs} (sente/make-channel-socket!
-                                          websockets-uri ; path on server
-                                          (merge {:packer         (tp/make-packer transit-handlers)
-                                                  :host           host
-                                                  :type           :auto ; e/o #{:auto :ajax :ws}
-                                                  :backoff-ms-fn  (fn [attempt] (min (* attempt 1000) 4000))
-                                                  :params         req-params
-                                                  :wrap-recv-evs? false}
-                                                 sente-options))
+    (let [{:keys [ch-recv state] :as cs} (sente/make-channel-socket-client!
+                                           websockets-uri   ; path on server
+                                           csrf-token
+                                           (merge {:packer         (tp/make-packer transit-handlers)
+                                                   :host           host
+                                                   :type           :auto ; e/o #{:auto :ajax :ws}
+                                                   :backoff-ms-fn  (fn [attempt] (min (* attempt 1000) 4000))
+                                                   :params         req-params
+                                                   :wrap-recv-evs? false}
+                                             sente-options))
           message-received (make-event-handler push-handler)]
       (add-watch state ::ready (fn [a k o n]
                                  (if auto-retry?
@@ -49,23 +51,23 @@
                 {:keys [send-fn]} @channel-socket]
             (try
               (send-fn [:fulcro.client/API edn] 30000
-               (fn process-response [resp]
-                 (if (cb-success? resp)
-                   (let [{:keys [status body]} resp]
-                     (if (= 200 status)
-                       (ok body)
-                       (do
-                         (err body)
-                         (when global-error-callback
-                           (global-error-callback resp)))))
-                   (if auto-retry?
-                     (do
-                       ; retry...sente already does connection back-off, so probably don't need back-off here
-                       (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
-                     (let [body {:fulcro.server/error :network-disconnect}]
-                       (err body)
-                       (when global-error-callback
-                         (global-error-callback {:status 408 :body body})))))))
+                (fn process-response [resp]
+                  (if (cb-success? resp)
+                    (let [{:keys [status body]} resp]
+                      (if (= 200 status)
+                        (ok body)
+                        (do
+                          (err body)
+                          (when global-error-callback
+                            (global-error-callback resp)))))
+                    (if auto-retry?
+                      (do
+                        ; retry...sente already does connection back-off, so probably don't need back-off here
+                        (js/setTimeout #(fulcro.client.network/send this edn ok err) 1000))
+                      (let [body {:fulcro.server/error :network-disconnect}]
+                        (err body)
+                        (when global-error-callback
+                          (global-error-callback {:status 408 :body body})))))))
               (catch :default e
                 (log/error "Sente send failure!" e))))
           (do
@@ -91,21 +93,26 @@
   - `auto-retry?` - A boolean (default false). If set to true any network disconnects will lead to infinite retries until
                     the network returns. All remote mutations should be idempotent.
   - `sente-options` - A map of options that is passed directly to the sente websocket channel construction (see sente docs).
+  - `csrf-token` - The CSRF token provided by the server (embedded in HTML. See Dev Guide). If
+  not supplied, it looks for the value in `js/fulcro_network_csrf_token` as a global js var.
   "
   ([] (make-websocket-networking {}))
   ([{:keys [websockets-uri global-error-callback push-handler host req-params
-            state-callback transit-handlers auto-retry? sente-options]}]
-   (map->Websockets {:channel-socket        (atom nil)
-                     :queue                 (async/chan)
-                     :ready?                (atom false)
-                     :auto-retry?           auto-retry?
-                     :websockets-uri        (or websockets-uri "/chsk")
-                     :push-handler          push-handler
-                     :host                  host
-                     :state-callback        state-callback
-                     :global-error-callback global-error-callback
-                     :transit-handlers      transit-handlers
-                     :app                   (atom nil)
-                     :stop                  (atom nil)
-                     :req-params            req-params
-                     :sente-options         sente-options})))
+            state-callback transit-handlers auto-retry? sente-options
+            csrf-token]}]
+   (let [csrf-token (or csrf-token js/fulcro_network_csrf_token "NO CSRF TOKEN SUPPLIED.")]
+     (map->Websockets {:channel-socket        (atom nil)
+                      :csrf-token            csrf-token
+                      :queue                 (async/chan)
+                      :ready?                (atom false)
+                      :auto-retry?           auto-retry?
+                      :websockets-uri        (or websockets-uri "/chsk")
+                      :push-handler          push-handler
+                      :host                  host
+                      :state-callback        state-callback
+                      :global-error-callback global-error-callback
+                      :transit-handlers      transit-handlers
+                      :app                   (atom nil)
+                      :stop                  (atom nil)
+                      :req-params            req-params
+                      :sente-options         sente-options}))))

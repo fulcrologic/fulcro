@@ -18,8 +18,8 @@
      ([initial-state opts] (initial-state->script-tag initial-state opts identity))
      ([initial-state opts string-transform]
       (let [state-string (-> (util/transit-clj->str initial-state opts)
-                             (clojure.string/replace #"'" "\\\\'")
-                             (string-transform))
+                             (string-transform)
+                             (util/base64-encode))
             assignment   (str "window.INITIAL_APP_STATE = '" state-string "'")]
         (str
          "<script type='text/javascript'>\n"
@@ -31,7 +31,7 @@
      "Obtain the value of the INITIAL_APP_STATE set from server-side rendering. Use initial-state->script-tag on the server to embed the state."
      ([] (get-SSR-initial-state {}))
      ([opts]
-      (when-let [state-string (.-INITIAL_APP_STATE js/window)]
+      (when-let [state-string (util/base64-decode (.-INITIAL_APP_STATE js/window))]
         (util/transit-str->clj state-string opts)))))
 
 (defn build-initial-state
