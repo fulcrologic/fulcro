@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: December 6, 2018
-:revnumber: 28
+:revdate: December 27, 2018
+:revnumber: 29
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -2620,9 +2620,55 @@ The signatures are:
     :componentWillMount        (fn [] ...)
     :componentDidMount         (fn [] ...)
     :componentWillUnmount      (fn [] ...)
+
+    ;; Replacements for deprecated methods in React 16.3+
+    :UNSAFE_componentWillReceiveProps (fn [next-props] ...)
+    :UNSAFE_componentWillUpdate       (fn [next-props next-state] ...)
+    :UNSAFE_componentWillMount        (fn [] ...)
+
+    ;; ADDED for React 16:
+    :componentDidCatch         (fn [error info] ...)
+    :getSnapshotBeforeUpdate   (fn [prevProps prevState] ...)
+    :getDerivedStateFromProps  (fn [props state] ...)
+
+    ;; ADDED for React 16.6:
+    :getDerivedStateFromError  (fn [error] ...)  **NOTE**: Sets low-level state, Use get-react-state.
 ```
 
 See the React documentation for more details on how these work.
+
+==== Component Local State and Errors
+
+Fulcro wraps React's state such that you can easily store cljs data in the component (e.g.
+arguments to methods like `componentDidUpdate` `prev-state` will be a cljs map, NOT the raw JS one
+that React uses).
+
+The same is true for the return value of `initLocalState`: You return a CLJS map, and it is safely stored in react
+state and behave just like the native.
+
+The advantage of this is twofold:
+
+. Convenience: You get to use immutable data for component-local state
+. Speed: Fulcro is able to very quickly compare and short-circuit React rendering because immutable state is very
+fast to compare (it can mostly be a single reference compare).
+
+This is accomplished by storing the "Fulcro" version of component state under the `fulcro$state` key in the low-level js
+state.  Normally, this is of no concern to you at all, but React 16.7 added a *static* lifecycle method
+called `getDerivedStateFromError` whose return value is meant to be a js map that gets *merged* to the low-level state,
+and there is no internal hook or hack (yet found) to merge that into the correct Fulcro location.
+
+Thus, if you provide a `getDerivedStateFromError` your return value (a CLJS map) will *overwrite* your current
+component local state.
+
+If you're not using component local state for anything else, then this is probably just fine, but if you have
+important information in component-local state you may want to choose an alternative.
+
+One workaround is to set state in `componentDidCatch`.  This is deprecated by React because it happens in a different
+phase of the React processing, so you should read up on that in the React docs to see if it is acceptable for your
+case.
+
+Another (trivial but possibly annoying) workaround is to write a wrapper component that does nothing but deal with errors, so
+that the state is never used for anything *but* error handling.
 
 ==== Additional Protocol Support
 
@@ -11527,7 +11573,7 @@ and then create a middleware stack like this:
       wrap-api
       server/wrap-transit-params
       server/wrap-transit-response
-      (server/wrap-protect-origins {:allow-when-origin-missing? false
+      (server/wrap-protect-origins {:allow-when-origin-missing? true
                                     :legal-origins              legal-origins})
       (wrap-uris {"/"           generate-index
                   "/index.html" generate-index})
@@ -11588,13 +11634,38 @@ The client simply pulls the token out of the js var, and puts it in the correct 
 You could also use a js-accessible cookie for this step, which would let you go back to static HTML serving. See the
 earlier comments and links about CSRF.
 
-==== Sente Websockets
+==== Securing Sente Websockets (Fulcro 2.7+ with Sente 1.14+)
+
+Older versions of Sente had a CSRF security hole, for which we had the <<OldSenteCSRF,documented workaround>>.
+ New versions of Sente have a fix, so the implementation is much easier:
+
+. Make sure to include `wrap-anti-forgery` (or enable it in `wrap-defaults`) in your middleware.
+. Embed the CSRF token in your HTML as a js var or in the DOM itself.  Serving the CSRF token in the HTML is an
+accepted security practice that prevents external discovery.
+. Send the CSRF token you find in cljs to the websocket constructor.
+
+The websocket remote need only be passed the CSRF token:
+
+```
+(let [csrf-token js/embedded_csrf_token]
+  (fulcro.websockets/make-websocket-networking {:uri "/chsk"
+                                                :csrf-token csrf-token
+                                                ...)
+```
+
+See the documentation on general websockets for more information on their server-side setup other general options, but
+be sure to include the anti-forgery middleware so it runs before your API if you want to enforce CSRF protections.
+
+==== Securing Sente Websockets (Fulcro 2.6.x and Sente Prior to 1.14) [[OldSenteCSRF]]
+
+WARNING: Do not use this approach for new apps!  Upgrade Fulcro and sente instead.
 
 Sente has an internal CSRF support, which it uses to deal with augmenting the POST requests it might make (it supports
 alternate network techniques to get around missing websocket support).  Unfortunately,
 it exchanges the CSRF from `wrap-anti-forgery` within a (js-accessible) handshake.  This *can* be ok *as long as that
 handshake never happens without CSRF protection *already in place*.  Otherwise you are open to websocket hijacking, and
-also exposing the CSRF token and compromising your *other* remote processing as well!
+also exposing the CSRF token and compromising your *other* remote processing as well!  (This was a reported issue
+on Sente, and is fixed in 1.14.0-RC1)
 
 Fulcro's websocket contruction function allows you to pass a parameters through sente, and you can use these to
 include the CSRF token, and then add a bit of additional middleware to require that in front of your websocket setup
@@ -11658,7 +11729,7 @@ Of course, you need websocket middleware, and it needs to do CSRF checks *before
       wrap-websockets
       server/wrap-transit-params
       server/wrap-transit-response
-      (server/wrap-protect-origins {:allow-when-origin-missing? false
+      (server/wrap-protect-origins {:allow-when-origin-missing? true
                                     :legal-origins              legal-origins})
       (wrap-uris {"/"           generate-index
                   "/index.html" generate-index})

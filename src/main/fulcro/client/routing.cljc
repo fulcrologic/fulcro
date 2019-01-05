@@ -582,7 +582,7 @@ NOTES:
        - `:router-targets` - A map of ident tables to router targets.  This map MUST correspond to the TABLE name that
        the router target lives in, and the Class of the router target component.
 
-       You may NOT define a `:query`, `:ident`, or `:initial-state` for a router.
+       You may NOT define a `:query` or `:initial-state` for a router.
 
        All other `defsc` options are supported.
 

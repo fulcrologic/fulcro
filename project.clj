@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.6.19-pre-merge-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.7.1-pre-merge-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -24,7 +24,7 @@
                  [ring/ring-core "1.6.3" :scope "provided" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.3.0" :scope "provided"]
                  [bidi "2.1.3" :scope "provided"]
-                 [com.taoensso/sente "1.12.0" :scope "provided"]
+                 [com.taoensso/sente "1.14.0-RC1" :scope "provided"]
 
                  ;; test deps
                  [fulcrologic/fulcro-spec "2.1.2" :scope "test" :exclusions [fulcrologic/fulcro]]

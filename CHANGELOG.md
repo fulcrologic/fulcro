@@ -6,9 +6,25 @@ small and tractable.
 - (inc y) = Intrusive change that should not break anything, but should be heavily tested.
 - (inc z) = additions, bug fixes, etc.
 
-2.6.19
+2.8.0
 ------
 - Added pre-merge support
+
+2.7.0
+-----
+- BREAKING CHANGE: Sente 14.0-RC1 has a breaking change that
+forces us to cause a similar websocket API breaking change.
+CSRF in prior sente versions was insecure (we had a
+workaround) but the official fix required an API change. The
+`fulcro.websockets/make-websocket-networking` on the client
+now requires a CSRF token.
+- You MUST upgrade your sente version (if you're using websockets) to
+14.0-RC1 or better.
+- Fix for SSR encoding/decoding of state (thanks @lennartbuit)
+
+2.6.19
+------
+- Added getDerivedStateFromError lifecycle support
 
 2.6.18
 ------
