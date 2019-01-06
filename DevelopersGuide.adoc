@@ -2425,7 +2425,7 @@ separate let:
 
 === Options – Lambda vs. Template
 
-The core options (`:query`, `:ident`, `:initial-state`, `:css`, and `:css-include`) of `defsc` support both a lambda and a template
+The core options (`:query`, `:ident`, `:initial-state`, `:pre-merge`, `:css`, and `:css-include`) of `defsc` support both a lambda and a template
 form. The template form is shorter and enables some sanity checks; however, it is not expressive enough to cover all
 possible cases. The lambda form is slightly more verbose, but enables full flexibility at the expense of the sanity checks.
 
@@ -2566,6 +2566,166 @@ initial state function. To-one and to-many relations are implied by what you pas
 
 Step (1) means that nesting of param-namespaced keywords is supported, but realize that the params come from the
 *declaring component's* initial state parameters, they are substituted *before* being passed to the child.
+
+=== Pre Merge
+
+Available from Fulcro 2.8+.
+
+Pre merge offers a hook to manipulate data entering your Fulcro app at component level.
+
+During the lifetime of a Fulcro application data will enter the system, the most common are:
+
+1. During app initialization
+2. New data loaded from remote
+3. Data add via mutations
+
+In the first case the data comes from the component initial state or user provided initial state,
+these usually include both domain and ui initialized data.
+
+In the second case the data comes from a remote and contain domain data, but not UI data since
+it's not a concern from the remote to know about then, but the UI might still need to
+do some type of initialization when creating data for new entities in the local database. Before
+pre hooks the only way to populate these UI specific data was to use a `:post-mutation` with
+the load call to manually populate it. This solution is powerful because it allows any changes
+to be done at any part of the DB, but using it offers some challanges:
+
+1. Component specific data initialization is separated from the component itself, reducing local reasoning
+2. Composition gets affected, every parent component has to write new logic to manually compose the initialization tree
+3. Initialization of to-many lists requires tedios code to manipulate tables in the app db
+
+==== Before pre-merge
+
+To illustrate these issues we are going to write a small app that has some count down buttons, the idea
+is that each counter gets clicked until it reaches zero, the important detail will be how we
+can handle the initial counter value, first using post-mutations and then pre-merge.
+
+[source,clojure]
+----
+(defsc Countdown [this {::keys   [counter-label]
+                        :ui/keys [count]}]
+  {:ident [::counter-id ::counter-id]
+   :query [::counter-id ::counter-label :ui/count]}
+  (dom/div
+    (dom/h4 counter-label)
+    (let [done? (zero? count)]
+      (dom/button {:disabled done?
+                   :onClick  #(m/set-value! this :ui/count (dec count))}
+        (if done? "Done!" (str count))))))
+----
+
+The important part is the `:ui/count` must start with some value, we can arbitrarily
+choose `5` as a start, whatever it is we need to initialize when the data for this
+enter the system.
+
+We are going to use this post-mutation to initialize this ui property, at this point
+the example is loading a single counter from the remote:
+
+[source,clojure]
+----
+(m/defmutation initialize-counter [{::keys [counter-id]}]
+  (action [{:keys [state]}]
+    (swap! state update-in [::counter-id counter-id] #(merge {:ui/count 5} %))))
+----
+
+And this is the call to load:
+
+[source,clojure]
+----
+(df/load this [::counter-id 1] Countdown
+  {:target               [:counter]
+   :post-mutation        `initialize-counter
+   :post-mutation-params {::counter-id 1}})
+----
+
+With all hook up here is the demo:
+
+++++
+<div class="example" id="pre-merge-postmutations"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.pre-merge-postmutations').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="pre-merge-postmutations source"]
+----
+include::src/book/book/demos/pre_merge/post_mutation_countdown.cljs[]
+----
+
+Now let's see in case of a to-many, this is what our new mutation looks like:
+
+[source,clojure]
+----
+(m/defmutation initialize-counters [_]
+  (action [{:keys [state]}]
+    (swap! state
+      (fn [state]
+        (reduce
+          (fn [state ref]
+            (update-in state ref #(merge {:ui/count 5} %)))
+          state
+          (get state ::all-counters))))))
+----
+
+++++
+<div class="example" id="pre-merge-postmutations-many"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.pre-merge-postmutations-many').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="pre-merge-postmutations-many source"]
+----
+include::src/book/book/demos/pre_merge/post_mutation_countdown_many.cljs[]
+----
+
+As you can see, adding a single depth to the query can yield a fair amount of extra code to hook things up, and as
+you app grows each join depth will add more post-mutation code to compose over. Solving this composition issue
+is the main motivation behind pre-merge.
+
+==== Working with pre-merge
+
+Pre merge addresses these issues by providing a component level hook so the component itself can
+express its own data entering requirements.
+
+It works by hooking in the new data normalization process, if you are not familiar with how
+the normalization works I suggest you <<Normalization,check it there>> and come back after.
+
+
+
+You can setup the pre-merge by adding the `:pre-merge` key to your component configuration, its
+value is a lamba that takes a single map argument, the map contains those keys:
+
+* `:data-tree` - the new data tree entering the database
+* `:current-normalized` - the current entity value (if any), comes normalized from the db (as in `(get-in state ref)`)
+* `:state-map` - the current app state map (you may use to lookup refs).
+* `:query` - the query used to do this request (user may have modified the original using `:focus`, `:without` or `:update-query` during the load call
+
+++++
+<div class="example" id="postmutations-many"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-many').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="postmutations-many source"]
+----
+include::src/book/book/demos/pre_merge/countdown_many.cljs[]
+----
+
+++++
+<div class="example" id="postmutations-with-initial"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-with-initial').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="postmutations-with-initial source"]
+----
+include::src/book/book/demos/pre_merge/countdown_with_initial.cljs[]
+----
+
+NOTE: If you need to manipulate data outside of the component and it's childrens the post-mutations is the way to go.
+
+In the first two cases Fulcro will get a data tree and merge it to the app db as normalized
+data.footnote:[During app initialization the user can provide a state atom already normalized,
+in this case Fulcro will use as is, as it expected to be already normalized by the user.]
+If you are not familiar on how the normalization process works, read the <<Normalization>> section before
+continuing.
+
+Before jumping on pre-merge is high recommeded that you read the <<Normalization>> section, pre-merge
+is an extension to this process.
 
 === CSS Support
 
