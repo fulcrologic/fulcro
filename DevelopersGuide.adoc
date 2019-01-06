@@ -2680,16 +2680,41 @@ is the main motivation behind pre-merge.
 
 ==== Working with pre-merge
 
-Pre merge addresses these issues by providing a component level hook so the component itself can
-express its own data entering requirements.
+Pre merge addresses these issues by providing a component level hook that allows the data entering
+logic to be colocated with the rest of the component.
 
 It works by hooking in the new data normalization process, if you are not familiar with how
 the normalization works I suggest you <<Normalization,check it there>> and come back after.
 
+You can setup the pre-merge by adding the `:pre-merge` key to your component configuration,
+this is how we can setup our `Countdown` using `:pre-merge`:
 
+[source,clojure]
+----
+(defsc Countdown [this {::keys   [counter-label]
+                        :ui/keys [count]}]
+  {:ident     [::counter-id ::counter-id]
+   :query     [::counter-id ::counter-label :ui/count]
+   :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                ; <1>
+                (merge
+                  {:ui/count 5} ; <2>
+                  current-normalized ; <3>
+                  data-tree))} ; <4>
+  (dom/div
+    (dom/h4 counter-label)
+    (let [done? (zero? count)]
+      (dom/button {:disabled done?
+                   :onClick  #(m/set-value! this :ui/count (dec count))}
+        (if done? "Done!" (str count))))))
+----
 
-You can setup the pre-merge by adding the `:pre-merge` key to your component configuration, its
-value is a lamba that takes a single map argument, the map contains those keys:
+<1> This is merge setup works for most of the cases
+<2> We start the merge with a map containing defaults
+<3> Then we merge with the data that is already there for this component (may be `nil` if component doesn't has previous data)
+<4> Finally merge in the data tree, since it's the last it will win over any of the previous
+
+The `:pre-merge` lamba receives a single map containing the following keys:
 
 * `:data-tree` - the new data tree entering the database
 * `:current-normalized` - the current entity value (if any), comes normalized from the db (as in `(get-in state ref)`)
