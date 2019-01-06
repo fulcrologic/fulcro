@@ -1421,6 +1421,15 @@
 
 (def nf ::not-found)
 
+(defn nilify-not-found
+  "Given x, return x value unless it's ::prim/not-found, in which case it returns nil.
+
+  This is useful when you wanna do a nil check but you are in a position where the value
+  could be ::prim/not-found (and you want to consider it as nil). A common pattern
+  looks like: `(or (prim/nilify-not-found x) 10)"
+  [x]
+  (if (= x ::not-found) nil x))
+
 (defn as-leaf
   "Returns data with meta-data marking it as a leaf in the result."
   [data]
