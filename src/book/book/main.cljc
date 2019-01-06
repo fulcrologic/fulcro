@@ -79,8 +79,10 @@
                book.demos.parent-child-ownership-relations
                book.demos.pre-merge.post-mutation-countdown
                book.demos.pre-merge.post-mutation-countdown-many
+               book.demos.pre-merge.countdown
                book.demos.pre-merge.countdown-many
                book.demos.pre-merge.countdown-with-initial
+               book.demos.pre-merge.countdown-extracted
                book.demos.server-error-handling
                book.demos.server-query-security
                book.demos.server-return-values-as-data-driven-mutation-joins
@@ -296,8 +298,10 @@
 
 #?(:cljs (defexample "Pre merge - using post mutations" book.demos.pre-merge.post-mutation-countdown/Root "pre-merge-postmutations" :networking book.main/example-server))
 #?(:cljs (defexample "Pre merge - using post mutations to many" book.demos.pre-merge.post-mutation-countdown-many/Root "pre-merge-postmutations-many" :networking book.main/example-server))
+#?(:cljs (defexample "Pre merge" book.demos.pre-merge.countdown/Root "postmutations-single" :networking book.main/example-server))
 #?(:cljs (defexample "Pre merge - to many" book.demos.pre-merge.countdown-many/Root "postmutations-many" :networking book.main/example-server))
 #?(:cljs (defexample "Pre merge - with initial" book.demos.pre-merge.countdown-with-initial/Root "postmutations-with-initial" :networking book.main/example-server))
+#?(:cljs (defexample "Pre merge - extracted ui" book.demos.pre-merge.countdown-extracted/Root "postmutations-extracted" :networking book.main/example-server))
 
 #?(:cljs (defexample "Error Handling" book.demos.server-error-handling/Root "server-error-handling"
            :networking book.main/example-server))

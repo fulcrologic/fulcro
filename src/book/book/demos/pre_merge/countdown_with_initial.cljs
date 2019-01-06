@@ -46,18 +46,18 @@
                    :onClick  #(m/set-value! this :ui/count (dec count))}
         (if done? "Done!" (str count))))))
 
-(def ui-counter (prim/factory Countdown {:keyfn ::counter-id}))
+(def ui-countdown (prim/factory Countdown {:keyfn ::counter-id}))
 
 (defsc Root [this {::keys [all-counters]}]
   {:initial-state (fn [_] {})
    :query         [{::all-counters (prim/get-query Countdown)}]}
   (dom/div
     (dom/h3 "Counters")
-    (dom/button {:onClick #(df/load this ::all-counters Countdown)}
-      "Load many counters")
     (if (seq all-counters)
       (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
-        (mapv ui-counter all-counters)))))
+        (mapv ui-countdown all-counters))
+      (dom/button {:onClick #(df/load this ::all-counters Countdown)}
+        "Load many counters"))))
 
 (defn initialize
   "To be used in :started-callback to pre-load things."

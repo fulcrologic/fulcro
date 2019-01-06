@@ -1,4 +1,4 @@
-(ns book.demos.pre-merge.countdown-many
+(ns book.demos.pre-merge.countdown
   (:require
     [fulcro.client :as fc]
     [fulcro.client.data-fetch :as df]
@@ -14,14 +14,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def all-counters
-  [{::counter-id 1 ::counter-label "A"}
-   {::counter-id 2 ::counter-label "B"}
-   {::counter-id 3 ::counter-label "C"}
-   {::counter-id 4 ::counter-label "D"}])
+  [{::counter-id 1 ::counter-label "A"}])
 
-(server/defquery-root ::all-counters
-  (value [_ _]
-    all-counters))
+(server/defquery-entity ::counter-id
+  (value [_ id _]
+    (first (filter #(= id (::counter-id %)) all-counters))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -45,16 +42,15 @@
 
 (def ui-countdown (prim/factory Countdown {:keyfn ::counter-id}))
 
-(defsc Root [this {::keys [all-counters]}]
+(defsc Root [this {:keys [counter]}]
   {:initial-state (fn [_] {})
-   :query         [{::all-counters (prim/get-query Countdown)}]}
+   :query         [{:counter (prim/get-query Countdown)}]}
   (dom/div
     (dom/h3 "Counters")
-    (if (seq all-counters)
-      (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
-        (mapv ui-countdown all-counters))
-      (dom/button {:onClick #(df/load this ::all-counters Countdown)}
-        "Load many counters"))))
+    (if (seq counter)
+      (ui-countdown counter)
+      (dom/button {:onClick #(df/load this [::counter-id 1] Countdown {:target [:counter]})}
+        "Load one counter"))))
 
 (defn initialize
   "To be used in :started-callback to pre-load things."

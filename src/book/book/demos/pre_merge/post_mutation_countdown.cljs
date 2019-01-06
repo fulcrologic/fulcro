@@ -39,7 +39,7 @@
                    :onClick  #(m/set-value! this :ui/count (dec count))}
         (if done? "Done!" (str count))))))
 
-(def ui-counter (prim/factory Countdown {:keyfn ::counter-id}))
+(def ui-countdown (prim/factory Countdown {:keyfn ::counter-id}))
 
 (defsc Root [this {:keys [counter]}]
   {:initial-state (fn [_] {})
@@ -47,7 +47,7 @@
   (dom/div
     (dom/h3 "Counters")
     (if (seq counter)
-      (ui-counter counter)
+      (ui-countdown counter)
       (dom/button {:onClick #(df/load this [::counter-id 1] Countdown
                                {:target               [:counter]
                                 :post-mutation        `initialize-counter

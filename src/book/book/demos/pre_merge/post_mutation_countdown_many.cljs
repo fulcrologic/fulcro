@@ -48,7 +48,7 @@
                    :onClick  #(m/set-value! this :ui/count (dec count))}
         (if done? "Done!" (str count))))))
 
-(def ui-counter (prim/factory Countdown {:keyfn ::counter-id}))
+(def ui-countdown (prim/factory Countdown {:keyfn ::counter-id}))
 
 (defsc Root [this {::keys [all-counters]}]
   {:initial-state (fn [_] {})
@@ -57,7 +57,7 @@
     (dom/h3 "Counters")
     (if (seq all-counters)
       (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
-        (mapv ui-counter all-counters))
+        (mapv ui-countdown all-counters))
       (dom/button {:onClick #(df/load this ::all-counters Countdown
                                {:post-mutation `initialize-counters})}
         "Load many counters"))))

@@ -2642,6 +2642,7 @@ With all hook up here is the demo:
 ++++
 <div class="example" id="pre-merge-postmutations"> </div>
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.pre-merge-postmutations').toggle()">Show/Hide Source</a>
+<br><br>
 ++++
 
 [source,clojure,role="pre-merge-postmutations source"]
@@ -2667,6 +2668,7 @@ Now let's see in case of a to-many, this is what our new mutation looks like:
 ++++
 <div class="example" id="pre-merge-postmutations-many"> </div>
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.pre-merge-postmutations-many').toggle()">Show/Hide Source</a>
+<br><br>
 ++++
 
 [source,clojure,role="pre-merge-postmutations-many source"]
@@ -2714,16 +2716,32 @@ this is how we can setup our `Countdown` using `:pre-merge`:
 <3> Then we merge with the data that is already there for this component (may be `nil` if component doesn't has previous data)
 <4> Finally merge in the data tree, since it's the last it will win over any of the previous
 
-The `:pre-merge` lamba receives a single map containing the following keys:
+The `:pre-merge` lambda receives a single map containing the following keys:
 
 * `:data-tree` - the new data tree entering the database
 * `:current-normalized` - the current entity value (if any), comes normalized from the db (as in `(get-in state ref)`)
 * `:state-map` - the current app state map (you may use to lookup refs).
 * `:query` - the query used to do this request (user may have modified the original using `:focus`, `:without` or `:update-query` during the load call
 
+With this setup we can get rid of the `post-mutation`. The single case example with pre-merge:
+
+++++
+<div class="example" id="postmutations-single"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-single').toggle()">Show/Hide Source</a>
+<br><br>
+++++
+
+[source,clojure,role="postmutations-single source"]
+----
+include::src/book/book/demos/pre_merge/countdown.cljs[]
+----
+
+For the to-many case it's the same, no need for post-mutation.
+
 ++++
 <div class="example" id="postmutations-many"> </div>
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-many').toggle()">Show/Hide Source</a>
+<br><br>
 ++++
 
 [source,clojure,role="postmutations-many source"]
@@ -2731,9 +2749,13 @@ The `:pre-merge` lamba receives a single map containing the following keys:
 include::src/book/book/demos/pre_merge/countdown_many.cljs[]
 ----
 
+To spicy this example, let's make so the initial counter number can be defined by the server, but we want
+to keep this is a separated attribute that doesn't going to be displayed to the right of the counter label.
+
 ++++
 <div class="example" id="postmutations-with-initial"> </div>
 <a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-with-initial').toggle()">Show/Hide Source</a>
+<br><br>
 ++++
 
 [source,clojure,role="postmutations-with-initial source"]
@@ -2741,16 +2763,65 @@ include::src/book/book/demos/pre_merge/countdown_many.cljs[]
 include::src/book/book/demos/pre_merge/countdown_with_initial.cljs[]
 ----
 
+<1> During the normalization step of a load Fulcro will put `::prim/not-found` value on keys
+that were not delivered by the server, this is used to do a `sweep-merge` later, the `prim/nilify-not-found`
+will return the same input value (like `identity`) unless it's a `::prim/not-found`, in which case
+it returns `nil`, this way the `or` works in both cases.
+
+Next, we are going to extract the counter button into its own component, this serves to illustrate
+how you can hook up pure UI components in remote based components.
+
+[source,clojure]
+----
+(defsc CountdownButton [this {:ui/keys [count]}]
+  {:ident     [:ui/id :ui/id]
+   :query     [:ui/id :ui/count]
+   :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  ; <1>
+                  {:ui/id    (random-uuid)
+                   :ui/count default-count}
+                  current-normalized
+                  data-tree))}
+  (let [done? (zero? count)]
+    (dom/button {:disabled done?
+                 :onClick  #(m/set-value! this :ui/count (dec count))}
+      (if done? "Done!" (str count)))))
+
+(defsc Countdown [this {::keys   [counter-label counter-initial]
+                        :ui/keys [counter]}]
+  {:ident     [::counter-id ::counter-id]
+   :query     [::counter-id ::counter-label ::counter-initial
+               {:ui/counter (prim/get-query CountdownButton)}]
+   :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (let [initial (prim/nilify-not-found (::counter-initial data-tree))]
+                  (merge
+                    ; <2>
+                    {:ui/counter (cond-> {} initial (assoc :ui/count initial))}
+                    current-normalized
+                    data-tree)))}
+  (dom/div
+    (dom/h4 (str counter-label " [" (or counter-initial default-count) "]"))
+    (ui-countdown-button counter)))
+----
+
+<1> ...
+<2> ...
+
+
+
+++++
+<div class="example" id="postmutations-extracted"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-extracted').toggle()">Show/Hide Source</a>
+<br><br>
+++++
+
+[source,clojure,role="postmutations-extracted source"]
+----
+include::src/book/book/demos/pre_merge/countdown_extracted.cljs[]
+----
+
 NOTE: If you need to manipulate data outside of the component and it's childrens the post-mutations is the way to go.
-
-In the first two cases Fulcro will get a data tree and merge it to the app db as normalized
-data.footnote:[During app initialization the user can provide a state atom already normalized,
-in this case Fulcro will use as is, as it expected to be already normalized by the user.]
-If you are not familiar on how the normalization process works, read the <<Normalization>> section before
-continuing.
-
-Before jumping on pre-merge is high recommeded that you read the <<Normalization>> section, pre-merge
-is an extension to this process.
 
 === CSS Support
 
