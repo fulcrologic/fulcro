@@ -2196,6 +2196,7 @@
 (defsc AQuery [this props] {:query [:x]} (dom/div nil "TODO"))
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))
+(defsc APreMerge [this props] {:pre-merge (fn [_])} (dom/div nil "TODO"))
 
 (defsc AUIChild [_ _] {:ident     [:ui/id :ui/id]
                        :query     [:ui/id :ui/name]
@@ -2250,12 +2251,19 @@
     #?(:cljs "works on client" :clj "works on server")
     (prim/has-query? A) => false
     (prim/has-query? AState) => false
+    (prim/has-query? APreMerge) => false
     (prim/has-query? AIdent) => false
     (prim/has-initial-app-state? A) => false
     (prim/has-initial-app-state? AState) => true
+    (prim/has-initial-app-state? APreMerge) => false
     (prim/has-initial-app-state? AIdent) => false
+    (prim/has-pre-merge? A) => false
+    (prim/has-pre-merge? AState) => false
+    (prim/has-pre-merge? APreMerge) => true
+    (prim/has-pre-merge? AIdent) => false
     (prim/has-ident? A) => false
     (prim/has-ident? AState) => false
+    (prim/has-ident? APreMerge) => false
     (prim/has-ident? AIdent) => true))
 
 (specification "focus-subquery"
