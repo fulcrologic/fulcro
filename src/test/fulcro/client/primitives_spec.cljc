@@ -2206,6 +2206,10 @@
                                        :ui/name "123"}
                                       current-normalized data-tree))})
 
+(defsc AUIChildWithoutPreMerge [_ _]
+  {:ident [:ui/id :ui/id]
+   :query [:ui/id :ui/name]})
+
 (defsc AUIParent [_ _] {:ident     [:id :id]
                         :query     [:id {:ui/child (fp/get-query AUIChild)}]
                         :pre-merge (fn [{:keys [current-normalized data-tree]}]
@@ -2245,6 +2249,61 @@
     => {:id       123
         :ui/child [[:ui/id "child-id"]
                    [:ui/id "child-id2"]]}))
+
+(defsc ReconcilerNormalizeRoot [_ _]
+  {:query [{:child (prim/get-query AUIChildWithoutPreMerge)}]})
+
+(defsc ReconcilerNormalizeRootWithPreMerge [_ _]
+  {:query [{:child (prim/get-query AUIChild)}]})
+
+(defn test-reconciler-normalize-initial-state [{:keys [normalize normalized state root-class]
+                                                :or {normalize true}}]
+  (let [reconciler (prim/reconciler {:normalize normalize
+                                     :state     (if normalize state (atom state))})]
+    (if normalized (swap! (-> reconciler :state) assoc :normalized true))
+    (#'prim/reconciler-normalize-initial-state reconciler root-class)
+    {:app-state  @(-> reconciler :config :state)
+     :normalized (-> reconciler :state deref :normalized)}))
+
+(specification "reconciler-normalize-initial-state"
+  (assertions
+    (test-reconciler-normalize-initial-state
+      {:state      {:child {:ui/name "test"}}
+       :root-class A})
+    => {:app-state  {:child #:ui{:name "test"}}
+        :normalized true}
+
+    "normalize"
+    (test-reconciler-normalize-initial-state
+      {:state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRoot})
+    => {:app-state {:child [:ui/id nil],
+                    :ui/id {nil #:ui{:name "test"}}}
+        :normalized true}
+
+    "don't normalize when normalize is false"
+    (test-reconciler-normalize-initial-state
+      {:normalize  false
+       :state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRoot})
+    => {:app-state  {:child {:ui/name "test"}}
+        :normalized true}
+
+    "don't normalize when it's already normalized"
+    (test-reconciler-normalize-initial-state
+      {:normalized true
+       :state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRoot})
+    => {:app-state  {:child {:ui/name "test"}}
+        :normalized true}
+
+    "applies pre-merge when there is a match"
+    (test-reconciler-normalize-initial-state
+      {:state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRootWithPreMerge})
+    => {:app-state  {:child [:ui/id "child-id"]
+                     :ui/id {"child-id" #:ui{:id "child-id", :name "test"}}},
+        :normalized true}))
 
 (specification "Detection of static protocols"
   (assertions

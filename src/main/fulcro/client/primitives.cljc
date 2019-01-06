@@ -1964,6 +1964,14 @@
                    end   (inst-ms (js/Date.))]
                (if (> (- end start) 20) (log/warn "Root render took " (- end start) "ms")))))))))
 
+(defn- reconciler-normalize-initial-state [{:keys [config state]} root-class]
+  (when (and (:normalize config)
+             (not (:normalized @state)))
+    (let [app-state @(:state config)
+          new-state (tree->db root-class app-state true (pre-merge-transform app-state))]
+      (reset! (:state config) new-state)
+      (swap! state assoc :normalized true))))
+
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
      :cljs IDeref)
@@ -1986,12 +1994,7 @@
         (swap! state assoc :id guid))
       (when (has-query? root-class)
         (p/index-root (assoc (:indexer config) :state (-> config :state deref)) root-class))
-      (when (and (:normalize config)
-              (not (:normalized @state)))
-        (let [new-state (tree->db root-class @(:state config))
-              refs      (meta new-state)]
-          (reset! (:state config) (merge new-state refs))
-          (swap! state assoc :normalized true)))
+      (reconciler-normalize-initial-state this root-class)
       (let [renderf (fn render-fn [data]
                       (binding [*reconciler* this
                                 *shared*     (merge
