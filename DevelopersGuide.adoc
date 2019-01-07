@@ -2805,8 +2805,8 @@ how you can hook up pure UI components in remote based components.
     (ui-countdown-button counter)))
 ----
 
-<1> ...
-<2> ...
+<1> For the UI element we can also set the initial id using pre-merge, and now we moved the default there
+<2> Note we pass a blank map to the `:ui/counter`, this will reach the pre-merge from `CountdownButton` as the `data-tree` part
 
 Full demo:
 
