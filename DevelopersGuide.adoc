@@ -2593,8 +2593,6 @@ to be done at any part of the DB, but using it offers some challanges:
 2. Composition gets affected, every parent component has to write new logic to manually compose the initialization tree
 3. Initialization of to-many lists requires tedios code to manipulate tables in the app db
 
-==== Before pre-merge
-
 To illustrate these issues we are going to write a small app that has some count down buttons, the idea
 is that each counter gets clicked until it reaches zero, the important detail will be how we
 can handle the initial counter value, first using post-mutations and then pre-merge.
