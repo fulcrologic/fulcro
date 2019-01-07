@@ -2122,6 +2122,15 @@
                                ::points      7
                                :ui/expanded? false}}}
 
+       (prim/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]) :replace [:main-person])
+       => {:person/by-id {:mary {:id      :mary
+                                 :name    "Mary"
+                                 :numbers [[:phone/by-id 55]]}}
+           :phone/by-id  {55 {:id              55
+                              :number          "98765-4321"
+                              :ui/initial-flag :start}}
+           :main-person [:person/by-id :mary]}
+
        (do
          (reset! id-counter 0)
          (prim/merge-component {} UiLoadedItem

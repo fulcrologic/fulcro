@@ -3214,13 +3214,14 @@
    thin wrapper around `prim/tree->db`.
 
    See also integrate-ident, integrate-ident!, and merge-component!"
-  [state-map component component-data]
+  [state-map component component-data & named-parameters]
   (if-let [top-ident (get-ident component component-data)]
     (let [query          [{top-ident (get-query component)}]
           state-to-merge {top-ident component-data}
           table-entries  (-> (tree->db query state-to-merge true (pre-merge-transform state-map))
                            (dissoc ::tables top-ident))]
-      (util/deep-merge state-map table-entries))
+      (cond-> (util/deep-merge state-map table-entries)
+        (seq named-parameters) (#(apply util/__integrate-ident-impl__ % top-ident named-parameters))))
     state-map))
 
 (defn merge-component!
