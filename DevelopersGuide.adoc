@@ -2808,7 +2808,7 @@ how you can hook up pure UI components in remote based components.
 <1> ...
 <2> ...
 
-
+Full demo:
 
 ++++
 <div class="example" id="postmutations-extracted"> </div>
@@ -2821,7 +2821,87 @@ how you can hook up pure UI components in remote based components.
 include::src/book/book/demos/pre_merge/countdown_extracted.cljs[]
 ----
 
-NOTE: If you need to manipulate data outside of the component and it's childrens the post-mutations is the way to go.
+Another interesting property about pre-merge is that it also runs during normalization
+of app initialization, this means you can provide the minimum amount of data as the initial
+state and let the pre-merge fill the UI needs, to illustrate let's add some initial state to our
+demo:
+
+[source,clojure]
+----
+(defsc Root [this _]
+  {:initial-state (fn [_] {::all-counters
+                           [{::counter-id    (prim/tempid)
+                             ::counter-label "X"}
+                            {::counter-id    (prim/tempid)
+                             ::counter-label "Y"}
+                            {::counter-id      (prim/tempid)
+                             ::counter-label   "Z"
+                             ::counter-initial 9}]})
+   :query         [{::all-counters (prim/get-query Countdown)}]}
+  ...)
+----
+
+Pre merge will be applied on top of that running the pre-merge on the respective data parts. Full demo:
+
+++++
+<div class="example" id="postmutations-initial-state"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-initial-state').toggle()">Show/Hide Source</a>
+<br><br>
+++++
+
+[source,clojure,role="postmutations-initial-state source"]
+----
+include::src/book/book/demos/pre_merge/countdown_initial_state.cljs[]
+----
+
+Time to talk about mutations the third case, the mutations. Fulcro already offered some
+ways to integrate new data given a component and some data using functions like `prim/merge-component`.
+This means we can leverage the pre-merge hooks also when adding new data on mutations, like so:
+
+[source,clojure]
+----
+(m/defmutation create-countdown [countdown]
+  (action [{:keys [state ref]}]
+    (swap! state prim/merge-component Countdown countdown :append [::all-counters])
+    (swap! state update-in ref assoc :ui/new-countdown-label "")))
+----
+
+And add some UI to trigger this mutation:
+
+[source,clojure]
+----
+(defsc Root [this {::keys [all-counters]}]
+  {:initial-state (fn [_] {::all-counters
+                           [{::counter-id    (prim/tempid)
+                             ::counter-label "X"}
+                            {::counter-id    (prim/tempid)
+                             ::counter-label "Y"}
+                            {::counter-id      (prim/tempid)
+                             ::counter-label   "Z"
+                             ::counter-initial 9}]})
+   :query         [{::all-counters (prim/get-query Countdown)}
+                   :ui/new-countdown-label]}
+  (dom/div
+    (dom/h3 "Counters")
+    (dom/button {:onClick #(prim/transact! this [`(create-countdown ~{::counter-id    (prim/tempid)
+                                                                      ::counter-label "New"})])}
+      "Add counter")
+    (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
+      (mapv ui-countdown all-counters))))
+----
+
+Full demo:
+
+++++
+<div class="example" id="postmutations-mutation"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-mutation').toggle()">Show/Hide Source</a>
+<br><br>
+++++
+
+[source,clojure,role="postmutations-mutation source"]
+----
+include::src/book/book/demos/pre_merge/countdown_mutation.cljs[]
+----
 
 === CSS Support
 
