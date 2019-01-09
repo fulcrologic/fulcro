@@ -30,7 +30,8 @@
                  [fulcrologic/fulcro-spec "2.1.2" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "62.1" :scope "test"]
-                 [org.clojure/test.check "0.10.0-alpha3" :scope "test"]]
+                 [org.clojure/test.check "0.10.0-alpha3" :scope "test"]
+                 [cljsjs/enzyme "3.8.0" :scope "test"]]
 
   :source-paths ["src/main"]
   :jar-exclusions [#"public/.*" #"private/.*"]
