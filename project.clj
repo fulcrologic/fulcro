@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.7.1"
+(defproject fulcrologic/fulcro "2.7.2-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
@@ -27,7 +27,7 @@
                  [com.taoensso/sente "1.14.0-RC1" :scope "provided"]
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.1.2" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.2.0-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "62.1" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha3" :scope "test"]]
