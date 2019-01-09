@@ -24,7 +24,7 @@
 
 (defn get-blocks
   [resource]
-  (filter (comp not is-header?) (map strip-comments (str/split (slurp resource) #"\n\n"))))
+  (filter (comp not is-header?) (remove str/blank? (map strip-comments (str/split (slurp resource) #"\n\n")))))
 
 (defn stripquotes [s]
   (-> s
