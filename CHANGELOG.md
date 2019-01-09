@@ -1,10 +1,6 @@
-NOTE: Version numbers use the following scheme:
-
-x.y.z
-- (inc x) = Major change that could break you program. Every attempt is made to keep these breaks
-small and tractable.
-- (inc y) = Intrusive change that should not break anything, but should be heavily tested.
-- (inc z) = additions, bug fixes, etc.
+2.7.1
+-----
+- Minor fix to i18n
 
 2.7.0
 -----
