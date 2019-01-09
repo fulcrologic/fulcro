@@ -7,7 +7,7 @@
 
 (defsc A [_ _])
 
-(specification "Special targeting" :focused
+(specification "Special targeting"
   (assertions
     "Reports false for non-special targets"
     (targeting/special-target? [:class]) => false

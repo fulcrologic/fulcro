@@ -787,7 +787,7 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "mutation-remotes" :focused
+(specification "mutation-remotes"
   (assertions
     "Only returns remotes, not custom actions"
     (df/mutation-remotes {} (prim/query->ast1 `[(f {})]) #{:remote}) => #{:remote}
