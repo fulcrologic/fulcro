@@ -1,18 +1,18 @@
-(defproject fulcrologic/fulcro "2.7.2-SNAPSHOT"
+(defproject fulcrologic/fulcro "2.7.2"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url ""
   :lein-min-version "2.8.1"
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.10.339" :scope "provided"]
+                 [org.clojure/clojurescript "1.10.439" :scope "provided"]
 
-                 [cljsjs/react "16.4.1-0"]
-                 [cljsjs/react-dom "16.4.1-0"]
-                 [cljsjs/react-dom-server "16.4.1-0"]
+                 [cljsjs/react "16.6.0-0"]
+                 [cljsjs/react-dom "16.6.0-0"]
+                 [cljsjs/react-dom-server "16.6.0-0"]
                  [com.cognitect/transit-clj "0.8.313"]
                  [com.cognitect/transit-cljs "0.8.256"]
-                 [org.clojure/core.async "0.4.474"]
+                 [org.clojure/core.async "0.4.490"]
                  [com.stuartsierra/component "0.3.2"]
                  [garden "1.3.6"]
 
@@ -27,7 +27,7 @@
                  [com.taoensso/sente "1.14.0-RC1" :scope "provided"]
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.2.0-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.2.0" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "62.1" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha3" :scope "test"]]
@@ -37,12 +37,7 @@
   :resource-paths ["resources"]
   :test-paths ["src/test"]
 
-  :jvm-opts ~(let [version (System/getProperty "java.version")
-                   base-options ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
-                   [major _ _] (clojure.string/split version #"\.")]
-               (if (>= (Integer. major) 9)
-                 (conj base-options "--add-modules" "java.xml.bind")
-                 base-options))
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target" "docs/js/book"]
 
   :plugins [[lein-cljsbuild "1.1.7"]
