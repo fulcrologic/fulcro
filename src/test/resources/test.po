@@ -34,3 +34,6 @@ msgid ""
 "      and some\n"
 "      \" embedded weirdness \n"
 msgstr ""
+
+#~ msgid "No longer translated"
+#~ msgstr ""

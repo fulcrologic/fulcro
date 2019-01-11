@@ -12,7 +12,7 @@
             [fulcro.websockets.transit-packer :as tp]))
 
 (defprotocol ChannelSocket
-  (install-push-handlers [this app] "Install the push handlers. Must be called in started callback, passed the websocket network object, and the completed app" )
+  (install-push-handlers [this app] "Install the push handlers. Must be called in started callback, passed the websocket network object, and the completed app")
   (reconnect [this] "Reconnect the socket"))
 
 (defonce router_ (atom nil))
@@ -52,7 +52,7 @@
     (defmethod message-received :api/server-push [{:keys [?data] :as msg}]
       (push-received app ?data))
 
-    (defmethod message-received :chsk/handshake [{:keys [ch-recv send-fn state event id ?data] :as message}] )
+    (defmethod message-received :chsk/handshake [{:keys [ch-recv send-fn state event id ?data] :as message}])
 
     (defmethod message-received :chsk/state [{:keys [ch-recv send-fn state event id ?data] :as message}]
       (when (:ever-opened? @state)
@@ -84,8 +84,6 @@
     (start-router! ch-recv message-received)
     this))
 
-
-
 (defn make-channel-client
   "
   DEPRECATED! Do not use for new code. See websockets.cljc.
@@ -107,7 +105,7 @@
         {:keys [chsk
                 ch-recv
                 send-fn
-                state]} (sente/make-channel-socket! url     ; path on server
+                state]} (sente/make-channel-socket! url "NO TOKEN" ; path on server
                           {:packer         (tp/make-packer transit-handlers)
                            :host           host
                            :type           :ws              ; e/o #{:auto :ajax :ws}

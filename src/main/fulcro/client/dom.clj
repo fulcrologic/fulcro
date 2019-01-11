@@ -47,8 +47,10 @@
                                     :else [k v])))
               m)))
 
-(defn- emit-tag
-  "Helper function for generating CLJS DOM macros"
+(defn emit-tag
+  "PRIVATE.  DO NOT USE.
+
+  Helper function for generating CLJS DOM macros. is public for code gen problems."
   [str-tag-name args]
   (let [conformed-args      (util/conform! ::dom-macro-args args)
         {attrs    :attrs

@@ -26,7 +26,7 @@
 (specification "block->translation"
   (let [translations (map gettext/block->translation (gettext/get-blocks (io/resource "resources/test.po")))]
     (assertions
-      translations => [{:msgid "Hello" :msgstr "" }
+      translations => [{:msgid "Hello" :msgstr ""}
                        {:msgctxt "Abbreviation for Monday" :msgid "M" :msgstr ""}
                        {:msgid "{n,plural,=0 {none} =1 {one} other {#}}\\n\\n      and some\\n      \\\" embedded weirdness \\n"
                         :msgstr ""}])))

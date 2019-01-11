@@ -168,6 +168,7 @@
                   send-fn]} (invoke 'taoensso.sente/make-channel-socket!
                               server-adapter
                               {:user-id-fn        client-id-fn
+                               :csrf-token-fn     nil
                                :handshake-data-fn handshake-data-fn
                                :packer            (tp/make-packer transit-handlers)})
           component (assoc component
