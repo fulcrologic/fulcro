@@ -40,6 +40,7 @@
              error)))
 #?(:cljs (defn xhrio-error-text [xhrio] (.getLastError xhrio)))
 #?(:cljs (defn xhrio-response-text [xhrio] (.getResponseText xhrio)))
+#?(:cljs (defn xhrio-response-headers [xhrio] (js->clj (.getResponseHeaders xhrio))))
 
 (defn xhrio-progress
   "Given an xhrio progress event, returns a map with keys :loaded and :total, where loaded is the
@@ -82,6 +83,7 @@
           (try
             {:transaction      tx
              :outgoing-request request
+             :headers          (xhrio-response-headers xhrio)
              :body             (xhrio-response-text xhrio)
              :status-code      (xhrio-status-code xhrio)
              :status-text      (xhrio-status-text xhrio)
@@ -92,6 +94,7 @@
               {:transaction      tx
                :outgoing-request request
                :body             ""
+               :headers          {}
                :status-code      0
                :status-text      "Internal Exception"
                :error            :exception
