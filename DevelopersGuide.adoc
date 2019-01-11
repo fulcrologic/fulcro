@@ -2425,7 +2425,7 @@ separate let:
 
 === Options – Lambda vs. Template
 
-The core options (`:query`, `:ident`, `:initial-state`, `:pre-merge`, `:css`, and `:css-include`) of `defsc` support both a lambda and a template
+The core options (`:query`, `:ident`, `:initial-state`, `:css`, and `:css-include`) of `defsc` support both a lambda and a template
 form. The template form is shorter and enables some sanity checks; however, it is not expressive enough to cover all
 possible cases. The lambda form is slightly more verbose, but enables full flexibility at the expense of the sanity checks.
 

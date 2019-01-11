@@ -1,3 +1,7 @@
+2.8.0
+------
+- Add pre-merge support
+
 2.7.2
 -----
 - Fixed deprecated websockets to work with new sente.
@@ -5,10 +9,6 @@
 2.7.1
 -----
 - Minor fix to i18n
-
-2.8.0
-------
-- Add pre-merge support
 
 2.7.0
 -----
