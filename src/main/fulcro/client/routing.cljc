@@ -279,7 +279,7 @@ NOTES:
 (defn add-route-state [state-map target-kw component]
   (let [tree-state       {:tmp/new-route (prim/get-initial-state component nil)}
         query            [{:tmp/new-route (prim/get-query component)}]
-        normalized-state (-> (prim/tree->db query tree-state true)
+        normalized-state (-> (prim/tree->db query tree-state true (prim/pre-merge-transform state-map))
                            (dissoc :tmp/new-route))]
     (util/deep-merge state-map normalized-state)))
 

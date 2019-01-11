@@ -22,7 +22,8 @@
             [fulcro.util :as util]
             [clojure.walk :as walk]
             [fulcro.ui.form-state :as f]
-            [fulcro.test-helpers :as th])
+            [fulcro.test-helpers :as th]
+            [fulcro.client.primitives :as fp])
   #?(:clj
      (:import (clojure.lang ExceptionInfo))))
 
@@ -1461,7 +1462,9 @@
                               :initial-state {:a 1}
                               :ident         [:PERSON/by-id :db/id]}
                              (dom/div nil "Boo")))
-       =fn=> (constantly true)                              ; just expect it not to throw
+       =fn=> (constantly true)) ; just expect it not to throw
+
+     (assertions
        "works with initial state"
        (#'prim/defsc* nil '(Person
                              [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1486,7 +1489,9 @@
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
-                 (~'dom/div nil "Boo"))))
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
        "allows an initial state method body"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1505,7 +1510,30 @@
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
-                 (~'dom/div nil "Boo"))))
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
+       "allows pre merge hook"
+       (prim/defsc* nil '(Person
+                           [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
+                           {:query     [:db/id {:person/job (prim/get-query Job)}]
+                            :pre-merge (fn [tree] (merge {:ui/default :value} tree))
+                            :ident     [:PERSON/by-id :db/id]}
+                           (dom/div nil "Boo")))
+       => `(fulcro.client.primitives/defui ~'Person
+             ~'static fulcro.client.primitives/IPreMerge
+             (~'pre-merge* [~'this ~'tree] (~'merge {:ui/default :value} ~'tree))
+             ~'static fulcro.client.primitives/Ident
+             (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
+             ~'static fulcro.client.primitives/IQuery
+             (~'query [~'this] [:db/id {:person/job (~'prim/get-query ~'Job)}])
+             ~'Object
+             (~'render [~'this]
+               (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
+                     {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
        "works without initial state"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1521,7 +1549,9 @@
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
-                 (~'dom/div nil "Boo"))))
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
        "allows Object protocol"
        (prim/defsc* nil '(Person
                            [this props computed]
@@ -1536,7 +1566,9 @@
                (let [~'props (fulcro.client.primitives/props ~'this)
                      ~'computed (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))
-             (~'shouldComponentUpdate [~'this ~'p ~'s] false))
+             (~'shouldComponentUpdate [~'this ~'p ~'s] false)))
+
+     (assertions
        "Places lifecycle signatures under the Object protocol"
        (prim/defsc* nil '(Person [this props] {:shouldComponentUpdate (fn [next-props next-state] false)} (dom/div nil "Boo")))
        => '(fulcro.client.primitives/defui Person
@@ -1545,7 +1577,9 @@
                (clojure.core/let
                  [props (fulcro.client.primitives/props this)]
                  (dom/div nil "Boo")))
-             (shouldComponentUpdate [this next-props next-state] false))
+             (shouldComponentUpdate [this next-props next-state] false)))
+
+     (assertions
        "Emits a placeholder body if you do not give a body"
        (prim/defsc* nil '(Person [this props] {:shouldComponentUpdate (fn [props state] false)}))
        => '(fulcro.client.primitives/defui Person
@@ -1554,7 +1588,9 @@
                (clojure.core/let
                  [props (fulcro.client.primitives/props this)]
                  nil))
-             (shouldComponentUpdate [this props state] false))
+             (shouldComponentUpdate [this props state] false)))
+
+     (assertions
        "can add fulcro 1.0 form spec"
        (prim/defsc* nil '(Person [this {:keys [a]}] {:form-fields [(f/text-input :a)]
                                                      :query       [:a]} (dom/div nil "TODO")))
@@ -1566,7 +1602,9 @@
              Object
              (render [this]
                (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
-                 (dom/div nil "TODO"))))
+                 (dom/div nil "TODO")))))
+
+     (assertions
        "can add fulcro 2.0 form state fields"
        (prim/defsc* nil '(Person [this {:keys [a]}] {:form-fields #{:a}
                                                      :query       [:a f/form-config-join]} (dom/div nil "TODO")))
@@ -1578,7 +1616,9 @@
              Object
              (render [this]
                (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
-                 (dom/div nil "TODO"))))
+                 (dom/div nil "TODO")))))
+
+     (assertions
        "allows other protocols"
        (prim/defsc* nil '(Person
                            [this props computed]
@@ -1600,7 +1640,9 @@
                (let [~'props (fulcro.client.primitives/props ~'this)
                      ~'computed (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))
-             (~'shouldComponentUpdate [~'this ~'p ~'s] false))
+             (~'shouldComponentUpdate [~'this ~'p ~'s] false)))
+
+     (assertions
        "works without an ident"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1981,7 +2023,75 @@
   static prim/Ident
   (ident [this props] [:person/by-id (:id props)]))
 
-(specification "merge-component"
+(defsc MPhonePM [_ _]
+  {:ident     [:phone/by-id :id]
+   :query     [:id :number]
+   :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {:ui/initial-flag :start}
+                  current-normalized
+                  data-tree))})
+
+(defsc MPersonPM [_ _]
+  {:ident [:person/by-id :id]
+   :query [:id :name {:numbers (prim/get-query MPhonePM)}]})
+
+(defsc Score
+  [this {::keys []}]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {:ui/expanded? false}
+                  current-normalized
+                  data-tree))
+   :ident     [::score-id ::score-id]
+   :query     [::score-id ::points :ui/expanded?]})
+
+(defsc Scoreboard
+  [this {::keys []}]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (let [{::keys [scores]} data-tree
+                      high-score (apply max (map ::points scores))
+                      scores     (mapv
+                                   (fn [{::keys [points] :as score}]
+                                     (assoc score :ui/expanded? (= points high-score)))
+                                   scores)]
+                  (merge
+                    current-normalized
+                    (assoc data-tree ::scores scores))))
+   :ident     [::scoreboard-id ::scoreboard-id]
+   :query     [::scoreboard-id
+               {::scores (prim/get-query Score)}]})
+
+(defonce id-counter (atom 0))
+
+(defsc UiItem
+  [_ _]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {::id (swap! id-counter inc)}
+                  current-normalized
+                  data-tree))
+   :ident     [::id ::id]
+   :query     [::id ::title]})
+
+(defsc UiLoadedItem
+  [_ _]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {:ui/item {}}
+                  current-normalized
+                  data-tree))
+   :ident     [::loaded-id ::loaded-id]
+   :query     [::loaded-id ::name
+               {:ui/item (fp/get-query UiItem)}]})
+
+(defsc UiCollectionHolder
+  [_ _]
+  {:ident [::col-id ::col-id]
+   :query [::col-id
+           {::load-items (fp/get-query UiLoadedItem)}]})
+
+(specification "merge-component" :focused
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
         sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
         phone-3          {:id 3 :number "111-2222"}
@@ -2001,7 +2111,77 @@
       "leaves the original state untouched"
       (contains? new-state-map :people) => true
       (get-in new-state-map [:person/by-id :sally]) => sally
-      (get-in new-state-map [:phone/by-id 3]) => phone-3)))
+      (get-in new-state-map [:phone/by-id 3]) => phone-3))
+
+  #?(:cljs
+     (assertions
+       (prim/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
+       => {:person/by-id {:mary {:id      :mary
+                                 :name    "Mary"
+                                 :numbers [[:phone/by-id 55]]}}
+           :phone/by-id  {55 {:id              55
+                              :number          "98765-4321"
+                              :ui/initial-flag :start}}}
+
+       (prim/merge-component {} Scoreboard {::scoreboard-id 123
+                                            ::scores        [{::score-id 1
+                                                              ::points   4}
+                                                             {::score-id 2
+                                                              ::points   8}
+                                                             {::score-id 3
+                                                              ::points   7}]})
+       => {::scoreboard-id {123 {::scoreboard-id 123
+                                 ::scores        [[::score-id 1]
+                                                  [::score-id 2]
+                                                  [::score-id 3]]}}
+           ::score-id      {1 {::score-id    1
+                               ::points      4
+                               :ui/expanded? false}
+                            2 {::score-id    2
+                               ::points      8
+                               :ui/expanded? true}
+                            3 {::score-id    3
+                               ::points      7
+                               :ui/expanded? false}}}
+
+       (prim/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]) :replace [:main-person])
+       => {:person/by-id {:mary {:id      :mary
+                                 :name    "Mary"
+                                 :numbers [[:phone/by-id 55]]}}
+           :phone/by-id  {55 {:id              55
+                              :number          "98765-4321"
+                              :ui/initial-flag :start}}
+           :main-person [:person/by-id :mary]}
+
+       (do
+         (reset! id-counter 0)
+         (prim/merge-component {} UiLoadedItem
+           {::loaded-id 1
+            ::name      "a"}))
+       => {::loaded-id {1 {::loaded-id 1
+                           ::name      "a"
+                           :ui/item    [::id 1]}}
+           ::id        {1 {::id 1}}}
+
+       (do
+         (reset! id-counter 0)
+         (prim/merge-component {} UiCollectionHolder
+           {::col-id     123
+            ::load-items [{::loaded-id 1
+                           ::name      "a"}
+                          {::loaded-id 2
+                           ::name      "b"}]}))
+       => {::col-id    {123 {::col-id     123
+                             ::load-items [[::loaded-id 1]
+                                           [::loaded-id 2]]}}
+           ::loaded-id {1 {::loaded-id 1
+                           ::name      "a"
+                           :ui/item    [::id 1]}
+                        2 {::loaded-id 2
+                           ::name      "b"
+                           :ui/item    [::id 2]}}
+           ::id        {1 {::id 1}
+                        2 {::id 2}}})))
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defui Table
@@ -2047,18 +2227,249 @@
 (defsc AQuery [this props] {:query [:x]} (dom/div nil "TODO"))
 (defsc AState [this props] {:initial-state (fn [params] {})} (dom/div nil "TODO"))
 (defsc AIdent [this props] {:ident (fn [] [:x 1])} (dom/div nil "TODO"))
+(defsc APreMerge [this props] {:pre-merge (fn [_])} (dom/div nil "TODO"))
+
+(defsc AUIChild [_ _] {:ident     [:ui/id :ui/id]
+                       :query     [:ui/id :ui/name]
+                       :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                                    (merge
+                                      {:ui/id   "child-id"
+                                       :ui/name "123"}
+                                      current-normalized data-tree))})
+
+(defsc AUIChildWithoutPreMerge [_ _]
+  {:ident [:ui/id :ui/id]
+   :query [:ui/id :ui/name]})
+
+(defsc AUIParent [_ _] {:ident     [:id :id]
+                        :query     [:id {:ui/child (fp/get-query AUIChild)}]
+                        :pre-merge (fn [{:keys [current-normalized data-tree]}]
+                                     (merge
+                                       {:ui/child {}}
+                                       current-normalized
+                                       data-tree))})
+
+(defn build-simple-ident [ident props]
+  (if (fn? ident)
+    (ident props)
+    [ident (get props ident)]))
+
+(defmacro genc
+  "Quick way to generate components for testing query and ident"
+  ([query]
+   (with-meta query
+     {:component
+      `(prim/ui
+         ~'static prim/IQuery
+         ~(list 'query ['_] query))}))
+  ([ident query]
+   (with-meta
+     query
+     {:component
+      `(prim/ui
+         ~'static prim/IQuery
+         ~(list 'query ['_] query)
+
+         ~'static prim/Ident
+         ~(list 'ident ['_ 'props] `(build-simple-ident ~ident ~'props)))})))
+
+(defn- ident-from-prop [available]
+  (fn [props]
+    (or (some #(if-let [x (get props %)] [% x]) available)
+        [:unknown nil])))
+
+(specification "tree->db" :focused
+  (assertions
+    "[*]"
+    (prim/tree->db (genc ['*]) {:foo "bar"})
+    => {:foo "bar"})
+
+  (assertions
+    "reading properties"
+    (prim/tree->db [:a] {:a 1 :z 10})
+    => {:a 1, :z 10})
+
+  (assertions
+    "union case"
+    (prim/tree->db [{:multi (genc
+                              (ident-from-prop [:a/id :b/id])
+                              {:a (genc :a/id [:a/id :a/name])
+                               :b (genc :b/id [:b/id :a/name])})}]
+      {:multi {:a/id 3}})
+    => {:multi [:a/id 3]}
+
+    (prim/tree->db [{:multi (genc
+                              (ident-from-prop [:a/id :b/id])
+                              {:a (genc :a/id [:a/id :a/name])
+                               :b (genc :b/id [:b/id :a/name])})}]
+      {:multi {:b/id 5}} true)
+    => {:multi [:b/id 5]
+        :b/id  {5 #:b{:id 5}}}
+
+    (prim/tree->db [{:multi (genc
+                              (ident-from-prop [:a/id :b/id])
+                              {:a (genc :a/id [:a/id :a/name])
+                               :b (genc :b/id [:b/id :a/name])})}]
+      {:multi [{:b/id 3}
+               {:c/id 5}
+               {:a/id 42}]} true)
+    => {:multi   [[:b/id 3] [:unknown nil] [:a/id 42]]
+        :b/id    {3 #:b{:id 3}}
+        :unknown {nil #:c{:id 5}}
+        :a/id    {42 #:a{:id 42}}})
+
+  (assertions
+    "union case missing ident"
+    (prim/tree->db [{:multi {:a (genc :a/id [:a/id :a/name])
+                             :b (genc :b/id [:b/id :a/name])}}]
+      {:multi {:a/id 3}})
+    =throws=> {:regex #"Union components must implement Ident"})
+
+  (assertions
+    "normalized data"
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo [:id 123]} true)
+    => {:foo [:id 123]})
+
+  (assertions
+    "to one join"
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo {:id 123 :x 42}} true)
+    => {:foo [:id 123]
+        :id  {123 {:id 123, :x 42}}}
+
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo {:x 42}} true)
+    => {:foo [:id nil],
+        :id  {nil {:x 42}}}
+
+    (prim/tree->db [{:foo (genc :id [:id])}] {:bar {:id 123 :x 42}} true)
+    => {:bar {:id 123, :x 42}})
+
+  (assertions
+    "to many join"
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo [{:id 1 :x 42}
+                                                    {:id 2}]} true)
+    => {:foo [[:id 1] [:id 2]], :id {1 {:id 1, :x 42}, 2 {:id 2}}})
+
+  (assertions
+    "bounded recursive query"
+    (prim/tree->db [{:root (genc :id [:id {:p 2}])}]
+      {:root {:id 1 :p {:id 2 :p {:id 3 :p {:id 4 :p {:id 5}}}}}} true)
+    => {:root [:id 1]
+        :id {5 {:id 5}
+             4 {:id 4, :p [:id 5]}
+             3 {:id 3, :p [:id 4]}
+             2 {:id 2, :p [:id 3]}
+             1 {:id 1, :p [:id 2]}}})
+
+  (assertions
+    "unbounded recursive query"
+    (prim/tree->db [{:root (genc :id [:id {:p '...}])}]
+      {:root {:id 1 :p {:id 2 :p {:id 3 :p {:id 4 :p {:id 5}}}}}} true)
+    => {:root [:id 1]
+        :id {5 {:id 5}
+             4 {:id 4, :p [:id 5]}
+             3 {:id 3, :p [:id 4]}
+             2 {:id 2, :p [:id 3]}
+             1 {:id 1, :p [:id 2]}}})
+
+  (behavior "using with pre-merge-transform"
+    (assertions
+      (prim/tree->db AUIParent {:id 123} true (prim/pre-merge-transform {}))
+      => {:id       123
+          :ui/child [:ui/id "child-id"]
+          :ui/id    {"child-id" {:ui/id "child-id", :ui/name "123"}}}
+
+      "to one idents"
+      (prim/tree->db AUIParent {:id 123} true
+        (prim/pre-merge-transform {:id    {123 {:id       123
+                                                :ui/child [:ui/id "child-id"]}}
+                                   :ui/id {"child-id" {:ui/id "child-id", :ui/name "123"}}}))
+      => {:id       123
+          :ui/child [:ui/id "child-id"]}
+
+      "to many idents"
+      (prim/tree->db AUIParent {:id 123} true
+        (prim/pre-merge-transform {:id    {123 {:id       123
+                                                :ui/child [[:ui/id "child-id"]
+                                                           [:ui/id "child-id2"]]}}
+                                   :ui/id {"child-id"  {:ui/id "child-id", :ui/name "123"}
+                                           "child-id2" {:ui/id "child-id2", :ui/name "456"}}}))
+      => {:id       123
+          :ui/child [[:ui/id "child-id"]
+                     [:ui/id "child-id2"]]})))
+
+(defsc ReconcilerNormalizeRoot [_ _]
+  {:query [{:child (prim/get-query AUIChildWithoutPreMerge)}]})
+
+(defsc ReconcilerNormalizeRootWithPreMerge [_ _]
+  {:query [{:child (prim/get-query AUIChild)}]})
+
+(defn test-reconciler-normalize-initial-state [{:keys [normalize normalized state root-class]
+                                                :or {normalize true}}]
+  (let [reconciler (prim/reconciler {:normalize normalize
+                                     :state     (if normalize state (atom state))})]
+    (if normalized (swap! (-> reconciler :state) assoc :normalized true))
+    (#'prim/reconciler-normalize-initial-state reconciler root-class)
+    {:app-state  @(-> reconciler :config :state)
+     :normalized (-> reconciler :state deref :normalized)}))
+
+(specification "reconciler-normalize-initial-state"
+  (assertions
+    (test-reconciler-normalize-initial-state
+      {:state      {:child {:ui/name "test"}}
+       :root-class A})
+    => {:app-state  {:child #:ui{:name "test"}}
+        :normalized true}
+
+    "normalize"
+    (test-reconciler-normalize-initial-state
+      {:state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRoot})
+    => {:app-state {:child [:ui/id nil],
+                    :ui/id {nil #:ui{:name "test"}}}
+        :normalized true}
+
+    "don't normalize when normalize is false"
+    (test-reconciler-normalize-initial-state
+      {:normalize  false
+       :state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRoot})
+    => {:app-state  {:child {:ui/name "test"}}
+        :normalized true}
+
+    "don't normalize when it's already normalized"
+    (test-reconciler-normalize-initial-state
+      {:normalized true
+       :state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRoot})
+    => {:app-state  {:child {:ui/name "test"}}
+        :normalized true}
+
+    "applies pre-merge when there is a match"
+    (test-reconciler-normalize-initial-state
+      {:state      {:child {:ui/name "test"}}
+       :root-class ReconcilerNormalizeRootWithPreMerge})
+    => {:app-state  {:child [:ui/id "child-id"]
+                     :ui/id {"child-id" #:ui{:id "child-id", :name "test"}}},
+        :normalized true}))
 
 (specification "Detection of static protocols"
   (assertions
     #?(:cljs "works on client" :clj "works on server")
     (prim/has-query? A) => false
     (prim/has-query? AState) => false
+    (prim/has-query? APreMerge) => false
     (prim/has-query? AIdent) => false
     (prim/has-initial-app-state? A) => false
     (prim/has-initial-app-state? AState) => true
+    (prim/has-initial-app-state? APreMerge) => false
     (prim/has-initial-app-state? AIdent) => false
+    (prim/has-pre-merge? A) => false
+    (prim/has-pre-merge? AState) => false
+    (prim/has-pre-merge? APreMerge) => true
+    (prim/has-pre-merge? AIdent) => false
     (prim/has-ident? A) => false
     (prim/has-ident? AState) => false
+    (prim/has-ident? APreMerge) => false
     (prim/has-ident? AIdent) => true))
 
 (specification "focus-subquery"

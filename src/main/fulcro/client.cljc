@@ -290,7 +290,9 @@
   (reset-app! [this root-component callback]
     (if (not (prim/has-initial-app-state? root-component))
       (log/error "The specified root component does not implement InitialAppState!")
-      (let [base-state (prim/tree->db root-component (fulcro.client.primitives/initial-state root-component nil) true)]
+      (let [initial-state (fulcro.client.primitives/initial-state root-component nil)
+            base-state (prim/tree->db root-component initial-state true
+                         (fulcro.client.primitives/pre-merge-transform initial-state))]
         (clear-pending-remote-requests! this nil)
         (reset! (prim/app-state reconciler) base-state)
         (reset-history! this)
