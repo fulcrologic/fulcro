@@ -1,7 +1,9 @@
 (ns fulcro.client.primitives-spec
+  #?(:cljs (:require-macros [fulcro.client.primitives-spec]))
   (:require [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro.client.primitives :as prim :refer [defui defsc]]
             [fulcro.history :as hist]
+
             #?(:cljs [fulcro.client.dom :as dom]
                :clj
                      [fulcro.client.dom-server :as dom])
@@ -2249,29 +2251,21 @@
                                        current-normalized
                                        data-tree))})
 
-(defn build-simple-ident [ident props]
+(defn- build-simple-ident [ident props]
   (if (fn? ident)
     (ident props)
     [ident (get props ident)]))
 
-(defmacro genc
-  "Quick way to generate components for testing query and ident"
-  ([query]
-   (with-meta query
-     {:component
-      `(prim/ui
-         ~'static prim/IQuery
-         ~(list 'query ['_] query))}))
-  ([ident query]
-   (with-meta
-     query
-     {:component
-      `(prim/ui
-         ~'static prim/IQuery
-         ~(list 'query ['_] query)
+(defn- quick-ident-class [ident]
+  (with-meta
+    (reify
+      prim/Ident
+      (ident [_ props] (build-simple-ident ident props)))
+    {:ident (fn [_ props] (build-simple-ident ident props))}))
 
-         ~'static prim/Ident
-         ~(list 'ident ['_ 'props] `(build-simple-ident ~ident ~'props)))})))
+(defn- genc [ident query]
+  (with-meta query
+    {:component (quick-ident-class ident)}))
 
 (defn- ident-from-prop [available]
   (fn [props]
@@ -2281,7 +2275,7 @@
 (specification "tree->db" :focused
   (assertions
     "[*]"
-    (prim/tree->db (genc ['*]) {:foo "bar"})
+    (prim/tree->db ['*] {:foo "bar"})
     => {:foo "bar"})
 
   (assertions
