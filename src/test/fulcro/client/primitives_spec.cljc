@@ -1462,7 +1462,9 @@
                               :initial-state {:a 1}
                               :ident         [:PERSON/by-id :db/id]}
                              (dom/div nil "Boo")))
-       =fn=> (constantly true)                              ; just expect it not to throw
+       =fn=> (constantly true)) ; just expect it not to throw
+
+     (assertions
        "works with initial state"
        (#'prim/defsc* nil '(Person
                              [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1487,7 +1489,9 @@
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
-                 (~'dom/div nil "Boo"))))
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
        "allows an initial state method body"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1506,7 +1510,9 @@
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
-                 (~'dom/div nil "Boo"))))
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
        "allows pre merge hook"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1516,7 +1522,7 @@
                            (dom/div nil "Boo")))
        => `(fulcro.client.primitives/defui ~'Person
              ~'static fulcro.client.primitives/IPreMerge
-             (~'pre-merge [~'this ~'tree] (merge {:ui/default :value} ~'tree))
+             (~'pre-merge* [~'this ~'tree] (~'merge {:ui/default :value} ~'tree))
              ~'static fulcro.client.primitives/Ident
              (~'ident [~'this ~'props] [:PERSON/by-id (:db/id ~'props)])
              ~'static fulcro.client.primitives/IQuery
@@ -1525,7 +1531,9 @@
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
-                 (~'dom/div nil "Boo"))))
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
        "works without initial state"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -1541,7 +1549,9 @@
              (~'render [~'this]
                (let [{:keys [~'person/job ~'db/id] :as ~'props} (fulcro.client.primitives/props ~'this)
                      {:keys [~'onSelect] :as ~'computed} (fulcro.client.primitives/get-computed ~'this)]
-                 (~'dom/div nil "Boo"))))
+                 (~'dom/div nil "Boo")))))
+
+     (assertions
        "allows Object protocol"
        (prim/defsc* nil '(Person
                            [this props computed]
@@ -1556,7 +1566,9 @@
                (let [~'props (fulcro.client.primitives/props ~'this)
                      ~'computed (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))
-             (~'shouldComponentUpdate [~'this ~'p ~'s] false))
+             (~'shouldComponentUpdate [~'this ~'p ~'s] false)))
+
+     (assertions
        "Places lifecycle signatures under the Object protocol"
        (prim/defsc* nil '(Person [this props] {:shouldComponentUpdate (fn [next-props next-state] false)} (dom/div nil "Boo")))
        => '(fulcro.client.primitives/defui Person
@@ -1565,7 +1577,9 @@
                (clojure.core/let
                  [props (fulcro.client.primitives/props this)]
                  (dom/div nil "Boo")))
-             (shouldComponentUpdate [this next-props next-state] false))
+             (shouldComponentUpdate [this next-props next-state] false)))
+
+     (assertions
        "Emits a placeholder body if you do not give a body"
        (prim/defsc* nil '(Person [this props] {:shouldComponentUpdate (fn [props state] false)}))
        => '(fulcro.client.primitives/defui Person
@@ -1574,7 +1588,9 @@
                (clojure.core/let
                  [props (fulcro.client.primitives/props this)]
                  nil))
-             (shouldComponentUpdate [this props state] false))
+             (shouldComponentUpdate [this props state] false)))
+
+     (assertions
        "can add fulcro 1.0 form spec"
        (prim/defsc* nil '(Person [this {:keys [a]}] {:form-fields [(f/text-input :a)]
                                                      :query       [:a]} (dom/div nil "TODO")))
@@ -1586,7 +1602,9 @@
              Object
              (render [this]
                (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
-                 (dom/div nil "TODO"))))
+                 (dom/div nil "TODO")))))
+
+     (assertions
        "can add fulcro 2.0 form state fields"
        (prim/defsc* nil '(Person [this {:keys [a]}] {:form-fields #{:a}
                                                      :query       [:a f/form-config-join]} (dom/div nil "TODO")))
@@ -1598,7 +1616,9 @@
              Object
              (render [this]
                (clojure.core/let [{:keys [a]} (fulcro.client.primitives/props this)]
-                 (dom/div nil "TODO"))))
+                 (dom/div nil "TODO")))))
+
+     (assertions
        "allows other protocols"
        (prim/defsc* nil '(Person
                            [this props computed]
@@ -1620,7 +1640,9 @@
                (let [~'props (fulcro.client.primitives/props ~'this)
                      ~'computed (fulcro.client.primitives/get-computed ~'this)]
                  (~'dom/div nil "Boo")))
-             (~'shouldComponentUpdate [~'this ~'p ~'s] false))
+             (~'shouldComponentUpdate [~'this ~'p ~'s] false)))
+
+     (assertions
        "works without an ident"
        (prim/defsc* nil '(Person
                            [this {:keys [person/job db/id] :as props} {:keys [onSelect] :as computed}]
@@ -2227,37 +2249,153 @@
                                        current-normalized
                                        data-tree))})
 
+(defn build-simple-ident [ident props]
+  (if (fn? ident)
+    (ident props)
+    [ident (get props ident)]))
+
+(defmacro genc
+  "Quick way to generate components for testing query and ident"
+  ([query]
+   (with-meta query
+     {:component
+      `(prim/ui
+         ~'static prim/IQuery
+         ~(list 'query ['_] query))}))
+  ([ident query]
+   (with-meta
+     query
+     {:component
+      `(prim/ui
+         ~'static prim/IQuery
+         ~(list 'query ['_] query)
+
+         ~'static prim/Ident
+         ~(list 'ident ['_ 'props] `(build-simple-ident ~ident ~'props)))})))
+
+(defn- ident-from-prop [available]
+  (fn [props]
+    (or (some #(if-let [x (get props %)] [% x]) available)
+        [:unknown nil])))
+
 (specification "tree->db" :focused
   (assertions
-    (prim/tree->db AQuery {:x "value"}) => {:x "value"}
+    "[*]"
+    (prim/tree->db (genc ['*]) {:foo "bar"})
+    => {:foo "bar"})
 
-    "accepts custom transform fn"
-    (prim/tree->db AQuery {:x "value"} true #(assoc %2 :ui/data "extra"))
-    => {:x "value" :ui/data "extra"}
+  (assertions
+    "reading properties"
+    (prim/tree->db [:a] {:a 1 :z 10})
+    => {:a 1, :z 10})
 
-    (prim/tree->db AUIParent {:id 123} true (prim/pre-merge-transform {}))
-    => {:id       123
-        :ui/child [:ui/id "child-id"]
-        :ui/id    {"child-id" {:ui/id "child-id", :ui/name "123"}}}
+  (assertions
+    "union case"
+    (prim/tree->db [{:multi (genc
+                              (ident-from-prop [:a/id :b/id])
+                              {:a (genc :a/id [:a/id :a/name])
+                               :b (genc :b/id [:b/id :a/name])})}]
+      {:multi {:a/id 3}})
+    => {:multi [:a/id 3]}
 
-    "to one idents"
-    (prim/tree->db AUIParent {:id 123} true
-      (prim/pre-merge-transform {:id    {123 {:id       123
-                                              :ui/child [:ui/id "child-id"]}}
-                                 :ui/id {"child-id" {:ui/id "child-id", :ui/name "123"}}}))
-    => {:id       123
-        :ui/child [:ui/id "child-id"]}
+    (prim/tree->db [{:multi (genc
+                              (ident-from-prop [:a/id :b/id])
+                              {:a (genc :a/id [:a/id :a/name])
+                               :b (genc :b/id [:b/id :a/name])})}]
+      {:multi {:b/id 5}} true)
+    => {:multi [:b/id 5]
+        :b/id  {5 #:b{:id 5}}}
 
-    "to many idents"
-    (prim/tree->db AUIParent {:id 123} true
-      (prim/pre-merge-transform {:id    {123 {:id       123
-                                              :ui/child [[:ui/id "child-id"]
-                                                         [:ui/id "child-id2"]]}}
-                                 :ui/id {"child-id"  {:ui/id "child-id", :ui/name "123"}
-                                         "child-id2" {:ui/id "child-id2", :ui/name "456"}}}))
-    => {:id       123
-        :ui/child [[:ui/id "child-id"]
-                   [:ui/id "child-id2"]]}))
+    (prim/tree->db [{:multi (genc
+                              (ident-from-prop [:a/id :b/id])
+                              {:a (genc :a/id [:a/id :a/name])
+                               :b (genc :b/id [:b/id :a/name])})}]
+      {:multi [{:b/id 3}
+               {:c/id 5}
+               {:a/id 42}]} true)
+    => {:multi   [[:b/id 3] [:unknown nil] [:a/id 42]]
+        :b/id    {3 #:b{:id 3}}
+        :unknown {nil #:c{:id 5}}
+        :a/id    {42 #:a{:id 42}}})
+
+  (assertions
+    "union case missing ident"
+    (prim/tree->db [{:multi {:a (genc :a/id [:a/id :a/name])
+                             :b (genc :b/id [:b/id :a/name])}}]
+      {:multi {:a/id 3}})
+    =throws=> {:regex #"Union components must implement Ident"})
+
+  (assertions
+    "normalized data"
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo [:id 123]} true)
+    => {:foo [:id 123]})
+
+  (assertions
+    "to one join"
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo {:id 123 :x 42}} true)
+    => {:foo [:id 123]
+        :id  {123 {:id 123, :x 42}}}
+
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo {:x 42}} true)
+    => {:foo [:id nil],
+        :id  {nil {:x 42}}}
+
+    (prim/tree->db [{:foo (genc :id [:id])}] {:bar {:id 123 :x 42}} true)
+    => {:bar {:id 123, :x 42}})
+
+  (assertions
+    "to many join"
+    (prim/tree->db [{:foo (genc :id [:id])}] {:foo [{:id 1 :x 42}
+                                                    {:id 2}]} true)
+    => {:foo [[:id 1] [:id 2]], :id {1 {:id 1, :x 42}, 2 {:id 2}}})
+
+  (assertions
+    "bounded recursive query"
+    (prim/tree->db [{:root (genc :id [:id {:p 2}])}]
+      {:root {:id 1 :p {:id 2 :p {:id 3 :p {:id 4 :p {:id 5}}}}}} true)
+    => {:root [:id 1]
+        :id {5 {:id 5}
+             4 {:id 4, :p [:id 5]}
+             3 {:id 3, :p [:id 4]}
+             2 {:id 2, :p [:id 3]}
+             1 {:id 1, :p [:id 2]}}})
+
+  (assertions
+    "unbounded recursive query"
+    (prim/tree->db [{:root (genc :id [:id {:p '...}])}]
+      {:root {:id 1 :p {:id 2 :p {:id 3 :p {:id 4 :p {:id 5}}}}}} true)
+    => {:root [:id 1]
+        :id {5 {:id 5}
+             4 {:id 4, :p [:id 5]}
+             3 {:id 3, :p [:id 4]}
+             2 {:id 2, :p [:id 3]}
+             1 {:id 1, :p [:id 2]}}})
+
+  (behavior "using with pre-merge-transform"
+    (assertions
+      (prim/tree->db AUIParent {:id 123} true (prim/pre-merge-transform {}))
+      => {:id       123
+          :ui/child [:ui/id "child-id"]
+          :ui/id    {"child-id" {:ui/id "child-id", :ui/name "123"}}}
+
+      "to one idents"
+      (prim/tree->db AUIParent {:id 123} true
+        (prim/pre-merge-transform {:id    {123 {:id       123
+                                                :ui/child [:ui/id "child-id"]}}
+                                   :ui/id {"child-id" {:ui/id "child-id", :ui/name "123"}}}))
+      => {:id       123
+          :ui/child [:ui/id "child-id"]}
+
+      "to many idents"
+      (prim/tree->db AUIParent {:id 123} true
+        (prim/pre-merge-transform {:id    {123 {:id       123
+                                                :ui/child [[:ui/id "child-id"]
+                                                           [:ui/id "child-id2"]]}}
+                                   :ui/id {"child-id"  {:ui/id "child-id", :ui/name "123"}
+                                           "child-id2" {:ui/id "child-id2", :ui/name "456"}}}))
+      => {:id       123
+          :ui/child [[:ui/id "child-id"]
+                     [:ui/id "child-id2"]]})))
 
 (defsc ReconcilerNormalizeRoot [_ _]
   {:query [{:child (prim/get-query AUIChildWithoutPreMerge)}]})
