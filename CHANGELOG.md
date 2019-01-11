@@ -8,7 +8,7 @@ small and tractable.
 
 2.8.0
 ------
-- Added pre-merge support
+- Add pre-merge support
 
 2.7.0
 -----
