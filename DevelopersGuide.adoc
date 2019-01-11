@@ -2709,7 +2709,7 @@ this is how we can setup our `Countdown` using `:pre-merge`:
         (if done? "Done!" (str count))))))
 ----
 
-<1> This is merge setup works for most of the cases
+<1> This merge setup works for most of the cases
 <2> We start the merge with a map containing defaults
 <3> Then we merge with the data that is already there for this component (may be `nil` if component doesn't has previous data)
 <4> Finally merge in the data tree, since it's the last it will win over any of the previous
@@ -2721,7 +2721,7 @@ The `:pre-merge` lambda receives a single map containing the following keys:
 * `:state-map` - the current app state map (you may use to lookup refs).
 * `:query` - the query used to do this request (user may have modified the original using `:focus`, `:without` or `:update-query` during the load call
 
-With this setup we can get rid of the `post-mutation`. The single case example with pre-merge:
+With this setup we can get rid of the `post-mutation`. The to-one case example with pre-merge:
 
 ++++
 <div class="example" id="postmutations-single"> </div>
