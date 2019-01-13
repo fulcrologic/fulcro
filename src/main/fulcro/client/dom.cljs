@@ -113,7 +113,8 @@
 (defonce form-elements? #{"input" "select" "option" "textarea"})
 
 (defn is-form-element? [element]
-  (form-elements? (str/lower-case (.-tagName element))))
+  (let [tag (.-tagName element)]
+    (and tag (form-elements? (str/lower-case tag)))))
 
 (defn wrap-form-element [element]
   (let [ctor (fn [props]
