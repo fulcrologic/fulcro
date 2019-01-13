@@ -9,6 +9,7 @@
     [cljsjs.react]
     [cljsjs.react.dom]
     [goog.object :as gobj]
+    [goog.dom :as gdom]
     [fulcro.client.dom-common :as cdom]))
 
 (declare a abbr address altGlyph altGlyphDef altGlyphItem animate animateColor animateMotion animateTransform area
@@ -109,6 +110,12 @@
       (gobj/set next-state "ref" inputRef))
     (.setState component next-state)))
 
+(defonce form-elements? #{"input" "select" "option" "textarea"})
+
+(defn is-form-element? [element]
+  (let [tag (.-tagName element)]
+    (and tag (form-elements? (str/lower-case tag)))))
+
 (defn wrap-form-element [element]
   (let [ctor (fn [props]
                (this-as this
@@ -132,7 +139,11 @@
 
       (componentWillReceiveProps [this new-props]
         (let [state-value   (gobj/getValueByKeys this "state" "value")
-              element-value (gobj/get (js/ReactDOM.findDOMNode this) "value")]
+              this-node     (js/ReactDOM.findDOMNode this)
+              value-node    (if (is-form-element? this-node) 
+                              this-node
+                              (gdom/findNode this-node #(is-form-element? %)))
+              element-value (gobj/get value-node  "value")]
           (if (not= state-value element-value)
             (update-state this new-props element-value)
             (update-state this new-props (gobj/get new-props "value")))))
@@ -176,7 +187,6 @@
       "select" (apply wrapped-select props children)
       "option" (apply wrapped-option props children))))
 
-(defonce form-elements? #{"input" "select" "option" "textarea"})
 
 ;; fallback if the macro didn't do this
 (defn macro-create-element

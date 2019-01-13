@@ -3,8 +3,14 @@
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.util :as util]
     [fulcro.client.dom-common :as cdom]
+    [fulcro.client.primitives :as prim]
+    [clojure.string :as str]
     #?(:cljs [fulcro.client.dom :as dom :refer [div p span]]
-       :clj  [fulcro.client.dom-server :as dom]))
+       :clj  [fulcro.client.dom-server :as dom])
+    #?@(:cljs [[cljsjs.enzyme]
+               [goog.object :as gobj]
+               [goog.dom :as gdom]])
+    )
   #?(:clj
      (:import (cljs.tagged_literals JSValue))))
 
@@ -326,6 +332,88 @@
                                               t => "div")
 
        (apply div {} ["Hello"]))))
+
+#? (:cljs
+  (do
+
+    (defn- update-state
+      [component next-props value]
+      (let [on-change  (gobj/getValueByKeys component "state" "onChange")
+            next-state #js {}]
+        (gobj/extend next-state next-props #js {:onChange on-change})
+        (gobj/set next-state "value" value)
+        (.setState component next-state)))
+
+    (def fancy-nested-input-element
+      (let [ctor (fn [props]
+                   (this-as this
+                     (set! (.-state this)
+                       (let [state #js {}]
+                         (gobj/extend state props #js {:onChange (goog/bind (gobj/get this "onChange") this)})
+                         state))
+                     (.apply js/React.Component this (js-arguments))))]
+        (set! (.-displayName ctor) (str "double-wrapped-input" ))
+        (goog.inherits ctor js/React.Component)
+        (specify! (.-prototype ctor)
+          Object
+          (onChange [this event]
+            (when-let [handler (.-onChange (.-props this))]
+              (handler event)
+              (update-state this (.-props this)(gobj/getValueByKeys event "target" "value"))))
+
+          (componentWillReceiveProps [this new-props]
+            (let [state-value   (gobj/getValueByKeys this "state" "value")
+                  input-node    (gdom/findNode (js/ReactDOM.findDOMNode this) #(="input" (str/lower-case (.-tagName %))))
+                  element-value (gobj/get input-node "value")]
+              (if (not= state-value element-value)
+                (update-state this new-props element-value)
+                (update-state this new-props (gobj/get new-props "value")))))
+
+          (render [this]
+            (let [input-props (gobj/filter (.-state this) 
+                                           (fn [v k _] (#{"type" "onChange" "value"} k)))]
+              (js/React.createElement "div" #js {:className "fancy"}
+                (js/React.createElement "input" input-props )))))
+        (let [real-factory (js/React.createFactory ctor)]
+          (fn [props & children]
+            (apply real-factory props (clj->js children))))))
+     
+    (specification "Wrapping form elements"
+      (let [element          (atom nil)
+            new-value        "bar" 
+            expected-value   (str "+" new-value "+") ; the surrounding + ensures the simulated mutation ran
+            props            {:type "text"
+                              :value "foo" 
+                              :onChange (fn simulated-mutation [evt]
+                                          (comment "simulated fulcro mutation") 
+                                          (let [new-val (str "+" (.-value (.-target evt)) "+")]
+                                            (.setProps @element (clj->js {:value new-val}))))}
+            simple-input-tag (dom/input props)
+            nested-input-tag ((dom/wrap-form-element fancy-nested-input-element) (clj->js props))]
+
+         (behavior "a simple input tag"
+           (reset! element (.mount js/enzyme simple-input-tag))
+           (-> @element 
+               (.find "input")
+               (.simulate "change" (clj->js {:target {:value new-value}})))
+           (let [rendered-value (-> @element .getElement .-props .-value)]
+             (assertions
+               "is re-rendered when its value is changed"
+               rendered-value => expected-value))
+           (.unmount @element))
+         
+         (behavior "an input tag nested inside other tags"
+           (reset! element (.mount js/enzyme nested-input-tag))
+           (-> @element 
+               (.find "input")
+               (.simulate "change" (clj->js {:target {:value new-value}})))
+           (let [parent-element-value (-> @element .getElement .-props .-value)
+                 input-element-value  (-> @element (.find "input") .getElement .-props .-value) ]
+             (assertions
+               "is re-rendered when its value is changed"
+               parent-element-value => expected-value
+               input-element-value => expected-value))
+           (.unmount @element))))))
 
 (specification "Interpretaion of :classes"
   (assertions

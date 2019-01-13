@@ -311,7 +311,7 @@
       "Preserves the query when parameters are present"
       (prim/get-query ui-rootp state-parameterized) => parameterized-query)))
 
-(specification "Setting a query" :focused
+(specification "Setting a query"
   (let [query               (prim/get-query ui-root {})
         state               (prim/normalize-query {} query)
         state-modified      (prim/set-query* state ui-b {:query [:MODIFIED]})
@@ -348,7 +348,7 @@
   {:query [:id {:x (prim/get-query T2C1)}]
    :ident [:a/by-id :id]})
 
-(specification "Compount set-query" :focused
+(specification "Compound set-query"
   (let [state       {}
         new-state   (as-> state s
                       (prim/set-query* s T2C1 {:query [:id :address]})
@@ -1803,7 +1803,7 @@
       (assertions
         (get-in @state [:many :path]) => [[:table 99] [:table 3] [:table 77]]))))
 
-(specification "integrate-ident" :focused
+(specification "integrate-ident"
   (let [state {:a    {:path [[:table 2]]}
                :b    {:path [[:table 2]]}
                :d    [:table 6]
