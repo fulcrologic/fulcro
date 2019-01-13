@@ -1,6 +1,7 @@
 2.8.0
 ------
-- Add pre-merge support
+- Add pre-merge support.
+- Tweak to wrapped for elements to handle nested wrappings.
 
 2.7.2
 -----
