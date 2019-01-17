@@ -4,7 +4,7 @@
   :lein-min-version "2.8.1"
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.10.0" :scope "provided"]
                  [org.clojure/clojurescript "1.10.439" :scope "provided"]
 
                  [cljsjs/react "16.6.0-0"]
@@ -23,11 +23,11 @@
                  [http-kit "2.3.0" :scope "provided"]
                  [ring/ring-core "1.6.3" :scope "provided" :exclusions [commons-codec]]
                  [bk/ring-gzip "0.3.0" :scope "provided"]
-                 [bidi "2.1.3" :scope "provided"]
+                 [bidi "2.1.5" :scope "provided"]
                  [com.taoensso/sente "1.14.0-RC1" :scope "provided"]
 
                  ;; test deps
-                 [fulcrologic/fulcro-spec "2.2.0" :scope "test" :exclusions [fulcrologic/fulcro]]
+                 [fulcrologic/fulcro-spec "2.2.0-1" :scope "test" :exclusions [fulcrologic/fulcro]]
                  [lein-doo "0.1.10" :scope "test"]
                  [com.ibm.icu/icu4j "62.1" :scope "test"]
                  [org.clojure/test.check "0.10.0-alpha3" :scope "test"]

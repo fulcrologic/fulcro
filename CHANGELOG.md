@@ -2,6 +2,7 @@
 ------
 - Add pre-merge support.
 - Tweak to wrapped for elements to handle nested wrappings.
+- Upgraded to clojure 1.10
 
 2.7.2
 -----

@@ -2093,7 +2093,7 @@
    :query [::col-id
            {::load-items (fp/get-query UiLoadedItem)}]})
 
-(specification "merge-component" :focused
+(specification "merge-component"
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
         sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
         phone-3          {:id 3 :number "111-2222"}
@@ -2272,7 +2272,7 @@
     (or (some #(if-let [x (get props %)] [% x]) available)
         [:unknown nil])))
 
-(specification "tree->db" :focused
+(specification "tree->db"
   (assertions
     "[*]"
     (prim/tree->db ['*] {:foo "bar"})
