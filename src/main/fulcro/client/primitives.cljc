@@ -920,11 +920,11 @@
                              (get-ident class data)))]
         (if-not (nil? ident)
           (vary-meta (normalize* (get query (first ident)) data refs union-seen transform)
-            assoc ::tag (first ident)) ; FIXME: What is tag for?
+            assoc ::tag (first ident))                      ; FIXME: What is tag for?
           (throw #?(:clj  (IllegalArgumentException. "Union components must implement Ident")
                     :cljs (js/Error. "Union components must implement Ident")))))
 
-      (vector? data) data ;; already normalized
+      (vector? data) data                                   ;; already normalized
 
       :else
       (loop [q (seq query) ret data]
@@ -1652,14 +1652,15 @@
                 (merge-ident config tree' ident props)))]
       (reduce step tree refs))))
 
-(defn- merge-novelty
+(defn -merge-novelty
+  "PRIVATE. DO NOT USE."
   ([reconciler state-map result-tree query tempids]
    (let [state (if-let [migrate (-> reconciler :config :migrate)]
                  (let [root-component (app-root reconciler)
                        root-query     (when-not query (get-query root-component state-map))]
                    (migrate state-map (or query root-query) tempids))
                  state-map)]
-     (merge-novelty reconciler state result-tree query)))
+     (-merge-novelty reconciler state result-tree query)))
   ([reconciler state-map result-tree query]
    (let [config            (:config reconciler)
          [idts result-tree] (sift-idents result-tree)
@@ -1687,7 +1688,7 @@
                   (map (comp get-tempids second))
                   (reduce merge {}))]
     {:keys     (into [] (remove symbol?) (keys res))
-     :next     (merge-novelty reconciler state res query tempids)
+     :next     (-merge-novelty reconciler state res query tempids)
      ::tempids tempids}))
 
 (defn merge!
@@ -1778,7 +1779,9 @@
           (get-in indexes [:prop->classes k]))))))
 
 
-(defn- to-env [x]
+(defn -to-env
+  "PRIVATE: do not use."
+  [x]
   (let [config (if (reconciler? x) (:config x) x)]
     (select-keys config [:state :shared :parser])))
 
@@ -1798,7 +1801,8 @@
        :cljs (js/setTimeout #(p/send! reconciler) 0))))
 
 #?(:cljs
-   (defn- queue-render! [f]
+   (defn -queue-render! "PRIVATE."
+     [f]
      (cond
        (fn? *raf*) (*raf* f)
 
@@ -1812,7 +1816,7 @@
    :cljs
         (let [throttle (new goog.async.Throttle
                          (fn [reconciler]
-                           (queue-render! #(p/reconcile! reconciler)))
+                           (-queue-render! #(p/reconcile! reconciler)))
                          16)]
           (defn schedule-render! [reconciler] (.fire throttle reconciler))))
 
@@ -1917,8 +1921,10 @@
 
 (declare class->any)
 
-(defn- optimal-render
-  "Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
+(defn -optimal-render
+  "PRIVATE.
+
+   Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
    to refresh the minimum number of components according to the UI depth and state. If it cannot do targeted updates then
    it will call `render-root` to render the entire UI. Other optimizations may apply in render-root."
   [reconciler refresh-queue render-root]
@@ -1944,7 +1950,7 @@
                                      (conj result (parent-with-path c))))
                                  []
                                  mounted-components)
-        env                    (assoc (to-env config) :reconciler reconciler)]
+        env                    (assoc (-to-env config) :reconciler reconciler)]
     #?(:cljs
        (when root
          (let [old-tree     (props root)
@@ -1973,9 +1979,11 @@
                    end   (inst-ms (js/Date.))]
                (if (> (- end start) 20) (log/warn "Root render took " (- end start) "ms")))))))))
 
-(defn- reconciler-normalize-initial-state [{:keys [config state]} root-class]
+(defn -reconciler-normalize-initial-state
+  "PRIVATE"
+  [{:keys [config state]} root-class]
   (when (and (:normalize config)
-             (not (:normalized @state)))
+          (not (:normalized @state)))
     (let [app-state @(:state config)
           new-state (tree->db root-class app-state true (pre-merge-transform app-state))]
       (reset! (:state config) new-state)
@@ -2003,7 +2011,7 @@
         (swap! state assoc :id guid))
       (when (has-query? root-class)
         (p/index-root (assoc (:indexer config) :state (-> config :state deref)) root-class))
-      (reconciler-normalize-initial-state this root-class)
+      (-reconciler-normalize-initial-state this root-class)
       (let [renderf (fn render-fn [data]
                       (binding [*reconciler* this
                                 *shared*     (merge
@@ -2031,7 +2039,7 @@
                        (let [root-query (get-query rctor (-> config :state deref))]
                          (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
                          (if-not (nil? root-query)
-                           (let [env        (to-env config)
+                           (let [env        (-to-env config)
                                  root-props ((:parser config) env root-query)]
                              (when (empty? root-props)
                                (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
@@ -2051,7 +2059,7 @@
           (fn add-fn [_ _ _ _]
             #?(:cljs
                (if-not (has-query? root-class)
-                 (queue-render! parsef)
+                 (-queue-render! parsef)
                  (do
                    (p/tick! this)
                    (schedule-render! this))))))
@@ -2116,7 +2124,7 @@
       (binding [*blindly-render* blind-refresh?]
         (if force-root?
           (render-root)
-          (optimal-render this components-to-refresh render-root)))))
+          (-optimal-render this components-to-refresh render-root)))))
 
   (send! [this]
     (let [sends (:queued-sends @state)]
@@ -2253,7 +2261,7 @@
                                (ident c (props c))
                                ref)
           env                (merge
-                               (to-env cfg)
+                               (-to-env cfg)
                                {:reconciler reconciler :component c}
                                (when ref
                                  {:ref ref}))
@@ -2548,15 +2556,6 @@
   (get-raw-react-prop component #?(:clj  :fulcro$instrument
                                    :cljs "fulcro$instrument")))
 
-#?(:cljs
-   (defn- merge-pending-state! [c]
-     (when-let [pending (some-> c .-state (gobj/get "fulcro$pendingState"))]
-       (let [state    (.-state c)
-             previous (gobj/get state "fulcro$state")]
-         (gobj/remove state "fulcro$pendingState")
-         (gobj/set state "fulcro$previousState" previous)
-         (gobj/set state "fulcro$state" pending)))))
-
 (defn class->any
   "Get any component from the indexer that matches the component class."
   [x class]
@@ -2691,14 +2690,16 @@
         :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler ptx)) 0)))))
 
 #?(:clj
-   (defn- is-link? [query-element] (and (vector? query-element)
+   (defn is-link?
+     "Returns true if the given query element is a link query like [:x '_]."
+     [query-element] (and (vector? query-element)
                                      (keyword? (first query-element))
                                      ; need the double-quote because when in a macro we'll get the literal quote.
                                      (#{''_ '_} (second query-element)))))
 
 #?(:clj
-   (defn- legal-keys
-     "Find the legal keys in a query. NOTE: This is at compile time, so the get-query calls are still embedded (thus cannot
+   (defn -legal-keys
+     "PRIVATE. Find the legal keys in a query. NOTE: This is at compile time, so the get-query calls are still embedded (thus cannot
      use the AST)"
      [query]
      (letfn [(keeper [ele]
@@ -2712,7 +2713,8 @@
        (set (keep keeper query)))))
 
 #?(:clj
-   (defn- children-by-prop [query]
+   (defn -children-by-prop "PRIVATE."
+     [query]
      (into {}
        (keep #(if (and (map? %) (or (is-link? (ffirst %)) (keyword? (ffirst %))))
                 (let [k   (if (vector? (ffirst %))
@@ -2758,7 +2760,7 @@
                                                             nm   (name s)]
                                                         (keyword nspc nm))))
                destructured-keys (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
-               queried-keywords  (legal-keys template)
+               queried-keywords  (-legal-keys template)
                has-wildcard?     (some #{'*} template)
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
@@ -2928,7 +2930,7 @@
      (cond
        method (build-raw-initial-state env thissym method)
        template (let [query    (:template query-template-or-method)
-                      children (or (children-by-prop query) {})]
+                      children (or (-children-by-prop query) {})]
                   (build-and-validate-initial-state-map env sym template legal-keys children is-a-form?)))))
 
 #?(:clj
@@ -2973,7 +2975,7 @@
        (cond
          (nil? form-fields) nil
          (set? form-fields) (let [valid-key?           (if (vector? query)
-                                                         (legal-keys query)
+                                                         (-legal-keys query)
                                                          (constantly true))
                                   missing-form-config? (and (vector? query)
                                                          (not (some #(= "form-config-join" (if (symbol? %) (name %))) query)))]
@@ -3027,7 +3029,7 @@
            ; TODO: validate-css?                    (and (map? csssym) (:template css))
            validate-query?                  (and (:template query-template-or-method) (not (some #{'*} (:template query-template-or-method))))
            legal-key-checker                (if validate-query?
-                                              (or (legal-keys (:template query-template-or-method)) #{})
+                                              (or (-legal-keys (:template query-template-or-method)) #{})
                                               (complement #{}))
            parsed-protocols                 (when protocols (group-by :protocol (s/conform :fulcro.client.primitives.defsc/protocols protocols)))
            object-methods                   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
@@ -3172,8 +3174,10 @@
         object-query (get-query component)]
     [{ident object-query}]))
 
-(defn- preprocess-merge
-  "Does the steps necessary to honor the data merge technique defined by Fulcro with respect
+(defn -preprocess-merge
+  "PRIVATE.
+
+  Does the steps necessary to honor the data merge technique defined by Fulcro with respect
   to data overwrites in the app database."
   [state-atom component object-data]
   (let [ident         (get-ident component object-data)
@@ -3259,7 +3263,7 @@
           reconciler     (if (contains? reconciler :reconciler) (:reconciler reconciler) reconciler)
           state          (app-state reconciler)
           data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
-          {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
+          {:keys [merge-data merge-query]} (-preprocess-merge state component object-data)]
       (merge! reconciler merge-data merge-query)
       (swap! state (fn [s]
                      (as-> s st

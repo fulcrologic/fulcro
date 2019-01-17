@@ -209,7 +209,7 @@
                                              tx => :the-tx)
                                            (on-done))
 
-          (app/send-payload :network reconciler load-payload send-complete)
+          (app/-send-payload :network reconciler load-payload send-complete)
 
           (assertions
             "Triggers update and send-complete once"
@@ -227,7 +227,7 @@
                                              tx => :the-tx)
                                            (on-error))
 
-          (app/send-payload :network reconciler load-payload send-complete)
+          (app/-send-payload :network reconciler load-payload send-complete)
 
           (assertions
             "Triggers error and send-complete once"
@@ -248,7 +248,7 @@
                                            (on-load)
                                            (on-done))
 
-          (app/send-payload :network reconciler load-payload send-complete)
+          (app/-send-payload :network reconciler load-payload send-complete)
 
           (assertions
             "Only one update is actually done."
@@ -266,7 +266,7 @@
                                              tx => :the-tx)
                                            (on-done))
 
-          (app/send-payload :network reconciler mutate-payload send-complete)
+          (app/-send-payload :network reconciler mutate-payload send-complete)
 
           (assertions
             "Triggers update and send-complete once"
@@ -284,7 +284,7 @@
                                              tx => :the-tx)
                                            (on-error))
 
-          (app/send-payload :network reconciler mutate-payload send-complete)
+          (app/-send-payload :network reconciler mutate-payload send-complete)
 
           (assertions
             "Triggers error and send-complete once"
@@ -305,7 +305,7 @@
                                            (on-load)
                                            (on-done))
 
-          (app/send-payload :network reconciler mutate-payload send-complete)
+          (app/-send-payload :network reconciler mutate-payload send-complete)
 
           (assertions
             "Updates are triggered for each update and once at completion"
@@ -375,7 +375,7 @@
       (when-mocking
         (app/fallback-handler app tx) => identity
         (prim/remove-loads-and-fallbacks tx) => tx
-        (app/enqueue q p) => (let [{:keys [::prim/query]} p]
+        (app/-enqueue q p) => (let [{:keys [::prim/query]} p]
                                (assertions
                                  query => '[(f)]))
 
@@ -386,10 +386,10 @@
       (when-mocking
         (app/fallback-handler app tx) => identity
         (prim/remove-loads-and-fallbacks tx) => tx
-        (app/enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
+        (app/-enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
                                   (assertions
                                     query => '[(f) (g)]))
-        (app/enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
+        (app/-enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
                                   (assertions
                                     query => '[(f)]))
 

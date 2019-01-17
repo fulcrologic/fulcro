@@ -806,7 +806,7 @@
 
 (specification "merge*"
   (when-mocking
-    (prim/merge-novelty r s res q tid) => {:next true}
+    (prim/-merge-novelty r s res q tid) => {:next true}
 
     (let [result `{:data 33 f {:tempids {1 2}} g {::prim/tempids {3 4}}}
           {:keys [keys next ::prim/tempids]} (prim/merge* :reconciler (atom {}) result [])]
@@ -1079,18 +1079,18 @@
      (component "legal-keys"
        (assertions
          "Finds all of the top-level props in a query"
-         (#'prim/legal-keys [:a :b]) => #{:a :b}
+         (#'prim/-legal-keys [:a :b]) => #{:a :b}
          "Finds all of the top-level join keys"
-         (#'prim/legal-keys [{:a [:x]} {:b [:y]}]) => #{:a :b}
+         (#'prim/-legal-keys [{:a [:x]} {:b [:y]}]) => #{:a :b}
          "Finds all of the unique ident (links to root) when used as props"
-         (#'prim/legal-keys [[:x ''_] [:y ''_]]) => #{:x :y}
+         (#'prim/-legal-keys [[:x ''_] [:y ''_]]) => #{:x :y}
          "Finds all of the unique ident (links to root) when used as anchor of joins"
-         (#'prim/legal-keys [{[:x ''_] [:a]} {[:y ''_] [:b]}]) => #{:x :y}
+         (#'prim/-legal-keys [{[:x ''_] [:a]} {[:y ''_] [:b]}]) => #{:x :y}
          "Finds keys that are parameterized"
-         (#'prim/legal-keys '[(:a {:n 1})]) => #{:a}
-         (#'prim/legal-keys '[({:a [:x]} {:n 1})]) => #{:a}
-         (#'prim/legal-keys '[([:x '_] {:n 1})]) => #{:x}
-         (#'prim/legal-keys '[({[:x '_] [:a]} {:n 1})]) => #{:x}))
+         (#'prim/-legal-keys '[(:a {:n 1})]) => #{:a}
+         (#'prim/-legal-keys '[({:a [:x]} {:n 1})]) => #{:a}
+         (#'prim/-legal-keys '[([:x '_] {:n 1})]) => #{:x}
+         (#'prim/-legal-keys '[({[:x '_] [:a]} {:n 1})]) => #{:x}))
      (component "build-query-forms"
        (assertions
          "Support a method form"
@@ -1712,10 +1712,10 @@
        (#'prim/component-merge-query MergeTestParent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (prim/get-query MergeTestChild)}]}])
      (component "preprocessing the object to merge"
        (let [no-state             (atom {:parent/by-id {}})
-             no-state-merge-data  (:merge-data (#'prim/preprocess-merge no-state MergeTestParent {:id 42}))
+             no-state-merge-data  (:merge-data (#'prim/-preprocess-merge no-state MergeTestParent {:id 42}))
              state-with-old       (atom {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}})
              id                   [:parent/by-id 42]
-             old-state-merge-data (-> (#'prim/preprocess-merge state-with-old MergeTestParent {:id 42}) :merge-data :fulcro/merge)]
+             old-state-merge-data (-> (#'prim/-preprocess-merge state-with-old MergeTestParent {:id 42}) :merge-data :fulcro/merge)]
          (assertions
            "Uses the existing object in app state as base for merge when present"
            (get-in old-state-merge-data [id :ui/checked]) => true
@@ -1739,11 +1739,11 @@
                                         {:ident :data})
            (util/deep-merge d1 d2) => :merge-result
 
-           (#'prim/preprocess-merge state :comp :data))))
+           (#'prim/-preprocess-merge state :comp :data))))
      (let [state (atom {})
            data  {}]
        (when-mocking
-         (prim/preprocess-merge s c d) => (do
+         (prim/-preprocess-merge s c d) => (do
                                             (assertions
                                               "Runs the data through the preprocess merge step"
                                               d => data)
@@ -2402,7 +2402,7 @@
   (let [reconciler (prim/reconciler {:normalize normalize
                                      :state     (if normalize state (atom state))})]
     (if normalized (swap! (-> reconciler :state) assoc :normalized true))
-    (#'prim/reconciler-normalize-initial-state reconciler root-class)
+    (#'prim/-reconciler-normalize-initial-state reconciler root-class)
     {:app-state  @(-> reconciler :config :state)
      :normalized (-> reconciler :state deref :normalized)}))
 

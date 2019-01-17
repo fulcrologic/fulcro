@@ -9,9 +9,15 @@
             [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.protocols :as p]
-    #?(:clj
-            [clojure.future :refer :all])
+            #?(:clj
+               [clojure.future :refer :all])
             [clojure.spec.alpha :as s]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Implementation for public api
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(declare -loaded-callback -error-callback)
 
 (defn optional [pred] (s/or :nothing nil? :value pred))
 (s/def ::type keyword?)
@@ -36,10 +42,83 @@
 (s/def ::network-error any?)
 (s/def ::network-result (s/keys :opt [::load-descriptors ::network-error]))
 
-(declare data-marker data-remote data-target data-path data-uuid data-field data-query-key data-query set-loading! full-query loaded-callback error-callback data-marker?)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Implementation for public api
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn data-target
+  "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
+  to be present if the marker is targeting a field."
+  [state] (::target state))
+(defn data-ident
+  "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
+  to be present if the marker is targeting a field."
+  [state] (::prim/ident state))
+(defn data-query
+  "Get the query that will be sent to the server as a result of the given data state marker"
+  [state]
+  (if (data-ident state)
+    [{(data-ident state) (::prim/query state)}]
+    (::prim/query state)))
+(defn data-field
+  "Get the target field (if any) from the data state marker"
+  [state] (::field state))
+(defn data-uuid
+  "Get the UUID of the data fetch"
+  [state] (::uuid state))
+(defn data-marker
+  "Returns the ID of the data marker, or nil/false if there isn't one. True means to use the old marker behavior of
+  replacing the data in app state with a marker (DEPRECATED)"
+  [state] (::marker state))
+(defn data-marker?
+  "Test if the user desires a copy of the state marker to appear in the app state at the data path of the target data."
+  [state] (boolean (::marker state)))
+(defn data-refresh
+  "Get the list of query keywords that should be refreshed (re-rendered) when this load completes."
+  [state] (::refresh state))
+(defn data-remote
+  "Get the remote that this marker is meant to talk to"
+  [state] (::prim/remote state))
+(defn data-query-key
+  "Get the 'primary' query key of the data fetch. This is defined as the first keyword of the overall query (which might
+  be a simple prop or join key for example)"
+  [state]
+  (let [ast  (prim/query->ast (-> state ::prim/query))
+        node (-> ast :children first)]
+    (:key node)))
+
+(defn data-path
+  "Get the app-state database path of the target of the load that the given data state marker is trying to load."
+  [state]
+  (let [target (data-target state)]
+    (cond
+      (and (nil? (data-field state)) (vector? target) (not-empty target)) target
+      (and (vector? (data-ident state)) (keyword? (data-field state))) (conj (data-ident state) (data-field state))
+      (util/ident? (data-query-key state)) (data-query-key state)
+      :otherwise [(data-query-key state)])))
+
+(defn data-params
+  "Get the parameters that the user wants to add to the first join/keyword of the data fetch query."
+  [state] (::params state))
+
+(defn full-query
+  "Composes together the queries of a sequence of data states into a single query."
+  [items] (vec (mapcat (fn [item] (data-query item)) items)))
+
+;; Setters
+(letfn [(set-type [state type params]
+          (merge state {::type   type
+                        ::params params}))]
+  (defn set-ready!
+    "Returns a state (based on the input state) that is in the 'ready' to load state."
+    ([state] (set-ready! state nil))
+    ([state params] (set-type state :ready params)))
+  (defn set-loading!
+    "Returns a marker (based on the input state) that is in the loading state (and ensures that it has a UUID)"
+    ([state] (set-loading! state nil))
+    ([state params] (let [rv (set-type state :loading params)]
+                      (with-meta rv {:state rv}))))
+  (defn set-failed!
+    "Returns a marker (based on the input state) that is in the error state"
+    ([state] (set-failed! state nil))
+    ([state params]
+     (set-type state :failed params))))
 
 ; Built-in mutation for adding a remote query to the network requests.
 (defn data-state?
@@ -68,7 +147,7 @@
 (def marker-table
   :ui.fulcro.client.data-fetch.load-markers/by-id)
 
-(defn- place-load-marker [state-map marker]
+(defn -place-load-marker [state-map marker]
   (let [marker-id      (data-marker marker)
         legacy-marker? (true? marker-id)]
     (if legacy-marker?
@@ -79,16 +158,16 @@
             {:ui/fetch-state marker})))
       (assoc-in state-map [marker-table marker-id] marker))))
 
-(defn- place-load-markers
+(defn -place-load-markers
   "Place load markers in the app state at their data paths so that UI rendering can see them."
   [state-map items-to-load]
   (reduce (fn [s item]
             (let [i (set-loading! item)]
               (cond-> (update s :fulcro/loads-in-progress (fnil conj #{}) (data-uuid i))
-                (data-marker? i) (place-load-marker i))))
+                (data-marker? i) (-place-load-marker i))))
     state-map items-to-load))
 
-(s/fdef place-load-markers
+(s/fdef -place-load-markers
   :args (s/cat :state map? :items ::load-descriptors)
   :ret map?)
 
@@ -120,12 +199,12 @@
         remaining-items      (filter (comp not is-eligible?) queued-items)
         loading?             (or (boolean (seq items-to-load)) other-items-loading?)
         history-atom         (prim/get-history reconciler)
-        ok                   (loaded-callback reconciler)
-        error                (error-callback reconciler)
+        ok                   (-loaded-callback reconciler)
+        error                (-error-callback reconciler)
         tx-time              (earliest-load-time items-to-load)]
     (when-not (empty? items-to-load)
       (swap! state (fn [s] (-> s
-                             (place-load-markers items-to-load)
+                             (-place-load-markers items-to-load)
                              (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
       (for [item items-to-load]
         {::prim/query        (full-query [item])
@@ -232,14 +311,14 @@
     (when-not (empty? items-to-load-now)
       (swap! state (fn [s]
                      (-> s
-                       (place-load-markers items-to-load-now)
+                       (-place-load-markers items-to-load-now)
                        (assoc :ui/loading-data loading? :fulcro/ready-to-load remaining-items))))
       {::prim/query                    (full-query items-to-load-now)
        ::hist/history-atom             (prim/get-history reconciler)
        ::prim/remote                   remote
        ::hist/tx-time                  tx-time
-       ::on-load                       (loaded-callback reconciler)
-       ::on-error                      (error-callback reconciler)
+       ::on-load                       (-loaded-callback reconciler)
+       ::on-error                      (-error-callback reconciler)
        :fulcro.client.network/abort-id (first (keep :fulcro.client.network/abort-id items-to-load-now))
        ::load-descriptors              items-to-load-now})))
 
@@ -350,87 +429,9 @@
         load-request (ready-state (merge {:marker true :refresh [] :without #{} :env env} config))]
     (swap! state (fn [s]
                    (cond-> (update s :fulcro/ready-to-load (fnil conj []) load-request)
-                     marker? (place-load-marker load-request))))))
+                     marker? (-place-load-marker load-request))))))
 
-(defn data-target
-  "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
-  to be present if the marker is targeting a field."
-  [state] (::target state))
-(defn data-ident
-  "Return the ident (if any) of the component related to the query in the data state marker. An ident is required
-  to be present if the marker is targeting a field."
-  [state] (::prim/ident state))
-(defn data-query
-  "Get the query that will be sent to the server as a result of the given data state marker"
-  [state]
-  (if (data-ident state)
-    [{(data-ident state) (::prim/query state)}]
-    (::prim/query state)))
-(defn data-field
-  "Get the target field (if any) from the data state marker"
-  [state] (::field state))
-(defn data-uuid
-  "Get the UUID of the data fetch"
-  [state] (::uuid state))
-(defn data-marker
-  "Returns the ID of the data marker, or nil/false if there isn't one. True means to use the old marker behavior of
-  replacing the data in app state with a marker (DEPRECATED)"
-  [state] (::marker state))
-(defn data-marker?
-  "Test if the user desires a copy of the state marker to appear in the app state at the data path of the target data."
-  [state] (boolean (::marker state)))
-(defn data-refresh
-  "Get the list of query keywords that should be refreshed (re-rendered) when this load completes."
-  [state] (::refresh state))
-(defn data-remote
-  "Get the remote that this marker is meant to talk to"
-  [state] (::prim/remote state))
-(defn data-query-key
-  "Get the 'primary' query key of the data fetch. This is defined as the first keyword of the overall query (which might
-  be a simple prop or join key for example)"
-  [state]
-  (let [ast  (prim/query->ast (-> state ::prim/query))
-        node (-> ast :children first)]
-    (:key node)))
-
-(defn data-path
-  "Get the app-state database path of the target of the load that the given data state marker is trying to load."
-  [state]
-  (let [target (data-target state)]
-    (cond
-      (and (nil? (data-field state)) (vector? target) (not-empty target)) target
-      (and (vector? (data-ident state)) (keyword? (data-field state))) (conj (data-ident state) (data-field state))
-      (util/ident? (data-query-key state)) (data-query-key state)
-      :otherwise [(data-query-key state)])))
-
-(defn data-params
-  "Get the parameters that the user wants to add to the first join/keyword of the data fetch query."
-  [state] (::params state))
-
-;; Setters
-(letfn [(set-type [state type params]
-          (merge state {::type   type
-                        ::params params}))]
-  (defn set-ready!
-    "Returns a state (based on the input state) that is in the 'ready' to load state."
-    ([state] (set-ready! state nil))
-    ([state params] (set-type state :ready params)))
-  (defn set-loading!
-    "Returns a marker (based on the input state) that is in the loading state (and ensures that it has a UUID)"
-    ([state] (set-loading! state nil))
-    ([state params] (let [rv (set-type state :loading params)]
-                      (with-meta rv {:state rv}))))
-  (defn set-failed!
-    "Returns a marker (based on the input state) that is in the error state"
-    ([state] (set-failed! state nil))
-    ([state params]
-     (set-type state :failed params))))
-
-(defn full-query
-  "Composes together the queries of a sequence of data states into a single query."
-  [items] (vec (mapcat (fn [item] (data-query item)) items)))
-
-(defn- set-global-loading! [reconciler]
+(defn -set-global-loading! [reconciler]
   "Sets the global :ui/loading-data to false if there are no loading fetch states in the entire app-state, otherwise sets to true."
   (let [state-atom (prim/app-state reconciler)
         loading?   (boolean (seq (get @state-atom :fulcro/loads-in-progress)))]
@@ -459,7 +460,7 @@
                     (process-target state default-target explicit-target)
                     state))) state-map items))))
 
-(defn- remove-marker
+(defn -remove-marker
   "Returns app-state without the load marker for the given item."
   [app-state item]
   (let [marker-id      (data-marker item)
@@ -487,11 +488,11 @@
                 refresh (assoc :refresh refresh)
                 fallback (assoc :fallback fallback))})))
 
-(defn- tick! "Ability to mock in tests"
+(defn -tick! "Ability to mock in tests"
   [r]
   (p/tick! r))
 
-(defn- loaded-callback
+(defn -loaded-callback
   "Generates a callback that processes all of the post-processing steps once a remote ***load*** has completed. This includes:
 
   - Marking the items that were queried for but not returned as 'missing' (see documentation on mark and sweep of db)
@@ -521,7 +522,7 @@
                                        (swap! app-state (fn [s]
                                                           (cond-> s
                                                             :always (update :fulcro/loads-in-progress disj (data-uuid item))
-                                                            (data-marker? item) (remove-marker item))))))
+                                                            (data-marker? item) (-remove-marker item))))))
           to-refresh          (atom (set explicit-refresh))
           run-post-mutations! (fn [] (doseq [item loading-items]
                                        (when-let [mutation-symbol (::post-mutation item)]
@@ -537,13 +538,13 @@
       (prim/merge! reconciler marked-response query)
       (relocate-targeted-results! app-state loading-items)
       (run-post-mutations!)
-      (set-global-loading! reconciler)
-      (tick! reconciler)
+      (-set-global-loading! reconciler)
+      (-tick! reconciler)
       (if (contains? refresh-set :fulcro/force-root)
         (prim/force-root-render! reconciler)
         (force-render reconciler (vec @to-refresh))))))
 
-(defn- error-callback
+(defn -error-callback
   "Generates a callback that is used whenever a hard server error occurs (status code 400+ or network error).
 
   The generated callback:
@@ -580,8 +581,8 @@
                                        (apply []))))))]
       (mark-errors)
       (run-fallbacks)
-      (set-global-loading! reconciler)
-      (tick! reconciler)
+      (-set-global-loading! reconciler)
+      (-tick! reconciler)
       (prim/force-root-render! reconciler))))
 
 (defn is-deferred-transaction?

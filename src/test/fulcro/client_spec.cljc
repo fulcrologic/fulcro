@@ -29,18 +29,18 @@
      (behavior "Detects mutations"
        (assertions
          "containing mutation joins"
-         (fc/mutation-query? '[{(f) [:x]}]) => true
-         (fc/mutation-query? '[(g) {(f) [:x]}]) => true
+         (fc/-mutation-query? '[{(f) [:x]}]) => true
+         (fc/-mutation-query? '[(g) {(f) [:x]}]) => true
          "even if they contain keyword follow-on reads"
-         (fc/mutation-query? '[(h) :x :y]) => true))
+         (fc/-mutation-query? '[(h) :x :y]) => true))
      (behavior "Detects queries"
        (assertions
          "that contain props and joins"
-         (fc/mutation-query? '[:x {:y [:z]}]) => false
+         (fc/-mutation-query? '[:x {:y [:z]}]) => false
          "that contain nothing but props"
-         (fc/mutation-query? '[:x]) => false
+         (fc/-mutation-query? '[:x]) => false
          "that are parameterized"
-         (fc/mutation-query? '[(:y {:p 1})]) => false))))
+         (fc/-mutation-query? '[(:y {:p 1})]) => false))))
 
 (defui ^:once BadResetAppRoot
   Object
@@ -118,7 +118,7 @@
          (let [supplied-state       {:a 1}
                app-with-initial-map {:mounted? false :initial-state supplied-state :reconciler-options :OPTIONS}]
            (when-mocking
-             (fc/initialize app state root dom opts) => (do
+             (fc/-initialize app state root dom opts) => (do
                                                           (assertions
                                                             "Initializes the app with a plain map"
                                                             state => supplied-state))
@@ -127,7 +127,7 @@
          (let [supplied-atom         (atom {:a 1})
                app-with-initial-atom {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
            (when-mocking
-             (fc/initialize app state root dom opts) => (do
+             (fc/-initialize app state root dom opts) => (do
                                                           (assertions
                                                             "Initializes the app with a supplied atom"
                                                             (identical? state supplied-atom) => true))
@@ -136,7 +136,7 @@
        (behavior "and root IMPLEMENTS InitialAppState"
          (let [mock-app {:mounted? false :initial-state {} :reconciler-options :OPTIONS}]
            (when-mocking
-             (fc/initialize app state root dom opts) => (assertions
+             (fc/-initialize app state root dom opts) => (assertions
                                                           "Initializes the app with the InitialAppState if the supplied state is empty"
                                                           state => (prim/get-initial-state RootWithState nil))
 
@@ -145,7 +145,7 @@
                mock-app               {:mounted? false :initial-state explicit-non-empty-map :reconciler-options :OPTIONS}]
            (behavior "When an explicit non-empty map and InitialAppState are present:"
              (when-mocking
-               (fc/initialize app state root dom opts) => (do
+               (fc/-initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Prefers the *explicit* state"
                                                               (identical? state explicit-non-empty-map) => true))
@@ -155,7 +155,7 @@
                mock-app      {:mounted? false :initial-state supplied-atom :reconciler-options :OPTIONS}]
            (behavior "When an explicit atom and InitialAppState are present:"
              (when-mocking
-               (fc/initialize app state root dom opts) => (do
+               (fc/-initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Prefers the *explicit* state"
                                                               (identical? state supplied-atom) => true))
@@ -164,7 +164,7 @@
          (let [mock-app {:mounted? false :reconciler-options :OPTIONS}]
            (behavior "When only InitialAppState is present:"
              (when-mocking
-               (fc/initialize app state root dom opts) => (do
+               (fc/-initialize app state root dom opts) => (do
                                                             (assertions
                                                               "Supplies the raw InitialAppState to internal initialize"
                                                               state => (prim/get-initial-state RootWithState nil)))
@@ -183,7 +183,7 @@
        (async/offer! queue payload-2)
        (async/offer! queue payload-3)
 
-       (fc/abort-items-on-queue queue :X)
+       (fc/-abort-items-on-queue queue :X)
 
        (assertions
          "Removes just the items that have transactions with that abort id"

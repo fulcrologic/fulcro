@@ -184,7 +184,9 @@
                       [k valid]))
      :clj  {}))
 
-(defn- mutation-query? [tx]
+(defn -mutation-query?
+  "PRIVATE"
+  [tx]
   (boolean (some #(util/mutation? %) tx)))
 
 (defn- split-parser
@@ -194,13 +196,15 @@
   (let [mutation-parser (prim/parser {:read (constantly nil) :mutate app/write-entry-point})]
     (fn split-parser*
       ([env query target]
-       (if (mutation-query? query)
+       (if (-mutation-query? query)
          (mutation-parser env query target)
          (query-parser env query)))
       ([env query] (split-parser* env query nil)))))
 
-(defn- initialize
-  "Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
+(defn -initialize
+  "PRIVATE.
+
+  Initialize the fulcro Application. Creates network queue, sets up i18n, creates reconciler, mounts it, and returns
   the initialized app"
   [{:keys [networking read-local started-callback query-interpreter] :as app} initial-state root-component dom-id-or-node reconciler-options]
   (let [network-map         (normalize-network networking)
@@ -238,7 +242,8 @@
     (when element
       (recur (async/poll! queue)))))
 
-(defn- abort-items-on-queue
+(defn -abort-items-on-queue
+  "PRIVATE"
   [queue abort-id]
   (let [elements (atom [])]
     (loop [element (async/poll! queue)]
@@ -278,7 +283,7 @@
                                     explicit-state? (if initial-state initial-state {})
                                     ui-declared-state ui-declared-state
                                     :otherwise {})]
-      (initialize app state root-component dom-id-or-node reconciler-options))))
+      (-initialize app state root-component dom-id-or-node reconciler-options))))
 
 (defrecord Application [initial-state mutation-merge started-callback remotes networking send-queues
                         response-channels reconciler read-local query-interpreter mounted? reconciler-options]
@@ -317,7 +322,7 @@
          (let [remote-net (get networking r)]
            (when (implements? net/FulcroRemoteI remote-net)
              (net/abort remote-net abort-id)
-             (abort-items-on-queue (get send-queues r) abort-id))))))
+             (-abort-items-on-queue (get send-queues r) abort-id))))))
 
   (history [this] (prim/get-history reconciler))
   (reset-history! [this]
