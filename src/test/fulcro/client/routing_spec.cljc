@@ -67,8 +67,8 @@
 
 (specification "route-to mutation"
   (provided "There are no missing dynamically loaded routes: "
-    (r/get-missing-routes r s p) => []
-    (r/update-routing-queries s r m) => s
+    (r/-get-missing-routes r s p) => []
+    (r/-update-routing-queries s r m) => s
 
     (let [r         (r/make-route :boo [(r/router-instruction :router-1 [:screen1 :top])])
           r2        (r/make-route :foo [(r/router-instruction :router-2 [:screen2 :top])
@@ -86,8 +86,8 @@
         "Switches the current routes according to the route instructions"
         (r/current-route @state :router-1) => [:screen1 :top])))
   (provided "There are one or more missing dynamically loaded routes: "
-    (r/get-missing-routes r s p) => [:main]
-    (r/load-routes env routes) => (do
+    (r/-get-missing-routes r s p) => [:main]
+    (r/-load-routes env routes) => (do
                                     (assertions
                                       "Triggers loading on the missing screen"
                                       routes => [:main]))
@@ -113,7 +113,7 @@
 (specification "Completion of a dynamic route load (process-pending-route!)"
   (let [state-atom (atom {::r/pending-route {:handler :boo}})]
     (when-mocking
-      (r/update-routing-queries s r m) =1x=> (do
+      (r/-update-routing-queries s r m) =1x=> (do
                                                (assertions
                                                  "Updates the queries on dynamic routers"
                                                  m => {:handler :boo})
@@ -122,7 +122,7 @@
                                            "Updates the routing links"
                                            m => {:handler :boo})
 
-      (#'r/process-pending-route! {:state state-atom :reconciler :fake-reconciler})
+      (#'r/-process-pending-route! {:state state-atom :reconciler :fake-reconciler})
 
       (assertions
         "Removes the pending route from the state"

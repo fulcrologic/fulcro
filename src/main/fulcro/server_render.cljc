@@ -44,7 +44,7 @@
 
    Returns a normalized client db with all union alternates initialized to their InitialAppState."
   [state-tree root-class]
-  (let [base-state (prim/tree->db root-class state-tree true)
+  (let [base-state (prim/tree->db root-class state-tree true (prim/pre-merge-transform {}))
         base-state (fc/merge-alternate-union-elements base-state root-class)]
     base-state))
 

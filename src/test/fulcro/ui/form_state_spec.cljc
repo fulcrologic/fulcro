@@ -127,15 +127,15 @@
     (assertions
       "Removes form states of multiple entity-idents"
       (-> configured-db
-          (f/delete-form-state* [[:person/by-id 1]
-                                 [:phone/by-id 5]])
-          ::f/forms-by-ident)
+        (f/delete-form-state* [[:person/by-id 1]
+                               [:phone/by-id 5]])
+        ::f/forms-by-ident)
       => {}
       "Removes form states of one entity-ident at a time"
       (-> configured-db
-          (f/delete-form-state* [:person/by-id 1])
-          (f/delete-form-state* [:phone/by-id 5])
-          ::f/forms-by-ident)
+        (f/delete-form-state* [:person/by-id 1])
+        (f/delete-form-state* [:phone/by-id 5])
+        ::f/forms-by-ident)
       => {})))
 
 (let [locale                                  {:db/id 22 ::country :US}

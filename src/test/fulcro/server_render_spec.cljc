@@ -106,6 +106,38 @@
   static prim/IQuery
   (query [this] [{:reports (prim/get-query Reports)}]))
 
+(defui TableWithPreMerge
+  static prim/IPreMerge
+  (pre-merge* [_ {:keys [current-normalized data-tree]}]
+    (merge {:ui/pre-merged-table true} current-normalized data-tree))
+  static prim/InitialAppState
+  (initial-state [c p] table-1)
+  static prim/IQuery
+  (query [this] [:type :id :rows]))
+
+(defui GraphWithPreMerge
+  static prim/IPreMerge
+  (pre-merge* [_ {:keys [current-normalized data-tree]}]
+    (merge {:ui/pre-merged-graph true} current-normalized data-tree))
+  static prim/InitialAppState
+  (initial-state [c p] graph-1)
+  static prim/IQuery
+  (query [this] [:type :id :data]))
+
+(defui ReportsWithPreMerge
+  static prim/InitialAppState
+  (initial-state [c p] (prim/get-initial-state GraphWithPreMerge nil))    ; initial state will already include GraphWithPreMerge
+  static prim/Ident
+  (ident [this props] [(:type props) (:id props)])
+  static prim/IQuery
+  (query [this] {:graph (prim/get-query GraphWithPreMerge) :table (prim/get-query TableWithPreMerge)}))
+
+(defui MRRootWithPreMerge
+  static prim/InitialAppState
+  (initial-state [c p] {:reports (prim/get-initial-state ReportsWithPreMerge nil)})
+  static prim/IQuery
+  (query [this] [{:reports (prim/get-query ReportsWithPreMerge)}]))
+
 (specification "Build Initial State"
   (let [state-tree (prim/get-initial-state MRRoot nil)
         norm-db    (ssr/build-initial-state state-tree MRRoot)]
@@ -115,4 +147,13 @@
       (get norm-db :reports) => [:graph 1]
       "Merges in the non-initial elements of unions"
       (keys (get norm-db :table)) => [1]
-      (get-in norm-db [:table 1]) => {:type :table :id 1 :rows [1 2 3]})))
+      (get-in norm-db [:table 1]) => {:type :table :id 1 :rows [1 2 3]}))
+
+  (behavior "initialize with pre-merge"
+    (let [state-tree (prim/get-initial-state MRRoot nil)
+          norm-db    (ssr/build-initial-state state-tree MRRootWithPreMerge)]
+      (assertions
+        norm-db
+        => {:reports [:graph 1]
+            :graph {1 {:ui/pre-merged-graph true, :type :graph, :id 1, :data [1 2 3]}},
+            :table {1 {:ui/pre-merged-table true, :type :table, :id 1, :rows [1 2 3]}}}))))

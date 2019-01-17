@@ -375,7 +375,7 @@
     (when-mocking
       (prim/app-state r) => not-loading-state
 
-      (#'dfi/set-global-loading! :reconciler)
+      (#'dfi/-set-global-loading! :reconciler)
 
       (assertions
         "clears the marker if nothing is in the loading set"
@@ -384,7 +384,7 @@
     (when-mocking
       (prim/app-state r) => loading-state
 
-      (#'dfi/set-global-loading! :reconciler)
+      (#'dfi/-set-global-loading! :reconciler)
 
       (assertions
         "sets the marker if anything is in the loading set"
@@ -438,14 +438,14 @@
            rendered        (atom false)
            merged          (atom false)
            globally-marked (atom false)
-           loaded-cb       (#'dfi/loaded-callback :reconciler)
+           loaded-cb       (#'dfi/-loaded-callback :reconciler)
            response        {:id 2}]
        (when-mocking
          (prim/app-state r) => state
          (prim/merge! r resp query) => (reset! merged true)
          (util/force-render r ks) => (reset! rendered ks)
-         (dfi/tick! r) => nil
-         (dfi/set-global-loading! r) => (reset! globally-marked true)
+         (dfi/-tick! r) => nil
+         (dfi/-set-global-loading! r) => (reset! globally-marked true)
 
          (loaded-cb response items)
 
@@ -467,7 +467,7 @@
      (let [item      (dfi/set-loading! (dfi/ready-state (df/load-params* {} :root/comp InitTestComponent {:initialize true})))
            state     (atom {:fulcro/loads-in-progress #{(dfi/data-uuid item)}})
            items     [item]
-           loaded-cb (#'dfi/loaded-callback :reconciler)
+           loaded-cb (#'dfi/-loaded-callback :reconciler)
            response  {:root/comp {:z 55 :child {:y 77}}}]
        (when-mocking
          (prim/app-state r) => state
@@ -476,8 +476,8 @@
                                            "Response is deep merged with initialized data before being merged with app state"
                                            resp => {:root/comp {:x 1 :z 55 :child {:y 77}}}))
          (util/force-render r ks) => nil
-         (dfi/tick! r) => nil
-         (dfi/set-global-loading! r) => nil
+         (dfi/-tick! r) => nil
+         (dfi/-set-global-loading! r) => nil
 
          (loaded-cb response items)))))
 
@@ -491,14 +491,14 @@
            rendered        (atom false)
            merged          (atom false)
            globally-marked (atom false)
-           loaded-cb       (#'dfi/loaded-callback :reconciler)
+           loaded-cb       (#'dfi/-loaded-callback :reconciler)
            response        {:id 2}]
        (when-mocking
          (prim/app-state r) => state
-         (dfi/tick! r) => nil
+         (dfi/-tick! r) => nil
          (prim/merge! r resp query) => (reset! merged true)
          (util/force-render r items) => (reset! queued (set items))
-         (dfi/set-global-loading! r) => (reset! globally-marked true)
+         (dfi/-set-global-loading! r) => (reset! globally-marked true)
 
          (loaded-cb response items)
 
@@ -529,13 +529,13 @@
            globally-marked (atom false)
            queued          (atom [])
            rendered        (atom false)
-           error-cb        (#'dfi/error-callback :reconciler)
+           error-cb        (#'dfi/-error-callback :reconciler)
            response        {:id 2}]
        (when-mocking
          (dfi/callback-env r req orig) => {:state state}
          (prim/app-state r) => state
-         (dfi/tick! r) => nil
-         (dfi/set-global-loading! r) => (reset! globally-marked true)
+         (dfi/-tick! r) => nil
+         (dfi/-set-global-loading! r) => (reset! globally-marked true)
          (prim/force-root-render! r) => (assertions
                                           "Triggers render at root"
                                           r => :reconciler)
@@ -568,7 +568,7 @@
            item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :target [:top]})
            item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})
 
-           state  (#'dfi/place-load-markers state [item-1 item-2])]
+           state  (#'dfi/-place-load-markers state [item-1 item-2])]
 
        (assertions
          "ignore targeting"
@@ -586,7 +586,7 @@
            item-1 (dfi/ready-state {:query [:comments] :ident [:t 1] :field :comments :marker :my-marker :target [:top]})
            item-2 (dfi/ready-state {:query [:comments] :ident [:t 2] :field :comments :marker false})
 
-           state  (#'dfi/place-load-markers state [item-1 item-2])]
+           state  (#'dfi/-place-load-markers state [item-1 item-2])]
 
        (assertions
          "ignore targeting"
@@ -604,7 +604,7 @@
         item-3 (dfi/ready-state {:query [{:users [:name]}] :target [:t 1 :user]})
         item-4 (dfi/ready-state {:query [:some-value] :target [:t 1 :value]})
 
-        state  (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])]
+        state  (#'dfi/-place-load-markers state [item-1 item-2 item-3 item-4])]
 
     (assertions
       "Default to being placed in app root at the first key of the query"
@@ -622,7 +622,7 @@
         item-3 (dfi/ready-state {:marker :c :query [{:users [:name]}] :target [:t 1 :user]})
         item-4 (dfi/ready-state {:marker :d :query [:some-value] :target [:t 1 :value]})
 
-        state  (#'dfi/place-load-markers state [item-1 item-2 item-3 item-4])]
+        state  (#'dfi/-place-load-markers state [item-1 item-2 item-3 item-4])]
 
     (assertions
       "Are placed in the markers table"
@@ -637,7 +637,7 @@
         item-2 (dfi/ready-state {:marker :a :query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})
         item-3 (dfi/ready-state {:marker false :query [{[:users/by-id 4] [:name]}]})
 
-        state  (#'dfi/place-load-markers state [item-2 item-3])]
+        state  (#'dfi/-place-load-markers state [item-2 item-3])]
 
     (assertions
       "Place a marker by ID when asked for"
@@ -649,7 +649,7 @@
         item-2 (dfi/ready-state {:query [{[:users/by-id 3] [:name]}] :target [:t 1 :user]})
         item-3 (dfi/ready-state {:query [{[:users/by-id 4] [:name]}]})
 
-        state  (#'dfi/place-load-markers state [item-2 item-3])]
+        state  (#'dfi/-place-load-markers state [item-2 item-3])]
 
     (assertions
       "Ignore explicit targeting"
@@ -787,7 +787,7 @@
 (defmethod m/mutate `unhappy-mutation [env _ params]
   (throw (ex-info "Boo!" {})))
 
-(specification "mutation-remotes" :focused
+(specification "mutation-remotes"
   (assertions
     "Only returns remotes, not custom actions"
     (df/mutation-remotes {} (prim/query->ast1 `[(f {})]) #{:remote}) => #{:remote}

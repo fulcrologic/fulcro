@@ -42,7 +42,7 @@
   [query elision-set]
   (-> query prim/query->ast (impl/elide-ast-nodes elision-set) prim/ast->query))
 
-(defn- computed-refresh
+(defn computed-refresh
   "Computes the refresh for the load by ensuring the loaded data is on the
   list of things to re-render."
   [explicit-refresh load-key target]

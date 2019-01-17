@@ -238,8 +238,10 @@ NOTES:
           {:query [::id ::dynamic {::current-route query}]}))
       state)))
 
-(defn- update-routing-queries
-  "Given the reconciler, state, and a routing tree route: finds and sets all of the dynamic queries needed to
+(defn -update-routing-queries
+  "PRIVATE.
+
+  Given the reconciler, state, and a routing tree route: finds and sets all of the dynamic queries needed to
   accomplish that route. Returns the updated state. reconciler can be nil, in which case UI refresh may not
   happen, but that is useful for SSR."
   [state reconciler {:keys [handler route-params]}]
@@ -279,7 +281,7 @@ NOTES:
 (defn add-route-state [state-map target-kw component]
   (let [tree-state       {:tmp/new-route (prim/get-initial-state component nil)}
         query            [{:tmp/new-route (prim/get-query component)}]
-        normalized-state (-> (prim/tree->db query tree-state true)
+        normalized-state (-> (prim/tree->db query tree-state true (prim/pre-merge-transform state-map))
                            (dissoc :tmp/new-route))]
     (util/deep-merge state-map normalized-state)))
 
@@ -348,29 +350,29 @@ NOTES:
   [router-id]
   (prim/get-query (prim/factory DynamicRouter {:qualifier router-id})))
 
-(defn- process-pending-route!
+(defn -process-pending-route!
   "Finish doing the routing after a module completes loading"
   [{:keys [state reconciler] :as env}]
   (let [target (::pending-route @state)]
     (swap! state
       (fn [s]
         (cond-> (dissoc s ::pending-route)
-          :always (update-routing-queries reconciler target)
+          :always (-update-routing-queries reconciler target)
           (contains? target :handler) (update-routing-links target))))))
 
-(defn- route-target-missing?
+(defn -route-target-missing?
   "Returns true iff the given ident has no component loaded into the dynamic routing multimethod."
   [ident]
   (let [screen (first ident)
         c      (get-dynamic-router-target screen)]
     (nil? c)))
 
-(defn- is-dynamic-router?
+(defn -is-dynamic-router?
   "Returns true if the given component (instance) is a DynamicRouter."
   [component]
   (instance? DynamicRouter component))
 
-(defn- get-missing-routes
+(defn -get-missing-routes
   "Returns a sequence of routes that need to be loaded in order for routing to succeed."
   [reconciler state-map {:keys [handler route-params] :as params}]
   #?(:clj  []
@@ -382,18 +384,18 @@ NOTES:
                (reduce
                  (fn [routes {:keys [target-router target-screen]}]
                    (let [router (prim/ref->any reconciler [routers-table target-router])]
-                     (if (and (is-dynamic-router? router) (route-target-missing? target-screen))
+                     (if (and (-is-dynamic-router? router) (-route-target-missing? target-screen))
                        (conj routes (first target-screen))
                        routes)))
                  []
                  routing-instructions)))))
 
-(defn- load-dynamic-route
+(defn -load-dynamic-route
   "Triggers the actual load of a route, and retries if the networking is down. If the pending route (in state) has changed
   between retries, then no further retries will be attempted. Exponential backoff with a 10 second max is used as long
   as retries are being done."
   ([state-atom pending-route-handler route-to-load finish-fn]
-   (load-dynamic-route state-atom pending-route-handler route-to-load finish-fn 0 0))
+   (-load-dynamic-route state-atom pending-route-handler route-to-load finish-fn 0 0))
   ([state-atom pending-route-handler route-to-load finish attempt delay]
     #?(:cljs (js/setTimeout
                (fn []
@@ -409,10 +411,10 @@ NOTES:
                          (fn [_]
                            (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
                            ; TODO: We're tracking attempts..but I don't see a reason to stop trying if the route is still pending...
-                           (load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
+                           (-load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
                delay))))
 
-(defn- load-routes [{:keys [state] :as env} routes]
+(defn -load-routes [{:keys [state] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
      :cljs
           (let [loaded        (atom 0)
@@ -423,9 +425,9 @@ NOTES:
                                   (swap! loaded inc)
                                   (when (= @loaded to-load)
                                     (swap! state add-route-state k (get-dynamic-router-target k))
-                                    (process-pending-route! env))))]
+                                    (-process-pending-route! env))))]
             (doseq [r routes]
-              (load-dynamic-route state pending-route r (finish r))))))
+              (-load-dynamic-route state pending-route r (finish r))))))
 
 (defn route-to-impl!
   "Mutation implementation, for use as a composition into other mutations. This function can be used
@@ -437,16 +439,16 @@ NOTES:
 
   NOTE: this function updates application state and *must not* be used from within a swap on that state."
   [{:keys [state reconciler] :as env} bidi-match]
-  (if-let [missing-routes (seq (get-missing-routes reconciler @state bidi-match))]
+  (if-let [missing-routes (seq (-get-missing-routes reconciler @state bidi-match))]
     (if (= bidi-match (get @state ::pending-route))
       ; TODO: This could be the user clicking again, or a legitimate failure...Not much more I can do yet.
       (log/error "Attempt to trigger a route that was pending, but that wasn't done loading (or failed to load).")
       (do
         (swap! state assoc ::pending-route bidi-match)
-        (load-routes env missing-routes)))
+        (-load-routes env missing-routes)))
     (do
       (swap! state #(-> %
-                      (update-routing-queries reconciler bidi-match)
+                      (-update-routing-queries reconciler bidi-match)
                       (dissoc ::pending-route)
                       (update-routing-links bidi-match))))))
 
@@ -459,7 +461,7 @@ NOTES:
   to route, since no dynamic code loading will be needed."
   [state-map bidi-match]
   (-> state-map
-    (update-routing-queries nil bidi-match)
+    (-update-routing-queries nil bidi-match)
     (dissoc ::pending-route)
     (update-routing-links bidi-match)))
 

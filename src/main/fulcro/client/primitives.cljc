@@ -48,6 +48,19 @@
 (defprotocol InitialAppState
   (initial-state [clz params] "Get the initial state to be used for this component in app state. You are responsible for composing these together."))
 
+(defprotocol IPreMerge
+  (pre-merge* [this data] "Modify data before merging."))
+
+(defn pre-merge [class data]
+  #?(:clj  (if-let [pre-merge (if (component? class)
+                                pre-merge*
+                                (-> class meta :pre-merge*))]
+             (pre-merge class data)
+             (log/warn "pre-merge called with something that is either not a class or does not implement pre-merge: " class))
+     :cljs (if (implements? IPreMerge class)
+             (pre-merge* class data)
+             (log/warn "pre-merge called with something that is either not a class or does not implement pre-merge: " class))))
+
 (defn has-initial-app-state?
   #?(:cljs {:tag boolean})
   [component]
@@ -74,6 +87,15 @@
              (let [class (cond-> component (component? component) class)]
                (extends? IQuery class)))
      :cljs (implements? IQuery component)))
+
+(defn has-pre-merge?
+  #?(:cljs {:tag boolean})
+  [component]
+  #?(:clj  (if (fn? component)
+             (some? (-> component meta :pre-merge*))
+             (let [class (cond-> component (component? component) class)]
+               (extends? IPreMerge class)))
+     :cljs (implements? IPreMerge component)))
 
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
@@ -882,90 +904,93 @@
     (map? query) (-> query keys set)                        ; a union component, which has a map for a query
     :else #{}))
 
-(defn- normalize* [query data refs union-seen]
-  (cond
-    (= '[*] query) data
+(defn- normalize* [query data refs union-seen transform]
+  (let [data (if (and transform (not (vector? data)))
+               (transform query data)
+               data)]
+    (cond
+      (= '[*] query) data
 
-    ;; union case
-    (map? query)
-    (let [class         (-> query meta :component)
-          ident #?(:clj (when-let [ident (-> class meta :ident)]
-                          (ident class data))
-                   :cljs (when (implements? Ident class)
-                           (get-ident class data)))]
-      (if-not (nil? ident)
-        (vary-meta (normalize* (get query (first ident)) data refs union-seen)
-          assoc ::tag (first ident))                        ; FIXME: What is tag for?
-        (throw #?(:clj  (IllegalArgumentException. "Union components must implement Ident")
-                  :cljs (js/Error. "Union components must implement Ident")))))
+      ;; union case
+      (map? query)
+      (let [class         (-> query meta :component)
+            ident #?(:clj (when-let [ident (-> class meta :ident)]
+                            (ident class data))
+                     :cljs (when (implements? Ident class)
+                             (get-ident class data)))]
+        (if-not (nil? ident)
+          (vary-meta (normalize* (get query (first ident)) data refs union-seen transform)
+            assoc ::tag (first ident))                      ; FIXME: What is tag for?
+          (throw #?(:clj  (IllegalArgumentException. "Union components must implement Ident")
+                    :cljs (js/Error. "Union components must implement Ident")))))
 
-    (vector? data) data                                     ;; already normalized
+      (vector? data) data                                   ;; already normalized
 
-    :else
-    (loop [q (seq query) ret data]
-      (if-not (nil? q)
-        (let [expr (first q)]
-          (if (util/join? expr)
-            (let [[k sel] (util/join-entry expr)
-                  recursive?  (util/recursion? sel)
-                  union-entry (if (util/union? expr) sel union-seen)
-                  sel         (if recursive?
-                                (if-not (nil? union-seen)
-                                  union-seen
-                                  query)
-                                sel)
-                  class       (-> sel meta :component)
-                  v           (get data k)]
-              (cond
-                ;; graph loop: db->tree leaves ident in place
-                (and recursive? (util/ident? v)) (recur (next q) ret)
-                ;; normalize one
-                (map? v)
-                (let [x (normalize* sel v refs union-entry)]
-                  (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
-                                                   :cljs (implements? Ident class))))
-                    (let [i #?(:clj ((-> class meta :ident) class v)
-                               :cljs (get-ident class v))]
-                      (swap! refs update-in [(first i) (second i)] merge x)
-                      (recur (next q) (assoc ret k i)))
-                    (recur (next q) (assoc ret k x))))
+      :else
+      (loop [q (seq query) ret data]
+        (if-not (nil? q)
+          (let [expr (first q)]
+            (if (util/join? expr)
+              (let [[k sel] (util/join-entry expr)
+                    recursive?  (util/recursion? sel)
+                    union-entry (if (util/union? expr) sel union-seen)
+                    sel         (if recursive?
+                                  (if-not (nil? union-seen)
+                                    union-seen
+                                    query)
+                                  sel)
+                    class       (-> sel meta :component)
+                    v           (get data k)]
+                (cond
+                  ;; graph loop: db->tree leaves ident in place
+                  (and recursive? (util/ident? v)) (recur (next q) ret)
+                  ;; normalize one
+                  (map? v)
+                  (let [x (normalize* sel v refs union-entry transform)]
+                    (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
+                                                     :cljs (implements? Ident class))))
+                      (let [i #?(:clj ((-> class meta :ident) class x)
+                                 :cljs (get-ident class x))]
+                        (swap! refs update-in [(first i) (second i)] merge x)
+                        (recur (next q) (assoc ret k i)))
+                      (recur (next q) (assoc ret k x))))
 
-                ;; normalize many
-                (vector? v)
-                (let [xs (into [] (map #(normalize* sel % refs union-entry)) v)]
-                  (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
-                                                   :cljs (implements? Ident class))))
-                    (let [is (into [] (map #?(:clj  #((-> class meta :ident) class %)
-                                              :cljs #(get-ident class %))) xs)]
-                      (if (vector? sel)
-                        (when-not (empty? is)
+                  ;; normalize many
+                  (and (vector? v) (not (util/ident? v)) (not (util/ident? (first v))))
+                  (let [xs (into [] (map #(normalize* sel % refs union-entry transform)) v)]
+                    (if-not (or (nil? class) (not #?(:clj  (-> class meta :ident)
+                                                     :cljs (implements? Ident class))))
+                      (let [is (into [] (map #?(:clj  #((-> class meta :ident) class %)
+                                                :cljs #(get-ident class %))) xs)]
+                        (if (vector? sel)
+                          (when-not (empty? is)
+                            (swap! refs
+                              (fn [refs]
+                                (reduce (fn [m [i x]]
+                                          (update-in m i merge x))
+                                  refs (zipmap is xs)))))
+                          ;; union case
                           (swap! refs
-                            (fn [refs]
-                              (reduce (fn [m [i x]]
-                                        (update-in m i merge x))
-                                refs (zipmap is xs)))))
-                        ;; union case
-                        (swap! refs
-                          (fn [refs']
-                            (reduce
-                              (fn [ret [i x]]
-                                (update-in ret i merge x))
-                              refs' (map vector is xs)))))
-                      (recur (next q) (assoc ret k is)))
-                    (recur (next q) (assoc ret k xs))))
+                            (fn [refs']
+                              (reduce
+                                (fn [ret [i x]]
+                                  (update-in ret i merge x))
+                                refs' (map vector is xs)))))
+                        (recur (next q) (assoc ret k is)))
+                      (recur (next q) (assoc ret k xs))))
 
-                ;; missing key
-                (nil? v)
-                (recur (next q) ret)
+                  ;; missing key
+                  (nil? v)
+                  (recur (next q) ret)
 
-                ;; can't handle
-                :else (recur (next q) (assoc ret k v))))
-            (let [k (if (seq? expr) (first expr) expr)
-                  v (get data k)]
-              (if (nil? v)
-                (recur (next q) ret)
-                (recur (next q) (assoc ret k v))))))
-        ret))))
+                  ;; can't handle
+                  :else (recur (next q) (assoc ret k v))))
+              (let [k (if (seq? expr) (first expr) expr)
+                    v (get data k)]
+                (if (nil? v)
+                  (recur (next q) ret)
+                  (recur (next q) (assoc ret k v))))))
+          ret)))))
 
 (defn tree->db
   "Given a component class or instance and a tree of data, use the component's
@@ -976,13 +1001,14 @@
   ([x data]
    (tree->db x data false))
   ([x data #?(:clj merge-idents :cljs ^boolean merge-idents)]
+   (tree->db x data merge-idents nil))
+  ([x data #?(:clj merge-idents :cljs ^boolean merge-idents) transform]
    (let [refs (atom {})
          x    (if (vector? x) x (get-query x data))
-         ret  (normalize* x data refs nil)]
+         ret  (normalize* x data refs nil transform)]
      (if merge-idents
        (let [refs' @refs] (merge ret refs'))
        (with-meta ret @refs)))))
-
 
 (defn- focused-join [expr ks full-expr union-expr]
   (let [expr-meta (meta expr)
@@ -1395,6 +1421,15 @@
 
 (def nf ::not-found)
 
+(defn nilify-not-found
+  "Given x, return x value unless it's ::prim/not-found, in which case it returns nil.
+
+  This is useful when you wanna do a nil check but you are in a position where the value
+  could be ::prim/not-found (and you want to consider it as nil). A common pattern
+  looks like: `(or (prim/nilify-not-found x) 10)"
+  [x]
+  (if (= x ::not-found) nil x))
+
 (defn as-leaf
   "Returns data with meta-data marking it as a leaf in the result."
   [data]
@@ -1543,6 +1578,25 @@
     target
     source))
 
+(defn component-pre-merge [class query state data]
+  (if (has-pre-merge? class)
+    (let [entity (if #?(:clj  (-> class meta :ident)
+                        :cljs (implements? Ident class))
+                   (get-in state (get-ident class data)))]
+      (pre-merge class {:state-map          state
+                        :current-normalized entity
+                        :data-tree          data
+                        :query              query}))
+    data))
+
+(defn pre-merge-transform
+  "Transform function that modifies data using component pre-merge hook."
+  [state]
+  (fn pre-merge-transform-internal [query data]
+    (if-let [class (-> query meta :component)]
+      (component-pre-merge class query state data)
+      data)))
+
 (defn merge-handler
   "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
   if available."
@@ -1574,7 +1628,7 @@
                         norm-query       [{idnt subquery}]
                         norm-tree        {idnt subtree}
                         norm-tree-marked (mark-missing norm-tree norm-query)
-                        db               (tree->db norm-query norm-tree-marked true)]
+                        db               (tree->db norm-query norm-tree-marked true (pre-merge-transform state))]
                     (cond-> (sweep-merge updated-state db)
                       target (targeting/process-target idnt target)
                       (not target) (dissoc db idnt)))
@@ -1591,28 +1645,30 @@
     (letfn [(step [tree' [ident props]]
               (if (:normalize config)
                 (let [c-or-q (or (get ident-joins ident) (ref->any indexer ident))
-                      props' (tree->db c-or-q props)
+                      props' (tree->db c-or-q props false (pre-merge-transform tree))
                       refs   (meta props')]
                   ((:merge-tree config)
                     (merge-ident config tree' ident props') refs))
                 (merge-ident config tree' ident props)))]
       (reduce step tree refs))))
 
-(defn- merge-novelty
+(defn -merge-novelty
+  "PRIVATE. DO NOT USE."
   ([reconciler state-map result-tree query tempids]
    (let [state (if-let [migrate (-> reconciler :config :migrate)]
                  (let [root-component (app-root reconciler)
                        root-query     (when-not query (get-query root-component state-map))]
                    (migrate state-map (or query root-query) tempids))
                  state-map)]
-     (merge-novelty reconciler state result-tree query)))
+     (-merge-novelty reconciler state result-tree query)))
   ([reconciler state-map result-tree query]
    (let [config            (:config reconciler)
          [idts result-tree] (sift-idents result-tree)
          normalized-result (if (:normalize config)
                              (tree->db
                                (or query (:root @(:state reconciler)))
-                               result-tree true)
+                               result-tree true
+                               (pre-merge-transform state-map))
                              result-tree)]
      (-> state-map
        (merge-mutation-joins query result-tree)
@@ -1632,7 +1688,7 @@
                   (map (comp get-tempids second))
                   (reduce merge {}))]
     {:keys     (into [] (remove symbol?) (keys res))
-     :next     (merge-novelty reconciler state res query tempids)
+     :next     (-merge-novelty reconciler state res query tempids)
      ::tempids tempids}))
 
 (defn merge!
@@ -1723,7 +1779,9 @@
           (get-in indexes [:prop->classes k]))))))
 
 
-(defn- to-env [x]
+(defn -to-env
+  "PRIVATE: do not use."
+  [x]
   (let [config (if (reconciler? x) (:config x) x)]
     (select-keys config [:state :shared :parser])))
 
@@ -1743,7 +1801,8 @@
        :cljs (js/setTimeout #(p/send! reconciler) 0))))
 
 #?(:cljs
-   (defn- queue-render! [f]
+   (defn -queue-render! "PRIVATE."
+     [f]
      (cond
        (fn? *raf*) (*raf* f)
 
@@ -1757,7 +1816,7 @@
    :cljs
         (let [throttle (new goog.async.Throttle
                          (fn [reconciler]
-                           (queue-render! #(p/reconcile! reconciler)))
+                           (-queue-render! #(p/reconcile! reconciler)))
                          16)]
           (defn schedule-render! [reconciler] (.fire throttle reconciler))))
 
@@ -1862,8 +1921,10 @@
 
 (declare class->any)
 
-(defn- optimal-render
-  "Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
+(defn -optimal-render
+  "PRIVATE.
+
+   Run an optimal render of the given `refresh-queue` (a list of idents and data query keywords). This function attempts
    to refresh the minimum number of components according to the UI depth and state. If it cannot do targeted updates then
    it will call `render-root` to render the entire UI. Other optimizations may apply in render-root."
   [reconciler refresh-queue render-root]
@@ -1889,7 +1950,7 @@
                                      (conj result (parent-with-path c))))
                                  []
                                  mounted-components)
-        env                    (assoc (to-env config) :reconciler reconciler)]
+        env                    (assoc (-to-env config) :reconciler reconciler)]
     #?(:cljs
        (when root
          (let [old-tree     (props root)
@@ -1918,6 +1979,16 @@
                    end   (inst-ms (js/Date.))]
                (if (> (- end start) 20) (log/warn "Root render took " (- end start) "ms")))))))))
 
+(defn -reconciler-normalize-initial-state
+  "PRIVATE"
+  [{:keys [config state]} root-class]
+  (when (and (:normalize config)
+          (not (:normalized @state)))
+    (let [app-state @(:state config)
+          new-state (tree->db root-class app-state true (pre-merge-transform app-state))]
+      (reset! (:state config) new-state)
+      (swap! state assoc :normalized true))))
+
 (defrecord Reconciler [config state history]
   #?(:clj  clojure.lang.IDeref
      :cljs IDeref)
@@ -1940,12 +2011,7 @@
         (swap! state assoc :id guid))
       (when (has-query? root-class)
         (p/index-root (assoc (:indexer config) :state (-> config :state deref)) root-class))
-      (when (and (:normalize config)
-              (not (:normalized @state)))
-        (let [new-state (tree->db root-class @(:state config))
-              refs      (meta new-state)]
-          (reset! (:state config) (merge new-state refs))
-          (swap! state assoc :normalized true)))
+      (-reconciler-normalize-initial-state this root-class)
       (let [renderf (fn render-fn [data]
                       (binding [*reconciler* this
                                 *shared*     (merge
@@ -1973,7 +2039,7 @@
                        (let [root-query (get-query rctor (-> config :state deref))]
                          (assert (or (nil? root-query) (vector? root-query)) "Application root query must be a vector")
                          (if-not (nil? root-query)
-                           (let [env        (to-env config)
+                           (let [env        (-to-env config)
                                  root-props ((:parser config) env root-query)]
                              (when (empty? root-props)
                                (log/warn "WARNING: Root props were empty. Your root query returned no data!"))
@@ -1993,7 +2059,7 @@
           (fn add-fn [_ _ _ _]
             #?(:cljs
                (if-not (has-query? root-class)
-                 (queue-render! parsef)
+                 (-queue-render! parsef)
                  (do
                    (p/tick! this)
                    (schedule-render! this))))))
@@ -2058,7 +2124,7 @@
       (binding [*blindly-render* blind-refresh?]
         (if force-root?
           (render-root)
-          (optimal-render this components-to-refresh render-root)))))
+          (-optimal-render this components-to-refresh render-root)))))
 
   (send! [this]
     (let [sends (:queued-sends @state)]
@@ -2195,7 +2261,7 @@
                                (ident c (props c))
                                ref)
           env                (merge
-                               (to-env cfg)
+                               (-to-env cfg)
                                {:reconciler reconciler :component c}
                                (when ref
                                  {:ref ref}))
@@ -2490,15 +2556,6 @@
   (get-raw-react-prop component #?(:clj  :fulcro$instrument
                                    :cljs "fulcro$instrument")))
 
-#?(:cljs
-   (defn- merge-pending-state! [c]
-     (when-let [pending (some-> c .-state (gobj/get "fulcro$pendingState"))]
-       (let [state    (.-state c)
-             previous (gobj/get state "fulcro$state")]
-         (gobj/remove state "fulcro$pendingState")
-         (gobj/set state "fulcro$previousState" previous)
-         (gobj/set state "fulcro$state" pending)))))
-
 (defn class->any
   "Get any component from the indexer that matches the component class."
   [x class]
@@ -2633,14 +2690,16 @@
         :cljs (js/setTimeout (fn [] (transact! comp-or-reconciler ptx)) 0)))))
 
 #?(:clj
-   (defn- is-link? [query-element] (and (vector? query-element)
+   (defn is-link?
+     "Returns true if the given query element is a link query like [:x '_]."
+     [query-element] (and (vector? query-element)
                                      (keyword? (first query-element))
                                      ; need the double-quote because when in a macro we'll get the literal quote.
                                      (#{''_ '_} (second query-element)))))
 
 #?(:clj
-   (defn- legal-keys
-     "Find the legal keys in a query. NOTE: This is at compile time, so the get-query calls are still embedded (thus cannot
+   (defn -legal-keys
+     "PRIVATE. Find the legal keys in a query. NOTE: This is at compile time, so the get-query calls are still embedded (thus cannot
      use the AST)"
      [query]
      (letfn [(keeper [ele]
@@ -2654,7 +2713,8 @@
        (set (keep keeper query)))))
 
 #?(:clj
-   (defn- children-by-prop [query]
+   (defn -children-by-prop "PRIVATE."
+     [query]
      (into {}
        (keep #(if (and (map? %) (or (is-link? (ffirst %)) (keyword? (ffirst %))))
                 (let [k   (if (vector? (ffirst %))
@@ -2700,7 +2760,7 @@
                                                             nm   (name s)]
                                                         (keyword nspc nm))))
                destructured-keys (when (map? propargs) (->> (:keys propargs) (map to-keyword) set))
-               queried-keywords  (legal-keys template)
+               queried-keywords  (-legal-keys template)
                has-wildcard?     (some #{'*} template)
                to-sym            (fn [k] (symbol (namespace k) (name k)))
                illegal-syms      (mapv to-sym (set/difference destructured-keys queried-keywords))]
@@ -2870,8 +2930,14 @@
      (cond
        method (build-raw-initial-state env thissym method)
        template (let [query    (:template query-template-or-method)
-                      children (or (children-by-prop query) {})]
+                      children (or (-children-by-prop query) {})]
                   (build-and-validate-initial-state-map env sym template legal-keys children is-a-form?)))))
+
+#?(:clj
+   (defn- build-pre-merge [env thissym pre-merge]
+     (when pre-merge
+       `(~'static fulcro.client.primitives/IPreMerge
+          ~(replace-and-validate-fn env 'pre-merge* [thissym] 1 pre-merge)))))
 
 #?(:clj (s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list?)))
 #?(:clj (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?)))
@@ -2909,7 +2975,7 @@
        (cond
          (nil? form-fields) nil
          (set? form-fields) (let [valid-key?           (if (vector? query)
-                                                         (legal-keys query)
+                                                         (-legal-keys query)
                                                          (constantly true))
                                   missing-form-config? (and (vector? query)
                                                          (not (some #(= "form-config-join" (if (symbol? %) (name %))) query)))]
@@ -2952,7 +3018,7 @@
                                                           :path) " is invalid."))))
      (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
            [thissym propsym computedsym csssym] arglist
-           {:keys [ident query initial-state protocols form-fields css css-include]} options
+           {:keys [ident query initial-state protocols form-fields css css-include pre-merge]} options
            body                             (or body ['nil])
            ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
            initial-state-template-or-method (into {} [initial-state])
@@ -2963,7 +3029,7 @@
            ; TODO: validate-css?                    (and (map? csssym) (:template css))
            validate-query?                  (and (:template query-template-or-method) (not (some #{'*} (:template query-template-or-method))))
            legal-key-checker                (if validate-query?
-                                              (or (legal-keys (:template query-template-or-method)) #{})
+                                              (or (-legal-keys (:template query-template-or-method)) #{})
                                               (complement #{}))
            parsed-protocols                 (when protocols (group-by :protocol (s/conform :fulcro.client.primitives.defsc/protocols protocols)))
            object-methods                   (when (contains? parsed-protocols 'Object) (get-in parsed-protocols ['Object 0 :methods]))
@@ -2978,6 +3044,7 @@
                                               (mapcat identity))
            ident-forms                      (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-forms                      (build-initial-state env sym thissym initial-state-template-or-method legal-key-checker query-template-or-method false #_(vector? form-fields))
+           pre-merge-forms                  (build-pre-merge env thissym pre-merge)
            query-forms                      (build-query-forms env sym thissym propsym query-template-or-method)
            form-forms                       (build-form env (some-> form-fields second) (:template query-template-or-method))
            css-forms                        (build-css env thissym css-template-or-method css-include-template-or-method)
@@ -2995,6 +3062,7 @@
           ~@addl-protocols
           ~@css-forms
           ~@state-forms
+          ~@pre-merge-forms
           ~@ident-forms
           ~@query-forms
           ~@form-forms
@@ -3021,6 +3089,8 @@
       :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id]) ; this and props in scope
       ;; initial-state template is magic..see dev guide. Lambda version is normal.
       :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
+      ;; pre-merge, use a lamba to modify new merged data with component needs
+      :pre-merge (fn [tree] (merge {:ui/default-value :start} tree))
       :css [] ; garden css rules
       :css-include [] ; list of components that have CSS to compose towards root.
 
@@ -3104,8 +3174,10 @@
         object-query (get-query component)]
     [{ident object-query}]))
 
-(defn- preprocess-merge
-  "Does the steps necessary to honor the data merge technique defined by Fulcro with respect
+(defn -preprocess-merge
+  "PRIVATE.
+
+  Does the steps necessary to honor the data merge technique defined by Fulcro with respect
   to data overwrites in the app database."
   [state-atom component object-data]
   (let [ident         (get-ident component object-data)
@@ -3146,13 +3218,14 @@
    thin wrapper around `prim/tree->db`.
 
    See also integrate-ident, integrate-ident!, and merge-component!"
-  [state-map component component-data]
+  [state-map component component-data & named-parameters]
   (if-let [top-ident (get-ident component component-data)]
     (let [query          [{top-ident (get-query component)}]
           state-to-merge {top-ident component-data}
-          table-entries  (-> (tree->db query state-to-merge true)
+          table-entries  (-> (tree->db query state-to-merge true (pre-merge-transform state-map))
                            (dissoc ::tables top-ident))]
-      (util/deep-merge state-map table-entries))
+      (cond-> (util/deep-merge state-map table-entries)
+        (seq named-parameters) (#(apply util/__integrate-ident-impl__ % top-ident named-parameters))))
     state-map))
 
 (defn merge-component!
@@ -3190,7 +3263,7 @@
           reconciler     (if (contains? reconciler :reconciler) (:reconciler reconciler) reconciler)
           state          (app-state reconciler)
           data-path-keys (->> named-parameters (partition 2) (map second) flatten (filter keyword?) set vec)
-          {:keys [merge-data merge-query]} (preprocess-merge state component object-data)]
+          {:keys [merge-data merge-query]} (-preprocess-merge state component object-data)]
       (merge! reconciler merge-data merge-query)
       (swap! state (fn [s]
                      (as-> s st

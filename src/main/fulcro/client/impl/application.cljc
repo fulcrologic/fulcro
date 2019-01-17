@@ -30,12 +30,12 @@
       (log/warn "Fallback triggered, but no fallbacks were defined."))))
 
 ;; this is here so we can do testing (can mock core async stuff out of the way)
-(defn- enqueue
+(defn -enqueue
   "Enqueue a send to the network queue. This is a standalone function because we cannot mock core async functions."
   [q v]
   (go (async/>! q v)))
 
-(s/fdef enqueue
+(s/fdef -enqueue
   :args (s/cat :queue any? :payload ::f/payload))
 
 (defn real-send
@@ -180,7 +180,7 @@
                                           ::f/on-error        (fn [result] (fallback result))}))]
         (doseq [tx tx-list]
           (when (has-mutations? tx)
-            (enqueue queue (payload tx))))))))
+            (-enqueue queue (payload tx))))))))
 
 (defn enqueue-reads
   "Finds any loads marked `parallel` and triggers real network requests immediately. Remaining loads
@@ -205,7 +205,7 @@
                                                :on-done on-load' :on-error on-error' :abort-id abort-id})))
       (loop [fetch-payload (f/mark-loading remote reconciler)]
         (when fetch-payload
-          (enqueue queue (assoc fetch-payload :networking network))
+          (-enqueue queue (assoc fetch-payload :networking network))
           (recur (f/mark-loading remote reconciler)))))))
 
 (defn detect-errant-remotes [{:keys [reconciler send-queues] :as app}]
@@ -231,7 +231,7 @@
     (net/serialize-requests? network)
     true))
 
-(defn- send-payload
+(defn -send-payload
   "Sends a network payload. There are two kinds of payloads in Fulcro. The first is
   for reads, which are tracked by load descriptors in the app state. These load descriptors
   tell the plumbing how to handle the response, and expect to only be merged in once. Mutations
@@ -274,7 +274,7 @@
                              identity)]
       (go
         (loop [payload (async/<! queue)]
-          (send-payload network reconciler payload send-complete) ; async call. Calls send-complete when done
+          (-send-payload network reconciler payload send-complete) ; async call. Calls send-complete when done
           (when sequential?
             (async/<! response-channel))                    ; block until send-complete
           (recur (async/<! queue)))))))
