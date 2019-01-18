@@ -8,10 +8,14 @@
     "intl-messageformat": "^2.2.0"
   },
   "devDependencies": {
-    "karma": "2.0.0",
+    "karma": "3.1.4",
     "karma-chrome-launcher": "2.2.0",
     "karma-cljs-test": "0.1.0",
-    "karma-firefox-launcher": "1.1.0"
+    "karma-firefox-launcher": "1.1.0",
+    "shadow-cljs": "2.7.15",
+    "react": "16.7.0",
+    "react-dom": "16.7.0",
+    "enzyme": "3.8.0"
   },
   "repository": {
     "type": "git",

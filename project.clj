@@ -38,106 +38,27 @@
   :resource-paths ["resources"]
   :test-paths ["src/test"]
 
-  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx1024m" "-Xms512m"]
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-Xmx2024m" "-Xms1512m"]
   :clean-targets ^{:protect false} ["resources/private/js" "resources/public/js" "target" "docs/js/book"]
 
-  :plugins [[lein-cljsbuild "1.1.7"]
-            [lein-doo "0.1.10"]
-            [com.jakemccrary/lein-test-refresh "0.22.0"]]
+  :plugins [[com.jakemccrary/lein-test-refresh "0.22.0"]]
 
   :test-refresh {:report       fulcro-spec.reporters.terminal/fulcro-report
                  :changes-only false
                  :with-repl    true}
   :test-selectors {:focused :focused}
 
-  :doo {:build "automated-tests"
-        :debug true
-        :paths {:karma "node_modules/karma/bin/karma"}
-        :karma {:config {"files" ^:prepend ["resources/public/intl-messageformat-with-locales.min.js"]}}}
-
-  :figwheel {:server-port     8080
-             :validate-config false}
-
-  :cljsbuild {:builds
-              [{:id           "test"
-                :source-paths ["src/main" "src/test"]
-                :figwheel     {:on-jsload "fulcro.test-main/spec-report"}
-                :compiler     {:main                 fulcro.test-main
-                               :output-to            "resources/public/js/test.js"
-                               :output-dir           "resources/public/js/test"
-                               :recompile-dependents true
-                               ;:parallel-build       true
-                               ;:verbose              true
-                               ;:compiler-stats       true
-                               :preloads             [devtools.preload]
-                               :asset-path           "js/test"
-                               :optimizations        :none}}
-               {:id           "cards"
-                :source-paths ["src/main" "src/cards"]
-                :figwheel     {:devcards true}
-                :compiler     {:main                 fulcro.democards.card-ui
-                               :output-to            "resources/public/js/cards.js"
-                               :output-dir           "resources/public/js/cards"
-                               :asset-path           "js/cards"
-                               :preloads             [devtools.preload fulcro.inspect.preload]
-                               ;:parallel-build       true
-                               ;:verbose              true
-                               ;:compiler-stats       true
-                               :source-map-timestamp true
-                               :optimizations        :none}}
-               {:id           "cards-live"
-                :source-paths ["src/main" "src/cards"]
-                :compiler     {:main          fulcro.democards.card-ui
-                               :output-to     "resources/public/js/cards.min.js"
-                               :output-dir    "resources/public/js/cards-live"
-                               :asset-path    "js/cards-live"
-                               :devcards      true
-                               :verbose       true
-                               :optimizations :advanced}}
-               {:id           "book"
-                :source-paths ["src/main" "src/book"]
-                :figwheel     true
-                :compiler     {:output-dir "resources/public/js/book"
-                               :asset-path "js/book"
-                               :preloads   [devtools.preload]
-                               :modules    {:entry-point {:output-to "resources/public/js/book.js"
-                                                          :entries   #{book.main}}
-                                            ; For the dynamic code splitting demo
-                                            :main        {:output-to "resources/public/js/book/main-ui.js"
-                                                          :entries   #{book.demos.dynamic-ui-main}}}
-                               #_#_:parallel-build true}}
-               {:id           "book-live"
-                :source-paths ["src/main" "src/book"]
-                :compiler     {:output-dir     "docs/js/book"
-                               :asset-path     "js/book"
-                               :parallel-build true
-                               :optimizations  :advanced
-                               :source-map     "docs/js/book.js.map"
-                               :modules        {:entry-point {:output-to "docs/js/book.js"
-                                                              :entries   #{book.main}}
-                                                ; For the dynamic code splitting demo
-                                                :main        {:output-to "docs/js/book/main-ui.js"
-                                                              :entries   #{book.demos.dynamic-ui-main}}}}}
-               {:id           "automated-tests"
-                :source-paths ["src/test" "src/main"]
-                :compiler     {:output-to     "resources/private/js/unit-tests.js"
-                               :main          fulcro.automated-test-main
-                               :output-dir    "resources/private/js/unit-tests"
-                               :asset-path    "js/unit-tests"
-                               ;:parallel-build true
-                               :optimizations :none}}]}
-
   :profiles {:book {:dependencies [[devcards "0.2.5" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                    [fulcrologic/fulcro-inspect "2.2.1" :exclusions [fulcrologic/fulcro]]
                                    [cljsjs/d3 "4.12.0-0"]
                                    [cljsjs/victory "0.24.2-0"]
                                    [hickory "0.7.1"]
-                                   [com.rpl/specter "1.1.1"]
+                                   [com.rpl/specter "1.1.2"]
                                    [org.flywaydb/flyway-core "4.2.0"]]}
-             :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/tutorial" "src/book"]
+             :dev  {:source-paths ["src/dev" "src/main" "src/cards" "src/test" "src/book"]
                     :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                     :dependencies [[binaryage/devtools "0.9.10"]
-                                   [com.rpl/specter "1.1.1"] ; used by book demos
+                                   [com.rpl/specter "1.1.2"] ; used by book demos
                                    [devcards "0.2.4" :exclusions [org.clojure/clojure cljsjs/react cljsjs/react-dom]]
                                    [fulcrologic/fulcro-inspect "2.2.1" :exclusions [fulcrologic/fulcro]]
                                    [com.cemerick/piggieback "0.2.2"]
@@ -147,5 +68,6 @@
                                    [hickory "0.7.1"]
                                    [org.flywaydb/flyway-core "4.2.0"]
                                    [org.clojure/tools.namespace "0.3.0-alpha4"]
+                                   [thheller/shadow-cljs "2.7.8"]
                                    [cljsjs/codemirror "5.8.0-0"]
                                    [org.clojure/tools.nrepl "0.2.13"]]}})
