@@ -7,6 +7,7 @@
   "dependencies": {},
   "devDependencies": {
     "codemirror": "^5.42.2",
+    "d3": "^5.7.0",
     "enzyme": "^3.8.0",
     "enzyme-adapter-react-16": "^1.7.1",
     "intl-messageformat": "^2.2.0",
@@ -18,7 +19,8 @@
     "react-dom": "16.7.0",
     "readable-stream": "^1.1.14",
     "shadow-cljs": "2.7.15",
-    "showdown": "^1.9.0"
+    "showdown": "^1.9.0",
+    "victory": "^31.1.0"
   },
   "repository": {
     "type": "git",

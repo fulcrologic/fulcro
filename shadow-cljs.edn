@@ -1,12 +1,13 @@
 {:deps     {:aliases [:test :dev :provided :book]}
  :nrepl    {:port 9000}
  :jvm-opts ["-Xmx2G"]
- :builds   {#_#_:book {:target     :browser
-                       :output-dir "doc/js/book"
+ :builds   {:book     {:target     :browser
+                       :output-dir "docs/js/book"
                        :asset-path "/js/book"
-                       :modules    {:book    {:entries #{book.main}}
+                       :modules    {:book {:entries [book.main]}
                                     ; For the dynamic code splitting demo
-                                    :main-ui {:entries #{book.demos.dynamic-ui-main}}}
+                                    :main {:entries    [book.demos.dynamic-ui-main]
+                                           :depends-on #{:book}}}
                        :devtools   {:preloads  [fulcro.inspect.preload]
                                     :http-root "resources/public"
                                     :http-port 9001}}
