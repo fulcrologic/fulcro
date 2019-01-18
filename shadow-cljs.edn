@@ -1,35 +1,37 @@
-{:deps     {:aliases [:test :dev :provided :book]}
+{:deps     {:aliases [:test :dev :provided :book :workspaces]}
  :nrepl    {:port 9000}
  :jvm-opts ["-Xmx2G"]
- :builds   {:book     {:target     :browser
-                       :output-dir "docs/js/book"
-                       :asset-path "/js/book"
-                       :modules    {:book {:entries [book.main]}
-                                    ; For the dynamic code splitting demo
-                                    :main {:entries    [book.demos.dynamic-ui-main]
-                                           :depends-on #{:book}}}
-                       :devtools   {:preloads  [fulcro.inspect.preload]
-                                    :http-root "resources/public"
-                                    :http-port 9001}}
+ :builds   {:book       {:target     :browser
+                         :output-dir "docs/js/book"
+                         :asset-path "/js/book"
+                         :modules    {:book {:entries [book.main]}
+                                      ; For the dynamic code splitting demo
+                                      :main {:entries    [book.demos.dynamic-ui-main]
+                                             :depends-on #{:book}}}
+                         :devtools   {:preloads  [fulcro.inspect.preload]
+                                      :http-root "resources/public"
+                                      :http-port 9001}}
 
-            :test     {:target           :browser-test
-                       :test-dir         "resources/public/js/test"
-                       :ns-regexp        "-spec$"
-                       :compiler-options {:static-fns false} ; required for mocking to work
-                       :devtools         {:http-port          9002
-                                          :http-resource-root "public"
-                                          :http-root          "resources/public/js/test"}}
+            :test       {:target           :browser-test
+                         :test-dir         "resources/public/js/test"
+                         :ns-regexp        "-spec$"
+                         :compiler-options {:static-fns false} ; required for mocking to work
+                         :devtools         {:http-port          9002
+                                            :http-resource-root "public"
+                                            :http-root          "resources/public/js/test"}}
 
-            :ci-tests {:target           :karma
-                       :js-options       {:js-provider :shadow}
-                       :compiler-options {:static-fns false} ; required for mocking to work
-                       :output-to        "target/ci.js"
-                       :ns-regexp        "-spec$"}
+            :ci-tests   {:target           :karma
+                         :js-options       {:js-provider :shadow}
+                         :compiler-options {:static-fns false} ; required for mocking to work
+                         :output-to        "target/ci.js"
+                         :ns-regexp        "-spec$"}
 
-            #_#_:cards {:target           :browser
-                        :compiler-options {:figwheel true}
-                        :output-to        "resources/public/cards"
-                        :devtools         {:http-port          9003
-                                           :http-resource-root "public"
-                                           :http-root          "resources/public"}}}}
+            :workspaces {:target           nubank.workspaces.shadow-cljs.target
+                         :ns-regexp        "-ws$"
+                         :compiler-options {:figwheel true}
+                         :output-dir       "resources/public/js/workspaces"
+                         :asset-path       "js/workspaces"
+                         :devtools         {:http-port          9003
+                                            :http-resource-root "public"
+                                            :http-root          "resources/public"}}}}
 
