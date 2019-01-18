@@ -28,7 +28,6 @@
 
             :workspaces {:target           nubank.workspaces.shadow-cljs.target
                          :ns-regexp        "-ws$"
-                         :compiler-options {:figwheel true}
                          :output-dir       "resources/public/js/workspaces"
                          :asset-path       "js/workspaces"
                          :devtools         {:http-port          9003
