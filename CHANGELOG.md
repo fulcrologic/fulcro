@@ -1,3 +1,7 @@
+3.0.0
+-----
+- Converted project to shadow-cljs
+
 2.8.0
 ------
 - Add pre-merge support.
