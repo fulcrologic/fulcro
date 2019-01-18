@@ -9,8 +9,6 @@
             [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.protocols :as p]
-            #?(:clj
-               [clojure.future :refer :all])
             [clojure.spec.alpha :as s]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

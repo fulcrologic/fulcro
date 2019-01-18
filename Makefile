@@ -1,13 +1,10 @@
 tests:
 	npm install
-	lein doo chrome automated-tests once
-	lein test-refresh :run-once
+	npx shadow-cljs compile ci-tests
+	npx karma start --single-run
+	clojure -A:dev:provided:test:clj-tests
 
-tutorial:
-	rm -rf docs/js/[a-fh-z]* docs/js/goog docs/js/garden
-	lein cljsbuild once tutorial-live
-
-# gem install asciidoctor asciidoctor-diagram 
+# gem install asciidoctor asciidoctor-diagram
 # gem install coderay
 docs/DevelopersGuide.html: DevelopersGuide.adoc
 	asciidoctor -o docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc
@@ -16,7 +13,8 @@ book: docs/DevelopersGuide.html
 
 bookdemos:
 	rm -rf docs/js/book docs/js/book.js
-	lein cljsbuild once book-live
+	npm install
+	shadow-cljs release book
 
 publish: book
 	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/index.html

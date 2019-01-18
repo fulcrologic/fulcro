@@ -1,36 +1,34 @@
-{:deps     {:aliases [:test]}
- ;:nrepl    {:port 9000}
- ;:source-paths ["src/main" "src/test"]
+{:deps         {:aliases [:test :dev :provided :book]}
+ :nrepl        {:port 9000}
  :jvm-opts     ["-Xmx2G"]
- :builds       {#_#_:book       {:target     :browser
-                             :output-dir "doc/js/book"
-                             :asset-path "/js/book"
-                             :modules    {:book    {:entries #{book.main}}
-                                          ; For the dynamic code splitting demo
-                                          :main-ui {:entries #{book.demos.dynamic-ui-main}}}
-                             :devtools   {:preloads  [fulcro.inspect.preload]
-                                          :http-root "resources/public"
-                                          :http-port 9001}}
+ :builds       {#_#_:book {:target     :browser
+                           :output-dir "doc/js/book"
+                           :asset-path "/js/book"
+                           :modules    {:book    {:entries #{book.main}}
+                                        ; For the dynamic code splitting demo
+                                        :main-ui {:entries #{book.demos.dynamic-ui-main}}}
+                           :devtools   {:preloads  [fulcro.inspect.preload]
+                                        :http-root "resources/public"
+                                        :http-port 9001}}
 
-                :test       {:target           :browser-test
-                             :test-dir         "resources/public/js/test"
-                             :ns-regexp        "-spec$"
-                             :compiler-options {:static-fns false} ; required for mocking to work
-                             :runner-ns        fulcro.test-main
-                             :devtools         {:http-port          9002
-                                                :http-resource-root "public"
-                                                :http-root          "resources/public/js/test"}}
+                :test {:target           :browser-test
+                       :test-dir         "resources/public/js/test"
+                       :ns-regexp        "-spec$"
+                       :compiler-options {:static-fns false} ; required for mocking to work
+                       :devtools         {:http-port          9002
+                                          :http-resource-root "public"
+                                          :http-root          "resources/public/js/test"}}
 
                 #_#_:unit-tests {:target           :karma
-                             :js-options       {:js-provider :shadow}
-                             :compiler-options {:static-fns false} ; required for mocking to work
-                             :output-to        "resources/private/js"
-                             :ns-regexp        "-test$"}
+                                 :js-options       {:js-provider :shadow}
+                                 :compiler-options {:static-fns false} ; required for mocking to work
+                                 :output-to        "resources/private/js"
+                                 :ns-regexp        "-test$"}
 
-                #_#_:cards      {:target           :browser
-                             :compiler-options {:figwheel true}
-                             :output-to        "resources/public/cards"
-                             :devtools         {:http-port          9003
-                                                :http-resource-root "public"
-                                                :http-root          "resources/public"}}}}
+                #_#_:cards {:target           :browser
+                            :compiler-options {:figwheel true}
+                            :output-to        "resources/public/cards"
+                            :devtools         {:http-port          9003
+                                               :http-resource-root "public"
+                                               :http-root          "resources/public"}}}}
 

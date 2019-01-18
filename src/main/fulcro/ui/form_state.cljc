@@ -1,7 +1,5 @@
 (ns fulcro.ui.form-state
   (:require [clojure.spec.alpha :as s]
-            #?(:clj
-               [clojure.future :refer :all])
             [clojure.set :as set]
             [fulcro.logging :as log]
             [fulcro.client.mutations :refer [defmutation]]

@@ -661,8 +661,7 @@
           make-handler
           (run {:uri "/"})
           (dissoc :body))
-        => {:headers {"Content-Type" "text/html"}
-            :status  200})))
+        => {:headers {"Content-Type" "text/html"}})))
 
   (behavior "calling (get/set)-(pre/fallback)-hook can modify the ring handler stack"
     (letfn [(make-test-system []

@@ -11,8 +11,6 @@
     [fulcro.client.impl.protocols :as proto]
     [fulcro.util :as util]
     [fulcro.client.util :as cutil]
-    #?(:clj
-    [clojure.future :refer :all])
     [clojure.set :as set]
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s]

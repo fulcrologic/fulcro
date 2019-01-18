@@ -30,8 +30,6 @@
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
     [clojure.spec.alpha :as s]
-    #?(:clj
-       [clojure.future :refer :all])
     [cognitect.transit :as t])
   #?(:clj
      (:import [java.io Writer])))

@@ -2,12 +2,14 @@
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro.util :as util]
+    fulcro.client.dom
     [fulcro.client.dom-common :as cdom]
     [fulcro.client.primitives :as prim]
     [clojure.string :as str]
     #?(:cljs [fulcro.client.dom :as dom :refer [div p span]]
        :clj  [fulcro.client.dom-server :as dom])
-    #?@(:cljs [["enzyme" :default enzyme]
+    #?@(:cljs [["enzyme" :as enzyme :refer [configure]]
+               ["enzyme-adapter-react-16" :as Adapter]
                [goog.object :as gobj]
                [goog.dom :as gdom]]))
   #?(:clj
@@ -379,6 +381,7 @@
 
      (specification "Wrapping form elements"
        (let [element          (atom nil)
+             _                (configure #js {:adapter (Adapter.)})
              new-value        "bar"
              expected-value   (str "+" new-value "+")       ; the surrounding + ensures the simulated mutation ran
              props            {:type     "text"

@@ -7,12 +7,9 @@
             [fulcro.client.impl.data-fetch :as f]
             [fulcro.util :as futil]
             [fulcro.client.util :as util]
-    #?(:clj
-            [clojure.future :refer :all])
             [clojure.spec.alpha :as s]
-    #?(:cljs [cljs.core.async :as async]
-       :clj
-            [clojure.core.async :as async :refer [go]])
+            #?(:cljs [cljs.core.async :as async]
+               :clj  [clojure.core.async :as async :refer [go]])
             [fulcro.client.network :as net]
             [fulcro.client.impl.protocols :as p])
   #?(:cljs (:require-macros
@@ -73,11 +70,11 @@
                                           (fn [resp items-or-tx]
                                             (swap! network-activity update-in [remote :active-requests] #(dissoc % uuid))
                                             #?(:cljs (js/setTimeout ; delay necessary so we don't mark things inactive too soon
-                                                      #(when (= (-> @network-activity (get remote) :active-requests count) 0)
-                                                         (swap! (prim/app-state reconciler) assoc-in [::net/status remote] :idle)
-                                                         (swap! network-activity assoc-in [remote :status] :idle)
-                                                         (p/queue! reconciler [::net/status]))
-                                                      0))
+                                                       #(when (= (-> @network-activity (get remote) :active-requests count) 0)
+                                                          (swap! (prim/app-state reconciler) assoc-in [::net/status remote] :idle)
+                                                          (swap! network-activity assoc-in [remote :status] :idle)
+                                                          (p/queue! reconciler [::net/status]))
+                                                       0))
                                             (handler resp items-or-tx)))
          with-history-recording         (fn [handler]
                                           (fn [resp items-or-tx]
@@ -253,7 +250,7 @@
         on-done    (comp send-complete merge-data)]
     (if (f/is-deferred-transaction? query)
       (do
-        (on-done {}); immediately let the deferred tx go by pretending that the load is done
+        (on-done {})                                        ; immediately let the deferred tx go by pretending that the load is done
         (when-not (is-sequential? network)
           (log/error "Attempt to defer a transaction on a non-sequential remote. `ptransact!` will fail to work correctly with `serial? false` remotes.")))
       (send-with-history-tracking network {:payload payload :tx query :reconciler reconciler
@@ -288,39 +285,39 @@
   called. This allows us to define the reconciler with a send method that, at the time of initialization, has an app
   that points to a nil reconciler. By the end of this function, the app's reconciler reference has been properly set."
   [{:keys [send-queues mutation-merge] :as app} initial-state parser {:keys [migrate] :as reconciler-options}]
-  (let [rec-atom                  (atom nil)
-        remotes                   (keys send-queues)
-        tempid-migrate            (fn [pure _ tempids]
-                                    (doseq [queue (vals send-queues)]
-                                      (prim/rewrite-tempids-in-request-queue queue tempids))
-                                    (let [state-migrate (or migrate prim/resolve-tempids)]
-                                      (state-migrate pure tempids)))
-        complete-initial-state    (let [set-default-locale  (fn [s] (update s :ui/locale (fnil identity :en)))
-                                        set-network-markers (fn [s] (assoc s ::net/status (zipmap remotes (repeat :idle))))
-                                        is-atom?            (futil/atom? initial-state)]
-                                    (if is-atom?
-                                      (do
-                                        (swap! initial-state set-default-locale)
-                                        (swap! initial-state set-network-markers)
-                                        initial-state)
-                                      (do
-                                        (-> initial-state
-                                            set-default-locale
-                                            set-network-markers))))
-        config                    (merge {}
-                                    reconciler-options
-                                    {:migrate     tempid-migrate
-                                     :state       complete-initial-state
-                                     :send        (fn [sends-keyed-by-remote result-merge-callback]
-                                                    (server-send (assoc app :reconciler @rec-atom) sends-keyed-by-remote result-merge-callback))
-                                     :normalize   true
-                                     :remotes     remotes
-                                     :merge-ident (fn [reconciler app-state ident props]
-                                                    (update-in app-state ident (comp prim/sweep-one merge) props))
-                                     :merge-tree  (fn [target source]
-                                                    (prim/merge-handler mutation-merge target source))
-                                     :parser      parser})
-        rec                       (prim/reconciler config)]
+  (let [rec-atom               (atom nil)
+        remotes                (keys send-queues)
+        tempid-migrate         (fn [pure _ tempids]
+                                 (doseq [queue (vals send-queues)]
+                                   (prim/rewrite-tempids-in-request-queue queue tempids))
+                                 (let [state-migrate (or migrate prim/resolve-tempids)]
+                                   (state-migrate pure tempids)))
+        complete-initial-state (let [set-default-locale  (fn [s] (update s :ui/locale (fnil identity :en)))
+                                     set-network-markers (fn [s] (assoc s ::net/status (zipmap remotes (repeat :idle))))
+                                     is-atom?            (futil/atom? initial-state)]
+                                 (if is-atom?
+                                   (do
+                                     (swap! initial-state set-default-locale)
+                                     (swap! initial-state set-network-markers)
+                                     initial-state)
+                                   (do
+                                     (-> initial-state
+                                       set-default-locale
+                                       set-network-markers))))
+        config                 (merge {}
+                                 reconciler-options
+                                 {:migrate     tempid-migrate
+                                  :state       complete-initial-state
+                                  :send        (fn [sends-keyed-by-remote result-merge-callback]
+                                                 (server-send (assoc app :reconciler @rec-atom) sends-keyed-by-remote result-merge-callback))
+                                  :normalize   true
+                                  :remotes     remotes
+                                  :merge-ident (fn [reconciler app-state ident props]
+                                                 (update-in app-state ident (comp prim/sweep-one merge) props))
+                                  :merge-tree  (fn [target source]
+                                                 (prim/merge-handler mutation-merge target source))
+                                  :parser      parser})
+        rec                    (prim/reconciler config)]
     (reset! rec-atom rec)
     rec))
 
