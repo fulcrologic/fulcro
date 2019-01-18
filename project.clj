@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "3.0.0"
+(defproject fulcrologic/fulcro "2.8.1-SNAPSHOT"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url "https://github.com/fulcrologic/fulcro"
   :lein-min-version "2.8.1"

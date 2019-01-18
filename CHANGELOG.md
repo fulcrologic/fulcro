@@ -1,4 +1,4 @@
-3.0.0
+2.8.1
 -----
 - Converted project to shadow-cljs
 
