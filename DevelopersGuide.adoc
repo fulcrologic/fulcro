@@ -1450,10 +1450,12 @@ To do this, we can add an option to our client. In `app.client` change `app`:
             [fulcro.client.data-fetch :as df] ; <1>
             [app.ui.root :as root]))
 
-(defonce app (atom (fc/new-fulcro-client
-                     :started-callback
-                     (fn [app]  ; <2>
-                       (df/load app :current-user root/Person)))))
+...
+    (fc/new-fulcro-client
+                 :started-callback
+                 (fn [app]  ; <2>
+                   (df/load app :current-user root/Person)))))
+...
 ```
 
 <1> Require the `data-fetch` namespace
