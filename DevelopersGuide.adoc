@@ -8873,7 +8873,7 @@ A basic router looks like this:
  {:router-id :root/router
   :ident (fn [] [page id]) ; props are destructured in the context of the route TARGET
   :default-route Index
-  :route-targets {:PAGE/index Index
+  :router-targets {:PAGE/index Index
                   :PAGE/settings Settings}}
   (dom/div "What to render if the route is bad"))
 ```
