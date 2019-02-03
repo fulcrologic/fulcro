@@ -21,6 +21,5 @@ publish: book
 
 publish-all: book
 	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/index.html
-	rsync -av docs/js/book.js linode:/usr/share/nginx/html/js/
 	rsync -av docs/js/book/*.js linode:/usr/share/nginx/html/js/book/
 	rsync -av docs/assets/img linode:/usr/share/nginx/html/assets/
