@@ -33,8 +33,8 @@
 (s/def ::validity #{:valid :invalid :unchecked})
 (s/def ::denormalized-form (s/keys :req [::config]))
 
-(defn- assume-field [config field]
-  (when-not (contains? (::fields config) field)
+(defn- assume-field [props field]
+  (when-not (and (seq props) (contains? (some-> props ::config ::fields) field))
     (log/error (str "It appears you're using " field " as a form field, but it is *not* declared as a form field on the component. It will fail to function properly."))))
 
 (defn form-id
@@ -244,7 +244,7 @@
    (let [{{pristine-state ::pristine-state} ::config} ui-entity-props
          current  (get ui-entity-props field)
          original (get pristine-state field)]
-     (assume-field (::config ui-entity-props) field)
+     (assume-field ui-entity-props field)
      (not= current original)))
   ([ui-entity-props]
    (let [{:keys [::subforms ::fields]} (::config ui-entity-props)
@@ -325,7 +325,7 @@
     ([ui-entity-props field]
      (let [{{complete? ::complete?} ::config} ui-entity-props
            complete? (or complete? #{})]
-       (assume-field (::config ui-entity-props) field)
+       (assume-field ui-entity-props field)
        (cond
          (not (complete? field)) :unchecked
          (not (field-valid? ui-entity-props field)) :invalid
@@ -379,7 +379,7 @@
     Until this returns true validators will simply return :unchecked for a form/field."
     ([ui-form] (not= :unchecked (carefree-validator ui-form)))
     ([ui-form field]
-     (assume-field (::config ui-form) field)
+     (assume-field ui-form field)
      (not= :unchecked (carefree-validator ui-form field)))))
 
 (defn- immediate-subform-idents
