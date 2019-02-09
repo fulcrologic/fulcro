@@ -35,7 +35,8 @@
 
 (defn- assume-field [props field]
   (when-not (and (seq props) (contains? (some-> props ::config ::fields) field))
-    (log/error (str "It appears you're using " field " as a form field, but it is *not* declared as a form field on the component. It will fail to function properly."))))
+    (log/error (str "It appears you're using " field " as a form field, but it is *not* declared as a form field "
+                 "on the component. It will fail to function properly (perhaps you forgot to initialize via `add-form-config`)."))))
 
 (defn form-id
   "Returns the form database table ID for the given entity ident."
