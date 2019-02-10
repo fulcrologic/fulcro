@@ -5,7 +5,6 @@
     #?(:clj [cljs.tagged-literals :refer [->JSValue]])
     #?@(:cljs [[cljsjs.react]
                [cljsjs.react.dom]
-               [cljsjs.react.dom.server]
                [goog.object :as gobj]])
             [fulcro.client.primitives :as prim]
             [clojure.string :as str]))
