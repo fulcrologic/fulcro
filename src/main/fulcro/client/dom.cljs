@@ -55,7 +55,7 @@
   (js/ReactDOM.render component el))
 
 (defn render-to-str
-  "Equivalent to React.renderToString"
+  "Equivalent to React.renderToString. NOTE: You must require cljsjs.react.dom.server to use this function."
   [c]
   (js/ReactDOMServer.renderToString c))
 

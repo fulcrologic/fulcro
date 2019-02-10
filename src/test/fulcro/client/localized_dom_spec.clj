@@ -4,6 +4,7 @@
     [fulcro.client.dom-server :refer [render-to-str]]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.localized-dom-server :as ldom :refer [div p span]]
+    [cljsjs.react.dom.server]
     [clojure.string :as str])
   (:import (cljs.tagged_literals JSValue)))
 
