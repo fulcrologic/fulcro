@@ -10,6 +10,7 @@
   (:require
     [fulcro.client.dom-common :as cdom]
     [clojure.string :as str]
+    [cljsjs.react.dom.server]
     [fulcro.client.impl.protocols :as p]
     [fulcro.util :as util]
     [clojure.spec.alpha :as s]
