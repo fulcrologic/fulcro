@@ -2203,6 +2203,8 @@
            root-render root-unmount root-hydrate
            migrate render-mode
            instrument tx-listen
+           load-marker-default
+           query-transform-default
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
            hydrate?     false
@@ -2223,19 +2225,29 @@
                  :cljs (satisfies? IAtom state))
         state'        (if norm? state (atom state))
         ret           (Reconciler.
-                        {:state       state' :shared shared :shared-fn shared-fn
-                         :hydrate?    hydrate?
-                         :parser      parser :indexer idxr
-                         :send        send :merge-sends merge-sends :remotes remotes
-                         :merge-tree  merge-tree :merge-ident merge-ident
-                         :normalize   (or (not norm?) normalize)
-                         :root-render root-render :root-unmount root-unmount :root-hydrate root-hydrate
-                         :render-mode render-mode
-                         :pathopt     true
-                         :load-marker-default (:load-marker-default config)
-                         :migrate     migrate
-                         :lifecycle   lifecycle
-                         :instrument  instrument :tx-listen tx-listen}
+                        {:state                   state'
+                         :shared                  shared
+                         :shared-fn               shared-fn
+                         :hydrate?                hydrate?
+                         :parser                  parser
+                         :indexer                 idxr
+                         :send                    send
+                         :merge-sends             merge-sends
+                         :remotes                 remotes
+                         :merge-tree              merge-tree
+                         :merge-ident             merge-ident
+                         :normalize               (or (not norm?) normalize)
+                         :root-render             root-render
+                         :root-unmount            root-unmount
+                         :root-hydrate            root-hydrate
+                         :render-mode             render-mode
+                         :pathopt                 true
+                         :load-marker-default     load-marker-default
+                         :query-transform-default query-transform-default
+                         :migrate                 migrate
+                         :lifecycle               lifecycle
+                         :instrument              instrument
+                         :tx-listen               tx-listen}
                         (atom {:queue            []
                                :remote-queue     {}
                                :id               id
@@ -2692,9 +2704,9 @@
    (defn is-link?
      "Returns true if the given query element is a link query like [:x '_]."
      [query-element] (and (vector? query-element)
-                                     (keyword? (first query-element))
-                                     ; need the double-quote because when in a macro we'll get the literal quote.
-                                     (#{''_ '_} (second query-element)))))
+                       (keyword? (first query-element))
+                       ; need the double-quote because when in a macro we'll get the literal quote.
+                       (#{''_ '_} (second query-element)))))
 
 #?(:clj
    (defn -legal-keys

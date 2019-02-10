@@ -111,6 +111,10 @@
 
   `:load-marker-default` (optional) Location where the fulcro load markers will be added for network requests (default is false).
 
+  `:query-transform-default` (optional) A (fn [query] query) that is used as the default `:update-query` for data-detch/load parameters.
+  This can be used to customize things like preventing certain keywords from ever appearing in the remote version of a
+  component's query. See `fulcro.client.elide-query-nodes` for an idea of a common helper.
+
   `:read-local` (optional). An read function for the Parser. (fn [env k params] ...). If supplied,
   it will be called once for each root-level query key. If it returns `nil` or `false` for that key then the built-in Fulcro read will handle that
   branch of the root query. If it returns a map with the shape `{:value ...}`, then that will be used for the response. This is *not*
@@ -142,7 +146,8 @@
   "
   ([] (make-fulcro-client {}))
   ([{:keys [initial-state mutation-merge started-callback networking reconciler-options query-interpreter
-            read-local request-transform network-error-callback migrate transit-handlers shared load-marker-default]
+            read-local request-transform network-error-callback migrate transit-handlers shared load-marker-default
+            query-transform-default]
      :or   {initial-state {} read-local (constantly false) started-callback (constantly nil) network-error-callback (constantly nil)
             migrate       nil shared nil load-marker-default false}
      :as   options}]
@@ -164,7 +169,8 @@
                                                      lifecycle (assoc :lifecycle lifecycle)
                                                      migrate (assoc :migrate migrate)
                                                      shared (assoc :shared shared))
-                                              {:load-marker-default load-marker-default}
+                                              {:load-marker-default load-marker-default
+                                               :query-transform-default query-transform-default}
                                               reconciler-options)
                         :networking         networking}))))
 

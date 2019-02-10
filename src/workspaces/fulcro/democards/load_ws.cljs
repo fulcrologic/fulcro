@@ -1,9 +1,11 @@
-(ns fulcro.democards.load-cards
+(ns fulcro.democards.load-ws
   (:require
-    [devcards.core :as dc]
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
     [fulcro.client :as fc]
     [fulcro.server :as server]
-    [fulcro.client.cards :refer [defcard-fulcro make-root]]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
@@ -40,8 +42,7 @@
     (swap! state assoc-in [:thing/by-id id] {:id id :label label}))
   (remote [env] true))
 
-(defcard-fulcro load-with-follow-on-read
-  "# Sequential Processing
+#_"# Sequential Processing
 
   This card does a write (with a tempid) and a re-read of that as a follow-on read. This
   exercises:
@@ -55,14 +56,17 @@
     - Should see a load marker appear IN the entity
     - Should see no load markers at the end
   "
-  Root
-  {}
-  {:inspect-data true
-   :fulcro       {:networking       (MockNetwork.)
-                  :started-callback (fn [{:keys [reconciler]}]
-                                      (let [id (prim/tempid)]
-                                        (prim/transact! reconciler `[(add-thing {:id ~id :label "A"})])
-                                        (df/load reconciler [:thing/by-id id] Thing)))}})
+(ws/defcard load-with-follow-on
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       Root
+     ::f.portal/app        {:networking       (MockNetwork.)
+                            :started-callback (fn [{:keys [reconciler]}]
+                                                (let [id (prim/tempid)]
+                                                  (prim/transact! reconciler `[(add-thing {:id ~id :label "A"})])
+                                                  (df/load reconciler [:thing/by-id id] Thing)))}
+     ::f.portal/wrap-root? false}))
+
 
 (defrecord MockNetForMerge []
   net/FulcroNetwork
@@ -73,8 +77,7 @@
                        :else (done-callback {[:thing/by-id 1] {:id 1 :label "UPDATED A"}}))) 500))
   (start [this] this))
 
-(defcard-fulcro ui-attribute-merge
-  "# Merging
+#_"# Merging
 
   This card loads over both a non-normalized item, and entry that is normalized from a tree response,
   and an entry that is refreshed by ident. In all cases, the (non-queried) UI attributes should remain.
@@ -91,15 +94,19 @@
    :thing       [:thing/by-id 2]}
   ```
   "
-  Root
-  {:thing/by-id {1 {:id 1 :label "A" :ui/value 1}
-                 2 {:id 2 :label "B" :ui/value 2}
-                 3 {:id 3 :label "C" :ui/value 3}}}
-  {:fulcro       {:started-callback (fn [{:keys [reconciler]}]
-                                      (js/setTimeout #(df/load reconciler [:thing/by-id 1] Thing {:refresh [[:fake 1] :no-prop] :without #{:ui/value}}) 100)
-                                      (js/setTimeout #(df/load reconciler :thing Thing {:without #{:ui/value}}) 200))
-                  :networking       (MockNetForMerge.)}
-   :inspect-data true})
+(ws/defcard ui-attr-merge
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       Root
+     ::f.portal/app
+                           {:started-callback (fn [{:keys [reconciler]}]
+                                                (js/setTimeout #(df/load reconciler [:thing/by-id 1] Thing {:refresh [[:fake 1] :no-prop] :without #{:ui/value}}) 100)
+                                                (js/setTimeout #(df/load reconciler :thing Thing {:without #{:ui/value}}) 200))
+                            :initial-state    (atom {:thing/by-id {1 {:id 1 :label "A" :ui/value 1}
+                                                                   2 {:id 2 :label "B" :ui/value 2}
+                                                                   3 {:id 3 :label "C" :ui/value 3}}})
+                            :networking       (MockNetForMerge.)}
+     ::f.portal/wrap-root? false}))
 
 (defsc FocusA [_ _]
   {:query [:i :have :data]})
@@ -124,20 +131,21 @@
                      (done-callback (echo-parser {} edn))) 500))
   (start [this] this))
 
-(defcard-fulcro ui-load-focus
-  "# Focusing
+#_"# Focusing
 
   ```
   {:root {:a {:data \":data\"}
           :b {:x \":x\" :y \":y\"}}}
   ```
   "
-  FocusRoot
-  {}
-  {:fulcro       {:started-callback (fn [{:keys [reconciler]}]
-                                      (js/setTimeout #(df/load reconciler :root FocusRoot {:focus [{:a [:data]} :b]}) 100))
-                  :networking       (MockNetForEcho.)}
-   :inspect-data true})
+(ws/defcard ui-load-focus
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       FocusRoot
+     ::f.portal/app        {:started-callback (fn [{:keys [reconciler]}]
+                                                (js/setTimeout #(df/load reconciler :root FocusRoot {:focus [{:a [:data]} :b]}) 100))
+                            :networking       (MockNetForEcho.)}
+     ::f.portal/wrap-root? false}))
 
 (defsc DupeKeyFetch [this {:keys [db/id a b c] :as props}]
   {:query         [:db/id :a :b :c]
@@ -152,25 +160,28 @@
     (js/console.log :FETCH ::X)
     {:value (rand-int 100)}))
 
-(defcard-fulcro dupe-key-fetch
-  (make-root DupeKeyFetch {})
-  {}
-  {:inspect-data true
-   :fulcro       {:networking       (server/new-server-emulator)
-                  :started-callback (fn [app]
-                                      (df/load app ::x nil {:target [:T 1 :a]})
-                                      (df/load app ::x nil {:target [:T 1 :b]})
-                                      (df/load app ::x nil {:target [:T 1 :c]}))}})
+(ws/defcard dupe-key-fetch
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       DupeKeyFetch
+     ::f.portal/app        {:networking       (server/new-server-emulator)
+                            :started-callback (fn [app]
+                                                (df/load app ::x nil {:target [:T 1 :a]})
+                                                (df/load app ::x nil {:target [:T 1 :b]})
+                                                (df/load app ::x nil {:target [:T 1 :c]}))}
+     ::f.portal/wrap-root? true}))
 
 (defsc Item [_ _]
   {:initial-state (fn [_] {:id "sample"})
-   :ident [:id :id]
-   :query [:id :name]}
+   :ident         [:id :id]
+   :query         [:id :name]}
   (dom/div "Item"))
 
-(defcard-fulcro vector-marker
-  (make-root Item {})
-  {}
-  {:fulcro {:networking       (MockNetForEcho.)
-            :started-callback (fn [app]
-                                (df/load app [:id "sample"] Item {:marker [:id "sample"]}))}})
+(ws/defcard vector-marker
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       Item
+     ::f.portal/app        {:networking       (MockNetForEcho.)
+                            :started-callback (fn [app]
+                                                (df/load app [:id "sample"] Item {:marker [:id "sample"]}))}
+     ::f.portal/wrap-root? true}))

@@ -1,10 +1,13 @@
-(ns fulcro.democards.i18n-cards
+(ns fulcro.democards.i18n-ws
   (:require [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.client.dom :as dom]
-            [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.server :as server :refer [defquery-root]]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.i18n :as i18n :refer [tr trc trf]]))
+            [nubank.workspaces.core :as ws]
+            [nubank.workspaces.model :as wsm]
+            [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+            [nubank.workspaces.lib.fulcro-portal :as f.portal]
+            [fulcro.i18n :as i18n :refer [tr trc trf]] ))
 
 (def mock-server-networking (server/new-server-emulator))
 
@@ -50,10 +53,11 @@
         formatter  (js/IntlMessageFormat. localized-format-string locale-str)]
     (.format formatter (clj->js format-options))))
 
-(defcard-fulcro sample
-  Root
-  {}
-  {:inspect-data true
-   :fulcro       {:networking         mock-server-networking
-                  :reconciler-options {:shared    {::i18n/message-formatter message-formatter}
-                                       :shared-fn ::i18n/current-locale}}})
+(ws/defcard css-style-root
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       Root
+     ::f.portal/app  {:networking         mock-server-networking
+                      :reconciler-options {:shared    {::i18n/message-formatter message-formatter}
+                                           :shared-fn ::i18n/current-locale}}
+     ::f.portal/wrap-root? false}))

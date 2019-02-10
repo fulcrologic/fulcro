@@ -38,9 +38,10 @@
   (targeting/replace-at target))
 
 (defn elide-query-nodes
-  "Remove items from a query that have a key listed in the elision-set"
-  [query elision-set]
-  (-> query prim/query->ast (impl/elide-ast-nodes elision-set) prim/ast->query))
+  "Remove items from a query when the query element where the (node-predicate key) returns true. Commonly used with
+   a set as a predicate to elide specific well-known UI-only paths."
+  [query node-predicate]
+  (-> query prim/query->ast (impl/elide-ast-nodes node-predicate) prim/ast->query))
 
 (defn computed-refresh
   "Computes the refresh for the load by ensuring the loaded data is on the
@@ -189,8 +190,11 @@
                                    (get app-or-comp-or-reconciler :reconciler)
                                    app-or-comp-or-reconciler)
          reconciler              (if (prim/reconciler? component-or-reconciler) component-or-reconciler (prim/get-reconciler component-or-reconciler))
-         load-marker-default     (-> reconciler :config :load-marker-default)
-         config                  (merge {:marker load-marker-default :parallel false :refresh [] :without #{}} config)
+         {:keys [load-marker-default query-transform-default]} (-> reconciler :config)
+         config                  (merge
+                                   (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
+                                     query-transform-default (assoc :update-query query-transform-default))
+                                   config)
          state                   (prim/app-state reconciler)
          mutation-args           (load-params* @state server-property-or-ident class-or-factory config)]
      (prim/transact! component-or-reconciler (load-mutation mutation-args)))))
@@ -222,9 +226,15 @@
      ([env server-property-or-ident SubqueryClass config]
       {:pre [(and (map? env) (contains? env :state))]}
       (let [reconciler (:reconciler env)
-            load-marker-default (-> reconciler :config :load-marker-default)
-            config    (merge {:marker load-marker-default :parallel false :refresh [] :without #{}} config)
-            state-map @(:state env)]
+            {:keys [load-marker-default query-transform-default]} (-> reconciler :config)
+            config     (merge
+                         (cond-> {:marker   load-marker-default
+                                  :parallel false
+                                  :refresh  []
+                                  :without  #{}}
+                           query-transform-default (assoc :update-query query-transform-default))
+                         config)
+            state-map  @(:state env)]
         (impl/mark-ready (assoc (load-params* state-map server-property-or-ident SubqueryClass config) :env env))))))
 
 (defn load-field
@@ -242,6 +252,7 @@
     - `parallel`: See `load`
     - `fallback`: See `load`
     - `marker`: See `load`
+    - `update-query`: See `load`
     - `remote`: See `load`
     - `refresh`: See `load`
     - `abort-id`: See `load`
@@ -257,17 +268,22 @@
   is what this function will use).
   "
   [component field & params]
-  (let [params              (if (map? (first params)) (first params) params)
-        reconciler          (prim/get-reconciler component)
-        load-marker-default (-> reconciler :config :load-marker-default)
-        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id]
-         :or   {remote :remote refresh [] marker load-marker-default}} params
-        state-map           (some-> reconciler prim/app-state deref)]
+  (let [params     (if (map? (first params)) (first params) params)
+        reconciler (prim/get-reconciler component)
+        {:keys [load-marker-default query-transform-default]} (-> reconciler :config)
+        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id update-query]
+         :or   {remote       :remote
+                refresh      []
+                marker       load-marker-default
+                update-query query-transform-default}} params
+        state-map  (some-> reconciler prim/app-state deref)
+        query      (cond-> (prim/focus-query (prim/get-query component state-map) [field])
+                     update-query (update-query))]
     (when fallback (assert (symbol? fallback) "Fallback must be a mutation symbol."))
     (prim/transact! component (into [(list 'fulcro/load
                                        {:ident                (prim/get-ident component)
                                         :field                field
-                                        :query                (prim/focus-query (prim/get-query component state-map) [field])
+                                        :query                query
                                         :params               params
                                         :without              without
                                         :remote               remote
@@ -301,34 +317,38 @@
   be available for post mutations and fallbacks.
   "
   [env-or-app-state component-class ident field & params]
-  (let [params              (if (map? (first params)) (first params) params)
-        env?                (and (map? env-or-app-state) (contains? env-or-app-state :state))
-        env                 (if env?
-                              env-or-app-state
-                              {:state env-or-app-state})
-        load-marker-default (if env?
-                              (-> env :reconciler :config :load-marker-default)
-                              true)
-        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id]
-         :or   {remote :remote refresh [] marker load-marker-default}} params
-        state-map           (some-> env :state deref)]
+  (let [params    (if (map? (first params)) (first params) params)
+        env?      (and (map? env-or-app-state) (contains? env-or-app-state :state))
+        env       (if env?
+                    env-or-app-state
+                    {:state env-or-app-state})
+        {:keys [load-marker-default
+                query-transform-default]} (if env?
+                                            (-> env :reconciler :config)
+                                            {:load-marker-default true})
+        {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id update-query]
+         :or   {remote       :remote refresh [] marker load-marker-default
+                update-query query-transform-default}} params
+        state-map (some-> env :state deref)
+        query     (cond-> (prim/focus-query (prim/get-query component-class state-map) [field])
+                    update-query (update-query))]
     (when-not env?
-      (log/warn "load-field-action for field " field " was called with app state instead of env. This is a deprecated usage and some features may not work when using it." ))
+      (log/warn "load-field-action for field " field " was called with app state instead of env. This is a deprecated usage and some features may not work when using it."))
     (impl/mark-ready
-      {:env                  env
-       :field                field
-       :ident                ident
-       :query                (prim/focus-query (prim/get-query component-class state-map) [field])
-       :params               params
-       :remote               remote
-       :without              without
-       :parallel             parallel
-       :refresh              refresh
-       :marker               marker
-       :post-mutation        post-mutation
-       :post-mutation-params post-mutation-params
-       :abort-id             abort-id
-       :fallback             fallback})))
+      (cond-> {:env                  env
+               :field                field
+               :ident                ident
+               :query                query
+               :params               params
+               :remote               remote
+               :without              without
+               :parallel             parallel
+               :refresh              refresh
+               :marker               marker
+               :post-mutation        post-mutation
+               :post-mutation-params post-mutation-params
+               :abort-id             abort-id
+               :fallback             fallback}))))
 
 (defn remote-load
   "Returns the correct value for the `:remote` side of a mutation that should act as a

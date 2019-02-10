@@ -1,11 +1,14 @@
-(ns fulcro.democards.localized-dom-cards
-  (:require [devcards.core :as dc]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.localized-dom :as dom :refer [div span]]
-            [goog.object :as gobj]
-            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
-            [fulcro.client.mutations :as m]
-            [fulcro-css.css :as css]))
+(ns fulcro.democards.localized-dom-ws
+  (:require
+    [fulcro.client.localized-dom :as dom :refer [div span]]
+    [goog.object :as gobj]
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
+    [fulcro.client.mutations :as m]
+    [fulcro-css.css :as css]))
 
 (def fdiv div)
 (def fspan span)
@@ -40,9 +43,12 @@
       (fdiv {:className "foo"} "Attr adds css class")
       (fdiv {:style {:backgroundColor "red"}} "Attr has nested inline style"))))
 
-(defcard-fulcro attr-static-enumeration
-  "These attrs can be reasoned about at compile time."
-  AttrStatic)
+#_"These attrs can be reasoned about at compile time."
+(ws/defcard css-style-root
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       AttrStatic
+     ::f.portal/wrap-root? false}))
 
 (defsc AttrSymbolic [this props]
   (let [x             nil
@@ -69,9 +75,11 @@
         (fdiv {:style styles} "Attr has nested inline symbolic style")
         (fdiv symbolic-attr "Attr has nested inline style and is all symbolic")))))
 
-(defcard-fulcro attr-symbolic-enumeration
-  "Part or all of these attrs are symbolic and resolved at runtime."
-  AttrSymbolic)
+;;"Part or all of these attrs are symbolic and resolved at runtime."
+(ws/defcard css-style-root
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root AttrSymbolic}))
 
 (defsc SharedPropChild [this props]
   (let [s (prim/shared this)]
@@ -108,13 +116,15 @@
         (fdiv :.border-klass nil "white bg with border. Via kw + nil")
         (fdiv :.border-klass symbolic-attr "yellow bg with border. Via kw + sym with inline styles")))))
 
-(defcard-fulcro css-shorthand
-  "These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
-  CssShorthand
-  {}
-  {:fulcro {:reconciler-options {:shared {:a 1}}
-            :started-callback   (fn [app]
-                                  (css/upsert-css "css-shorthand-styles" CssShorthand))}})
+;;"These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
+(ws/defcard css-shorthand
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       CssShorthand
+     ::f.portal/app        {:reconciler-options {:shared {:a 1}}
+                            :started-callback   (fn [app]
+                                                  (css/upsert-css "css-shorthand-styles" CssShorthand))}
+     ::f.portal/wrap-root? false}))
 
 (defsc Form [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]
@@ -154,18 +164,18 @@
   (dom/div
     (ui-old-form form)))
 
-(defcard-fulcro wrapped-input-card-string-refs
-  "# Function Inputs with (Deprecated) String ref.
+#_"# Function Inputs with (Deprecated) String ref.
 
   Click on the card to show only this card and reload the page (it should auto-focus on mount)"
-  OldWrappedInputRoot
-  {}
-  {:inspect-data true})
+(ws/defcard wrapped-input-card-string-refs
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root OldWrappedInputRoot}))
 
-(defcard-fulcro wrapped-input-card-fn-refs
-  "# Input with fn ref
+#_"# Input with fn ref
 
   Click on the card to show only this card and reload the page (it should auto-focus on mount)"
-  WrappedInputRoot
-  {}
-  {:inspect-data true})
+(ws/defcard wrapped-input-card-fn-refs
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       WrappedInputRoot }))

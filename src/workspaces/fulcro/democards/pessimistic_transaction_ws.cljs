@@ -1,9 +1,9 @@
-(ns fulcro.democards.pessimistic-transaction-cards
+(ns fulcro.democards.pessimistic-transaction-ws
   (:require
-    [devcards.core :as dc]
-    [fulcro.client :as fc]
-    [fulcro.server :as server]
-    [fulcro.client.cards :refer [defcard-fulcro make-root]]
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
     [fulcro.client.primitives :as prim :refer [defui defsc]]
     [fulcro.client.dom :as dom]
     [fulcro.client.network :as net]
@@ -30,8 +30,10 @@
    :initial-state {:db/id :param/id}}
   (dom/button {:onClick #(prim/ptransact! this `[(a) (b) (c) (d)])} "TODO"))
 
-(defcard-fulcro ptransact-card
-  (make-root Item {})
-  {}
-  {:fulcro {:networking {:remote-a (net/fulcro-http-remote {:url "/api" :serial? true})
-                         :remote-b (net/fulcro-http-remote {:url "/api" :serial? true})}}})
+(ws/defcard ptransact-card
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       Item
+     ::f.portal/app  {:networking {:remote-a (net/fulcro-http-remote {:url "/api" :serial? true})
+                                   :remote-b (net/fulcro-http-remote {:url "/api" :serial? true})}}
+     ::f.portal/wrap-root? true}))

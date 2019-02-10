@@ -1,10 +1,14 @@
-(ns fulcro.democards.react16-cards
-  (:require [devcards.core :as dc :refer [defcard]]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.cards :refer [defcard-fulcro make-root]]
-            [fulcro.client.primitives :as prim :refer [defsc defui]]
-            [goog.object :as gobj]
-            [fulcro.client.mutations :as m :refer [defmutation]]))
+(ns fulcro.democards.react16-ws
+  (:require
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defsc defui]]
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.card-types.react :as ct.react]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
+    [goog.object :as gobj]
+    [fulcro.client.mutations :as m :refer [defmutation]]))
 
 (defmutation bump-with-root-refresh [{:keys [id]}]
   (action [{:keys [state]}]
@@ -57,10 +61,11 @@
       (dom/ul
         (map ui-counter counters)))))
 
-(defcard-fulcro state-thingy-card
-  (make-root StateUpdateThingy {})
-  {}
-  {:inspect-data true})
+(ws/defcard state-thing-card
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       StateUpdateThingy
+     ::f.portal/wrap-root? true}))
 
 (defsc ComputedChild
   [this {:keys [my-value] :as p} {:keys [on-select]}]
@@ -91,10 +96,11 @@
     (dom/div "Outer - " local-value)
     (input-component (prim/computed input {:on-select #(m/set-value! this :ui/local-value %)}))))
 
-(defcard-fulcro broke
-  (make-root DemoContainer {})
-  {}
-  {:inspect-data true})
+(ws/defcard broke
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       DemoContainer
+     ::f.portal/wrap-root? true}))
 
 (defsc FragDemo [this props]
   (prim/fragment
@@ -103,10 +109,11 @@
 
 (def ui-frag-demo (prim/factory FragDemo))
 
-(defcard fragments
-  (dom/div
-    (dom/p "sibling")
-    (ui-frag-demo {:n (rand-int 10000)})))
+(ws/defcard fragments
+  (ct.react/react-card
+    (dom/div
+      (dom/p "sibling")
+      (ui-frag-demo {:n (rand-int 10000)}))))
 
 (defmutation insert-in-front [params]
   (action [{:keys [state]}]
@@ -164,7 +171,7 @@
                                 (prim/set-state! this {:n 2}))} "Kill it")
         (ui-list ROOT)))))
 
-(defcard-fulcro reordering-to-many-and-get-derived-state-from-props
-  Root
-  {}
-  {:inspect-data true})
+(ws/defcard reorder-many-and-get-derived-state-from-props
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       Root }))
