@@ -32,7 +32,8 @@
     [clojure.spec.alpha :as s]
     [cognitect.transit :as t])
   #?(:clj
-     (:import [java.io Writer])))
+     (:import [java.io Writer]
+              [fulcro.client.impl.protocols IReconciler])))
 
 (declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?
   integrate-ident)
@@ -518,7 +519,8 @@
   #?(:cljs {:tag boolean})
   [x]
   #?(:cljs (implements? p/IReconciler x)
-     :clj  (or (instance? p/IReconciler x)
+     :clj  (or
+             (instance? IReconciler x)
              (satisfies? p/IReconciler x))))
 
 (defn get-indexer
