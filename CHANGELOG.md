@@ -1,6 +1,7 @@
 2.8.1
 -----
 - Converted project to shadow-cljs
+- Fixed bug in CLJ (SSR) side of primitives
 
 2.8.0
 ------
