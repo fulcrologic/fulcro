@@ -2,6 +2,11 @@
 -----
 - Converted project to shadow-cljs
 - Fixed bug in CLJ (SSR) side of primitives
+- Fixed warning in cljs/garden compile
+- Fixed dom server require
+- New client constructor with better defaults (make-fulcro-client)
+- Updated book to talk about new client constructor
+- Removed docs regarding marker "true", since it is for legacy only 
 
 2.8.0
 ------
