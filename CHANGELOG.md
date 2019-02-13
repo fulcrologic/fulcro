@@ -6,7 +6,7 @@
 - Fixed dom server require
 - New client constructor with better defaults (make-fulcro-client)
 - Updated book to talk about new client constructor
-- Removed docs regarding marker "true", since it is for legacy only 
+- Removed docs regarding marker "true", since it is for legacy only
 
 2.8.0
 ------

@@ -212,6 +212,11 @@ Your project should have a `src/main/app/client.cljs` file that looks something 
   (start))
 ```
 
+NOTE: The client construction function `new-fulcro-client` still exists and may be
+what you see in applications and videos.  The new function changes some of the defaults
+and takes a map instead of named parameters.  The old function still exists and works, but is
+discouraged.
+
 These functions are used from the HTML page to initialize the application. The reason things
 are split into multiple functions is to allow the application to be remounted on hot-code reload.
 The client isn't active until you mount it, and to mount it
