@@ -45,6 +45,8 @@ and full-blown https://github.com/fulcrologic[sample applications].
 A lot of time and energy went into creating these libraries and materials and providing them free of 
 charge. If you find them useful please consider 
 http://fulcro.fulcrologic.com/fund.html[contributing to the project].
+Also
+https://github.com/fulcrologic/fulcro/blob/develop/DevelopersGuide.adoc[contributing] fixes to this guide is appreciated.
 
 This book includes quite a bit of live code. Live code demos with their source
 look like this:
