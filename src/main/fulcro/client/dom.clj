@@ -4,7 +4,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [fulcro.util :as util]
-    [clojure.future :refer :all]
+    
     [fulcro.client.dom-common :as cdom]
     [clojure.string :as str])
   (:import

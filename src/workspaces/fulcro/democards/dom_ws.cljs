@@ -1,9 +1,11 @@
-(ns fulcro.democards.dom-cards
-  (:require [devcards.core :as dc]
-            [fulcro.client.cards :refer [defcard-fulcro make-root]]
+(ns fulcro.democards.dom-ws
+  (:require [fulcro.client.cards :refer [make-root]]
             [fulcro.client.dom :as dom :refer [div span]]
-            [fulcro-css.css-injection :as injection]
             [goog.object :as gobj]
+            [nubank.workspaces.core :as ws]
+            [nubank.workspaces.model :as wsm]
+            [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+            [nubank.workspaces.lib.fulcro-portal :as f.portal]
             [fulcro.client.routing :as r :refer [defsc-router]]
             [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
             [fulcro.client.mutations :as m]
@@ -52,9 +54,11 @@
       (fdiv (js-classname "foo") "Attr fn adds css class")
       (fdiv (bg-color-style "red") "Attr fn has nested inline style"))))
 
-(defcard-fulcro attr-static-enumeration
-  "These attrs can be reasoned about at compile time."
-  AttrStatic)
+(ws/defcard attr-static-enumeration
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       AttrStatic
+     ::f.portal/wrap-root? false}))
 
 (defsc AttrSymbolic [this props]
   (let [x             nil
@@ -81,9 +85,11 @@
         (fdiv {:style styles} "Attr has nested inline symbolic style")
         (fdiv symbolic-attr "Attr has nested inline style and is all symbolic")))))
 
-(defcard-fulcro attr-symbolic-enumeration
-  "Part or all of these attrs are symbolic and resolved at runtime."
-  AttrSymbolic)
+(ws/defcard attr-symbolic-enumeration
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       AttrSymbolic
+     ::f.portal/wrap-root? false}))
 
 (defsc CssShorthand [this props]
   (let [x             nil
@@ -127,9 +133,11 @@
         (fdiv :.border-klass symbolic-attr
           "Has a shorthand CSS for border class and yellow background symbolic inline styles")))))
 
-(defcard-fulcro css-shorthand
-  "These dom elements use the CSS id/class (both shorthand and in attrs) with style tags."
-  CssShorthand)
+(ws/defcard css-shorthand
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       CssShorthand
+     ::f.portal/wrap-root? true}))
 
 (defsc Form [this {:keys [:db/id :form/value] :as props}]
   {:query             [:db/id :form/value]
@@ -169,30 +177,29 @@
   (dom/div nil
     (ui-old-form form)))
 
-(defcard-fulcro wrapped-input-card-string-refs
-  "# Inputs with (Deprecated) String ref.
+(ws/defcard old-wrapped-input-root
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       OldWrappedInputRoot
+     ::f.portal/wrap-root? false}))
 
-  Click on the card to show only this card and reload the page (it should auto-focus on mount)"
-  OldWrappedInputRoot
-  {}
-  {:inspect-data true})
-
-(defcard-fulcro wrapped-input-card-fn-refs
-  "# Input with fn ref
-
-  Click on the card to show only this card and reload the page (it should auto-focus on mount)"
-  WrappedInputRoot
-  {}
-  {:inspect-data true})
-
+(ws/defcard wrapped-input-root
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       WrappedInputRoot
+     ::f.portal/wrap-root? true}))
 
 (defsc TextAreaTest [this props]
   {}
   (dom/div
     (dom/textarea {:value "This is a text area"})))
 
-(defcard-fulcro wrapped-textarea
-  TextAreaTest)
+(ws/defcard text-area-card
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       TextAreaTest
+     ::f.portal/wrap-root? false}))
+
 
 (defsc SelectTest [this props]
   {}
@@ -204,8 +211,11 @@
       (dom/option {:value "c" :label "C"})
       (dom/option {:value "d" :label "D"}))))
 
-(defcard-fulcro wrapped-select
-  SelectTest)
+(ws/defcard select-test-card
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       SelectTest
+     ::f.portal/wrap-root? false}))
 
 (defsc A [this props]
   {:query         [:a]
@@ -218,15 +228,20 @@
 (defsc CSSStyleRoot [this props]
   {:query         [{:a (prim/get-query A)}]
    :initial-state {}
+   :ident (fn [] [:a 1])
    :css           [[:.a {:color "red"}]]}
   (dom/div
     #_(injection/style-element {:react-key (rand-int 120)   ; Include this to recompute CSS on every refresh
                                 :component this})
-    (injection/style-element {:react-key (rand-int 120)     ; Include this to recompute CSS on every refresh
+    #_(injection/style-element {:react-key (rand-int 120)     ; Include this to recompute CSS on every refresh
                               :order     :breadth-first
                               :component this})
     (dom/button {:onClick #(prim/set-state! this {:n (rand-int 20)})} "Bump")
+
     (ldom/div :.a "Edit this card to check the various bits...")))
 
-(defcard-fulcro css-card-1
-  CSSStyleRoot)
+(ws/defcard css-style-root
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       CSSStyleRoot
+     ::f.portal/wrap-root? true}))

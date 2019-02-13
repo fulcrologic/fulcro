@@ -29,7 +29,7 @@
 (def initial-state {:ui/react-key "abc"
                     :panel        {}})
 
-(defonce app (atom (fc/new-fulcro-client :initial-state initial-state)))
+(defonce app (atom (fc/make-fulcro-client {:initial-state initial-state})))
 
 (declare Item)
 

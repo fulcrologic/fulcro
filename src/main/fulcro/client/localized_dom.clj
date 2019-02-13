@@ -1,7 +1,7 @@
 (ns fulcro.client.localized-dom
   (:refer-clojure :exclude [map meta time use set symbol filter])
   (:require
-    [clojure.future :refer :all]
+    
     [fulcro.util :as util]
     [fulcro.client.dom :as adom]
     fulcro.client.dom-common

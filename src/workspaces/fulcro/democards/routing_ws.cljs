@@ -1,8 +1,12 @@
-(ns fulcro.democards.routing-cards
-  (:require [fulcro.client.cards :refer [defcard-fulcro make-root]]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.routing :as r :refer [defsc-router]]))
+(ns fulcro.democards.routing-ws
+  (:require
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
+    [fulcro.client.dom :as dom]
+    [fulcro.client.primitives :as prim :refer [defsc]]
+    [fulcro.client.routing :as r :refer [defsc-router]]))
 
 (defsc A [this {:keys [db/id screen] :as props}]
   {:query         [:db/id :screen]
@@ -36,7 +40,7 @@
     (dom/button {:onClick #(prim/transact! this `[(r/set-route {:router :top-router :target [:B 1]})])} "Go to B")
     (ui-router router)))
 
-(defcard-fulcro router-card
-  Switcher
-  {}
-  {:inspect-data true})
+(ws/defcard router-card
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root       Switcher }))

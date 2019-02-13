@@ -58,3 +58,5 @@ docs/.jekyll-metadata
 .asciidoctor
 /ReferenceGuide.html
 .cpcache
+.shadow-cljs
+resources/public/workspaces

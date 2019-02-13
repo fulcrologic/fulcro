@@ -1,11 +1,12 @@
-(ns fulcro.democards.react-refs
-  (:require [devcards.core :as dc]
-            [fulcro.client.dom :as dom]
-            [fulcro.client :as fc]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [goog.object :as gobj]
-            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
-            [fulcro.client.mutations :as m]))
+(ns fulcro.democards.react-refs-ws
+  (:require
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
+    [fulcro.client.dom :as dom]
+    [goog.object :as gobj]
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]))
 
 (defsc Root [this props]
   (dom/div "TODO"))
@@ -39,12 +40,16 @@
                   :ref      "input-field"})
       (dom/button {:onClick focus} "Focus"))))
 
-(defcard-fulcro fn-ref-test-1
-  "# Tests that we can find the DOM component via a function ref."
-  FunctionRefTest)
+#_"# Tests that we can find the DOM component via a function ref."
+(ws/defcard fn-ref-test
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root FunctionRefTest}))
 
-(defcard-fulcro str-ref-test-1
-  "# Tests that we can find the DOM component via string ref.
+#_"# Tests that we can find the DOM component via string ref.
 
   This card should work with inputs, but string refs are deprecated in React."
-  StringRefTest)
+(ws/defcard str-ref-test
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root StringRefTest}))

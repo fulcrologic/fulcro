@@ -5,6 +5,7 @@
     [fulcro.client.dom :as adom]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.localized-dom :as ldom :refer [div p span]]
+    [cljsjs.react.dom.server]
     [clojure.string :as str]))
 
 (defsc NoPropsComponent [this props] (ldom/div :.a#y "Hello"))

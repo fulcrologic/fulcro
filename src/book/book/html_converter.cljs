@@ -4,7 +4,6 @@
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [hickory.core :as hc]
-    [com.rpl.specter :as sp]
     [clojure.set :as set]
     [clojure.pprint :refer [pprint]]
     [clojure.string :as str]))

@@ -5,8 +5,7 @@
             [fulcro.history :as hist]
 
             #?(:cljs [fulcro.client.dom :as dom]
-               :clj
-                     [fulcro.client.dom-server :as dom])
+               :clj [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -1069,10 +1068,6 @@
   (gen/sample (s/gen (s/or :n number? :s string?)))
 
   (s/valid? ::param-expr '({:x [:a]} {:f 1})))
-
-
-(specification "Static Queries"
-  (behavior "Maintain their backward-compatible functionality" :manual-test))
 
 #?(:clj
    (specification "defsc helpers"

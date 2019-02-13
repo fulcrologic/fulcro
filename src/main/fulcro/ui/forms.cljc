@@ -4,12 +4,9 @@
     [clojure.set :as set]
     [clojure.string :as str]
     #?(:cljs [fulcro.client.dom :as dom]
-       :clj
-    [fulcro.client.dom-server :as dom])
+       :clj  [fulcro.client.dom-server :as dom])
     [fulcro.client.primitives :as prim]
     [fulcro.util :as util]
-    #?(:clj
-    [clojure.future :refer :all])
     [clojure.tools.reader :as reader]
     [clojure.spec.alpha :as s]
     [fulcro.util :as uu :refer [conform!]]

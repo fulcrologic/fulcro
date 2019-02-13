@@ -141,7 +141,7 @@
   [x]
   (try
     #?(:clj  (= garden.selectors.CSSSelector (type x))
-       :cljs (= garden.selectors.CSSSelector (type x)))
+       :cljs (= js/garden.selectors.CSSSelector (type x)))
     (catch #?(:cljs :default :clj Throwable) e
       false)))
 

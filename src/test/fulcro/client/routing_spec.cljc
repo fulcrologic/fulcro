@@ -61,7 +61,7 @@
         "Switches the current routes with parameter substitutions"
         (r/current-route new-state-map :router-1) => [:screen1 :target-id]))))
 
-(specification "load-dynamic-route"
+#_(specification "load-dynamic-route"
   (behavior "retries on network failures (forever)" :manual-test)
   (behavior "Stops retrying if the user changes to another route (pending route changes or disappears)" :manual-test))
 

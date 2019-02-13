@@ -5,13 +5,27 @@
   "main": "index.js",
   "directories": {},
   "dependencies": {
-    "intl-messageformat": "^2.2.0"
+    "highlight.js": "^9.13.1",
+    "react-grid-layout": "^0.16.6",
+    "react-icons": "^2.2.7",
+    "reakit": "^0.11.2"
   },
   "devDependencies": {
-    "karma": "2.0.0",
+    "codemirror": "^5.42.2",
+    "d3": "^5.7.0",
+    "enzyme": "^3.8.0",
+    "enzyme-adapter-react-16": "^1.7.1",
+    "intl-messageformat": "^2.2.0",
+    "karma": "3.1.4",
     "karma-chrome-launcher": "2.2.0",
     "karma-cljs-test": "0.1.0",
-    "karma-firefox-launcher": "1.1.0"
+    "karma-firefox-launcher": "1.1.0",
+    "react": "16.7.0",
+    "react-dom": "16.7.0",
+    "readable-stream": "^1.1.14",
+    "shadow-cljs": "2.7.15",
+    "showdown": "^1.9.0",
+    "victory": "^31.1.0"
   },
   "repository": {
     "type": "git",

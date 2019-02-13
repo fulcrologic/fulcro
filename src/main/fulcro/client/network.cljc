@@ -2,10 +2,8 @@
   (:refer-clojure :exclude [send])
   (:require [fulcro.logging :as log]
             [clojure.spec.alpha :as s]
-    #?(:clj
-            [clojure.future :refer :all])
             [cognitect.transit :as ct]
-    #?(:cljs [goog.events :as events])
+            #?(:cljs [goog.events :as events])
             [fulcro.transit :as t]
             [clojure.string :as str])
   #?(:cljs (:import [goog.net XhrIo EventType ErrorCode])))

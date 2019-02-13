@@ -3,8 +3,8 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.client.primitives :as prim :refer [defsc]]
     [fulcro.client.mutations :refer [defmutation]]
-    [com.rpl.specter :as s]
     [clojure.set :as set]
+    [clojure.walk :as walk]
     [fulcro.client.dom :as dom]
     [fulcro.server :as server]
     [com.stuartsierra.component :as c]
@@ -21,7 +21,12 @@
 
 (defn keywords-in-query
   "Returns all of the keywords in the given (arbitrarily nested) query."
-  [query] (set (s/select (s/walker keyword?) query)))
+  [query]
+  (let [result (atom #{})
+        _      (walk/prewalk
+                 (fn [k] (if (keyword? k) (swap! result conj k)))
+                 query)]
+    @result))
 
 ; TODO: determine if the user is allowed to start at the given keyword for entity with given ID
 (defn authorized-root-entity?
@@ -75,12 +80,11 @@
 
 (def initial-state {:ui/react-key "abc"})
 
-(defonce app (atom (fc/new-fulcro-client
-                     :initial-state initial-state
-                     :started-callback
-                     (fn [{:keys [reconciler]}]
-                       ; TODO
-                       ))))
+(defonce app (atom (fc/make-fulcro-client
+                     {:initial-state    initial-state
+                      :started-callback (fn [{:keys [reconciler]}]
+                                          ; TODO
+                                          )})))
 
 (defsc Person [this {:keys [name address cc-number]}]
   {:query [:ui/fetch-state :name :address :cc-number]}

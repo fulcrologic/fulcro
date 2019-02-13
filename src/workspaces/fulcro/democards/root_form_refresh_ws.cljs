@@ -1,12 +1,14 @@
-(ns fulcro.democards.root-form-refresh
-  (:require [devcards.core :as dc]
-            [fulcro.client.dom :as dom]
-            [fulcro.client :as fc]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [goog.object]
-            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
-            [fulcro.client.mutations :as m]
-            [fulcro.ui.forms :as f]))
+(ns fulcro.democards.root-form-refresh-ws
+  (:require
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
+    [fulcro.client.dom :as dom]
+    [goog.object]
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
+    [fulcro.client.mutations :as m]
+    [fulcro.ui.forms :as f]))
 
 (m/defmutation simple-edit
   "Simple mutation that updates variable at the path, doesn't operate with non-normalized"
@@ -47,4 +49,8 @@
     (dom/div "Title")
     (ui-top-form top-form)))
 
-(defcard-fulcro root-form-refresh Root)
+(ws/defcard root-form-refresh
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root Root}))
+

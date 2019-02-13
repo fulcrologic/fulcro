@@ -1,6 +1,7 @@
 (ns book.ui.victory-example
   (:require [cljs.pprint :refer [cl-format]]
-            cljsjs.victory
+    ;; REQUIRES shadow-cljs, with "victory" in package.json
+            ["victory" :refer [VictoryChart VictoryAxis VictoryLine]]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.dom :as dom]
             [fulcro.client.primitives :as prim :refer [defsc]]
@@ -24,9 +25,9 @@
       props
       children)))
 
-(def vchart (factory-apply js/Victory.VictoryChart))
-(def vaxis (factory-apply js/Victory.VictoryAxis))
-(def vline (factory-apply js/Victory.VictoryLine))
+(def vchart (factory-apply VictoryChart))
+(def vaxis (factory-apply VictoryAxis))
+(def vline (factory-apply VictoryLine))
 
 ;; " [ {:year 1991 :value 2345 } ...] "
 (defsc YearlyValueChart [this {:keys [label plot-data x-step]}]

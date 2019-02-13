@@ -14,7 +14,7 @@
     [fulcro.util :as util]
     [clojure.spec.alpha :as s]
     [clojure.core.reducers :as r]
-    [clojure.future :refer :all]
+    
     [fulcro.checksums :as chk]))
 
 (declare render-element!)

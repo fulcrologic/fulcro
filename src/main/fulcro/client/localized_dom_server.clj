@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [map meta time use set symbol filter])
   (:require [fulcro.util :as util]
             [clojure.spec.alpha :as s]
-            [clojure.future :refer :all]
             [fulcro.client.dom-server :refer [element element?]]
             [fulcro.client.dom-common :as dc]
             [fulcro.client.localized-dom-common :as ldc]))

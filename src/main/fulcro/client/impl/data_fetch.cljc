@@ -9,8 +9,6 @@
             [fulcro.history :as hist]
             [fulcro.client.mutations :as m]
             [fulcro.client.impl.protocols :as p]
-            #?(:clj
-               [clojure.future :refer :all])
             [clojure.spec.alpha :as s]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -350,14 +348,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn elide-ast-nodes
-  "Remove items from a query (AST) that have a key listed in the elision-set"
-  [{:keys [key union-key children] :as ast} elision-set]
-  (let [union-elision? (contains? elision-set union-key)]
-    (when-not (or union-elision? (contains? elision-set key))
+  "Remove items from a query (AST) that have a key that returns true for the elision-predicate"
+  [{:keys [key union-key children] :as ast} elision-predicate]
+  (let [union-elision? (elision-predicate union-key)]
+    (when-not (or union-elision? (elision-predicate key))
       (when (and union-elision? (<= (count children) 2))
         (log/warn "Unions are not designed to be used with fewer than two children. Check your calls to Fulcro
         load functions where the :without set contains " (pr-str union-key)))
-      (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-set) c)))))))
+      (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c)))))))
 
 (defn inject-query-params
   "Inject parameters into elements of the top-level query.

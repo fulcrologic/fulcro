@@ -1,11 +1,14 @@
-(ns fulcro.democards.parent-state-refresh
-  (:require [devcards.core :as dc]
-            [fulcro.client.dom :as dom]
-            [fulcro.client :as fc]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [goog.object]
-            [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
-            [fulcro.client.mutations :as m]))
+(ns fulcro.democards.parent-state-refresh-ws
+  (:require
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [nubank.workspaces.card-types.fulcro :as ct.fulcro]
+    [nubank.workspaces.lib.fulcro-portal :as f.portal]
+    [fulcro.client.dom :as dom]
+    [fulcro.client :as fc]
+    [goog.object]
+    [fulcro.client.primitives :as prim :refer [defui defsc InitialAppState initial-state]]
+    [fulcro.client.mutations :as m]))
 
 (declare ui-leaf)
 
@@ -67,7 +70,8 @@
         (dom/button {:onClick #(prim/transact! this `[:left])} "Run real transaction (no-op)")
         (ui-parent parent)))))
 
-(defcard-fulcro parent-refresh-card
-  Root
-  {}
-  {:inspect-data true})
+(ws/defcard parent-refresh-card
+  {::wsm/card-width 4 ::wsm/card-height 4}
+  (ct.fulcro/fulcro-card
+    {::f.portal/root Root}))
+

@@ -9,8 +9,6 @@
             [fulcro.i18n :refer [tr tr-unsafe]]
     #?(:cljs [cljsjs.react.dom])
             [fulcro.client.mutations :as m :refer [defmutation]]
-    #?(:clj
-            [clojure.future :refer :all])
             [clojure.string :as str]
             [clojure.set :as set]
             [fulcro.client :as fc]

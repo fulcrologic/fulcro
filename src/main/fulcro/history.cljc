@@ -1,9 +1,9 @@
 (ns fulcro.history
-  (:require #?(:clj [clojure.future :refer :all])
-                    [fulcro.logging :as log]
-                    [fulcro.util :as util]
-                    [clojure.set :as set]
-                    [clojure.spec.alpha :as s]))
+  (:require
+    [fulcro.logging :as log]
+    [fulcro.util :as util]
+    [clojure.set :as set]
+    [clojure.spec.alpha :as s]))
 
 (defn is-timestamp? [t]
   #?(:clj  (instance? java.util.Date t)

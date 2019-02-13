@@ -82,6 +82,7 @@
                book.demos.pre-merge.countdown
                book.demos.pre-merge.countdown-many
                book.demos.pre-merge.countdown-with-initial
+               book.demos.pre-merge.countdown-initial-state
                book.demos.pre-merge.countdown-extracted
                book.demos.pre-merge.countdown-mutation
                book.demos.server-error-handling

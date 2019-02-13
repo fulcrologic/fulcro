@@ -30,11 +30,10 @@
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
     [clojure.spec.alpha :as s]
-    #?(:clj
-       [clojure.future :refer :all])
     [cognitect.transit :as t])
   #?(:clj
-     (:import [java.io Writer])))
+     (:import [java.io Writer]
+              [fulcro.client.impl.protocols IReconciler])))
 
 (declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?
   integrate-ident)
@@ -520,7 +519,8 @@
   #?(:cljs {:tag boolean})
   [x]
   #?(:cljs (implements? p/IReconciler x)
-     :clj  (or (instance? p/IReconciler x)
+     :clj  (or
+             (instance? IReconciler x)
              (satisfies? p/IReconciler x))))
 
 (defn get-indexer
@@ -2205,6 +2205,8 @@
            root-render root-unmount root-hydrate
            migrate render-mode
            instrument tx-listen
+           load-marker-default
+           query-transform-default
            history]
     :or   {merge-sends  #(merge-with into %1 %2)
            hydrate?     false
@@ -2225,18 +2227,29 @@
                  :cljs (satisfies? IAtom state))
         state'        (if norm? state (atom state))
         ret           (Reconciler.
-                        {:state       state' :shared shared :shared-fn shared-fn
-                         :hydrate?    hydrate?
-                         :parser      parser :indexer idxr
-                         :send        send :merge-sends merge-sends :remotes remotes
-                         :merge-tree  merge-tree :merge-ident merge-ident
-                         :normalize   (or (not norm?) normalize)
-                         :root-render root-render :root-unmount root-unmount :root-hydrate root-hydrate
-                         :render-mode render-mode
-                         :pathopt     true
-                         :migrate     migrate
-                         :lifecycle   lifecycle
-                         :instrument  instrument :tx-listen tx-listen}
+                        {:state                   state'
+                         :shared                  shared
+                         :shared-fn               shared-fn
+                         :hydrate?                hydrate?
+                         :parser                  parser
+                         :indexer                 idxr
+                         :send                    send
+                         :merge-sends             merge-sends
+                         :remotes                 remotes
+                         :merge-tree              merge-tree
+                         :merge-ident             merge-ident
+                         :normalize               (or (not norm?) normalize)
+                         :root-render             root-render
+                         :root-unmount            root-unmount
+                         :root-hydrate            root-hydrate
+                         :render-mode             render-mode
+                         :pathopt                 true
+                         :load-marker-default     load-marker-default
+                         :query-transform-default query-transform-default
+                         :migrate                 migrate
+                         :lifecycle               lifecycle
+                         :instrument              instrument
+                         :tx-listen               tx-listen}
                         (atom {:queue            []
                                :remote-queue     {}
                                :id               id
@@ -2693,9 +2706,9 @@
    (defn is-link?
      "Returns true if the given query element is a link query like [:x '_]."
      [query-element] (and (vector? query-element)
-                                     (keyword? (first query-element))
-                                     ; need the double-quote because when in a macro we'll get the literal quote.
-                                     (#{''_ '_} (second query-element)))))
+                       (keyword? (first query-element))
+                       ; need the double-quote because when in a macro we'll get the literal quote.
+                       (#{''_ '_} (second query-element)))))
 
 #?(:clj
    (defn -legal-keys

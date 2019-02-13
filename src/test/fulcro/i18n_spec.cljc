@@ -2,10 +2,12 @@
   (:require [fulcro-spec.core :refer [specification behavior provided assertions when-mocking]]
             [clojure.string :as str]
             [fulcro.i18n :as i18n :refer [tr trf trc]]
+            #?(:cljs
+               ["intl-messageformat" :default IntlMessageFormat])
             [fulcro.client.primitives :as prim :refer [defsc]]
             [fulcro.server-render :as ssr]
-    #?(:cljs [fulcro.client.dom :as dom]
-       :clj [fulcro.client.dom-server :as dom])
+            #?(:cljs [fulcro.client.dom :as dom]
+               :clj  [fulcro.client.dom-server :as dom])
             [fulcro.logging :as log])
   #?(:clj
      (:import (com.ibm.icu.text MessageFormat)
@@ -30,10 +32,10 @@
      :cljs (js/Date. year month day hour min sec millis)))
 
 (defn deflt-format [{:keys [::i18n/localized-format-string
-                      ::i18n/locale ::i18n/format-options]}]
+                            ::i18n/locale ::i18n/format-options]}]
   #?(:cljs
      (let [locale-str (name locale)
-           formatter  (js/IntlMessageFormat. localized-format-string locale-str)]
+           formatter  (IntlMessageFormat. localized-format-string locale-str)]
        (.format formatter (clj->js format-options)))
 
      :clj

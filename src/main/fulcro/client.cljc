@@ -11,8 +11,6 @@
     [fulcro.client.impl.protocols :as proto]
     [fulcro.util :as util]
     [fulcro.client.util :as cutil]
-    #?(:clj
-    [clojure.future :refer :all])
     [clojure.set :as set]
     #?(:cljs [goog.dom :as gdom])
     [clojure.spec.alpha :as s]
@@ -44,9 +42,8 @@
   them, but you MUST return a compatible map out or you'll disable networking.
   ::component-lifecycle is (fn [component evt]) that is called with evt of :mounted and :unmounted to tell you when the given component mounts/unmounts.
   ::instrument-wrapper is a (fn [instrument] instrument') that allows you to wrap your own instrumentation (for rendering) around any existing (which may be nil)
-  ::app-started (fn [app] ...) that will be called once the app is mounted, just like started-callback. Return value ignored."
+  ::app-started (fn [app] ...) that will be called once the app is mounted, just like started-callback/client-did-mount. Return value is ignored."
   [{:keys [::tool-id] :as tool-registry}]
-  ;(util/conform! ::tool-registry tool-registry)
   (swap! fulcro-tools assoc tool-id tool-registry))
 
 (defn- normalize-network [networking]
@@ -73,12 +70,14 @@
 ; easier to access, so the user don't have to require a impl namespace to reference
 (def mutate app/write-entry-point)
 
-(defn new-fulcro-client
+
+(defn make-fulcro-client
   "Entry point for creating a new fulcro client. Instantiates an Application with default values, unless
   overridden by the parameters. If you do not supply a networking object, one will be provided that connects to the
   same server the application was served from, at `/api`.
 
-  If you supply a `:request-transform` it must be a function:
+  `:request-transform` DEPRECATED. ONLY WORKS WITH DEFAULT REMOTE. Use a custom remote with client middleware instead.
+  If supplied it must be a function:
 
   ```
  (fn [{:keys [body headers]}] {:body body' :headers headers'})
@@ -91,32 +90,28 @@
   `:initial-state` is your applications initial state. If it is an atom, it *must* be normalized. Fulcro databases
   always have normalization turned on (for server data merging). If it is not an atom, it will be auto-normalized.
 
-  `:started-callback` is an optional function that will receive the intiailized fulcro application after it is
+  `:client-did-mount` is an optional function that will receive the intialized fulcro application after it is
   mounted in the DOM, and is useful for triggering initial loads, routing mutations, etc. The reconciler is available
-  under the `:reconciler` key (and you can access the app state, root node, etc from there.)
+  under the `:reconciler` key (and you can access the app state, root node, etc from there.). The legacy name of
+  this option (:started-callback) is still supported, but is deprecated.
 
-  `:network-error-callback` is a function of three arguments, the app state atom, status code, and the error, which will be invoked for
+  `:network-error-callback`. DEPRECATED. Use a custom remote with middleware instead.
+  This is a function of three arguments, the app state atom, status code, and the error, which will be invoked for
   every network error (status code >= 400, or no network found). Only works if you choose to use the default built-in
-  networking (ignored if you also specify :networking).
+  networking (ignored if you specify :networking).
 
-  `:migrate` is optional. It is a (fn [state tid->rid] ... state') that should return a new state where all tempids
-  (the keys of `tid->rid`) are rewritten to real ids (the values of tid->rid). This defaults to a full recursive
-  algorithm against all data in the app-state, which is correct but possibly slow).  Note that tempids will have an tempid data type.
-  See reconciler documentation for further information.
-
-  `:transit-handlers` (optional). A map with keys for `:read` and `:write`, which contain maps to be used for the read
-  and write side of transit to extend the supported data types. See `make-fulcro-network` in network.cljs. Only used
-  when you default to the built-in networking.
+  `:transit-handlers` (optional). DEPRECATED: Use a custom client network with middleware instead.
 
   `:shared` (optional). A map of arbitrary values to be shared across all components, accessible to them via (prim/shared this)
 
-  `:read-local` (optional). An read function for the Parser. (fn [env k params] ...). If supplied,
-  it will be called once for each root-level query key. If it returns `nil` or `false` for that key then the built-in Fulcro read will handle that
-  branch of the root query. If it returns a map with the shape `{:value ...}`, then that will be used for the response. This is *not*
-  recursive. If you begin handling a *branch* (e.g. a join), you must finish doing so (though if using recursion, you can technically handle just
-  the properties that need your custom handling). At any time you can use `prim/db->tree` to get raw graph data from the database for a branch.
-  NOTE: *it will be allowed* to trigger remote reads. This is not recommended, as you will probably have to augment the networking layer to
-  get it to do what you mean. Use `load` instead. You have been warned. Triggering remote reads is allowed, but discouraged and unsupported.
+  `:load-marker-default` (optional) A default value to use for the `:marker` option of loads (default is false which means
+  no markers).
+
+  `:query-transform-default` (optional) A (fn [query] query) that is used as the default `:update-query` for data-detch/load parameters.
+  This can be used to customize things like preventing certain keywords from ever appearing in the remote version of a
+  component's query. See `fulcro.client.elide-query-nodes` for an idea of a common helper.
+
+  `:read-local` (optional). DEPRECATED. DO NOT USE.
 
   `:query-interpreter` (optional). A custom query engine (parser and interpreter) that will be used to satisfy all
   local client queries from the local state database. Cannot be used with `:read-local`.
@@ -127,42 +122,59 @@
   you want to support multiple remotes, then this should be a map whose keys are the keyword names of the remotes
   and whose values are FulcroNetwork instances.
 
-  `:mutation-merge (optional). A function `(fn [state mutation-symbol return-value])` that receives the app state as a
-  map (NOT an atom) and should return the new state as a map. This function is run when network results are being merged,
-  and is called once for each mutation that had a return value on the server. Returning nil from this function is safe, and will be ignored
-  with a console message for debugging. If you need information about the original mutation arguments then you must reflect
-  them back from the server in your return value. By default such values are discarded.
-  
+  `:mutation-merge (optional). DEPRECATED. Use mutation joins or network middleware instead.
+
   `:reconciler-options (optional). A map that will be merged into the reconciler options. Currently it's mostly
   useful to override things like :root-render and :root-unmount for React Native Apps.`
-
-  There is currently no way to circumvent the encoding of the body into transit. If you want to talk to other endpoints
-  via alternate protocols you must currently implement that outside of the framework (e.g. global functions/state).
   "
-  [& {:keys [initial-state mutation-merge started-callback networking reconciler-options query-interpreter
-             read-local request-transform network-error-callback migrate transit-handlers shared]
-      :or   {initial-state {} read-local (constantly false) started-callback (constantly nil) network-error-callback (constantly nil)
-             migrate       nil shared nil}}]
-  (let [networking (or networking #?(:clj nil :cljs (net/make-fulcro-network "/api"
-                                                      :request-transform request-transform
-                                                      :transit-handlers transit-handlers
-                                                      :global-error-callback network-error-callback)))
-        [started-callback networking tx-listen instrument lifecycle] (add-tools started-callback networking (:tx-listen reconciler-options)
-                                                                       (:instrument reconciler-options))]
-    (map->Application {:initial-state      initial-state
-                       :read-local         read-local
-                       :mutation-merge     mutation-merge
-                       :started-callback   started-callback
-                       :lifecycle          lifecycle
-                       :query-interpreter  query-interpreter
-                       :reconciler-options (merge (cond-> {}
-                                                    tx-listen (assoc :tx-listen tx-listen)
-                                                    instrument (assoc :instrument instrument)
-                                                    lifecycle (assoc :lifecycle lifecycle)
-                                                    migrate (assoc :migrate migrate)
-                                                    shared (assoc :shared shared))
-                                             reconciler-options)
-                       :networking         networking})))
+  ([] (make-fulcro-client {}))
+  ([{:keys [initial-state mutation-merge client-did-mount networking reconciler-options query-interpreter
+            read-local request-transform network-error-callback migrate transit-handlers shared load-marker-default
+            query-transform-default]
+     :or   {initial-state          {}
+            read-local             (constantly false)
+            client-did-mount       (constantly nil)
+            network-error-callback (constantly nil)
+            migrate                nil
+            shared                 nil
+            load-marker-default    false}
+     :as   options}]
+   (let [client-did-mount (if (contains? options :started-callback)
+                            (:started-callback options)
+                            client-did-mount)
+         networking       (or networking #?(:clj nil :cljs (net/make-fulcro-network "/api"
+                                                             :request-transform request-transform
+                                                             :transit-handlers transit-handlers
+                                                             :global-error-callback network-error-callback)))
+         [client-did-mount networking tx-listen instrument lifecycle] (add-tools client-did-mount networking (:tx-listen reconciler-options)
+                                                                        (:instrument reconciler-options))]
+     (map->Application {:initial-state      initial-state
+                        :read-local         read-local
+                        :mutation-merge     mutation-merge
+                        :started-callback   client-did-mount
+                        :lifecycle          lifecycle
+                        :query-interpreter  query-interpreter
+                        :reconciler-options (merge (cond-> {}
+                                                     tx-listen (assoc :tx-listen tx-listen)
+                                                     instrument (assoc :instrument instrument)
+                                                     lifecycle (assoc :lifecycle lifecycle)
+                                                     migrate (assoc :migrate migrate)
+                                                     shared (assoc :shared shared))
+                                              {:load-marker-default     load-marker-default
+                                               :query-transform-default query-transform-default}
+                                              reconciler-options)
+                        :networking         networking}))))
+
+
+(defn new-fulcro-client
+  "Deprecated: use make-fulcro-client instead."
+  [& {:as options}]
+  (let [load-marker-default         (get options :load-marker-default true)
+        client-will-mount           (get options :started-callback)
+        options-with-marker-default (cond-> (assoc options :load-marker-default load-marker-default)
+                                      client-will-mount (assoc :client-will-mount client-will-mount))]
+    (make-fulcro-client options-with-marker-default)))
+
 
 (defprotocol FulcroApplication
   (mount [this root-component target-dom-id] "Start/replace the webapp on the given DOM ID or DOM Node.")
@@ -296,8 +308,8 @@
     (if (not (prim/has-initial-app-state? root-component))
       (log/error "The specified root component does not implement InitialAppState!")
       (let [initial-state (fulcro.client.primitives/initial-state root-component nil)
-            base-state (prim/tree->db root-component initial-state true
-                         (fulcro.client.primitives/pre-merge-transform initial-state))]
+            base-state    (prim/tree->db root-component initial-state true
+                            (fulcro.client.primitives/pre-merge-transform initial-state))]
         (clear-pending-remote-requests! this nil)
         (reset! (prim/app-state reconciler) base-state)
         (reset-history! this)
@@ -331,12 +343,21 @@
   (refresh [this] (cutil/force-render reconciler)))
 
 (defn new-fulcro-test-client
-  "Create a test client that has no networking. Useful for UI testing with a real Fulcro app container."
+  "DEPRECATED: use make-fulcro-test-client instead"
   [& {:keys [initial-state started-callback reconciler-options]
       :or   {initial-state {} started-callback nil}}]
   (map->Application {:initial-state      initial-state
                      :started-callback   started-callback
                      :reconciler-options reconciler-options
+                     :networking         (net/mock-network)}))
+
+(defn make-fulcro-test-client
+  "Create a test client that has no networking. Useful for UI testing with a real Fulcro app container."
+  [& {:keys [initial-state started-callback reconciler-options]
+      :or   {initial-state {} started-callback nil}}]
+  (map->Application {:initial-state      initial-state
+                     :started-callback   started-callback
+                     :reconciler-options (merge reconciler-options {:load-marker-default false})
                      :networking         (net/mock-network)}))
 
 #?(:cljs
