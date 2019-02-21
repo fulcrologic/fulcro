@@ -5,7 +5,7 @@
             [fulcro.history :as hist]
 
             #?(:cljs [fulcro.client.dom :as dom]
-               :clj [fulcro.client.dom-server :as dom])
+               :clj  [fulcro.client.dom-server :as dom])
             [fulcro-css.css]
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]
@@ -37,6 +37,42 @@
           (assoc ::time time))
         x))
     m))
+
+(specification "any->reconciler"
+  (behavior "Returns reconciler that is embedded in an application"
+    (let [mock-app (fulcro.client/map->Application {:reconciler :mock-reconciler})]
+      (when-mocking
+        (prim/reconciler? x) => (if (= x mock-app) false true)
+
+        (assertions
+          (prim/any->reconciler mock-app) => :mock-reconciler))))
+  (behavior "Returns reconciler that is accessible from a component"
+    (let [mock-comp {:class :A}]
+      (when-mocking
+        (prim/component? x) => (= x mock-comp)
+        (prim/get-raw-react-prop c k) => :mock-reconciler
+
+        (assertions
+          (prim/any->reconciler mock-comp) => :mock-reconciler))))
+  (behavior "Returns x if x is a reconciler"
+    (when-mocking
+      (prim/reconciler? x) => true
+
+      (assertions
+        (prim/any->reconciler :mock-reconciler) => :mock-reconciler)))
+  (behavior "Returns @x if x is an atom holding a reconciler"
+    (when-mocking
+      (prim/reconciler? x) => (= x :mock-reconciler)
+
+      (assertions
+        (prim/any->reconciler (atom :mock-reconciler)) => :mock-reconciler)))
+  (behavior "Returns reconciler from application atom"
+    (let [mock-app-atom (atom (fulcro.client/map->Application {:reconciler :mock-reconciler}))]
+      (when-mocking
+        (prim/reconciler? x) => false
+
+        (assertions
+          (prim/any->reconciler mock-app-atom) => :mock-reconciler)))))
 
 (specification "Add basis time"
   (assertions
@@ -1459,7 +1495,7 @@
                               :initial-state {:a 1}
                               :ident         [:PERSON/by-id :db/id]}
                              (dom/div nil "Boo")))
-       =fn=> (constantly true)) ; just expect it not to throw
+       =fn=> (constantly true))                             ; just expect it not to throw
 
      (assertions
        "works with initial state"
@@ -1739,10 +1775,10 @@
            data  {}]
        (when-mocking
          (prim/-preprocess-merge s c d) => (do
-                                            (assertions
-                                              "Runs the data through the preprocess merge step"
-                                              d => data)
-                                            {:merge-data :preprocessed-data :merge-query :the-query})
+                                             (assertions
+                                               "Runs the data through the preprocess merge step"
+                                               d => data)
+                                             {:merge-data :preprocessed-data :merge-query :the-query})
          (util/__integrate-ident-impl__ s i op1 args1 op2 args2) => (do
                                                                       (assertions
                                                                         "Calls integrate-ident with appropriate args"
@@ -2148,7 +2184,7 @@
            :phone/by-id  {55 {:id              55
                               :number          "98765-4321"
                               :ui/initial-flag :start}}
-           :main-person [:person/by-id :mary]}
+           :main-person  [:person/by-id :mary]}
 
        (do
          (reset! id-counter 0)
@@ -2265,7 +2301,7 @@
 (defn- ident-from-prop [available]
   (fn [props]
     (or (some #(if-let [x (get props %)] [% x]) available)
-        [:unknown nil])))
+      [:unknown nil])))
 
 (specification "tree->db"
   (assertions
@@ -2343,22 +2379,22 @@
     (prim/tree->db [{:root (genc :id [:id {:p 2}])}]
       {:root {:id 1 :p {:id 2 :p {:id 3 :p {:id 4 :p {:id 5}}}}}} true)
     => {:root [:id 1]
-        :id {5 {:id 5}
-             4 {:id 4, :p [:id 5]}
-             3 {:id 3, :p [:id 4]}
-             2 {:id 2, :p [:id 3]}
-             1 {:id 1, :p [:id 2]}}})
+        :id   {5 {:id 5}
+               4 {:id 4, :p [:id 5]}
+               3 {:id 3, :p [:id 4]}
+               2 {:id 2, :p [:id 3]}
+               1 {:id 1, :p [:id 2]}}})
 
   (assertions
     "unbounded recursive query"
     (prim/tree->db [{:root (genc :id [:id {:p '...}])}]
       {:root {:id 1 :p {:id 2 :p {:id 3 :p {:id 4 :p {:id 5}}}}}} true)
     => {:root [:id 1]
-        :id {5 {:id 5}
-             4 {:id 4, :p [:id 5]}
-             3 {:id 3, :p [:id 4]}
-             2 {:id 2, :p [:id 3]}
-             1 {:id 1, :p [:id 2]}}})
+        :id   {5 {:id 5}
+               4 {:id 4, :p [:id 5]}
+               3 {:id 3, :p [:id 4]}
+               2 {:id 2, :p [:id 3]}
+               1 {:id 1, :p [:id 2]}}})
 
   (behavior "using with pre-merge-transform"
     (assertions
@@ -2393,7 +2429,7 @@
   {:query [{:child (prim/get-query AUIChild)}]})
 
 (defn test-reconciler-normalize-initial-state [{:keys [normalize normalized state root-class]
-                                                :or {normalize true}}]
+                                                :or   {normalize true}}]
   (let [reconciler (prim/reconciler {:normalize normalize
                                      :state     (if normalize state (atom state))})]
     (if normalized (swap! (-> reconciler :state) assoc :normalized true))
@@ -2413,8 +2449,8 @@
     (test-reconciler-normalize-initial-state
       {:state      {:child {:ui/name "test"}}
        :root-class ReconcilerNormalizeRoot})
-    => {:app-state {:child [:ui/id nil],
-                    :ui/id {nil #:ui{:name "test"}}}
+    => {:app-state  {:child [:ui/id nil],
+                     :ui/id {nil #:ui{:name "test"}}}
         :normalized true}
 
     "don't normalize when normalize is false"

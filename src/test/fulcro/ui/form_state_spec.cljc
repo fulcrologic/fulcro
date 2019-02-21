@@ -7,38 +7,33 @@
     [fulcro.ui.form-state :as f]))
 
 (defsc Locale [this props]
-  {:query     [:db/id ::country f/form-config-join]
-   :ident     [:locale/by-id :db/id]
-   :protocols [static f/IFormFields
-               (form-fields [this] #{::country})]})
+  {:query       [:db/id ::country f/form-config-join]
+   :ident       [:locale/by-id :db/id]
+   :form-fields #{::country}})
 
 (s/def ::country keyword?)
 
 (defsc Phone [this props]
-  {:query     [:db/id {::locale (prim/get-query Locale)}
-               ::phone-number
-               f/form-config-join]
-   :ident     [:phone/by-id :db/id]
-   :protocols [static f/IFormFields
-               (form-fields [this] #{::locale ::phone-number})]})
+  {:query       [:db/id {::locale (prim/get-query Locale)}
+                 ::phone-number
+                 f/form-config-join]
+   :ident       [:phone/by-id :db/id]
+   :form-fields #{::locale ::phone-number}})
 
 (defsc UnusedForm [this props]
-  {:query     [:db/id ::data f/form-config-join]
-   :ident     [:unused/by-id :db/id]
-   :protocols [static f/IFormFields
-               (form-fields [this] #{::data})]}
-  )
+  {:query       [:db/id ::data f/form-config-join]
+   :ident       [:unused/by-id :db/id]
+   :form-fields #{::data}})
 
 (s/def ::phone-number (s/and string? #(re-matches #"[-0-9()]+" %)))
 
 (defsc Person [this props]
-  {:query     [:db/id ::person-name ::person-age
-               {::unused (prim/get-query UnusedForm)}
-               {::phone-numbers (prim/get-query Phone)}
-               f/form-config-join]
-   :ident     [:person/by-id :db/id]
-   :protocols [static f/IFormFields
-               (form-fields [this] #{::person-name ::unused ::person-age ::phone-numbers})]})
+  {:query       [:db/id ::person-name ::person-age
+                 {::unused (prim/get-query UnusedForm)}
+                 {::phone-numbers (prim/get-query Phone)}
+                 f/form-config-join]
+   :ident       [:person/by-id :db/id]
+   :form-fields #{::person-name ::unused ::person-age ::phone-numbers}})
 
 (defsc NonForm [this props]
   {:query [:id :x]
@@ -49,10 +44,9 @@
    :ident [:ntop :id]})
 
 (defsc BadlyNestedForm [this props]
-  {:query     [:id :name {:thing (prim/get-query NonForm)} f/form-config-join]
-   :ident     [:top :id]
-   :protocols [static f/IFormFields
-               (form-fields [this] #{:name :thing})]})
+  {:query       [:id :name {:thing (prim/get-query NonForm)} f/form-config-join]
+   :ident       [:top :id]
+   :form-fields #{:name :thing}})
 
 (s/def ::person-name (s/and string? #(not (empty? (str/trim %)))))
 
@@ -168,8 +162,12 @@
                                                 (update-in [:person/by-id 1 ::phone-numbers] conj new-phone-ident)
                                                 (assoc-in [:phone/by-id 3 ::phone-number] "555-9999"))
       new-person-id                           (prim/tempid)
-      new-person-to-many                      (f/add-form-config Person {:db/id new-person-id ::person-name "New" ::person-age 22 ::phone-numbers [new-phone-number]})
-      new-person-to-one                       (f/add-form-config Person {:db/id new-person-id ::person-name "New" ::person-age 22 ::phone-numbers new-phone-number})]
+      new-person-to-many                      (f/add-form-config Person {:db/id       new-person-id ::person-name "New"
+                                                                         ::person-age 22 ::phone-numbers [new-phone-number]})
+      new-person-to-one                       (f/add-form-config Person {:db/id       new-person-id ::person-name "New"
+                                                                         ::person-age 22 ::phone-numbers new-phone-number})
+      existing-person-no-child                (f/add-form-config Person {:db/id       1 ::person-name "New"
+                                                                         ::person-age 22})]
 
   (specification "dirty-fields"
     (behavior "(as delta)"
@@ -201,7 +199,12 @@
       (assertions
         "Includes subform idents"
         (get-in (f/dirty-fields new-person-to-many false) [[:person/by-id new-person-id] ::phone-numbers]) => [[:phone/by-id new-phone-id]]
-        (get-in (f/dirty-fields new-person-to-one false) [[:person/by-id new-person-id] ::phone-numbers]) => [:phone/by-id new-phone-id])))
+        (get-in (f/dirty-fields new-person-to-one false) [[:person/by-id new-person-id] ::phone-numbers]) => [:phone/by-id new-phone-id]))
+    (behavior "Existing forms with empty relations"
+      (assertions
+        "Report empty list of changes"
+        (f/dirty-fields existing-person-no-child false) => {}
+        (f/dirty-fields existing-person-no-child true) => {})))
 
   (specification "dirty?"
     (behavior "is a UI (tree) operation for checking if the form has been modified from pristine"

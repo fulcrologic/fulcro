@@ -2,9 +2,9 @@
 
  :deps    {bidi                       {:mvn/version "2.1.5"},
            bk/ring-gzip               {:mvn/version "0.3.0"},
-           cljsjs/react               {:mvn/version "16.6.0-0"},
-           cljsjs/react-dom           {:mvn/version "16.6.0-0"},
-           cljsjs/react-dom-server    {:mvn/version "16.6.0-0"},
+           cljsjs/react               {:mvn/version "16.8.1-0"},
+           cljsjs/react-dom           {:mvn/version "16.8.1-0"},
+           cljsjs/react-dom-server    {:mvn/version "16.8.1-0"},
            com.cognitect/transit-clj  {:mvn/version "0.8.313"},
            com.cognitect/transit-cljs {:mvn/version "0.8.256"},
            com.ibm.icu/icu4j          {:mvn/version "63.1"},
@@ -21,7 +21,7 @@
 
            :clj-tests  {:extra-paths ["src/test"]
                         :main-opts   ["-m" "kaocha.runner"]
-                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-266"}}}
+                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-389"}}}
 
            :dev        {:extra-paths ["src/dev"]
                         :extra-deps  {fulcrologic/fulcro-inspect  {:mvn/version "2.2.1"}

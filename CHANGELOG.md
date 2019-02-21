@@ -1,3 +1,10 @@
+2.8.2
+-----
+- Added any->reconciler as a helper for getting a reconciler from 
+various arbitrary types.
+- Fixed a bug in form state dirty fields when a subform is missing.
+- Upgraded various dependencies
+
 2.8.1
 -----
 - Converted project to shadow-cljs
