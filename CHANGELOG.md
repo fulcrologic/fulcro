@@ -1,3 +1,8 @@
+2.8.3
+-----
+- Made a number of methods more tolerant to input for getting reconciler
+using any->reconciler
+
 2.8.2
 -----
 - Added any->reconciler as a helper for getting a reconciler from 

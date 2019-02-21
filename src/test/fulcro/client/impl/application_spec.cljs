@@ -12,7 +12,8 @@
     [fulcro.client.mutations :as m]
     [fulcro.history :as hist]
     [fulcro.client.impl.protocols :as p]
-    [fulcro.client.impl.parser :as parser]))
+    [fulcro.client.impl.parser :as parser]
+    [fulcro.util :as util]))
 
 (defui ^:once Thing
   static prim/Ident
@@ -89,6 +90,17 @@
         reconciler-config (:config reconciler)
         migrate           (:migrate reconciler-config)]
 
+    (assertions
+      "The mounted app state is an atom"
+      (util/atom? mounted-app-state) => true
+      "Detects running reconciler correctly"
+      (prim/reconciler? reconciler) => true
+      "Can get reconciler from app"
+      (prim/any->reconciler app) => reconciler
+      "Can recognize reconciler"
+      (prim/reconciler? (:reconciler app)) => true
+      "Can get app state atom from app"
+      (util/atom? (prim/app-state app)) => true)
     (component "Initialization"
       (behavior "returns fulcro client app record with"
         (assertions
@@ -376,8 +388,8 @@
         (app/fallback-handler app tx) => identity
         (prim/remove-loads-and-fallbacks tx) => tx
         (app/-enqueue q p) => (let [{:keys [::prim/query]} p]
-                               (assertions
-                                 query => '[(f)]))
+                                (assertions
+                                  query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity))))
   (behavior "splits mutation lists to prevent duplication mutations on a single network request"
@@ -387,11 +399,11 @@
         (app/fallback-handler app tx) => identity
         (prim/remove-loads-and-fallbacks tx) => tx
         (app/-enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
-                                  (assertions
-                                    query => '[(f) (g)]))
+                                   (assertions
+                                     query => '[(f) (g)]))
         (app/-enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
-                                  (assertions
-                                    query => '[(f)]))
+                                   (assertions
+                                     query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity)))))
 

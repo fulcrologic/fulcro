@@ -541,11 +541,11 @@
   (cond
     (component? x) (get-raw-react-prop x #?(:clj  :fulcro$reconciler
                                             :cljs "fulcro$reconciler"))
-    #?(:clj  (instance? IDeref x)
-       :cljs (satisfies? IDeref x)) (any->reconciler (deref x))
     (reconciler? x) x
     (and #?(:clj  (instance? Associative x)
-            :cljs (satisfies? IAssociative x)) (contains? x :reconciler)) (:reconciler x)))
+            :cljs (satisfies? IAssociative x)) (contains? x :reconciler)) (:reconciler x)
+    #?(:clj  (instance? IDeref x)
+       :cljs (satisfies? IDeref x)) (any->reconciler (deref x))))
 
 (defn get-reconciler
   "Pull a reconciler from a mounted component. See also `any->reconciler`."
@@ -1360,7 +1360,8 @@
 (defn ref->any
   "Get any component from the indexer that matches the ref."
   [x ref]
-  (let [indexer (if (reconciler? x) (get-indexer x) x)]
+  (let [reconciler (any->reconciler x)
+        indexer    (get-indexer reconciler)]
     (first (p/key->components indexer ref))))
 
 (defn resolve-tempids
@@ -2449,11 +2450,11 @@
      (update-fn component f args))))
 
 (defn app-state
-  "Return the reconciler's application state atom. Useful when the reconciler
-   was initialized via denormalized data."
-  [reconciler]
-  {:pre [(reconciler? reconciler)]}
-  (-> reconciler :config :state))
+  "Return the state atom.
+
+   x can be anything that any->reconciler works with."
+  [x]
+  (-> (any->reconciler x) :config :state))
 
 (defn component->state-map
   "Get the normalized database state as a map. Requires a mounted component instance."
@@ -2461,10 +2462,9 @@
   (some-> component get-reconciler :config :state deref))
 
 (defn app-root
-  "Return the application's root component."
-  [reconciler]
-  {:pre [(reconciler? reconciler)]}
-  (get @(:state reconciler) :root))
+  "Return the application's root component. Argument can be anything that any->reconciler accepts."
+  [reconcilerish]
+  (get @(:state (any->reconciler reconcilerish)) :root))
 
 (defn query->ast
   "Given a query expression convert it into an AST."
@@ -2484,10 +2484,11 @@
   "Force a re-render of the root. Runs a root query, disables shouldComponentUpdate, and renders the root component.
    This effectively forces React to do a full VDOM diff. Useful for things like changing locales where there are no
    real data changes, but the UI still needs to refresh.
-   recomputing :shared."
-  [reconciler]
-  {:pre [(reconciler? reconciler)]}
-  (when-let [render (get @(:state reconciler) :render)]     ; hot code reload can cause this to be nil
+   recomputing :shared.
+
+   Argument can be anything that any->reconciler accepts."
+  [reconcilerish]
+  (when-let [render (get @(:state (any->reconciler reconcilerish)) :render)] ; hot code reload can cause this to be nil
     (binding [*blindly-render* true]
       (render))))
 
@@ -2583,22 +2584,25 @@
                                    :cljs "fulcro$instrument")))
 
 (defn class->any
-  "Get any component from the indexer that matches the component class."
+  "Get any component from the indexer that matches the component class.
+  `x` can be anything that any->reconciler will accept."
   [x class]
-  (let [indexer (if (reconciler? x) (get-indexer x) x)]
+  (let [reconciler (any->reconciler x)
+        indexer    (get-indexer reconciler)]
     (first (get-in @indexer [:class->components class]))))
 
 (defn class->all
-  "Get any component from the indexer that matches the component class."
+  "Get any component from the indexer that matches the component class.
+  `x` can be anything that any->reconciler works with."
   [x class]
-  (let [indexer (if (reconciler? x) (get-indexer x) x)]
+  (let [indexer (get-indexer (any->reconciler x))]
     (get-in @indexer [:class->components class])))
 
 (defn ref->components
-  "Return all components for a given ref."
+  "Return all components for a given ref. `x` is anything any->reconciler accepts."
   [x ref]
   (when-not (nil? ref)
-    (let [indexer (if (reconciler? x) (get-indexer x) x)]
+    (let [indexer (get-indexer (any->reconciler x))]
       (p/key->components indexer ref))))
 
 (defn get-rendered-state
@@ -2624,11 +2628,11 @@
      :cljs (some-> (.-refs component) (gobj/get name))))
 
 (defn set-query!
-  "Set a dynamic query. ALters the query, and then rebuilds internal indexes."
-  [component-or-reconciler class-or-factory {:keys [query params follow-on-reads] :as opts}]
-  (let [reconciler (if (reconciler? component-or-reconciler)
-                     component-or-reconciler
-                     (get-reconciler component-or-reconciler))
+  "Set a dynamic query. Alters the query, and then rebuilds internal indexes.
+
+  `x` is anything that any->reconciler accepts."
+  [x class-or-factory {:keys [query params follow-on-reads] :as opts}]
+  (let [reconciler (any->reconciler x)
         state-atom (app-state reconciler)
         queryid    (cond
                      (string? class-or-factory) class-or-factory

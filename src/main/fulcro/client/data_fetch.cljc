@@ -189,7 +189,7 @@
                                         :clj  (satisfies? fc/FulcroApplication app-or-comp-or-reconciler))
                                    (get app-or-comp-or-reconciler :reconciler)
                                    app-or-comp-or-reconciler)
-         reconciler              (if (prim/reconciler? component-or-reconciler) component-or-reconciler (prim/get-reconciler component-or-reconciler))
+         reconciler              (prim/any->reconciler component-or-reconciler)
          {:keys [load-marker-default query-transform-default]} (-> reconciler :config)
          config                  (merge
                                    (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
@@ -269,7 +269,7 @@
   "
   [component field & params]
   (let [params     (if (map? (first params)) (first params) params)
-        reconciler (prim/get-reconciler component)
+        reconciler (prim/any->reconciler component)
         {:keys [load-marker-default query-transform-default]} (-> reconciler :config)
         {:keys [without params remote post-mutation post-mutation-params fallback parallel refresh marker abort-id update-query]
          :or   {remote       :remote
