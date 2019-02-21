@@ -11,6 +11,9 @@ docs/DevelopersGuide.html: DevelopersGuide.adoc
 
 book: docs/DevelopersGuide.html
 
+dev:
+	clojure -A:dev:provided:test:clj-tests --watch --fail-fast 
+
 bookdemos:
 	rm -rf docs/js/book docs/js/book.js
 	npm install

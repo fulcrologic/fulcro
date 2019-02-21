@@ -33,7 +33,8 @@
     [cognitect.transit :as t])
   #?(:clj
      (:import [java.io Writer]
-              [fulcro.client.impl.protocols IReconciler])))
+              [fulcro.client.impl.protocols IReconciler]
+              (clojure.lang IDeref Associative))))
 
 (declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?
   integrate-ident)
@@ -533,11 +534,23 @@
   (let [{idents true rest false} (group-by #(vector? (first %)) res)]
     [(into {} idents) (into {} rest)]))
 
+(defn any->reconciler
+  "Attempt to coerce `x` to a reconciler.  Legal inputs are a fulcro application, reconciler, a mounted component, a
+  map with a :reconciler key, or an atom holding any of the above."
+  [x]
+  (cond
+    (component? x) (get-raw-react-prop x #?(:clj  :fulcro$reconciler
+                                            :cljs "fulcro$reconciler"))
+    #?(:clj  (instance? IDeref x)
+       :cljs (satisfies? IDeref x)) (any->reconciler (deref x))
+    (reconciler? x) x
+    (and #?(:clj  (instance? Associative x)
+            :cljs (satisfies? IAssociative x)) (contains? x :reconciler)) (:reconciler x)))
+
 (defn get-reconciler
+  "Pull a reconciler from a mounted component. See also `any->reconciler`."
   [c]
-  {:pre [(component? c)]}
-  (get-raw-react-prop c #?(:clj  :fulcro$reconciler
-                           :cljs "fulcro$reconciler")))
+  (any->reconciler c))
 
 (defn- parent
   "Returns the parent component."
