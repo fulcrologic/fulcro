@@ -22,7 +22,7 @@
 (defn should-log?
   "Returns true if the current logging level indicates that the message level is of interest."
   [current-logging-level message-level]
-  (let [c current-logging-level
+  (let [c (or current-logging-level 4)
         m (get logging-priority message-level 4)]
     (<= m c)))
 
