@@ -22,7 +22,7 @@
 (defn should-log?
   "Returns true if the current logging level indicates that the message level is of interest."
   [current-logging-level message-level]
-  (let [c (get logging-priority current-logging-level 4)
+  (let [c (or current-logging-level 4)
         m (get logging-priority message-level 4)]
     (<= m c)))
 
@@ -43,11 +43,12 @@
     (atom (fn built-in-logger [{:keys [file line]} level & args]
             (when (should-log? @current-logging-level level)
               (let [location (str (or file "?") ":" (or line "?"))]
-                #?(:cljs (let [logger          (glog/getLogger file)
+                #?(:cljs (let [logger          (glog/getLogger file (level/getPredefinedLevel "ALL"))
                                first-exception (first (filter #(instance? js/Error %) args))
-                               message         (str/join " " args)]
+                               message         (str/join " " args)
+                               glevel          (get level-map level (:info level-map))]
                            (when logger
-                             (.log logger (get level-map level (:info level-map)) message first-exception)))
+                             (.log logger glevel message first-exception)))
                    :clj  (println (str (-> level name str/upper-case) " [" location "] : " (str/join " " args))))))))))
 
 #?(:clj
@@ -99,7 +100,8 @@
   "Takes a keyword (:all, :trace, :debug, :info, :warn, :error, :fatal, :none) and changes the runtime log level accordingly.
   Note that the log levels are listed from least restrictive level to most restrictive.
   The system property fulcro.logging can be set on the JVM to cause elision of logging statements from code."
-  (reset! current-logging-level (get logging-priority log-level 2)))
+  (let [new-level (get logging-priority log-level 2)]
+    (reset! current-logging-level new-level)))
 
 (defn set-logger!
   "Set the fulcro logging function.

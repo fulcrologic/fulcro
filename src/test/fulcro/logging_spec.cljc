@@ -6,19 +6,19 @@
 (specification "should-log?"
   (assertions
     "Correctly indicates when to log"
-    (log/should-log? :debug :debug) => true
-    (log/should-log? :debug :error) => true
-    (log/should-log? :debug :info) => true
-    (log/should-log? :debug :error) => true
-    (log/should-log? :debug :info) => true
-    (log/should-log? :error :debug) => false
-    (log/should-log? :info :debug) => false
-    (log/should-log? :error :debug) => false
-    (log/should-log? :info :debug) => false
+    (log/should-log? (log/logging-priority :debug) :debug) => true
+    (log/should-log? (log/logging-priority :debug) :error) => true
+    (log/should-log? (log/logging-priority :debug) :info) => true
+    (log/should-log? (log/logging-priority :debug) :error) => true
+    (log/should-log? (log/logging-priority :debug) :info) => true
+    (log/should-log? (log/logging-priority :error) :debug) => false
+    (log/should-log? (log/logging-priority :info) :debug) => false
+    (log/should-log? (log/logging-priority :error) :debug) => false
+    (log/should-log? (log/logging-priority :info) :debug) => false
     "treats an unknown logging level as :info"
-    (log/should-log? :unknown :error) => true
-    (log/should-log? :unknown :info) => true
-    (log/should-log? :unknown :debug) => false))
+    (log/should-log? (log/logging-priority :unknown) :error) => true
+    (log/should-log? (log/logging-priority :unknown) :info) => true
+    (log/should-log? (log/logging-priority :unknown) :debug) => false))
 
 (specification "The logging macro"
   (behavior "emits code to call the internal language-specific logger."

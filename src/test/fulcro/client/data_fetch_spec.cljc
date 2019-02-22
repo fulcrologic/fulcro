@@ -195,7 +195,7 @@
 
 (specification "The load function"
   (when-mocking
-    (prim/reconciler? r) => true
+    (prim/any->reconciler r) => r
     (prim/app-state r) => (atom {})
     (df/load-params* sm key query config) => :mutation-args
     (df/load-mutation args) => (do
@@ -232,7 +232,7 @@
         (provided "properly calls transact"
           (prim/get-ident c) =2x=> [:item/by-id 10]
           (prim/get-query c s) =1x=> query
-          (prim/get-reconciler c) => :r
+          (prim/any->reconciler c) => :r
           (prim/app-state r) => (atom {})
           (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
                                             follow-on-reads (set (-> tx rest))]
@@ -267,7 +267,7 @@
         (provided "properly calls transact"
           (prim/get-ident c) =2x=> [:item/by-id 10]
           (prim/get-query c sm) =1x=> query
-          (prim/get-reconciler c) => :r
+          (prim/any->reconciler c) => :r
           (prim/app-state r) => (atom {})
           (prim/transact! c tx) =1x=> (let [params          (-> tx first second)
                                             follow-on-reads (set (-> tx rest))]
