@@ -2,6 +2,7 @@
 -----
 - Made a number of methods more tolerant to input for getting reconciler
 using any->reconciler
+- Fixed bugs in fulcro logging that preventing setting the logging level
 
 2.8.2
 -----
