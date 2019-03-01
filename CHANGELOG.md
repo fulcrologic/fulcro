@@ -1,3 +1,7 @@
+2.8.4
+------
+- Added pending requests map to the reconciler so you can see what requests are queued but not yet transmitted on the network.
+
 2.8.3
 -----
 - Made a number of methods more tolerant to input for getting reconciler
@@ -51,10 +55,6 @@ now requires a CSRF token.
 2.6.19
 ------
 - Added getDerivedStateFromError lifecycle support
-
-2.8.4
-------
-- Added pending requests map to the reconciler so you can see what requests are queued but not yet transmitted on the network.
 
 2.6.18
 ------
