@@ -52,7 +52,7 @@ now requires a CSRF token.
 ------
 - Added getDerivedStateFromError lifecycle support
 
-2.6.19
+2.8.4
 ------
 - Added pending requests map to the reconciler so you can see what requests are queued but not yet transmitted on the network.
 
