@@ -2271,11 +2271,28 @@
                                                          (repeat {:status          :idle
                                                                   :active-requests {}})))
                                :queued-sends     {}
+                               :pending-requests {}
                                :sends-queued     false
                                :target           nil :root nil :render nil :remove nil
                                :t                0 :normalized norm?})
                         (atom (hist/new-history history)))]
     ret))
+
+(defn add-pending-request
+  "Adds request to a queue in the reconciler. This queue is *not* used
+  for internal processing, only because the contents of core.async channels
+  are opaque."
+  [reconciler remote request]
+  (swap! (:state reconciler) update-in [:pending-requests remote]
+    (fnil conj #?(:cljs #queue [] :clj (clojure.lang.PersistentQueue/EMPTY)))
+    request))
+
+(defn pop-pending-request
+  "Pops request from a queue in the reconciler. This queue is *not* used
+  for internal processing, only because the contents of core.async channels
+  are opaque."
+  [reconciler remote]
+  (swap! (:state reconciler) update-in [:pending-requests remote] pop))
 
 (defn transact*
   "Internal implementation detail of transact!. Call that function instead."
