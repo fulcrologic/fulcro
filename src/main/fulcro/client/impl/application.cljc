@@ -29,11 +29,12 @@
 ;; this is here so we can do testing (can mock core async stuff out of the way)
 (defn -enqueue
   "Enqueue a send to the network queue. This is a standalone function because we cannot mock core async functions."
-  [q v]
+  [reconciler remote q v]
+  (prim/add-pending-request reconciler remote v)
   (go (async/>! q v)))
 
 (s/fdef -enqueue
-  :args (s/cat :queue any? :payload ::f/payload))
+  :args (s/cat :reconciler :any? :remote keyword? :queue any? :payload ::f/payload))
 
 (defn real-send
   "Do a properly-plumbed network send. This function recursively strips ui attributes from the tx and pushes the tx over
@@ -177,7 +178,7 @@
                                           ::f/on-error        (fn [result] (fallback result))}))]
         (doseq [tx tx-list]
           (when (has-mutations? tx)
-            (-enqueue queue (payload tx))))))))
+            (-enqueue reconciler remote queue (payload tx))))))))
 
 (defn enqueue-reads
   "Finds any loads marked `parallel` and triggers real network requests immediately. Remaining loads
@@ -202,7 +203,7 @@
                                                :on-done on-load' :on-error on-error' :abort-id abort-id})))
       (loop [fetch-payload (f/mark-loading remote reconciler)]
         (when fetch-payload
-          (-enqueue queue (assoc fetch-payload :networking network))
+          (-enqueue reconciler remote queue (assoc fetch-payload :networking network))
           (recur (f/mark-loading remote reconciler)))))))
 
 (defn detect-errant-remotes [{:keys [reconciler send-queues] :as app}]
@@ -272,6 +273,7 @@
       (go
         (loop [payload (async/<! queue)]
           (-send-payload network reconciler payload send-complete) ; async call. Calls send-complete when done
+          (prim/pop-pending-request reconciler remote)
           (when sequential?
             (async/<! response-channel))                    ; block until send-complete
           (recur (async/<! queue)))))))

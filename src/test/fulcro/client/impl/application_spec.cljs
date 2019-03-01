@@ -387,9 +387,10 @@
       (when-mocking
         (app/fallback-handler app tx) => identity
         (prim/remove-loads-and-fallbacks tx) => tx
-        (app/-enqueue q p) => (let [{:keys [::prim/query]} p]
-                                (assertions
-                                  query => '[(f)]))
+        (app/-enqueue r remote q p) => (let [{:keys [::prim/query]} p]
+                                         (assertions
+                                           remote => :remote
+                                           query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity))))
   (behavior "splits mutation lists to prevent duplication mutations on a single network request"
@@ -398,12 +399,14 @@
       (when-mocking
         (app/fallback-handler app tx) => identity
         (prim/remove-loads-and-fallbacks tx) => tx
-        (app/-enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
-                                   (assertions
-                                     query => '[(f) (g)]))
-        (app/-enqueue q p) =1x=> (let [{:keys [::prim/query]} p]
-                                   (assertions
-                                     query => '[(f)]))
+        (app/-enqueue r remote q p) =1x=> (let [{:keys [::prim/query]} p]
+                                            (assertions
+                                              remote => :remote
+                                              query => '[(f) (g)]))
+        (app/-enqueue r remote q p) =1x=> (let [{:keys [::prim/query]} p]
+                                            (assertions
+                                              remote => :remote
+                                              query => '[(f)]))
 
         (app/enqueue-mutations {:send-queues send-queues} remote-txs identity)))))
 
