@@ -1887,15 +1887,17 @@
 
 (defn computed-factory
   "Similar to factory, but returns a function with the signature
-  [props computed] instead of default [props & children]. This makes easier to send
-  computed but will not accept children params."
+  [props computed & children] instead of default [props & children].
+  This makes easier to send computed."
   ([class] (computed-factory class {}))
   ([class options]
-   (let [f (factory class options)]
+   (let [factory (factory class options)]
      (fn real-factory
        ([props] (real-factory props {}))
-       ([props c]
-        (f (computed props c)))))))
+       ([props computed]
+        (factory (computed props computed)))
+       ([props computed & children]
+        (apply factory (computed props computed) children))))))
 
 (defn children
   "Returns the component's children."
