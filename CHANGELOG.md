@@ -1,3 +1,9 @@
+2.8.5
+-----
+- Added reconnect for websockets
+- Added children support for computed factory
+- Small bug fix around default url in networking 
+
 2.8.4
 ------
 - Added pending requests map to the reconciler so you can see what requests are queued but not yet transmitted on the network.
