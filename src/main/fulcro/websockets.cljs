@@ -2,7 +2,7 @@
   (:require-macros [cljs.core.async.macros :refer (go go-loop)])
   (:require [cognitect.transit :as ct]
             [cljs.core.async :as async]
-            [taoensso.sente :as sente :refer (cb-success?)]
+            [taoensso.sente :as sente :refer [cb-success?]]
             [fulcro.client.network :refer [FulcroNetwork]]
             [fulcro.logging :as log]
             [fulcro.websockets.transit-packer :as tp]))
@@ -76,6 +76,13 @@
         (recur))
       this)))
 
+(defn reconnect!
+  "Request that the given websockets networking component disconnect/reconnect.  Useful
+  after login to ensure cookies are present on the websocket requests."
+  [websockets]
+  (let [chsk (some-> websockets :channel-socket deref :chsk)]
+    (sente/chsk-reconnect! chsk)))
+
 (defn make-websocket-networking
   "Creates a websocket-based networking component for use as a Fulcro remote.
 
@@ -102,17 +109,17 @@
             csrf-token]}]
    (let [csrf-token (or csrf-token js/fulcro_network_csrf_token "NO CSRF TOKEN SUPPLIED.")]
      (map->Websockets {:channel-socket        (atom nil)
-                      :csrf-token            csrf-token
-                      :queue                 (async/chan)
-                      :ready?                (atom false)
-                      :auto-retry?           auto-retry?
-                      :websockets-uri        (or websockets-uri "/chsk")
-                      :push-handler          push-handler
-                      :host                  host
-                      :state-callback        state-callback
-                      :global-error-callback global-error-callback
-                      :transit-handlers      transit-handlers
-                      :app                   (atom nil)
-                      :stop                  (atom nil)
-                      :req-params            req-params
-                      :sente-options         sente-options}))))
+                       :csrf-token            csrf-token
+                       :queue                 (async/chan)
+                       :ready?                (atom false)
+                       :auto-retry?           auto-retry?
+                       :websockets-uri        (or websockets-uri "/chsk")
+                       :push-handler          push-handler
+                       :host                  host
+                       :state-callback        state-callback
+                       :global-error-callback global-error-callback
+                       :transit-handlers      transit-handlers
+                       :app                   (atom nil)
+                       :stop                  (atom nil)
+                       :req-params            req-params
+                       :sente-options         sente-options}))))
