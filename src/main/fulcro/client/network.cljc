@@ -374,6 +374,7 @@
                                                                     request-middleware  (wrap-fulcro-request)} :as options}]
   (map->FulcroHTTPRemote (merge options {:request-middleware  request-middleware
                                          :response-middleware response-middleware
+                                         :url                 url
                                          :serial?             (if (nil? serial?) true serial?)
                                          :active-requests     (atom {})})))
 

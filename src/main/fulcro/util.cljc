@@ -4,8 +4,9 @@
     [clojure.spec.alpha :as s]
     clojure.walk
     [fulcro.logging :as log]
-    #?(:clj
-    [clojure.spec.gen.alpha :as sg]))
+    #?@(:clj
+        [[clojure.stacktrace :as strace]
+         [clojure.spec.gen.alpha :as sg]]))
   #?(:clj
      (:import (clojure.lang Atom))))
 
@@ -130,7 +131,8 @@
                        fnmap   (zipmap fn-keys (map #(or (ns-resolve n %) (throw (ex-info "No such symbol" {:ns nmspc :s %}))) fns))]
                    (merge m fnmap))
                  (catch Exception e
-                   (log/error (str "Failed to load functions from " nmspc ". Fulcro does not have hard dependencies on that library, and you must explicitly add the dependency to your project.")))))
+                   (log/error (str "Failed to load functions from " nmspc ". Fulcro does not have hard dependencies on that library, and you must explicitly add the dependency to your project."))
+                   (log/error (with-out-str (strace/print-cause-trace e))))))
        (or inmap {})
        needs)))
 
