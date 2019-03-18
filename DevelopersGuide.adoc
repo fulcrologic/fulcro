@@ -173,7 +173,7 @@ this could get out of date with respect to the template.
 
 === Choosing a React Version
 
-Fulcro supports React 15 and 16 (and should even be fine with 17 with it is released).  The template uses `shadow-cljs`
+Fulcro supports React 15 and 16 (and should even be fine with 17 when it is released).  The template uses `shadow-cljs`
 for compiles, so you simple include the version you'd like to use in the standard `package.json` file.  This is already
 done for you in the template.
 
@@ -540,7 +540,7 @@ and signal graphs...not to mention that the sideband solution says nothing defin
 *accomplish* the server interactions with said data model.
 
 Fulcro has a model for all of this, and it is surprising how simple it makes your application once you
-put your appliation together.  Let's look at the steps and parts:
+put your application together.  Let's look at the steps and parts:
 
 === Step 1 -- The Initial State
 
@@ -694,7 +694,7 @@ key, and would expect the value to be nested state (because maps mean joins on t
 
 Joins are automatically `to-one` if the data found in the state is a map, and `to-many` if the data found is a
 vector. In the example above the `:friends` field from root pointed to a single `PersonList`, whereas the `PersonList`
-field `:person-list/people` pointed to a vector of `Person`.  Be care that you don't confuse yourself with
+field `:person-list/people` pointed to a vector of `Person`.  Beware that you don't confuse yourself with
 naming (e.g. friends is plural, but points to a single list).
 
 The namespacing of keywords in your data (and therefore your query) is highly encouraged, as it makes it clear to the
@@ -853,7 +853,7 @@ such that an optimized refresh will still know them. There is also an additional
 that you can use to deconstruct them:
 
 ```
-(defsc Person [this {:keys [person/name person/age]} {:keys [onDelete]}]
+(defsc Person [this {:keys [person/name person/age]} {:keys [onDelete]}] <2>
   {:query         [:person/name :person/age]
    :initial-state (fn [{:keys [name age] :as params}] {:person/name name :person/age age})}
   (dom/li
@@ -861,7 +861,7 @@ that you can use to deconstruct them:
 
 (def ui-person (prim/factory Person {:keyfn :person/name}))
 
-(defsc PersonList [this {:keys [person-list/label person-list/people]}] ; <2>
+(defsc PersonList [this {:keys [person-list/label person-list/people]}] ;
   {:query [:person-list/label {:person-list/people (prim/get-query Person)}]
    :initial-state
           (fn [{:keys [label]}]
@@ -1248,7 +1248,7 @@ we can call the static methods on a component (in this case we're interested in 
 
 So, Fulcro includes a function called `tree->db` that can simultaneously walk a data tree (in this case initial-state) and a
 component-annotated query. When it reaches a data node whose query metadata names a component with an `Ident`, it
-places that data into the approprite table (by calling your `ident` function on it to obtain the table/id), and
+places that data into the appropriate table (by calling your `ident` function on it to obtain the table/id), and
 replaces the data in the tree with its FK ident.
 
 Once you realize that the query *and* the ident work together to do normalization, you can more easily
@@ -1503,7 +1503,7 @@ server. The server will receive *exactly* that query as a CLJ data structure.
 
 ===== Implementing the Server Handler
 
-You now need to converting the raw CLJ query into a response. You can read more
+You now need to convert the raw CLJ query into a response. You can read more
 about the gory details of that in the developer's guide; however, Fulcro's has some
 helpers that make our job much easier.
 
@@ -1714,7 +1714,7 @@ this sort order to something like "by age". Try it!
 
 Once things are loaded from the server they are immediately growing stale (unless you're pushing updates with
 websockets). It is very common to want to re-load a particular thing in your database. Of course, you can trigger
-a load just like we've been doing, but in that case we reloading a whole bunch of things. What if we just wanted to
+a load just like we've been doing, but in that case we would be reloading a whole bunch of things. What if we just wanted to
 refresh a particular person (e.g. in preparation for editing it).
 
 The `load` function can be used for that as well. Just replace the keyword with an ident, and you're there!
@@ -2828,7 +2828,7 @@ to be fed to the UI.
 === Computed Props and Callbacks
 
 Many reusable components will need to tell their parent about some event. For example, a list item generally wants
-to tell the parent when the user has clicked on the "remote" button for that item. The item itself cannot
+to tell the parent when the user has clicked on the "remove" button for that item. The item itself cannot
 be truly composable if it has to know details of the parent. But a parent must always know the details of
 a child (it rendered it, didn't it?). As such, manipulations that affect the content of a parent should be
 communicated to that parent for processing. The mechanism for this is identical to what you'd do in stock
@@ -3287,7 +3287,7 @@ that *also* supply CSS. This allows the library to compose together your CSS acc
 the CSS rules from some top-level component will dedupe any inclusions before generating the actual on-DOM CSS.
 See <<CSSInjection, CSS Injection>> for a way to avoid this.
 . Use one of many options to get the "munged" classnames for use in your code:
-** `(fulcro-css.css/get-classnames Componenet)` returns a map of namespaced CSS classes keyed by the simple name you used in your garden rules.
+** `(fulcro-css.css/get-classnames Component)` returns a map of namespaced CSS classes keyed by the simple name you used in your garden rules.
 ** The 4th argument to `defsc` is that same map, on which you can apply destructuring to get the munged class names.
 ** Use `fulcro.client.localized-dom` for DOM rendering, and have it all automatically done for you!
 . Before Fulcro 2.6: Use the `fulcro-css.css/upsert-css` or `fulcro-css.css/style-element` function (or your own style element) to embed the CSS.
@@ -3390,7 +3390,7 @@ See https://github.com/noprompt/garden[Garden's] documentation for more details 
 
 There are two ways of placing the CSS for a (group of) components on a page:
 
-`(upsert-css ID Component)` will pull (recurisvely) the rules of Component, translate them to legal CSS, and then insert them
+`(upsert-css ID Component)` will pull (recursively) the rules of Component, translate them to legal CSS, and then insert them
 on the *body* of the page's DOM at the given ID (overwriting the old style element with that same ID). If you ensure that
 this `upsert` happens on hot code reload, then your CSS will update as you edit your code.
 
