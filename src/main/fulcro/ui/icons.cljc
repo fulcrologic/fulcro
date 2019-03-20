@@ -1019,7 +1019,7 @@ z"
 (defn icon
   "Gets an SVG representation of the given icon. See material-icon-paths."
   [icon-name
-   & {:keys [width height modifiers states className onClick]}]
+   & {:keys [width height modifiers states className title onClick]}]
   (assert (keyword? icon-name) "Icon name must be a keyword")
   (let [add-class  (fn [attrs])
         path-check (icon-name material-icon-paths)
@@ -1039,6 +1039,8 @@ z"
                     :role            "img"
                     :viewBox         "0 0 24 24"}
                    onClick (assoc :onClick #(onClick))))
-        (dom/title (str (title-case (str/replace (name icon-name) #"_" " "))))
+        (dom/title
+          (or title
+              (str (title-case (str/replace (name icon-name) #"_" " ")))))
         (dom/path {:d path-check})))))
 
