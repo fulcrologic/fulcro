@@ -1,3 +1,7 @@
+2.8.7
+-----
+- Another tweak to computed factory
+
 2.8.6
 -----
 - Fixed computed factory
