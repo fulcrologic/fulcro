@@ -1894,10 +1894,10 @@
    (let [factory (factory class options)]
      (fn real-factory
        ([props] (real-factory props {}))
-       ([props computed]
-        (factory (computed props computed)))
-       ([props computed & children]
-        (apply factory (computed props computed) children))))))
+       ([props computed-props]
+        (factory (computed props computed-props)))
+       ([props computed-props & children]
+        (apply factory (computed props computed-props) children))))))
 
 (defn children
   "Returns the component's children."
