@@ -148,8 +148,7 @@
     the base target merge value for class-or-factory instead.
   - `remote` - Optional. Keyword name of the remote that this load should come from.
   - `params` - Optional parameters to add to the generated query
-  - `marker` - Boolean to determine if you want a fetch-state marker in your app state. Defaults to true. Add `:ui/fetch-state` to the
-  target component in order to see this data in your component.
+  - `marker` - ID of marker. Normalizes a load marker into app state so you can see progress.
   - `refresh` - A vector of keywords that will cause component re-renders after the final load/mutations. Same as follow-on
   reads in normal `transact!`
   - `parallel` - If true, indicates that this load does not have to go through the sequential network queue. Defaults to false.
