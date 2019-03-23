@@ -1,3 +1,7 @@
+2.8.6
+-----
+- Fixed computed factory
+
 2.8.5
 -----
 - Added reconnect for websockets
