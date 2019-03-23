@@ -1891,13 +1891,13 @@
   This makes easier to send computed."
   ([class] (computed-factory class {}))
   ([class options]
-   (let [factory (factory class options)]
-     (fn real-factory
-       ([props] (real-factory props {}))
+   (let [real-factory (factory class options)]
+     (fn
+       ([props] (real-factory props))
        ([props computed-props]
-        (factory (computed props computed-props)))
+        (real-factory (computed props computed-props)))
        ([props computed-props & children]
-        (apply factory (computed props computed-props) children))))))
+        (apply real-factory (computed props computed-props) children))))))
 
 (defn children
   "Returns the component's children."
