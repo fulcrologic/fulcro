@@ -517,6 +517,23 @@ enemies|     |friends
  +--------+ +--------+
 ----
 
+=== The Component Registry (version 2.8.8+)
+
+We don't need it at the moment, but you may find it useful to note that any component that is required in your
+application will appear in a global component registry.  You can look up such components using a symbol or keyword
+that matches the fully namespace-qualified name of the component:
+
+```
+(prim/classname->class `app.ui/Root)
+
+;; OR
+
+(prim/classname->class :app.ui/Root)
+```
+
+This comes in handy for things like code splitting (where the dynamically loaded code will appear in the registry),
+tracking classes (by name) in app state (which cannot appear there as "code").
+
 == Feeding the Data Tree
 
 Obviously it isn't going to be desirable to hand-manage this very well for anything
@@ -4984,6 +5001,17 @@ require the UI in the mutation namespace if you need it for merges and other com
 without causing circular references.
 
 This requires an extra namespace and a little extra declaration work, but cleans up the UI and ns requires quite well.
+
+Fulcro 2.8.8 includes a global component registry. Any component that is (transitively) required in your application will
+appear in the registry, which makes it possible to track component classes in app state (since the name is serializable)
+and also look up a component class for merges from within mutations:
+
+```
+(defmutation f [params]
+  (action [{:keys [state]}]
+    (let [todo-list-class (prim/classname->class :com.company.app/TodoList)]
+      (swap! prim/merge-component todo-list-class {:list/id ...}))))
+```
 
 === Parameter specs
 
