@@ -1,3 +1,9 @@
+2.8.8
+-----
+- Added global component registry. 
+-- Alleviates problems with circular refs for component use in mutations
+-- Allows tracking of classes in app state without compromising Inspect/serialization
+
 2.8.7
 -----
 - Another tweak to computed factory

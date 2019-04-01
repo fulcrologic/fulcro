@@ -39,6 +39,31 @@
 (declare app-state app-root tempid? normalize-query focus-query* ast->query query->ast transact! remove-root! component?
   integrate-ident)
 
+;; A global registry from fully-qualified component name (a symbol) to component class.
+;; Useful for times when you need to refer to a component that would otherwise be a circular reference, or you need
+;; to remember a component in app state (symbols are serializable, but component classes are not)
+(defonce ^:private component-registry (atom {}))
+
+(defn -register-component!
+  "Add a component to Fulcro's component registry.  This is used by defsc and defui to ensure that all Fulcro classes
+  that have been compiled (transitively required) will be accessible for lookup by name.  Not meant for public use,
+  unless you're creating your own component macro that doesn't directly leverage defsc/defui."
+  [k component-class]
+  (swap! component-registry assoc k component-class)
+  component-class)
+
+(defn classname->class
+  "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
+  been (transitively) required by your application.
+
+  `classname` can be a fully-qualified keyword or symbol."
+  [classname]
+  (cond
+    (keyword? classname) (get @component-registry classname)
+    (symbol? classname) (let [k (keyword (namespace classname) (name classname))]
+                          (get @component-registry k))
+    :otherwise nil))
+
 (defprotocol Ident
   (ident [this props] "Return the ident for this component"))
 
@@ -3408,6 +3433,7 @@
                                                     (and (sequential? x)
                                                       (not (lifecycle-method-names (first x)))))
                                                   obj-dt)
+           fqkw                   (keyword (str *ns*) (str name))
            class-methods          (extract-static-methods (:protocols statics))]
        `(do
           ~(when-not (empty? non-lifecycle-dt)
@@ -3444,7 +3470,8 @@
                 (merge {:component      c#
                         :component-ns   (ns-name *ns*)
                         :component-name ~(str name)}
-                  ~class-methods))))))))
+                  ~class-methods)))
+            (-register-component! ~fqkw ~name))))))
 
 #?(:cljs
    (def default-component-prototype
@@ -3523,6 +3550,9 @@
               fqn              (if env
                                  (symbol (-> env :ns :name str) (str name))
                                  name)
+              fqkw             (if env
+                                 (keyword (-> env :ns :name str) (str name))
+                                 (keyword (str name)))
               ctor             `(defn ~(with-meta name
                                          (merge {:jsdoc ["@constructor" "@nocollapse"]}
                                            (meta name)
@@ -3548,6 +3578,7 @@
                                  'js/undefined)]
           `(do
              ~ctor
+             (-register-component! ~fqkw ~name)
              (specify! (.-prototype ~name) ~@(reshape dt reshape-map))
              (set! (.. ~name -prototype -constructor) ~name)
              (set! (.. ~name -prototype -constructor -displayName) ~display-name)

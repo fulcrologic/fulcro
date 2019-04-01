@@ -21,7 +21,7 @@
 
            :clj-tests  {:extra-paths ["src/test"]
                         :main-opts   ["-m" "kaocha.runner"]
-                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-389"}}}
+                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-413"}}}
 
            :dev        {:extra-paths ["src/dev"]
                         :extra-deps  {fulcrologic/fulcro-inspect  {:mvn/version "2.2.1"}
