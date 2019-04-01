@@ -2543,3 +2543,11 @@
     (prim/component-class? nil) => false
     (prim/component-class? "") => false
     (prim/component-class? (fn [x])) => false))
+
+(specification "Component Registry"
+  (component "classname->class"
+    (assertions
+      "Finds registered classes by FQ keyword"
+      (prim/classname->class ::Thing) => Thing
+      "Finds registered classes by FQ symbol"
+      (prim/classname->class `fulcro.client.primitives-spec/Thing) => Thing)))
