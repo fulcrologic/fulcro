@@ -7913,7 +7913,7 @@ In a REPL, you could start this one up and restart it with:
 
 ```
 $ clj -A:dev -J-Dtrace
-user=> (go)
+user=> (start)
 user=> (restart)
 ...hot code reload/restart...
 ```
