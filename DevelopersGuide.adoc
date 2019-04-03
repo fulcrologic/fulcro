@@ -7912,11 +7912,14 @@ and the user namespace (typically in `src/dev`):
 In a REPL, you could start this one up and restart it with:
 
 ```
-$ lein repl
+$ clj -A:dev -J-Dtrace
 user=> (go)
 user=> (restart)
 ...hot code reload/restart...
 ```
+
+If you used the lein template to setup your project, see it's README doc for instructions about
+how to run the dev environment.
 
 === Configuration
 
