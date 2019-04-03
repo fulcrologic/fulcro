@@ -161,7 +161,7 @@ It also has hot-code reload built in, so there is no need for an additional tool
 
 === Starting the Server
 
-Simply start a REPL and use:
+Simply start a REPL (see the README in your generated project for instructions) and use:
 
 ```
 (start)
@@ -170,6 +170,10 @@ Simply start a REPL and use:
 to start the server (which defaults to port 3000). If you've turn on the `main` build in shadow-cljs, then you
 should see the base template page.  Please refer to the README in your template app if this doesn't work, as
 this could get out of date with respect to the template.
+
+NOTE: At the time of this writing you'll have the fewest problems running JDK 8 (newer versions work, but have various
+extra options you have to pass).  Also make sure you don't have anything strange in your personal Leingingen profile,
+and that your Clojure tools.deps version is up-to-date.
 
 === Choosing a React Version
 
