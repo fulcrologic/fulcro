@@ -30,11 +30,11 @@
                                       binaryage/devtools          {:mvn/version "0.9.10"}
                                       org.clojure/tools.namespace {:mvn/version "0.3.0-alpha4"}}}
 
-           :provided   {:extra-deps {http-kit           {:mvn/version "2.3.0"}
-                                     ring/ring-core     {:mvn/version "1.6.3"}
-                                     bk/ring-gzip       {:mvn/version "0.3.0"}
-                                     bidi               {:mvn/version "2.1.5"}
-                                     com.taoensso/sente {:mvn/version "1.14.0-RC2"}}}
+           :provided   {:extra-deps {http-kit           {:mvn/version "2.3.0" :scope "provided"}
+                                     ring/ring-core     {:mvn/version "1.6.3" :scope "provided"}
+                                     bk/ring-gzip       {:mvn/version "0.3.0" :scope "provided"}
+                                     bidi               {:mvn/version "2.1.5" :scope "provided"}
+                                     com.taoensso/sente {:mvn/version "1.14.0-RC2" :scope "provided"}}}
 
            :workspaces {:extra-paths ["src/workspaces"]
                         :extra-deps {nubank/workspaces {:mvn/version "1.0.3"}}}
