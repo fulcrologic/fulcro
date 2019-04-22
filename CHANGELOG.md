@@ -1,3 +1,7 @@
+2.8.10
+------
+- Re-release of 2.8.9, which was missing a require.
+
 2.8.9
 -----
 - Removed DOM from form-state so that is will work with react native.
