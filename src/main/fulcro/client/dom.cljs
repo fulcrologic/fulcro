@@ -10,7 +10,8 @@
     [cljsjs.react.dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
-    [fulcro.client.dom-common :as cdom]))
+    [fulcro.client.dom-common :as cdom]
+    [fulcro.logging :as log]))
 
 (declare a abbr address altGlyph altGlyphDef altGlyphItem animate animateColor animateMotion animateTransform area
   article aside audio b base bdi bdo big blockquote body br button canvas caption circle cite clipPath code
