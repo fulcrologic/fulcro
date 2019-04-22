@@ -4,9 +4,7 @@
             [fulcro.logging :as log]
             [fulcro.client.mutations :refer [defmutation]]
             [fulcro.util :as util]
-            [fulcro.client.primitives :as prim :refer [defui defsc]]
-            #?(:cljs [fulcro.client.dom :as dom]
-               :clj  [fulcro.client.dom-server :as dom])))
+            [fulcro.client.primitives :as prim :refer [defui defsc]]))
 
 (defprotocol IFormFields
   (form-fields [this] "Returns a set of keywords that define the form fields of interest on an entity"))
@@ -49,20 +47,14 @@
   :ret map?)
 
 (defsc FormConfig
-  "A component supporting normalization of form state configuration. Technically this component
+  "A component supporting normalization of form state configuration. Use Fulcro Inspect for viewing that data.
+  Rendering isn't supported on this component so it will work with React Native.
   can also render the form config, if that is useful to you."
   [this {:keys [::id ::complete? ::fields ::subforms ::pristine-state]}]
   {:query [::id ::fields ::complete? ::subforms ::pristine-state]
    :ident (fn []
             [::forms-by-ident {:table (first id)
-                               :row   (second id)}])}
-  (dom/div nil
-    (dom/h4 nil "Form Config")
-    (dom/ul nil
-      (dom/li nil (str "id" id))
-      (dom/li nil (str "fields" fields))
-      (dom/li nil (str "subforms" subforms))
-      (dom/li nil (str "pristine-state" pristine-state)))))
+                               :row   (second id)}])})
 
 (def ui-form-config
   "Render form config"

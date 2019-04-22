@@ -37,7 +37,7 @@
                                      com.taoensso/sente {:mvn/version "1.14.0-RC2"}}}
 
            :workspaces {:extra-paths ["src/workspaces"]
-                        :extra-deps {nubank/workspaces {:mvn/version "1.0.3"}}}
+                        :extra-deps  {nubank/workspaces {:mvn/version "1.0.3"}}}
 
            :book       {:extra-paths ["src/book"]
                         :extra-deps  {devcards       {:mvn/version "0.2.5"}
