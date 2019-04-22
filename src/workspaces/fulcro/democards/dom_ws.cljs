@@ -228,14 +228,14 @@
 (defsc CSSStyleRoot [this props]
   {:query         [{:a (prim/get-query A)}]
    :initial-state {}
-   :ident (fn [] [:a 1])
+   :ident         (fn [] [:a 1])
    :css           [[:.a {:color "red"}]]}
   (dom/div
     #_(injection/style-element {:react-key (rand-int 120)   ; Include this to recompute CSS on every refresh
                                 :component this})
-    #_(injection/style-element {:react-key (rand-int 120)     ; Include this to recompute CSS on every refresh
-                              :order     :breadth-first
-                              :component this})
+    #_(injection/style-element {:react-key (rand-int 120)   ; Include this to recompute CSS on every refresh
+                                :order     :breadth-first
+                                :component this})
     (dom/button {:onClick #(prim/set-state! this {:n (rand-int 20)})} "Bump")
 
     (ldom/div :.a "Edit this card to check the various bits...")))

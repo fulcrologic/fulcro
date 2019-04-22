@@ -140,10 +140,15 @@
       (componentWillReceiveProps [this new-props]
         (let [state-value   (gobj/getValueByKeys this "state" "value")
               this-node     (js/ReactDOM.findDOMNode this)
-              value-node    (if (is-form-element? this-node) 
+              value-node    (if (is-form-element? this-node)
                               this-node
                               (gdom/findNode this-node #(is-form-element? %)))
-              element-value (gobj/get value-node  "value")]
+              element-value (gobj/get value-node "value")]
+          (when goog.DEBUG
+            (when (and state-value element-value (not= (type state-value) (type element-value)))
+              (log/warn "There is a mismatch for the data type of the value on an input with value " element-value
+                ". This will cause the input to miss refreshes. In general you should force the :value of an input to
+                be a string since that is how values are stored on most real DOM elements.")))
           (if (not= state-value element-value)
             (update-state this new-props element-value)
             (update-state this new-props (gobj/get new-props "value")))))

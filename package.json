@@ -20,10 +20,10 @@
     "karma-chrome-launcher": "2.2.0",
     "karma-cljs-test": "0.1.0",
     "karma-firefox-launcher": "1.1.0",
-    "react": "16.8.3",
-    "react-dom": "16.8.3",
+    "react": "16.8.6",
+    "react-dom": "16.8.6",
     "readable-stream": "^1.1.14",
-    "shadow-cljs": "2.8.8",
+    "shadow-cljs": "2.8.33",
     "showdown": "^1.9.0",
     "victory": "^31.1.0"
   },

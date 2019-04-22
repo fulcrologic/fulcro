@@ -1,3 +1,8 @@
+2.8.9
+-----
+- Removed DOM from form-state so that is will work with react native.
+- Added warning when DOM inputs are sent non-string values about that causing "missed" refreshes.
+
 2.8.8
 -----
 - Added global component registry. 

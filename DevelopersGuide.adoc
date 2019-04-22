@@ -161,7 +161,7 @@ It also has hot-code reload built in, so there is no need for an additional tool
 
 === Starting the Server
 
-Simply start a REPL and use:
+Simply start a REPL (see the README in your generated project for instructions) and use:
 
 ```
 (start)
@@ -170,6 +170,10 @@ Simply start a REPL and use:
 to start the server (which defaults to port 3000). If you've turn on the `main` build in shadow-cljs, then you
 should see the base template page.  Please refer to the README in your template app if this doesn't work, as
 this could get out of date with respect to the template.
+
+NOTE: At the time of this writing you'll have the fewest problems running JDK 8 (newer versions work, but have various
+extra options you have to pass).  Also make sure you don't have anything strange in your personal Leingingen profile,
+and that your Clojure tools.deps version is up-to-date.
 
 === Choosing a React Version
 
@@ -516,6 +520,23 @@ enemies|     |friends
  | Person | | Person | 1
  +--------+ +--------+
 ----
+
+=== The Component Registry (version 2.8.8+)
+
+We don't need it at the moment, but you may find it useful to note that any component that is required in your
+application will appear in a global component registry.  You can look up such components using a symbol or keyword
+that matches the fully namespace-qualified name of the component:
+
+```
+(prim/classname->class `app.ui/Root)
+
+;; OR
+
+(prim/classname->class :app.ui/Root)
+```
+
+This comes in handy for things like code splitting (where the dynamically loaded code will appear in the registry),
+tracking classes (by name) in app state (which cannot appear there as "code").
 
 == Feeding the Data Tree
 
@@ -4984,6 +5005,17 @@ require the UI in the mutation namespace if you need it for merges and other com
 without causing circular references.
 
 This requires an extra namespace and a little extra declaration work, but cleans up the UI and ns requires quite well.
+
+Fulcro 2.8.8 includes a global component registry. Any component that is (transitively) required in your application will
+appear in the registry, which makes it possible to track component classes in app state (since the name is serializable)
+and also look up a component class for merges from within mutations:
+
+```
+(defmutation f [params]
+  (action [{:keys [state]}]
+    (let [todo-list-class (prim/classname->class :com.company.app/TodoList)]
+      (swap! prim/merge-component todo-list-class {:list/id ...}))))
+```
 
 === Parameter specs
 
