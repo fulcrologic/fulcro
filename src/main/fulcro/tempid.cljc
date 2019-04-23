@@ -1,6 +1,8 @@
 (ns fulcro.tempid
   #?(:clj (:import [java.io Writer])))
 
+(def tag "fulcro/tempid")
+
 ;; =============================================================================
 ;; ClojureScript
 
