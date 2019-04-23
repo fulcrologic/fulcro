@@ -2358,10 +2358,7 @@
       (p/queue! reconciler (into xs (remove symbol?) (keys v)))
       (when-not (empty? snds)
         (doseq [[remote _] snds]
-          (swap! (get-network-activity reconciler) assoc-in [remote :status] :active)
-          (swap! (:state cfg) assoc-in [::net/status remote] :active)
           (p/queue! reconciler xs remote))
-        (p/queue! reconciler [::net/status])
         (p/queue-sends! reconciler snds)
         (schedule-sends! reconciler))
       (when-let [f (:tx-listen cfg)]

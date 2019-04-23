@@ -1,4 +1,4 @@
-(defproject fulcrologic/fulcro "2.8.10"
+(defproject fulcrologic/fulcro "2.8.11"
   :description "A library for building full-stack SPA webapps in Clojure and Clojurescript"
   :url "https://github.com/fulcrologic/fulcro"
   :lein-min-version "2.8.1"
@@ -14,4 +14,5 @@
 
   :plugins [[lein-tools-deps "0.4.1"]]
   :middleware [lein-tools-deps.plugin/resolve-dependencies-with-deps-edn]
-  :lein-tools-deps/config {:config-files [:install :user :project]})
+  :lein-tools-deps/config {:config-files [:install :user :project]
+                           :aliases [:provided]})

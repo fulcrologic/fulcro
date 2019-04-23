@@ -1,3 +1,7 @@
+2.8.11
+------
+- Fixed network activity indicators
+
 2.8.10
 ------
 - Re-release of 2.8.9, which was missing a require.

@@ -71,10 +71,11 @@
                                           (fn [resp items-or-tx]
                                             (swap! network-activity update-in [remote :active-requests] #(dissoc % uuid))
                                             #?(:cljs (js/setTimeout ; delay necessary so we don't mark things inactive too soon
-                                                       #(when (= (-> @network-activity (get remote) :active-requests count) 0)
-                                                          (swap! (prim/app-state reconciler) assoc-in [::net/status remote] :idle)
-                                                          (swap! network-activity assoc-in [remote :status] :idle)
-                                                          (p/queue! reconciler [::net/status]))
+                                                       (fn []
+                                                         (when (= (-> @network-activity (get remote) :active-requests count) 0)
+                                                           (swap! (prim/app-state reconciler) assoc-in [::net/status remote] :idle)
+                                                           (swap! network-activity assoc-in [remote :status] :idle)
+                                                           (p/queue! reconciler [::net/status])))
                                                        0))
                                             (handler resp items-or-tx)))
          with-history-recording         (fn [handler]
@@ -89,6 +90,9 @@
        (log/warn "Payload had no history details."))
      (swap! network-activity update-in [remote :active-requests] assoc uuid {:query    (::prim/query payload)
                                                                              :abort-id (::net/abort-id payload)})
+     (swap! network-activity assoc-in [remote :status] :active)
+     (swap! (prim/app-state reconciler) assoc-in [::net/status remote] :active)
+     (p/queue! reconciler [::net/status])
      (real-send net {:reconciler reconciler :tx tx :on-done on-done :on-error on-error :on-load on-load :abort-id abort-id})))
   ([payload net tx on-done on-error on-load]
    (send-with-history-tracking net {:payload payload :tx tx :on-done on-done :on-error on-error :on-load on-load})))
