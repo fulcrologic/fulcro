@@ -7912,7 +7912,7 @@ and the user namespace (typically in `src/dev`):
 In a REPL, you could start this one up and restart it with:
 
 ```
-$ clj -A:dev -J-Dtrace
+$ clj -A:dev
 user=> (start)
 user=> (restart)
 ...hot code reload/restart...
