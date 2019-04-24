@@ -17,12 +17,12 @@
   #?(:clj  (invoke 'taoensso.sente.packers.transit/->TransitPacker :json
              {:handlers (cond-> {TempId (ot/->TempIdHandler)}
                           write (merge write))}
-             {:handlers (cond-> {"fulcro/tempid" (reify
-                                                   ReadHandler
-                                                   (fromRep [_ id] (TempId. id)))}
+             {:handlers (cond-> {fulcro.tempid/tag (reify
+                                                     ReadHandler
+                                                     (fromRep [_ id] (TempId. id)))}
                           read (merge read))})
      :cljs (st/->TransitPacker :json
              {:handlers (cond-> {TempId (ot/->TempIdHandler)}
                           write (merge write))}
-             {:handlers (cond-> {"fulcro/tempid" (fn [id] (tempid/tempid id))}
+             {:handlers (cond-> {fulcro.tempid/tag (fn [id] (tempid/tempid id))}
                           read (merge read))})))
