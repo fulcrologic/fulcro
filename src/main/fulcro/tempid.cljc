@@ -1,6 +1,8 @@
 (ns fulcro.tempid
   #?(:clj (:import [java.io Writer])))
 
+(def tag "fulcro/tempid")
+
 ;; =============================================================================
 ;; ClojureScript
 
@@ -20,7 +22,7 @@
        __hash)
      IPrintWithWriter
      (-pr-writer [_ writer _]
-       (write-all writer "#fulcro/tempid[\"" id "\"]"))))
+       (write-all writer "#" tag "[\"" id "\"]"))))
 
 #?(:cljs
    (defn tempid
@@ -40,7 +42,7 @@
 
 #?(:clj
    (defmethod print-method TempId [^TempId x ^Writer writer]
-     (.write writer (str "#fulcro/tempid[\"" (.id x) "\"]"))))
+     (.write writer (str "#" tag "[\"" (.id x) "\"]"))))
 
 #?(:clj
    (defn tempid
