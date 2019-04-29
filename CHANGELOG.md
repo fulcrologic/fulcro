@@ -1,3 +1,7 @@
+2.8.12
+------
+- Added ability to pass options to garden css processing.
+
 2.8.11
 ------
 - Fixed network activity indicators
