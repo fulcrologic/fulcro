@@ -55,11 +55,11 @@
     Props are as described in `style-element`.
     "
     [props]
-    (let [{:keys [component auto-include?]} props
+    (let [{:keys [component auto-include? garden-flags] :or {garden-flags {}}} props
           rules (if (false? auto-include?)
                   (some-> component (css/get-css))
                   (some-> (find-css-nodes props) get-rules))
-          css   (g/css rules)]
+          css   (g/css garden-flags rules)]
       css)))
 
 (defsc StyleElement [this {:keys [order key]}]
@@ -79,6 +79,7 @@
      - `:auto-include?`: (optional) When set to true (default) it will use the component query to recursively scan for
        CSS instead of explicit includes. When set to (exactly) `false` then it ONLY uses the user-declared inclusions on
        the component.
+     - `:garden-flags`: (optional) A map with [garden compiler flags](https://github.com/noprompt/garden/wiki/Compiler#flags)
 
     The resulting React style element avoids re-rendering unless the props change, and the CSS is cached at component mount; therefore
     this element will avoid all overhead on refresh. In development you may wish to have the CSS change on hot code reload, in which case
