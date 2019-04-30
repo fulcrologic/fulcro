@@ -5373,7 +5373,7 @@ In fact, now that you've completed the materials of this guide on the graph data
 normalization, it turns out that the server interactions become nearly trivial!
 
 Not only is the *structure* of server interaction well-defined, Fulcro come with pre-written server-side code
-that handle all of the Fulcro plumbing for you. You can choose to provide as little or as much as you like. The easy
+that handles all of the Fulcro plumbing for you. You can choose to provide as little or as much as you like. The easy
 server code provides everything in a Ring-based stack, and you can also choose to hand-build your server using
 a simple API handler for the Fulcro API route.
 
@@ -5388,7 +5388,7 @@ pulling out your hair.
 Here are some of the basics:
 
 * Networking is provided.
- ** The protocol is EDN on the wire (via transit), which means you just speak clojure data on the wire, and can
+ ** The protocol is EDN on the wire (via transit), which means you just speak Clojure data on the wire, and can
  easily extend it to encode/decode new types.
 * All network requests (queries and mutations) are processed sequentially unless you specify otherwise. This allows you
 to reason about optimistic updates (Starting more than one at a time via async calls could
@@ -5423,7 +5423,7 @@ There are only a few general kinds of interactions with a server:
 
 In standard Fulcro networking, *all* of the above have the following similarities:
 
-* A component-based graph query needs to be involved (to enable auto-normalization). Even the server push (though in that case the client needs to know what **implied** question the server is sending data about.
+* A component-based graph query needs to be involved to enable auto-normalization. This is true even for a server push (though in that case the client needs to know what **implied** question the server is sending data about).
 * The data from the server will be a tree that has the same shape as the query.
 * The data needs to be normalized into the client database.
 * Optionally: after integrating new data there may be some need to transform the result to a form the UI needs
@@ -5500,9 +5500,9 @@ real graph without custom code). We'll show you an example of this as we explore
 === Server Interaction Order
 
 Fulcro will serialize requests unless you mark queries as parallel (an option you can specify on `load`). Two different
-*events* that queue mutations or loads will be processed in order. For example The user clicks on something and you trigger two loads
+*events* that queue mutations or loads will be processed in order. For example, if the user clicks on something and you trigger two loads
 during *that event*, then both of those will be combined (if they don't conflict by querying for the same thing)
-sent as one network request. If the user clicks on something else and that handler queues two more loads, then the latter two
+and sent as one network request. If the user clicks on something else and that handler queues two more loads, then the latter two
 loads will not start over the network until the first load sequence has completed.
 
 This ensures that you don't get out-of-order
