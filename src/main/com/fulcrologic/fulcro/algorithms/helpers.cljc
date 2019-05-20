@@ -1,5 +1,7 @@
 (ns com.fulcrologic.fulcro.algorithms.helpers
   (:refer-clojure :exclude [ident? uuid])
+  (:require
+    [clojure.spec.alpha :as s])
   #?(:clj
      (:import (clojure.lang Atom))))
 
@@ -69,4 +71,9 @@
   (cond->> x
     (seq? x) (into [] (map force-children))))
 
-
+(defn conform! [spec x]
+  (let [rt (s/conform spec x)]
+    (when (s/invalid? rt)
+      (throw (ex-info (s/explain-str spec x)
+               (s/explain-data spec x))))
+    rt))

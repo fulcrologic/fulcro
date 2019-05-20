@@ -5,6 +5,8 @@
            com.taoensso/tufte         {:mvn/version "2.0.1"}
            com.cognitect/transit-clj  {:mvn/version "0.8.313"}
            com.cognitect/transit-cljs {:mvn/version "0.8.256"}
+           cljsjs/react               {:mvn/version "16.8.3-0"}
+           cljsjs/react-dom           {:mvn/version "16.8.3-0"}
            org.clojure/clojure        {:mvn/version "1.10.0"}
            org.clojure/clojurescript  {:mvn/version "1.10.520"}
            org.clojure/core.async     {:mvn/version "0.4.474"}}
