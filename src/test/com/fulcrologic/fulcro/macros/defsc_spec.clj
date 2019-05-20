@@ -1,6 +1,6 @@
-(ns com.fulcrologic.fulcro.components-spec
+(ns com.fulcrologic.fulcro.macros.defsc-spec
   (:require
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.macros.defsc :as comp]
     [fulcro-spec.core :refer [assertions specification component]]
     [clojure.test :refer [deftest is]])
   (:import (clojure.lang ExceptionInfo)))
@@ -23,21 +23,27 @@
       "emits a list of forms for the render itself"
       (#'comp/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} nil '((dom/div nil "Hello")))
       => `(~'fn ~'render-Boo [~'this]
-            (let [{:keys [~'a]} (com.fulcrologic.fulcro.components/props ~'this)
-                  {:keys [~'onSelect]} (com.fulcrologic.fulcro.components/get-computed ~'this)]
-              (~'dom/div nil "Hello")))
+            (com.fulcrologic.fulcro.components/wrapped-render ~'this
+              (fn []
+                (let [{:keys [~'a]} (com.fulcrologic.fulcro.components/props ~'this)
+                      {:keys [~'onSelect]} (com.fulcrologic.fulcro.components/get-computed ~'this)]
+                  (~'dom/div nil "Hello")))))
       "all arguments after props are optional"
       (#'comp/build-render 'Boo 'this {:keys ['a]} nil nil '((dom/div nil "Hello")))
       => `(~'fn ~'render-Boo [~'this]
-            (let [{:keys [~'a]} (com.fulcrologic.fulcro.components/props ~'this)]
-              (~'dom/div nil "Hello")))
+            (com.fulcrologic.fulcro.components/wrapped-render ~'this
+              (fn []
+                (let [{:keys [~'a]} (com.fulcrologic.fulcro.components/props ~'this)]
+                  (~'dom/div nil "Hello")))))
       "destructuring of css is allowed"
       (#'comp/build-render 'Boo 'this {:keys ['a]} {:keys ['onSelect]} '{:keys [my-class]} '((dom/div nil "Hello")))
       => `(~'fn ~'render-Boo [~'this]
-            (let [{:keys [~'a]} (com.fulcrologic.fulcro.components/props ~'this)
-                  {:keys [~'onSelect]} (com.fulcrologic.fulcro.components/get-computed ~'this)
-                  ~'{:keys [my-class]} (com.fulcrologic.fulcro.components/get-extra-props ~'this)]
-              (~'dom/div nil "Hello")))))
+            (com.fulcrologic.fulcro.components/wrapped-render ~'this
+              (fn []
+                (let [{:keys [~'a]} (com.fulcrologic.fulcro.components/props ~'this)
+                      {:keys [~'onSelect]} (com.fulcrologic.fulcro.components/get-computed ~'this)
+                      ~'{:keys [my-class]} (com.fulcrologic.fulcro.components/get-extra-props ~'this)]
+                  (~'dom/div nil "Hello")))))))
   (component "build-query-forms"
     (is (thrown-with-msg? ExceptionInfo #"defsc X: .person/nme.* was destructured"
           (#'comp/build-query-forms nil 'X 'this '{:keys [db/id person/nme person/job]}

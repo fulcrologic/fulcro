@@ -9,11 +9,11 @@
 (specification "defmutation Macro"
   (component "Defining a mutation into a different namespace"
     (let [actual (m/defmutation* {}
-                   '(user/boo [params]
+                   '(other/boo [params]
                       (action [env] (swap! state))))]
       (assertions
         "Just emits the defmethod"
-        actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'user/boo [~'fulcro-mutation-env-symbol]
+        actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'other/boo [~'fulcro-mutation-env-symbol]
                      (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                        {:result-action (fn [~'env] (com.fulcrologic.fulcro.mutations/default-result-action ~'env))
                         :action        (fn ~'action [~'env] (~'swap! ~'state) nil)})))))
@@ -27,7 +27,7 @@
           method (second the-do)]
       (assertions
         "Converts all sections to lambdas of a defmethod"
-        method => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'com.fulcrologic.fulcro.macros.defmutation-spec/boo [~'fulcro-mutation-env-symbol]
+        method => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'user/boo [~'fulcro-mutation-env-symbol]
                      (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                        {:action        (fn ~'action [~'env] (~'swap! ~'state) nil)
                         :result-action (fn [~'env] (com.fulcrologic.fulcro.mutations/default-result-action ~'env))
@@ -46,9 +46,9 @@
         (first actual) => `def
         sym => 'boo
         "Converts sections to lambdas of a defmethod"
-        method => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'com.fulcrologic.fulcro.macros.defmutation-spec/boo [~'fulcro-mutation-env-symbol]
+        method => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'user/boo [~'fulcro-mutation-env-symbol]
                      (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                        {:result-action (fn [~'env] (com.fulcrologic.fulcro.mutations/default-result-action ~'env))
                         :action        (fn ~'action [~'env] (~'swap! ~'state) nil)}))
         "the value of the def'd plain symbol is a Mutation declaration"
-        decl => `(com.fulcrologic.fulcro.mutations/->Mutation com.fulcrologic.fulcro.macros.defmutation-spec/boo)))))
+        decl => `(com.fulcrologic.fulcro.mutations/->Mutation user/boo)))))
