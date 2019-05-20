@@ -1,0 +1,97 @@
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:toc-placement: preamble
+:sectlinks:
+:sectanchors:
+:sectnums:
+
+image:docs/logo.png[]
+
+Fulcro is a library for building data-driven full-stack applications for the web. It uses React and is written in
+Clojure and Clojurescript.
+
+*NOTE*: If you are using Java 9, you may need to include "--add-modules java.xml.bind" to your JVM.
+
+== Version Differences
+
+Fulcro has undergone a number of face-lifts over its lifetime.
+
+[[Horizontal]]
+1.x:: An add-on library for Om Next. Has various limitations as a result of this, and several bugs that are deep within Om Next (which was not getting updates).
+2.0 - 2.4:: No longer depends on Om Next. Public API is the same, except where improvements and fixes were needed.
+2.5:: Integrated co-located CSS for better support (e.g. localized-dom), made all server dependencies dynamic, rewrite of i18n. This
+version requires you to change a few i18n things if you were using it, and adds API to the DOM to make UI much more concise.
+2.6:: Changes for React 16+. Changes in React led to a change in the underlying rendering refresh
+optimizations.
+3.0:: This version. A nearly complete rewrite of the internals.  Simplifies a lot of things, makes others
+more extensible, and preserves the shape of the API; however, it is not 100% API compatible with prior versions.
+We hope to provide an API-compatibility layer that will make porting older apps easier; however,
+some of the improved internals do change a few operational semantics.
+
+== Status
+
+This project is not *even* alpha yet.  It is nearly complete enough to write a full-stack working app, but there is a
+lot of work remaining.  The general road map (with status) is:
+
+* Rewrite Transaction Internals (80% done)
+** Write tx processing that is extensible, and can support all currently-known use-cases (90%)
+** Make tx system pluggable (designed, but maybe 40% implemented)
+** Support for new tx-combining at network layer (designed, not implemented)
+** New `defmutation` (possibly to be renamed) (80%)
+*** Support for `result-action` (80%)
+*** Support for "extensible" mutation semantics (100%)
+*** Support for quote-free transactions (100%)
+
+* Network Layer (0%)
+** Write adapters or otherwise build new remote networking
+
+* Merge Logic (90%)
+** Split merge routines into easily reusable bits (100%)
+** Make it possible for users to easily choose/customize merge strategy (100%)
+** Figure out the right place to put helpers like integrate-ident, etc.
+
+* App DB normalization/denormalization (90%)
+** Improve performance of `db->tree` (100%, up to 6x faster)
+** Factor logic out into clear namespaces (100%)
+** Add better tests (0%)
+
+* Components
+** Support for React class-based components (90%)
+*** Rewrite of `defsc` (90%)
+**** Drop protocols (100%)
+**** Support extensibility  (90% complete)
+** Turn component-local CSS into a pure library concern (easy to do)
+** Turn i18n into a pure library concern (easy)
+
+* Move UI State Machines into this library (0%)
+
+* Move Dynamic Router into this library (0%)
+
+* Move to EQL as Source of AST logic (50%)
+
+* Minimize dependencies (100%)
+
+* Nice to Haves (depends a bit on contributors)
+** React Hooks-based `defsc` (designed and prototyped, but needs integration work)
+
+
+== Copyright and License
+
+Fulcro is:
+
+Copyright (c) 2017, Fulcrologic, LLC
+The MIT License (MIT)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
