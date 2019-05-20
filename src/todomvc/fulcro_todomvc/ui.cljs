@@ -1,0 +1,166 @@
+(ns fulcro-todomvc.ui
+  (:require
+    [com.fulcrologic.fulcro.algorithms.tempid :as tmp]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
+    [fulcro-todomvc.api :as api]
+    [goog.object :as gobj]))
+
+(defn is-enter? [evt] (= 13 (.-keyCode evt)))
+(defn is-escape? [evt] (= 27 (.-keyCode evt)))
+
+(defn trim-text [text]
+  "Returns text without surrounding whitespace if not empty, otherwise nil"
+  (let [trimmed-text (clojure.string/trim text)]
+    (when-not (empty? trimmed-text)
+      trimmed-text)))
+
+(defsc TodoItem [this
+                 {:db/keys   [id]
+                  :ui/keys   [ui/editing ui/edit-text]
+                  :item/keys [label complete] :or {complete false} :as props}
+                 {:keys [delete-item check uncheck] :as computed}]
+  {:query              (fn [this] [:db/id :item/label :item/complete :ui/editing :ui/edit-text])
+   :ident              (fn [this props] [:todo/by-id (:db/id props)])
+   :initLocalState     (fn [this] {:save-ref (fn [r] (gobj/set this "input-ref" r))})
+   :componentDidUpdate (fn [this prev-props _]
+                         ;; Code adapted from React TodoMVC implementation
+                         (when (and (not (:editing prev-props)) (:editing (comp/props this)))
+                           (let [input-field        (gobj/get this "input-ref")
+                                 input-field-length (when input-field (.. input-field -value -length))]
+                             (when input-field
+                               (.focus input-field)
+                               (.setSelectionRange input-field input-field-length input-field-length)))))}
+  (let [submit-edit (fn [evt]
+                      (if-let [trimmed-text (trim-text (.. evt -target -value))]
+                        (do
+                          (comp/transact! this [(api/commit-label-change {:id id :text trimmed-text})])
+                          (mut/set-string! this :ui/edit-text :value trimmed-text)
+                          (mut/toggle! this :ui/editing))
+                        (delete-item id)))]
+
+    (dom/li {:classes [(when complete (str "completed")) (when editing (str " editing"))]}
+      (dom/div :.view
+        (dom/input {:type      "checkbox"
+                    :ref       (comp/get-state this :save-ref)
+                    :className "toggle"
+                    :checked   (boolean complete)
+                    :onChange  #(if complete (uncheck id) (check id))})
+        (dom/label {:onDoubleClick (fn []
+                                     (mut/toggle! this :ui/editing)
+                                     (mut/set-string! this :ui/edit-text :value label))} label)
+        (dom/button :.destroy {:onClick #(delete-item id)}))
+      (dom/input {:ref       "edit_field"
+                  :className "edit"
+                  :value     (or edit-text "")
+                  :onChange  #(mut/set-string! this :ui/edit-text :event %)
+                  :onKeyDown #(cond
+                                (is-enter? %) (submit-edit %)
+                                (is-escape? %) (do (mut/set-string! this :ui/edit-text :value label)
+                                                   (mut/toggle! this :ui/editing)))
+                  :onBlur    #(when editing (submit-edit %))}))))
+
+(def ui-todo-item (comp/factory TodoItem {:keyfn :db/id}))
+
+(defn header [component title]
+  (let [{:keys [db/id ui/new-item-text]} (comp/props component)]
+    (dom/header :.header
+      (dom/h1 title)
+      (dom/input {:value       (or new-item-text "")
+                  :className   "new-todo"
+                  :onKeyDown   (fn [evt]
+                                 (when (is-enter? evt)
+                                   (when-let [trimmed-text (trim-text (.. evt -target -value))]
+                                     (comp/transact! component `[(api/todo-new-item ~{:list-id id
+                                                                               :id      (tmp/tempid)
+                                                                               :text    trimmed-text})]))))
+                  :onChange    (fn [evt] (mut/set-string! component :ui/new-item-text :event evt))
+                  :placeholder "What needs to be done?"
+                  :autoFocus   true}))))
+
+(defn filter-footer [component num-todos num-completed]
+  (let [{:keys [db/id list/filter]} (comp/props component)
+        num-remaining (- num-todos num-completed)]
+
+    (dom/footer :.footer
+      (dom/span :.todo-count
+        (dom/strong (str num-remaining " left")))
+      (dom/ul :.filters
+        (dom/li
+          (dom/a {:className (when (or (nil? filter) (= :list.filter/none filter)) "selected")
+                  :href      "#"} "All"))
+        (dom/li
+          (dom/a {:className (when (= :list.filter/active filter) "selected")
+                  :href      "#/active"} "Active"))
+        (dom/li
+          (dom/a {:className (when (= :list.filter/completed filter) "selected")
+                  :href      "#/completed"} "Completed")))
+      (when (pos? num-completed)
+        (dom/button {:className "clear-completed"
+                     :onClick   #(comp/transact! component `[(api/todo-clear-complete {:list-id ~id})])} "Clear Completed")))))
+
+(defn footer-info []
+  (dom/footer :.info
+    (dom/p "Double-click to edit a todo")
+    (dom/p "Created by "
+      (dom/a {:href   "http://www.fulcrologic.com"
+              :target "_blank"} "Fulcrologic, LLC"))
+    (dom/p "Part of "
+      (dom/a {:href   "http://todomvc.com"
+              :target "_blank"} "TodoMVC"))))
+
+(defsc TodoList [this {:db/keys [id] :list/keys [items filter title]}]
+  {:initial-state (fn [p] {:db/id (tmp/tempid) :ui/new-item-text "" :list/items [] :list/title "main" :list/filter :list.filter/none})
+   :ident         [:list/by-id :db/id]
+   :query         [:db/id :ui/new-item-text {:list/items (comp/get-query TodoItem)} :list/title :list/filter]}
+  (let [num-todos       (count items)
+        completed-todos (filterv :item/complete items)
+        num-completed   (count completed-todos)
+        all-completed?  (= num-completed num-todos)
+        filtered-todos  (case filter
+                          :list.filter/active (filterv (comp not :item/complete) items)
+                          :list.filter/completed completed-todos
+                          items)
+        delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
+        check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
+        uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
+
+    (dom/div
+      (dom/section :.todoapp
+        (header this title)
+        (when (pos? num-todos)
+          (dom/div
+            (dom/section :.main
+              (dom/input {:type      "checkbox"
+                          :className "toggle-all"
+                          :checked   all-completed?
+                          :onClick   (fn [] (if all-completed?
+                                              (comp/transact! this `[(api/todo-uncheck-all {:list-id ~id})])
+                                              (comp/transact! this `[(api/todo-check-all {:list-id ~id})])))})
+              (dom/label {:htmlFor "toggle-all"} "Mark all as complete")
+              (dom/ul :.todo-list
+                (map #(ui-todo-item (comp/computed %
+                                      {:delete-item delete-item
+                                       :check       check
+                                       :uncheck     uncheck})) filtered-todos)))
+            (filter-footer this num-todos num-completed))))
+      (footer-info))))
+
+(def ui-todo-list (comp/factory TodoList))
+
+(defsc Application [this {:keys [todos]}]
+  {:initial-state (fn [p] {:todos (comp/get-initial-state TodoList {})})
+   :ident         (fn [] [:application :root])
+   :query         [{:todos (comp/get-query TodoList)}]}
+  (dom/div
+    (ui-todo-list todos)))
+
+(def ui-application (comp/factory Application))
+
+(defsc Root [this {:root/keys [application]}]
+  {:initial-state (fn [p] {:root/application (comp/get-initial-state Application {})})
+   :query         [{:root/application (comp/get-query Application)}]}
+  (dom/div
+    (ui-application application)))

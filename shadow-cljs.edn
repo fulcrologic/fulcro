@@ -1,42 +1,24 @@
 {:deps     {:aliases [:test :dev]}
  :nrepl    {:port 9000}
  :dev-http {9001 "resources/public"}
- :jvm-opts ["-Xmx2G" "-Dfulcro.logging=trace"]
- :builds   {:book       {:target     :browser
-                         :output-dir "docs/js/book"
-                         :asset-path "/js/book"
-                         :modules    {:book {:entries [book.main]}
-                                      ; For the dynamic code splitting demo
-                                      :main {:entries    [book.demos.dynamic-ui-main]
-                                             :depends-on #{:book}}}
-                         :devtools   {:preloads [fulcro.inspect.preload]}}
+ :jvm-opts ["-Xmx2G"]
+ :builds   {:todomvc  {:target     :browser
+                       :output-dir "resources/public/js/todomvc"
+                       :asset-path "/js/todomvc"
+                       :modules    {:main {:entries [fulcro-todomvc.main]}}}
 
-            :play       {:target     :browser
-                         :output-dir "resources/public/js/play"
-                         :asset-path "/js/play"
-                         :dev        {:compiler-options {:external-config {:ghostwheel {}}}}
-                         :modules    {:main {:entries [fulcro3.main]}}
-                         :devtools   {:preloads [fulcro.inspect.preload]}}
+            :test     {:target           :browser-test
+                       :test-dir         "resources/public/js/test"
+                       :ns-regexp        "-spec$"
+                       :dev              {:compiler-options {:external-config {:ghostwheel {}}}}
+                       :compiler-options {:static-fns false} ; required for mocking to work
+                       :devtools         {:http-port          9002
+                                          :http-resource-root "public"
+                                          :http-root          "resources/public/js/test"}}
 
-            :test       {:target           :browser-test
-                         :test-dir         "resources/public/js/test"
-                         :ns-regexp        "-spec$"
-                         :dev              {:compiler-options {:external-config {:ghostwheel {}}}}
-                         :compiler-options {:static-fns false} ; required for mocking to work
-                         :devtools         {:http-port          9002
-                                            :http-resource-root "public"
-                                            :http-root          "resources/public/js/test"}}
-
-            :ci-tests   {:target           :karma
-                         :js-options       {:js-provider :shadow}
-                         :compiler-options {:static-fns false} ; required for mocking to work
-                         :output-to        "target/ci.js"
-                         :ns-regexp        "-spec$"}
-
-            :workspaces {:target     nubank.workspaces.shadow-cljs.target
-                         :ns-regexp  "-ws$"
-                         :output-dir "resources/public/js/workspaces"
-                         :asset-path "js/workspaces"
-                         :dev        {:compiler-options {:external-config {:ghostwheel {}}}}
-                         :devtools   {:preloads [fulcro.inspect.preload]}}}}
+            :ci-tests {:target           :karma
+                       :js-options       {:js-provider :shadow}
+                       :compiler-options {:static-fns false} ; required for mocking to work
+                       :output-to        "target/ci.js"
+                       :ns-regexp        "-spec$"}}}
 

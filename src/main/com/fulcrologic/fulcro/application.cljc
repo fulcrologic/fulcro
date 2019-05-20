@@ -5,29 +5,23 @@
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.components :as comp]
-    [taoensso.timbre :as log])
+    #?(:cljs [goog.dom :as gdom])
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm])
   #?(:clj (:import (clojure.lang IDeref))))
 
-(defn fulcro-app
-  ([] (fulcro-app {}))
-  ([options]
-   {::state-atom   (atom {})
-    ::runtime-atom (atom {::app-root                                        nil
-                          ::middleware                                      {:extra-props-middleware (get options :extra-props-middleware)
-                                                                             :render-middleware      (get options :render-middleware)}
-                          ::remotes                                         {:remote (fn [send] (log/info "Send"))}
-                          ::indexes                                         {:ident->components {}}
-                          ::mutate                                          mut/mutate
-                          :com.fulcrologic.fulcro.transactions/activation-scheduled?       false
-                          :com.fulcrologic.fulcro.transactions/queue-processing-scheduled? false
-                          :com.fulcrologic.fulcro.transactions/sends-scheduled?            false
-                          :com.fulcrologic.fulcro.transactions/submission-queue            []
-                          :com.fulcrologic.fulcro.transactions/active-queue                []
-                          :com.fulcrologic.fulcro.transactions/send-queues                 {}})}))
-
-(defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
-
-(defn render! [app])
+(defn render!
+  ([app]
+   (render! app false))
+  ([app force-root]
+   (let [{::keys [runtime-atom state-atom]} app
+         {::keys [root-factory root-class mount-node]} @runtime-atom
+         state-map @state-atom
+         query     (comp/get-query root-class state-map)
+         data-tree (fdn/db->tree query state-map state-map)]
+     (binding [comp/*app* app]
+       (js/ReactDOM.render (root-factory data-tree) mount-node)))))
 
 (defn schedule-render! [app]
   #?(:clj  (render! app)
@@ -42,9 +36,59 @@
    (tx! app tx {:optimistic? true}))
   ([{::keys [runtime-atom] :as app} tx options]
    (txn/schedule-activation! app)
+   (schedule-render! app)
    (let [node (txn/tx-node tx options)]
      (swap! runtime-atom update ::txn/submission-queue (fnil conj []) node)
      (::txn/id node))))
+
+
+(defn fulcro-app
+  ([] (fulcro-app {}))
+  ([options]
+   {::state-atom   (atom {})
+    ::tx!          tx!
+    ::render!      schedule-render!
+    ::runtime-atom (atom
+                     {::app-root                                                       nil
+                      ::mount-node                                                     nil
+                      ::root-class                                                     nil
+                      ::root-factory                                                   nil
+                      ::middleware                                                     {:extra-props-middleware (get options :extra-props-middleware)
+                                                                                        :render-middleware      (get options :render-middleware)}
+                      ::remotes                                                        {:remote (fn [send]
+                                                                                                  (log/info "Send"))}
+                      ::indexes                                                        {:ident->components {}}
+                      ::mutate                                                         mut/mutate
+                      :com.fulcrologic.fulcro.transactions/activation-scheduled?       false
+                      :com.fulcrologic.fulcro.transactions/queue-processing-scheduled? false
+                      :com.fulcrologic.fulcro.transactions/sends-scheduled?            false
+                      :com.fulcrologic.fulcro.transactions/submission-queue            []
+                      :com.fulcrologic.fulcro.transactions/active-queue                []
+                      :com.fulcrologic.fulcro.transactions/send-queues                 {}})}))
+
+(defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
+
+(defn mounted? [{::keys [runtime-atom]}]
+  (-> runtime-atom deref ::app-root boolean))
+
+(defn mount! [app root node]
+  #?(:cljs
+     (if (mounted? app)
+       (schedule-render! app)
+       (let [dom-node     (gdom/getElement node)
+             root-factory (comp/factory root)
+             root-query   (log/spy :info (comp/get-query root))
+             initial-tree (log/spy :info (comp/get-initial-state root))
+             initial-db   (log/spy :info (fnorm/tree->db root-query initial-tree))]
+         (reset! (::state-atom app) initial-db)
+         (swap! (::runtime-atom app) assoc
+           ::mount-node dom-node
+           ::root-factory root-factory
+           ::root-class root)
+         (binding [comp/*app* app]
+           (let [app-root (js/ReactDOM.render (root-factory initial-tree) dom-node)]
+             (swap! (::runtime-atom app) assoc
+               ::app-root app-root)))))))
 
 (defn merge!
   "Merge an arbitrary data-tree that conforms to the shape of the given query using Fulcro's

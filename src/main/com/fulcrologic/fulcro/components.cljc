@@ -10,7 +10,8 @@
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
-    [clojure.string :as str])
+    [clojure.string :as str]
+    [com.fulcrologic.fulcro.algorithms.helpers :as util])
   #?(:clj
      (:import (clojure.lang Associative IDeref))))
 
@@ -18,6 +19,9 @@
 
 (defonce ^:private component-registry (atom {}))
 (def ^:dynamic *query-state* nil)
+(def ^:dynamic *app* nil)
+(def ^:dynamic *parent* nil)
+(def ^:dynamic *depth* nil)
 
 (defn -register-component!
   "Add a component to Fulcro's component registry.  This is used by defsc and defui to ensure that all Fulcro classes
@@ -130,15 +134,18 @@
 (defn has-query? #?(:cljs {:tag boolean}) [component] (has-feature? component :query))
 (defn has-pre-merge? #?(:cljs {:tag boolean}) [component] (has-feature? component :pre-merge))
 (defn ident [this props] (when (has-feature? this :ident) ((component-options this :ident) this props)))
-(defn query [this] (when (has-feature? this :query) ((component-options this :query) this)))
+(defn query [this] (when (log/spy :info (has-feature? this :query)) ((component-options this :query) this)))
 (defn initial-state [clz params] (when (has-feature? clz :initial-state) ((component-options clz :initial-state) clz params)))
 (defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) this data)))
+(defn depth [this] #?(:cljs (gobj/getValueByKeys this "props" "fulcro$depth")))
 
 (defn get-raw-react-prop
   "GET a RAW react prop"
   [c k]
   #?(:clj  nil                                              ;; FIXME
-     :cljs (gobj/getValueByKeys c "props" k)))
+     :cljs (do
+             (js/console.log c)
+             (gobj/getValueByKeys c "props" k))))
 
 (defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
 
@@ -147,8 +154,8 @@
   map with a :reconciler key, or an atom holding any of the above."
   [x]
   (cond
-    (component? x) (get-raw-react-prop x #?(:clj  :fulcro$reconciler
-                                            :cljs "fulcro$reconciler"))
+    (component? x) (get-raw-react-prop x #?(:clj  :fulcro$app
+                                            :cljs "fulcro$app"))
     (fulcro-app? x) x
     #?(:clj  (instance? IDeref x)
        :cljs (satisfies? IDeref x)) (any->app (deref x))))
@@ -219,11 +226,11 @@
                 (let [current-props     (props this)
                       next-props        (raw->newest-props raw-next-props raw-next-state)
                       next-state        (gobj/get raw-next-state "fulcro$state")
-                      current-state     (gobj/get (.-state this) "fulcro$state")
+                      current-state     (gobj/getValueByKeys this "state" "fulcro$state")
                       props-changed?    (not= current-props next-props)
                       state-changed?    (not= current-state next-state)
-                      next-children     (.-children next-props)
-                      children-changed? (not= (.. this -props -children) next-children)]
+                      next-children     (gobj/get raw-next-props "children")
+                      children-changed? (not= (gobj/getValueByKeys this "props" "children") next-children)]
                   (or props-changed? state-changed? children-changed?)))))
    (component-did-update
      [raw-prev-props raw-prev-state snapshot]
@@ -274,8 +281,20 @@
                         props     (if check-for-fresh-props-in-state?
                                     (raw->newest-props raw-props raw-state)
                                     (gobj/get raw-props "fulcro$props"))]
-                    (handler this props)))))))]
+                    (handler this props)))))))
 
+   (wrap-base-render [render]
+     #?(:clj (fn [& args])
+        :cljs
+        (fn [& args]
+          (this-as this
+            (if-let [app (any->app this)]
+              (binding [*app*         app
+                        *depth*       (inc (depth this))
+                        *query-state* (-> app (:com.fulcrologic.fulcro.application/state-atom) deref)
+                        *parent*      this]
+                (apply render this args))
+              (log/fatal "Cannot find app on component!"))))))]
   (defn configure-component!
     "Configure the given `cls` to act as a react component."
     [cls fqkw options]
@@ -300,7 +319,7 @@
                                       :fulcro$isComponent    true
                                       :displayName           name}
                                    (cond->
-                                     render (assoc :render (wrap-this render))
+                                     render (assoc :render (wrap-base-render render))
                                      getSnapshotBeforeUpdate (assoc :getSnapshotBeforeUpdate (wrap-props-state-handler getSnapshotBeforeUpdate))
                                      componentDidCatch (assoc :componentDidCatch (wrap-this componentDidCatch))
                                      UNSAFE_componentWillMount (assoc :UNSAFE_componentWillMount (wrap-this UNSAFE_componentWillMount))
@@ -357,8 +376,10 @@
 
 (defn get-initial-state
   "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
-  [class params]
-  (some-> (initial-state class params) (with-meta {:computed true})))
+  ([class]
+   (some-> (initial-state class {}) (with-meta {:computed true})))
+  ([class params]
+   (some-> (initial-state class params) (with-meta {:computed true}))))
 
 (defn computed-initial-state?
   "Returns true if the given initial state was computed from a call to get-initial-state."
@@ -389,7 +410,7 @@
   "Returns a string version of the given react component's name."
   [class]
   #?(:clj  (str (-> class meta :component-ns) "/" (-> class meta :component-name))
-     :cljs (.-displayName ^js class)))
+     :cljs (log/spy :info (.-displayName ^js class))))
 
 (defn is-factory?
   [class-or-factory]
@@ -432,17 +453,17 @@
   ([class-or-factory] (get-query class-or-factory *query-state*))
   ([class-or-factory state-map]
    (binding [*query-state* state-map]
-     (let [class     (cond
-                       (is-factory? class-or-factory) (-> class-or-factory meta :class)
-                       (component? class-or-factory) (react-type class-or-factory)
-                       :else class-or-factory)
-           qualifier (if (is-factory? class-or-factory)
-                       (-> class-or-factory meta :qualifier)
-                       nil)
-           queryid   (if (component? class-or-factory)
-                       (get-query-id class-or-factory)
-                       (query-id class qualifier))]
-       (when (and class (has-query? class))
+     (let [class     (log/spy :info (cond
+                                      (is-factory? class-or-factory) (-> class-or-factory meta :class)
+                                      (component? class-or-factory) (react-type class-or-factory)
+                                      :else class-or-factory))
+           qualifier (log/spy :info (if (is-factory? class-or-factory)
+                                      (-> class-or-factory meta :qualifier)
+                                      nil))
+           queryid   (log/spy :info (if (component? class-or-factory)
+                                      (get-query-id class-or-factory)
+                                      (query-id class qualifier)))]
+       (when (and (log/spy :info class) (log/spy :info (has-query? class)))
          (get-query-by-id state-map class queryid))))))
 
 (defn make-state-map
@@ -496,7 +517,7 @@
   #?(:clj
      (real-render)
      :cljs
-     (let [{:com.fulcrologic.fulcro.specifications.application-specs/keys [middleware] :as app} (gobj/getValueByKeys this "props" "fulcro$reconciler")
+     (let [{:com.fulcrologic.fulcro.application/keys [middleware] :as app} (gobj/getValueByKeys this "props" "fulcro$app")
            {:keys [render-middleware]} middleware]
        (log/info :app app)
        (if (log/spy :info render-middleware)
@@ -574,3 +595,46 @@
            (if (contains? (ex-data e) :tag)
              (throw e)
              (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e))))))))
+
+#?(:cljs
+   (defn create-element [class props children]
+     (apply js/React.createElement class props children)))
+
+(defn factory
+  "Create a factory constructor from a component class created with
+   defui."
+  ([class] (factory class nil))
+  ([class {:keys [keyfn qualifier] :as opts}]
+   #?(:cljs
+      (with-meta
+        (fn element-factory [props & children]
+          (let [key (if-not (nil? keyfn)
+                      (keyfn props)
+                      "1")
+                ref (:ref props)
+                ref (cond-> ref (keyword? ref) str)]
+            (log/info "App nil? " (nil? *app*))
+            (create-element class
+              #js {:key             key
+                   :ref             ref
+                   :fulcro$reactKey key
+                   :fulcro$value    props
+                   :fulcro$queryid  (query-id class qualifier)
+                   :fulcro$app      *app*
+                   :fulcro$parent   *parent*
+                   :fulcro$depth    *depth*}
+              (or (util/force-children children) []))))
+        {:class     class
+         :queryid   (query-id class qualifier)
+         :qualifier qualifier}))))
+
+(defn transact!
+  ([comp tx options]
+   (when-let [app (any->app comp)]
+     (let [transact! (:com.fulcrologic.fulcro.application/tx! app)
+           options   (cond-> options
+                       (has-ident? comp) (assoc :ref (get-ident comp))
+                       (component? comp) (assoc :component comp))]
+       (transact! app tx options))))
+  ([comp tx]
+   (transact! comp tx {})))

@@ -1,4 +1,4 @@
-{:paths   ["src/main"]
+{:paths   ["src/main" "src/todomvc"]
 
  :deps    {edn-query-language/eql     {:mvn/version "0.0.3"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
