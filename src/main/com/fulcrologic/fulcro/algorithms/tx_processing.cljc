@@ -198,7 +198,7 @@
   "Run through the elements on the given tx-node and do the side-effect-free dispatch.  This generates the dispatch map
   of things to do on that node."
   [tx-node env dispatch-fn]
-  (let [run          (fn run* [env]
+  (let [do-dispatch  (fn run* [env]
                        (try
                          (dispatch-fn env)
                          (catch #?(:clj Exception :cljs :default) e
@@ -208,7 +208,7 @@
                        (let [{:keys [type]} original-ast-node
                              env (assoc env :ast original-ast-node)]
                          (cond-> ele
-                           (= :call type) (assoc ::dispatch (run env)))))
+                           (= :call type) (assoc ::dispatch (do-dispatch env)))))
         dispatch-all (fn [eles] (mapv dispatch eles))]
     (update tx-node ::elements dispatch-all)))
 
@@ -259,7 +259,10 @@
                                  remote-set      (set/intersection remotes (set (keys dispatch)))
                                  exec?           (and action (not (or done? (complete? :action))))
                                  fully-complete? (and (or exec? (complete? :action)) (empty? (set/difference remote-set complete?)))
-                                 updated-element (if exec? (update element ::complete? conj :action) element)
+                                 state-before    (-> app :com.fulcrologic.fulcro.application/state-atom deref)
+                                 updated-element (if exec? (-> element
+                                                             (assoc ::state-before-action state-before)
+                                                             (update ::complete? conj :action)) element)
                                  done?           (not fully-complete?)
                                  new-acc         {:done?        done?
                                                   :new-elements (conj new-elements updated-element)}
@@ -283,7 +286,10 @@
                          (let [{::keys [complete? dispatch]} element
                                {:keys [action]} dispatch
                                exec?        (and action (not (complete? :action)))
-                               updated-node (if exec? (update element ::complete? conj :action) element)
+                               state-before (-> app :com.fulcrologic.fulcro.application/state-atom deref)
+                               updated-node (if exec? (-> element
+                                                        (assoc ::state-before-action state-before)
+                                                        (update ::complete? conj :action)) element)
                                new-acc      (conj new-elements updated-node)
                                env          (build-env app node {:ast (:original-ast-node element)})]
                            (when exec?
@@ -345,9 +351,9 @@
         update-handler (fn progress-handler* [result]
                          (record-result! app id ele-idx remote result ::progress)
                          (schedule-queue-processing! app 0))
-        {::keys [dispatch original-ast-node]} (get-in tx-node [::elements ele-idx])
-        env            (build-env app tx-node {:ast original-ast-node})
-        ;; TASK: Add state-before-action to env
+        {::keys [dispatch original-ast-node state-before-action]} (get-in tx-node [::elements ele-idx])
+        env            (build-env app tx-node {:ast                 original-ast-node
+                                               :state-before-action state-before-action})
         remote-fn      (get dispatch remote)
         ast            (when remote-fn (remote-fn env))
         ast            (cond

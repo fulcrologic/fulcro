@@ -346,10 +346,68 @@
         base-query    (component-merge-query state-map component object-data)
         ;; :fulcro/merge is way to make unions merge properly when joined by idents
         merge-query   [{:fulcro/merge base-query}]
-        ;; TASK: need basis-t
         existing-data (get (fdn/db->tree base-query state-map state-map) ident {})
         marked-data   (mark-missing object-data object-query)
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
      :merge-data  merge-data}))
+
+(defn merge-alternate-unions
+  "Walks the given query and calls (merge-fn parent-union-component union-child-initial-state) for each non-default element of a union that has initial app state.
+  You probably want to use merge-alternate-union-elements[!] on a state map or app."
+  [merge-fn root-component]
+  (letfn [(walk-ast
+            ([ast visitor]
+             (walk-ast ast visitor nil))
+            ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
+             (when (and component parent-union (= :union-entry type))
+               (visitor component parent-union))
+             (when children
+               (doseq [ast children]
+                 (cond
+                   (= (:type ast) :union) (walk-ast ast visitor component) ; the union's component is on the parent join
+                   (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
+                   ast (walk-ast ast visitor nil))))))
+          (merge-union [component parent-union]
+            (let [default-initial-state   (and parent-union (comp/has-initial-app-state? parent-union) (comp/get-initial-state parent-union {}))
+                  to-many?                (vector? default-initial-state)
+                  component-initial-state (and component (comp/has-initial-app-state? component) (comp/get-initial-state component {}))]
+              (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
+                (merge-fn parent-union component-initial-state))))]
+    (walk-ast
+      (eql/query->ast (comp/get-query root-component))
+      merge-union)))
+
+(defn merge-component
+  "Given a state map of the application database, a component, and a tree of component-data: normalizes
+   the tree of data and merges the component table entries into the state, returning a new state map.
+   Since there is not an implied root, the component itself won't be linked into your graph (though it will
+   remain correctly linked for its own consistency).
+   Therefore, this function is just for dropping normalized things into tables
+   when they themselves have a recursive nature. This function is useful when you want to create a new component instance
+   and put it in the database, but the component instance has recursive normalized state. This is a basically a
+   thin wrapper around `prim/tree->db`.
+
+   See also integrate-ident, integrate-ident!, and merge-component!"
+  [state-map component component-data & named-parameters]
+  (if-let [top-ident (comp/get-ident component component-data)]
+    (let [query          [{top-ident (comp/get-query component)}]
+          state-to-merge {top-ident component-data}
+          table-entries  (-> (fnorm/tree->db query state-to-merge true (pre-merge-transform state-map))
+                           (dissoc ::tables top-ident))]
+      (cond-> (util/deep-merge state-map table-entries)
+        (seq named-parameters) (#(apply integrate-ident* % top-ident named-parameters))))
+    state-map))
+
+(defn merge-alternate-union-elements
+  "Just like merge-alternate-union-elements!, but usable from within mutations and on server-side rendering. Ensures
+  that when a component has initial state it will end up in the state map, even if it isn't currently in the
+  initial state of the union component (which can only point to one at a time)."
+  [state-map root-component]
+  (let [initial-state  (comp/get-initial-state root-component nil)
+        state-map-atom (atom state-map)
+        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
+        _              (merge-alternate-unions merge-to-state root-component)
+        new-state      @state-map-atom]
+    new-state))
 

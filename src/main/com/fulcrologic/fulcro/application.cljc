@@ -16,6 +16,12 @@
   [app]
   (-> app ::runtime-atom deref ::basis-t))
 
+(defn current-state
+  "Get the value of the application state database at the current time."
+  [app]
+  (let [app (comp/any->app app)]
+    (-> app ::state-atom deref)))
+
 (defn tick!
   "Move the basis-t forward one tick."
   [app]
@@ -83,25 +89,6 @@
 (defn mounted? [{::keys [runtime-atom]}]
   (-> runtime-atom deref ::app-root boolean))
 
-(defn mount! [app root node]
-  #?(:cljs
-     (if (mounted? app)
-       (schedule-render! app)
-       (let [dom-node     (gdom/getElement node)
-             root-factory (comp/factory root)
-             root-query   (log/spy :info (comp/get-query root))
-             initial-tree (comp/get-initial-state root)
-             initial-db   (fnorm/tree->db root-query initial-tree true)]
-         (reset! (::state-atom app) initial-db)
-         (swap! (::runtime-atom app) assoc
-           ::mount-node dom-node
-           ::root-factory root-factory
-           ::root-class root)
-         (binding [comp/*app* app]
-           (let [app-root (js/ReactDOM.render (root-factory initial-tree) dom-node)]
-             (swap! (::runtime-atom app) assoc
-               ::app-root app-root)))))))
-
 (defn merge!
   "Merge an arbitrary data-tree that conforms to the shape of the given query using Fulcro's
   standard merge and normalization logic.
@@ -109,8 +96,10 @@
   query - A query, derived from defui components, that can be used to normalized a tree of data.
   data-tree - A tree of data that matches the nested shape of query
   remote - No longer used. May be passed, but is ignored."
-  ([{:com.fulcrologic.fulcro.application/keys [state-atom]} data-tree query]
-   (swap! state-atom merge/merge* query data-tree)))
+  [app data-tree query]
+  (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} (comp/any->app app)]
+    (when state-atom
+      (swap! state-atom merge/merge* query data-tree))))
 
 (defn merge-component!
   "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
@@ -141,16 +130,45 @@
   See also `fulcro.client.primitives/merge!`.
   "
   [app component object-data & named-parameters]
-  (if-not (comp/has-ident? component)
-    (log/error "merge-component!: component must implement Ident. Merge skipped.")
-    (let [ident (comp/get-ident component object-data)
-          state (:com.fulcrologic.fulcro.application/state-atom app)
-          {:keys [merge-data merge-query]} (merge/-preprocess-merge @state component object-data)]
-      (merge! app merge-data merge-query)
-      (swap! state (fn [s]
-                     (as-> s st
-                       ;; Use utils until we make smaller namespaces, requiring mutations would
-                       ;; cause circular dependency.
-                       (apply merge/integrate-ident* st ident named-parameters)
-                       (dissoc st :fulcro/merge))))
-      (schedule-render! app))))
+  (when-let [app (comp/any->app app)]
+    (if-not (comp/has-ident? component)
+      (log/error "merge-component!: component must implement Ident. Merge skipped.")
+      (let [ident (comp/get-ident component object-data)
+            state (:com.fulcrologic.fulcro.application/state-atom app)
+            {:keys [merge-data merge-query]} (merge/-preprocess-merge @state component object-data)]
+        (merge! app merge-data merge-query)
+        (swap! state (fn [s]
+                       (as-> s st
+                         ;; Use utils until we make smaller namespaces, requiring mutations would
+                         ;; cause circular dependency.
+                         (apply merge/integrate-ident* st ident named-parameters)
+                         (dissoc st :fulcro/merge))))
+        (schedule-render! app)))))
+
+(defn merge-alternate-union-elements!
+  "Walks the query and initial state of root-component and merges the alternate sides of unions with initial state into
+  the application state database. See also `merge-alternate-union-elements`, which can be used on a state map and
+  is handy for server-side rendering. This function side-effects on your app, and returns nothing."
+  [app root-component]
+  (let [app (comp/any->app app)]
+    (merge/merge-alternate-unions (partial merge-component! app) root-component)))
+
+(defn mount! [app root node]
+  #?(:cljs
+     (if (mounted? app)
+       (schedule-render! app)
+       (let [dom-node     (gdom/getElement node)
+             root-factory (comp/factory root)
+             root-query   (comp/get-query root)
+             initial-tree (comp/get-initial-state root)
+             initial-db   (-> (fnorm/tree->db root-query initial-tree true)
+                            (merge/merge-alternate-union-elements root))]
+         (reset! (::state-atom app) initial-db)
+         (swap! (::runtime-atom app) assoc
+           ::mount-node dom-node
+           ::root-factory root-factory
+           ::root-class root)
+         (binding [comp/*app* app]
+           (let [app-root (js/ReactDOM.render (root-factory initial-tree) dom-node)]
+             (swap! (::runtime-atom app) assoc
+               ::app-root app-root)))))))
