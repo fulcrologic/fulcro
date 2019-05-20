@@ -81,9 +81,7 @@
   "Get any data (as a map) that extensions have associated with the given Fulcro component."
   [this]
   #?(:clj  {}
-     :cljs (do
-             (js/console.log this)
-             (or (gobj/getValueByKeys this "props" "fulcro$extra_props") {}))))
+     :cljs (or (gobj/getValueByKeys this "props" "fulcro$extra_props") {})))
 
 (defn props
   "Return a components props."
@@ -134,7 +132,7 @@
 (defn has-query? #?(:cljs {:tag boolean}) [component] (has-feature? component :query))
 (defn has-pre-merge? #?(:cljs {:tag boolean}) [component] (has-feature? component :pre-merge))
 (defn ident [this props] (when (has-feature? this :ident) ((component-options this :ident) this props)))
-(defn query [this] (when (log/spy :info (has-feature? this :query)) ((component-options this :query) this)))
+(defn query [this] (when (has-feature? this :query) ((component-options this :query) this)))
 (defn initial-state [clz params] (when (has-feature? clz :initial-state) ((component-options clz :initial-state) clz params)))
 (defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) this data)))
 (defn depth [this] #?(:cljs (gobj/getValueByKeys this "props" "fulcro$depth")))
@@ -143,9 +141,7 @@
   "GET a RAW react prop"
   [c k]
   #?(:clj  nil                                              ;; FIXME
-     :cljs (do
-             (js/console.log c)
-             (gobj/getValueByKeys c "props" k))))
+     :cljs (gobj/getValueByKeys c "props" k)))
 
 (defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
 
@@ -330,7 +326,6 @@
                                      componentWillReceiveProps (assoc :componentWillReceiveProps (wrap-props-handler componentWillReceiveProps))
                                      initLocalState (assoc :initLocalState (wrap-this initLocalState)))))
              statics           (cond-> {:displayName            name
-                                        :fulcro$isComponent     true
                                         :cljs$lang$type         true
                                         :cljs$lang$ctorStr      name
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
@@ -410,7 +405,7 @@
   "Returns a string version of the given react component's name."
   [class]
   #?(:clj  (str (-> class meta :component-ns) "/" (-> class meta :component-name))
-     :cljs (log/spy :info (.-displayName ^js class))))
+     :cljs (.-displayName ^js class)))
 
 (defn is-factory?
   [class-or-factory]
@@ -452,18 +447,20 @@
   the current dynamically-set query according to that state."
   ([class-or-factory] (get-query class-or-factory *query-state*))
   ([class-or-factory state-map]
+   (when (nil? class-or-factory)
+     (throw (ex-info "nil passed to get-query" {})))
    (binding [*query-state* state-map]
-     (let [class     (log/spy :info (cond
-                                      (is-factory? class-or-factory) (-> class-or-factory meta :class)
-                                      (component? class-or-factory) (react-type class-or-factory)
-                                      :else class-or-factory))
-           qualifier (log/spy :info (if (is-factory? class-or-factory)
-                                      (-> class-or-factory meta :qualifier)
-                                      nil))
-           queryid   (log/spy :info (if (component? class-or-factory)
-                                      (get-query-id class-or-factory)
-                                      (query-id class qualifier)))]
-       (when (and (log/spy :info class) (log/spy :info (has-query? class)))
+     (let [class     (cond
+                       (is-factory? class-or-factory) (-> class-or-factory meta :class)
+                       (component? class-or-factory) (react-type class-or-factory)
+                       :else class-or-factory)
+           qualifier (if (is-factory? class-or-factory)
+                       (-> class-or-factory meta :qualifier)
+                       nil)
+           queryid   (if (component? class-or-factory)
+                       (get-query-id class-or-factory)
+                       (query-id class qualifier))]
+       (when (and class (has-query? class))
          (get-query-by-id state-map class queryid))))))
 
 (defn make-state-map
@@ -519,8 +516,7 @@
      :cljs
      (let [{:com.fulcrologic.fulcro.application/keys [middleware] :as app} (gobj/getValueByKeys this "props" "fulcro$app")
            {:keys [render-middleware]} middleware]
-       (log/info :app app)
-       (if (log/spy :info render-middleware)
+       (if render-middleware
          (render-middleware this real-render)
          (real-render)))))
 
@@ -613,7 +609,6 @@
                       "1")
                 ref (:ref props)
                 ref (cond-> ref (keyword? ref) str)]
-            (log/info "App nil? " (nil? *app*))
             (create-element class
               #js {:key             key
                    :ref             ref
@@ -631,10 +626,10 @@
 (defn transact!
   ([comp tx options]
    (when-let [app (any->app comp)]
-     (let [transact! (:com.fulcrologic.fulcro.application/tx! app)
-           options   (cond-> options
-                       (has-ident? comp) (assoc :ref (get-ident comp))
-                       (component? comp) (assoc :component comp))]
-       (transact! app tx options))))
+     (let [tx!     (:com.fulcrologic.fulcro.application/tx! app)
+           options (cond-> options
+                     (has-ident? comp) (assoc :ref (get-ident comp))
+                     (component? comp) (assoc :component comp))]
+       (tx! app tx options))))
   ([comp tx]
    (transact! comp tx {})))

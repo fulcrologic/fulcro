@@ -285,7 +285,7 @@
                                exec?        (and action (not (complete? :action)))
                                updated-node (if exec? (update element ::complete? conj :action) element)
                                new-acc      (conj new-elements updated-node)
-                           env             (build-env app node {:ast (:original-ast-node element)})]
+                               env          (build-env app node {:ast (:original-ast-node element)})]
                            (when exec?
                              (try
                                (action env)
@@ -500,7 +500,7 @@
 
 (defn process-queue!
   "Run through the active queue and do a processing step."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}]
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom render!] :as app}]
   (let [new-queue (reduce
                     (fn *pstep [new-queue n]
                       (if-let [new-node (process-tx-node! app n)]
@@ -508,4 +508,5 @@
                         new-queue))
                     []
                     (::active-queue @runtime-atom))]
-    (swap! runtime-atom assoc ::active-queue new-queue)))
+    (swap! runtime-atom assoc ::active-queue new-queue)
+    (render! app)))

@@ -346,6 +346,7 @@
         base-query    (component-merge-query state-map component object-data)
         ;; :fulcro/merge is way to make unions merge properly when joined by idents
         merge-query   [{:fulcro/merge base-query}]
+        ;; TASK: need basis-t
         existing-data (get (fdn/db->tree base-query state-map state-map) ident {})
         marked-data   (mark-missing object-data object-query)
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]

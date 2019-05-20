@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.algorithms.helpers :as util]
     [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :refer [has-ident? ident get-ident get-query]]))
 
 (defn normalize* [query data refs union-seen transform]

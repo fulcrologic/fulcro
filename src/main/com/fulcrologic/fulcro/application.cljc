@@ -11,17 +11,29 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm])
   #?(:clj (:import (clojure.lang IDeref))))
 
+(defn basis-t
+  "Return the current basis time of the app."
+  [app]
+  (-> app ::runtime-atom deref ::basis-t))
+
+(defn tick!
+  "Move the basis-t forward one tick."
+  [app]
+  (swap! (::runtime-atom app) update ::basis-t inc))
+
 (defn render!
   ([app]
    (render! app false))
   ([app force-root]
-   (let [{::keys [runtime-atom state-atom]} app
-         {::keys [root-factory root-class mount-node]} @runtime-atom
-         state-map @state-atom
-         query     (comp/get-query root-class state-map)
-         data-tree (fdn/db->tree query state-map state-map)]
-     (binding [comp/*app* app]
-       (js/ReactDOM.render (root-factory data-tree) mount-node)))))
+   (tick! app)
+   (binding [fdn/*denormalize-time* (basis-t app)]
+     (let [{::keys [runtime-atom state-atom]} app
+           {::keys [root-factory root-class mount-node]} @runtime-atom
+           state-map @state-atom
+           query     (comp/get-query root-class state-map)
+           data-tree (fdn/db->tree query state-map state-map)]
+       (binding [comp/*app* app]
+         (js/ReactDOM.render (root-factory data-tree) mount-node))))))
 
 (defn schedule-render! [app]
   #?(:clj  (render! app)
@@ -36,11 +48,10 @@
    (tx! app tx {:optimistic? true}))
   ([{::keys [runtime-atom] :as app} tx options]
    (txn/schedule-activation! app)
-   (schedule-render! app)
    (let [node (txn/tx-node tx options)]
      (swap! runtime-atom update ::txn/submission-queue (fnil conj []) node)
+     (schedule-render! app)
      (::txn/id node))))
-
 
 (defn fulcro-app
   ([] (fulcro-app {}))
@@ -53,6 +64,7 @@
                       ::mount-node                                                     nil
                       ::root-class                                                     nil
                       ::root-factory                                                   nil
+                      ::basis-t                                                        1
                       ::middleware                                                     {:extra-props-middleware (get options :extra-props-middleware)
                                                                                         :render-middleware      (get options :render-middleware)}
                       ::remotes                                                        {:remote (fn [send]
@@ -78,8 +90,8 @@
        (let [dom-node     (gdom/getElement node)
              root-factory (comp/factory root)
              root-query   (log/spy :info (comp/get-query root))
-             initial-tree (log/spy :info (comp/get-initial-state root))
-             initial-db   (log/spy :info (fnorm/tree->db root-query initial-tree))]
+             initial-tree (comp/get-initial-state root)
+             initial-db   (fnorm/tree->db root-query initial-tree true)]
          (reset! (::state-atom app) initial-db)
          (swap! (::runtime-atom app) assoc
            ::mount-node dom-node

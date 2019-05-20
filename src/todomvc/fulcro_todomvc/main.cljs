@@ -9,6 +9,6 @@
   (app/mount! app ui/Root "app"))
 
 (comment
-  app
+  (-> app ::app/state-atom deref)
 
   )
