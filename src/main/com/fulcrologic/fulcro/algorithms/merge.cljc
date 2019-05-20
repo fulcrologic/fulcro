@@ -1,11 +1,12 @@
 (ns com.fulcrologic.fulcro.algorithms.merge
   (:require
-    [fulcro.client.impl.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [taoensso.timbre :as log]
-    [fulcro.util :as util]))
+    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]))
 
 (defn remove-ident*
   "Removes an ident, if it exists, from a list of idents in app state. This
@@ -109,8 +110,8 @@
                                    :else nil)
                     result-value (get result result-key)]
                 (cond
-                  (or (and (util/ident? result-key) (= '_ (second result-key)))
-                    (and (util/ident? element) (= '_ (second element))))
+                  (or (and (eql/ident? result-key) (= '_ (second result-key)))
+                    (and (eql/ident? element) (= '_ (second element))))
                   result
 
                   (is-ui-query-fragment? result-key)
@@ -130,7 +131,7 @@
                       :otherwise (assoc result k (mark-missing result' query))))
 
                   ; pure ident query
-                  (and (util/ident? element) (nil? (get result element)))
+                  (and (eql/ident? element) (nil? (get result element)))
                   (assoc result element missing-entity)
 
                   ; union (a join with a map as a target query)
@@ -146,7 +147,7 @@
                       :else result))
 
                   ; ident-based join to nothing (removing table entries)
-                  (and (util/join? element) (util/ident? (util/join-key element)) (nil? (get result (util/join-key element))))
+                  (and (util/join? element) (eql/ident? (util/join-key element)) (nil? (get result (util/join-key element))))
                   (let [mock-missing-object (mark-missing {} (util/join-value element))]
                     (assoc result (util/join-key element) (merge mock-missing-object missing-entity)))
 
@@ -189,7 +190,7 @@
     (map? m) (reduce (fn [acc [k v]]
                        (cond
                          (or (= ::not-found k) (= ::not-found v) (= ::tempids k) (= :tempids k)) acc
-                         (and (util/ident? v) (= ::not-found (second v))) acc
+                         (and (eql/ident? v) (= ::not-found (second v))) acc
                          :otherwise (assoc acc k (sweep v))))
                (with-meta {} (meta m))
                m)
@@ -209,7 +210,7 @@
         (cond
           (or (= key ::tempids) (= key :tempids) (= key ::not-found)) acc
           (= new-value ::not-found) (dissoc acc key)
-          (and (util/ident? new-value) (= ::not-found (second new-value))) acc
+          (and (eql/ident? new-value) (= ::not-found (second new-value))) acc
           (leaf? new-value) (assoc acc key (sweep-one new-value))
           (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
           :else (assoc acc key (sweep new-value)))))
@@ -293,7 +294,7 @@
   (let [ident-joins (into {} (comp
                                (map #(cond-> % (seq? %) first))
                                (filter #(and (util/join? %)
-                                          (util/ident? (util/join-key %)))))
+                                          (eql/ident? (util/join-key %)))))
                       query)]
     (letfn [(step [result-tree [ident props]]
               (let [component-query (get ident-joins ident '[*])

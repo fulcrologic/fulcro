@@ -7,7 +7,7 @@
          [cljs.analyzer :as ana]]
         :cljs
         [[goog.object :as gobj]])
-    [fulcro.util :as util]
+    [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str])
@@ -380,7 +380,7 @@
   ([class props]
    (if-let [id (ident class props)]
      (do
-       (when-not (util/ident? id)
+       (when-not (eql/ident? id)
          (log/warn "get-ident returned an invalid ident for class:" class))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
      (log/warn "get-ident called with something that is either not a class or does not implement ident: " class))))

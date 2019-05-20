@@ -1,6 +1,7 @@
 (ns com.fulcrologic.fulcro.algorithms.normalize
   (:require
-    [fulcro.util :as util]
+    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.components :refer [has-ident? ident get-ident get-query]]))
 
 (defn normalize* [query data refs union-seen transform]
@@ -39,7 +40,7 @@
                     v           (get data k)]
                 (cond
                   ;; graph loop: db->tree leaves ident in place
-                  (and recursive? (util/ident? v)) (recur (next q) ret)
+                  (and recursive? (eql/ident? v)) (recur (next q) ret)
                   ;; normalize one
                   (map? v)
                   (let [x (normalize* sel v refs union-entry transform)]
@@ -51,7 +52,7 @@
                       (recur (next q) (assoc ret k x))))
 
                   ;; normalize many
-                  (and (vector? v) (not (util/ident? v)) (not (util/ident? (first v))))
+                  (and (vector? v) (not (eql/ident? v)) (not (eql/ident? (first v))))
                   (let [xs (into [] (map #(normalize* sel % refs union-entry transform)) v)]
                     (if-not (or (nil? class) (not (has-ident? class)))
                       (let [is (into [] (map #(get-ident class %)) xs)]

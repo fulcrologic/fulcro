@@ -1,8 +1,8 @@
 (ns com.fulcrologic.fulcro.algorithms.tx-processing
   (:require
-    [fulcro.util :as futil]
     [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
     [com.fulcrologic.fulcro.algorithms.ast :as ast]
+    [com.fulcrologic.fulcro.algorithms.helpers :as futil]
     [com.fulcrologic.fulcro.mutations :as m]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]

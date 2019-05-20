@@ -5,7 +5,7 @@
     [fulcro-spec.core :refer [specification provided! when-mocking! assertions behavior when-mocking component]]
     [clojure.spec.alpha :as s]
     [clojure.pprint :refer [pprint]]
-    [fulcro.util :refer [uuid]]
+    [com.fulcrologic.fulcro.algorithms.helpers :refer [uuid]]
     [ghostwheel.core :refer [>defn =>]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]

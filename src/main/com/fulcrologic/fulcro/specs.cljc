@@ -2,8 +2,8 @@
   (:require
     [ghostwheel.core :refer [>fdef =>]]
     [clojure.spec.alpha :as s]
+    [com.fulcrologic.fulcro.algorithms.helpers :as futil]
     [edn-query-language.core :as eql]
-    [fulcro.util :as futil]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn])
   #?(:clj
