@@ -82,12 +82,10 @@
 
 (defmutation todo-check-all [{:keys [list-id]}]
   (action [{:keys [state]}]
-    (log/info "CHECK ALL")
     (swap! state on-all-items-in-list list-id set-item-checked* true)))
 
 (defmutation todo-uncheck-all [{:keys [list-id]}]
   (action [{:keys [state]}]
-    (log/info "UNCHECK ALL")
     (swap! state on-all-items-in-list list-id set-item-checked* false)))
 
 (defmutation todo-clear-complete [{:keys [list-id]}]
@@ -144,4 +142,4 @@
     (let [query [{key (comp/get-query component @state)}]
           ast   (eql/query->ast query)
           ast   (elide-ast-nodes ast (fn [key] (and (keyword? key) (= (namespace key) "ui"))))]
-      (log/spy :info ast))))
+      ast)))

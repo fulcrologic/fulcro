@@ -14,7 +14,7 @@
 
 (defn handle-remote [{::txn/keys [ast result-handler] :as send-node}]
   (log/info "Remote got AST: " ast)
-  (let [query (log/spy :info (eql/ast->query ast))]
+  (let [query (eql/ast->query ast)]
     (async/go
       (result-handler
         (if-let [result (async/<! (sapi/parser {} query))]

@@ -42,7 +42,7 @@
                         (delete-item id)))]
 
     (dom/li {:classes [(when complete (str "completed")) (when editing (str " editing"))]}
-      (dom/div :.view
+      (dom/div :.view {}
         (dom/input {:type      "checkbox"
                     :ref       (comp/get-state this :save-ref)
                     :className "toggle"
@@ -66,8 +66,8 @@
 
 (defn header [component title]
   (let [{:keys [list/id ui/new-item-text]} (comp/props component)]
-    (dom/header :.header
-      (dom/h1 title)
+    (dom/header :.header {}
+      (dom/h1 {} title)
       (dom/input {:value       (or new-item-text "")
                   :className   "new-todo"
                   :onKeyDown   (fn [evt]
@@ -84,17 +84,17 @@
   (let [{:keys [list/id list/filter]} (comp/props component)
         num-remaining (- num-todos num-completed)]
 
-    (dom/footer :.footer
-      (dom/span :.todo-count
+    (dom/footer :.footer {}
+      (dom/span :.todo-count {}
         (dom/strong (str num-remaining " left")))
-      (dom/ul :.filters
-        (dom/li
+      (dom/ul :.filters {}
+        (dom/li {}
           (dom/a {:className (when (or (nil? filter) (= :list.filter/none filter)) "selected")
                   :href      "#"} "All"))
-        (dom/li
+        (dom/li {}
           (dom/a {:className (when (= :list.filter/active filter) "selected")
                   :href      "#/active"} "Active"))
-        (dom/li
+        (dom/li {}
           (dom/a {:className (when (= :list.filter/completed filter) "selected")
                   :href      "#/completed"} "Completed")))
       (when (pos? num-completed)
@@ -102,12 +102,12 @@
                      :onClick   #(comp/transact! component `[(api/todo-clear-complete {:list-id ~id})])} "Clear Completed")))))
 
 (defn footer-info []
-  (dom/footer :.info
-    (dom/p "Double-click to edit a todo")
-    (dom/p "Created by "
+  (dom/footer :.info {}
+    (dom/p {} "Double-click to edit a todo")
+    (dom/p {} "Created by "
       (dom/a {:href   "http://www.fulcrologic.com"
               :target "_blank"} "Fulcrologic, LLC"))
-    (dom/p "Part of "
+    (dom/p {} "Part of "
       (dom/a {:href   "http://todomvc.com"
               :target "_blank"} "TodoMVC"))))
 
@@ -126,12 +126,12 @@
         delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
         check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
         uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
-    (dom/div
-      (dom/section :.todoapp
+    (dom/div {}
+      (dom/section :.todoapp {}
         (header this title)
         (when (pos? num-todos)
-          (dom/div
-            (dom/section :.main
+          (dom/div {}
+            (dom/section :.main {}
               (dom/input {:type      "checkbox"
                           :className "toggle-all"
                           :checked   all-completed?
@@ -139,7 +139,7 @@
                                               (comp/transact! this `[(api/todo-uncheck-all {:list-id ~id})])
                                               (comp/transact! this `[(api/todo-check-all {:list-id ~id})])))})
               (dom/label {:htmlFor "toggle-all"} "Mark all as complete")
-              (dom/ul :.todo-list
+              (dom/ul :.todo-list {}
                 (map #(ui-todo-item (comp/computed %
                                       {:delete-item delete-item
                                        :check       check
@@ -153,7 +153,7 @@
   {:initial-state (fn [p] {:todos (comp/get-initial-state TodoList {})})
    :ident         (fn [] [:application :root])
    :query         [{:todos (comp/get-query TodoList)}]}
-  (dom/div
+  (dom/div {}
     (ui-todo-list todos)))
 
 (def ui-application (comp/factory Application))
@@ -161,5 +161,5 @@
 (defsc Root [this {:root/keys [application]}]
   {:initial-state (fn [p] {:root/application (comp/get-initial-state Application {})})
    :query         [{:root/application (comp/get-query Application)}]}
-  (dom/div
+  (dom/div {}
     (ui-application application)))

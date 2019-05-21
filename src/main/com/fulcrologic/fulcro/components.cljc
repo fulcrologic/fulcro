@@ -228,7 +228,7 @@
                       state-changed?    (not= current-state next-state)
                       next-children     (gobj/get raw-next-props "children")
                       children-changed? (not= (gobj/getValueByKeys this "props" "children") next-children)]
-                  (log/spy :info (or props-changed? state-changed? children-changed?))))))
+                  (or props-changed? state-changed? children-changed?)))))
    (component-did-update
      [raw-prev-props raw-prev-state snapshot]
      #?(:cljs

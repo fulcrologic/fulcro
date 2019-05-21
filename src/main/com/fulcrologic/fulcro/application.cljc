@@ -33,10 +33,9 @@
   (let [{::keys [runtime-atom state-atom]} app
         {::keys [root-factory root-class mount-node]} @runtime-atom
         state-map @state-atom
-        query     (log/spy :info (comp/get-query root-class state-map))
-        data-tree (log/spy :info (fdn/db->tree query state-map state-map))]
+        query     (comp/get-query root-class state-map)
+        data-tree (fdn/db->tree query state-map state-map)]
     (binding [comp/*app* app]
-      (log/info "render root")
       (js/ReactDOM.render (root-factory data-tree) mount-node))))
 
 (defn props-only-query [query]
@@ -45,7 +44,7 @@
                                                    (cond-> node
                                                      (= :join (:type node)) (assoc :type :prop)))
                                              cs)))]
-    (log/spy :info (eql/ast->query ast))))
+    (eql/ast->query ast)))
 
 (defn root-changed? [app]
   (let [{::keys [runtime-atom state-atom]} app
@@ -55,7 +54,7 @@
         props-query     (props-only-query (comp/get-query root-class state-map))
         root-old        (fdn/db->tree props-query prior-state-map prior-state-map)
         root-new        (fdn/db->tree props-query state-map state-map)]
-    (not= (log/spy :info root-old) (log/spy :info root-new))))
+    (not= root-old root-new)))
 
 (defn dirty-table-entries [old-state new-state idents]
   (reduce
@@ -73,13 +72,12 @@
            query     (comp/get-query c state-map)
            q         [{ident query}]
            data-tree (when query (fdn/db->tree q state-map state-map))
-           new-props (log/spy :info (get data-tree ident))]
+           new-props (get data-tree ident)]
        (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
        (binding [comp/*app* app]
          (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))))
 
 (defn render-stale-components! [app]
-  (log/info "render stale")
   (let [{::keys [runtime-atom state-atom]} app
         {::keys [indexes last-rendered-state components-to-refresh]} @runtime-atom
         {:keys [ident->components]} indexes
@@ -90,7 +88,6 @@
     (swap! runtime-atom assoc ::components-to-refresh [])
     (doseq [ident stale-idents]
       (doseq [c (ident->components ident)]
-        (log/info "Refreshing stale component at ident" ident)
         (render-component! app ident c)))))
 
 (defn render!
