@@ -18,12 +18,11 @@
       trimmed-text)))
 
 (defsc TodoItem [this
-                 {:db/keys   [id]
-                  :ui/keys   [ui/editing ui/edit-text]
-                  :item/keys [label complete] :or {complete false} :as props}
+                 {:ui/keys   [ui/editing ui/edit-text]
+                  :item/keys [id label complete] :or {complete false} :as props}
                  {:keys [delete-item check uncheck] :as computed}]
-  {:query              (fn [this] [:db/id :item/label :item/complete :ui/editing :ui/edit-text])
-   :ident              (fn [this props] [:todo/by-id (:db/id props)])
+  {:query              (fn [this] [:item/id :item/label :item/complete :ui/editing :ui/edit-text])
+   :ident              :item/id
    :initLocalState     (fn [this] {:save-ref (fn [r] (gobj/set this "input-ref" r))})
    :componentDidUpdate (fn [this prev-props _]
                          ;; Code adapted from React TodoMVC implementation
@@ -62,10 +61,10 @@
                                                    (mut/toggle! this :ui/editing)))
                   :onBlur    #(when editing (submit-edit %))}))))
 
-(def ui-todo-item (comp/factory TodoItem {:keyfn :db/id}))
+(def ui-todo-item (comp/factory TodoItem {:keyfn :item/id}))
 
 (defn header [component title]
-  (let [{:keys [db/id ui/new-item-text]} (comp/props component)]
+  (let [{:keys [list/id ui/new-item-text]} (comp/props component)]
     (dom/header :.header
       (dom/h1 title)
       (dom/input {:value       (or new-item-text "")
@@ -74,14 +73,14 @@
                                  (when (is-enter? evt)
                                    (when-let [trimmed-text (trim-text (.. evt -target -value))]
                                      (comp/transact! component `[(api/todo-new-item ~{:list-id id
-                                                                               :id      (tmp/tempid)
-                                                                               :text    trimmed-text})]))))
+                                                                                      :id      (tmp/tempid)
+                                                                                      :text    trimmed-text})]))))
                   :onChange    (fn [evt] (mut/set-string! component :ui/new-item-text :event evt))
                   :placeholder "What needs to be done?"
                   :autoFocus   true}))))
 
 (defn filter-footer [component num-todos num-completed]
-  (let [{:keys [db/id list/filter]} (comp/props component)
+  (let [{:keys [list/id list/filter]} (comp/props component)
         num-remaining (- num-todos num-completed)]
 
     (dom/footer :.footer
@@ -111,10 +110,10 @@
       (dom/a {:href   "http://todomvc.com"
               :target "_blank"} "TodoMVC"))))
 
-(defsc TodoList [this {:db/keys [id] :list/keys [items filter title]}]
-  {:initial-state (fn [p] {:db/id (tmp/tempid) :ui/new-item-text "" :list/items [] :list/title "main" :list/filter :list.filter/none})
-   :ident         [:list/by-id :db/id]
-   :query         [:db/id :ui/new-item-text {:list/items (comp/get-query TodoItem)} :list/title :list/filter]}
+(defsc TodoList [this {:list/keys [id items filter title]}]
+  {:initial-state {:list/id 1 :ui/new-item-text "" :list/items [] :list/title "main" :list/filter :list.filter/none}
+   :ident         :list/id
+   :query         [:list/id :ui/new-item-text {:list/items (comp/get-query TodoItem)} :list/title :list/filter]}
   (let [num-todos       (count items)
         completed-todos (filterv :item/complete items)
         num-completed   (count completed-todos)

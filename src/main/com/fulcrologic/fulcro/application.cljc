@@ -61,7 +61,9 @@
 
 (defn fulcro-app
   ([] (fulcro-app {}))
-  ([options]
+  ([{:keys [extra-props-middleware
+            render-middleware
+            remotes]}]
    {::state-atom   (atom {})
     ::tx!          tx!
     ::render!      schedule-render!
@@ -71,10 +73,11 @@
                       ::root-class                                                     nil
                       ::root-factory                                                   nil
                       ::basis-t                                                        1
-                      ::middleware                                                     {:extra-props-middleware (get options :extra-props-middleware)
-                                                                                        :render-middleware      (get options :render-middleware)}
-                      ::remotes                                                        {:remote (fn [send]
-                                                                                                  (log/info "Send"))}
+                      ::middleware                                                     {:extra-props-middleware extra-props-middleware
+                                                                                        :render-middleware      render-middleware}
+                      ::remotes                                                        (or remotes
+                                                                                         {:remote (fn [send]
+                                                                                                    (log/fatal "Remote requested, but no remote defined."))})
                       ::indexes                                                        {:ident->components {}}
                       ::mutate                                                         mut/mutate
                       :com.fulcrologic.fulcro.transactions/activation-scheduled?       false

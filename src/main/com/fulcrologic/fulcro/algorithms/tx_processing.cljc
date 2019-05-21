@@ -367,9 +367,13 @@
                         ::active?        false
                         ::result-handler handler
                         ::update-handler update-handler}]
-    (when ast
-      (swap! runtime-atom update-in [::send-queues remote] (fnil conj []) send-node)
-      send-node)))
+    (if ast
+      (do
+        (swap! runtime-atom update-in [::send-queues remote] (fnil conj []) send-node)
+        send-node)
+      (do
+        (handler {:status-code 500 :body "The remote AST was empty!"})
+        nil))))
 
 (defn queue-element-sends!
   "Queue all (unqueued) remote actions for the given element.  Returns the (possibly updated) node."

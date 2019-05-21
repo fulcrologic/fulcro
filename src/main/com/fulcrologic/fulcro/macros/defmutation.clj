@@ -17,11 +17,6 @@
                          :arglist (fn [a] (and (vector? a) (= 1 (count a))))
                          :sections (s/* (s/or :handler ::handler))))
 
-(comment
-  (s/conform ::mutation-args '(user/boo [params]
-                                (action [env] (swap! state))))
-
-  )
 (defn defmutation* [macro-env args]
   (let [conform!       (fn [element spec value]
                          (when-not (s/valid? spec value)
@@ -54,9 +49,6 @@
                             ~method-map))]
     (if (= fqsym sym)
       multimethod
-      `(def ~(with-meta sym {:doc doc})
-         (do
-           ~multimethod
-           (com.fulcrologic.fulcro.mutations/->Mutation ~fqsym))))))
-
-
+      `(do
+         ~multimethod
+         (def ~(with-meta sym {:doc doc}) (com.fulcrologic.fulcro.mutations/->Mutation '~fqsym))))))
