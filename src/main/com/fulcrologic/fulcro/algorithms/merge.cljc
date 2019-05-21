@@ -275,8 +275,6 @@
 (defn merge-ident [app-state ident props]
   (update-in app-state ident (comp sweep-one merge) props))
 
-
-
 (defn- sift-idents [res]
   (let [{idents true rest false} (group-by #(vector? (first %)) res)]
     [(into {} idents) (into {} rest)]))

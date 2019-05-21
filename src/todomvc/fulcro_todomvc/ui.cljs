@@ -163,3 +163,7 @@
    :query         [{:root/application (comp/get-query Application)}]}
   (dom/div {}
     (ui-application application)))
+
+
+
+

@@ -302,8 +302,7 @@
        (let [{:keys [getDerivedStateFromProps shouldComponentUpdate getSnapshotBeforeUpdate render
                      initLocalState componentDidCatch getDerivedStateFromError
                      componentWillUpdate componentWillMount componentWillReceiveProps
-                     UNSAFE_componentWillMount UNSAFE_componentWillUpdate UNSAFE_componentWillReceiveProps
-                     instance-props static-props]} options
+                     UNSAFE_componentWillMount UNSAFE_componentWillUpdate UNSAFE_componentWillReceiveProps]} options
              name              (str/join "/" [(namespace fqkw) (name fqkw)])
              constructor       ^js cls
              js-instance-props (clj->js
@@ -335,6 +334,7 @@
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
          (gobj/extend (.-prototype constructor) js/React.Component.prototype js-instance-props #js {"fulcro$options" options})
          (gobj/extend constructor (clj->js statics) #js {"fulcro$options" options})
+         ;; FIXME: wrong
          (-register-component! fqkw name)))))
 
 (defn set-state!
@@ -612,6 +612,7 @@
                 ref (:ref props)
                 ref (cond-> ref (keyword? ref) str)]
             (create-element class
+              ;; TASK: augmenting props at factory level???
               #js {:key             key
                    :ref             ref
                    :fulcro$reactKey key
