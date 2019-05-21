@@ -10,9 +10,11 @@
     [com.wsscode.pathom.core :as p]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]))
 
-(defn handle-remote [{::txn/keys [ast result-handler] :as send-node}]
+(defn handle-remote [{:keys [::txn/ast ::txn/result-handler] :as send-node}]
   (log/info "Remote got AST: " ast)
   (let [query (eql/ast->query ast)]
     (async/go
@@ -21,15 +23,16 @@
           {:status-code 200 :body result}
           {:status-code 500 :body "Parser Failed to return a value"})))))
 
-(defonce app (app/fulcro-app {:remotes {:remote handle-remote}}))
+(defonce app (-> (app/fulcro-app {:remotes {:remote handle-remote}})
+               (ah/with-optimized-render kr/render!)))
 
 (defn ^:export start []
+  (log/info "mount")
   (app/mount! app ui/Root "app")
-  (app/tx! app `[(api/load-list ~{:key       [:list/id 1]
-                                  :component ui/TodoList})]))
+  (log/info "submit")
+  (comp/transact! app `[(api/load-list ~{:key       [:list/id 1]
+                                         :component ui/TodoList})]))
 
 (comment
   (-> app ::app/runtime-atom deref)
-  (-> app ::app/state-atom deref)
-
-  )
+  (-> app ::app/state-atom deref))

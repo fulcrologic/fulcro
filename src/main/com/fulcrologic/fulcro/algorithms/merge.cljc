@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.helpers :as util]
@@ -408,4 +409,71 @@
         _              (merge-alternate-unions merge-to-state root-component)
         new-state      @state-map-atom]
     new-state))
+
+(defn merge!
+  "Merge an arbitrary data-tree that conforms to the shape of the given query using Fulcro's
+  standard merge and normalization logic.
+
+  query - A query, derived from defui components, that can be used to normalized a tree of data.
+  data-tree - A tree of data that matches the nested shape of query
+  remote - No longer used. May be passed, but is ignored.
+
+  See also `merge*`."
+  [app data-tree query]
+  (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} (comp/any->app app)]
+    (when state-atom
+      (swap! state-atom merge* query data-tree))))
+
+(defn merge-component!
+  "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
+
+  This utility function obtains the ident of the incoming object-data using the UI component's ident function. Once obtained,
+  it uses the component's query and ident to normalize the data and place the resulting objects in the correct tables.
+  It is also quite common to want those new objects to be linked into lists in other spot in app state, so this function
+  supports optional named parameters for doing this. These named parameters can be repeated as many times as you like in order
+  to place the ident of the new object into other data structures of app state.
+
+  This function honors the data merge story for Fulcro: attributes that are queried for but do not appear in the
+  data will be removed from the application. This function also uses the initial state for the component as a base
+  for merge if there was no state for the object already in the database.
+
+  This function will also trigger re-renders of components that directly render object merged, as well as any components
+  into which you integrate that data via the named-parameters.
+
+  This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
+  of the normal mutation story. Do not use this function within abstract mutations.
+
+  - reconciler: A reconciler
+  - component: The class of the component that corresponds to the data. Must have an ident.
+  - object-data: A map (tree) of data to merge. Will be normalized for you.
+  - named-parameter: Post-processing ident integration steps. see integrate-ident!
+
+  Any keywords that appear in ident integration steps will be added to the re-render queue.
+
+  See also `fulcro.client.primitives/merge!`.
+  "
+  [app component object-data & named-parameters]
+  (when-let [app (comp/any->app app)]
+    (if-not (comp/has-ident? component)
+      (log/error "merge-component!: component must implement Ident. Merge skipped.")
+      (let [ident   (comp/get-ident component object-data)
+            state   (:com.fulcrologic.fulcro.application/state-atom app)
+            {:keys [merge-data merge-query]} (-preprocess-merge @state component object-data)
+            render! (ah/app-algorithm app :schedule-render!)]
+        (merge! app merge-data merge-query)
+        (swap! state (fn [s]
+                       (as-> s st
+                         ;; Use utils until we make smaller namespaces, requiring mutations would
+                         ;; cause circular dependency.
+                         (apply integrate-ident* st ident named-parameters)
+                         (dissoc st :fulcro/merge))))
+        (render! app)))))
+
+(defn merge-alternate-union-elements!
+  "Walks the query and initial state of root-component and merges the alternate sides of unions with initial state into
+  the application state database. See also `merge-alternate-union-elements`, which can be used on a state map and
+  is handy for server-side rendering. This function side-effects on your app, and returns nothing."
+  [app root-component]
+  (let [app (comp/any->app app)]
+    (merge-alternate-unions (partial merge-component! app) root-component)))
 

@@ -50,7 +50,7 @@
      (f {:x 1}) => `(f {:x 1})
      ```
 
-     This allows mutations to behave as data in `tx!` without needing quoting.
+     This allows mutations to behave as data in transactions without needing quoting.
 
      Mutations can have any number of handlers. By convention things that contain logic use names that end
      in `action`.  The remote behavior of a mutation is defined by naming a handler after the remote.

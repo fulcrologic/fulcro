@@ -12,7 +12,8 @@
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.helpers :as util]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn])
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
   #?(:clj
      (:import (clojure.lang Associative IDeref))))
 
@@ -144,7 +145,7 @@
   #?(:clj  nil                                              ;; FIXME
      :cljs (gobj/getValueByKeys c "props" k)))
 
-(defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
+(defn fulcro-app? [x] (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom)))
 
 (defn any->app
   "Attempt to coerce `x` to a reconciler.  Legal inputs are a fulcro application, reconciler, a mounted component, a
@@ -156,35 +157,6 @@
     (fulcro-app? x) x
     #?(:clj  (instance? IDeref x)
        :cljs (satisfies? IDeref x)) (any->app (deref x))))
-
-(defn index-component! [this]
-  (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (any->app this)
-        ident (component-options this :ident)]
-    (when (and ident runtime-atom)
-      (log/info "Adding component with ident " (ident this (props this)) "to index")
-      (swap! runtime-atom update-in
-        [:com.fulcrologic.fulcro.application/indexes :ident->components (ident this (props this))]
-        (fnil conj #{})
-        this))))
-
-(defn drop-index!
-  ([this ident]
-   (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (any->app this)]
-     (when (and ident runtime-atom)
-       (log/info "Dropping component with ident " ident "from index")
-       (swap! runtime-atom update-in
-         [:com.fulcrologic.fulcro.application/indexes :ident->components ident]
-         disj
-         this))))
-  ([this]
-   (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (any->app this)
-         {:keys [ident]} (component-options this)]
-     (when (and ident runtime-atom)
-       (log/info "Dropping component with ident " (ident this (props this)) "from index")
-       (swap! runtime-atom update-in
-         [:com.fulcrologic.fulcro.application/indexes :ident->components (ident this (props this))]
-         disj
-         this)))))
 
 (defn raw->newest-props
   "Using raw react props/state returns the newest Fulcro props."
@@ -240,27 +212,33 @@
               (componentDidUpdate this prev-props prev-state snapshot))
             (when ident
               (let [old-ident  (ident this prev-props)
-                    next-ident (ident this (props this))]
+                    next-ident (ident this (props this))
+                    app        (any->app this)
+                    {:keys [:algorithm/drop-component! :algorithm/index-component!]} (ah/app-algorithm app)]
                 (when (not= old-ident next-ident)
-                  (drop-index! this old-ident)
+                  (drop-component! this old-ident)
                   (index-component! this))))))))
    (component-did-mount
      []
      #?(:cljs
         (this-as this
           (gobj/set this "fulcro$mounted" true)
-          (let [{:keys [componentDidMount]} (component-options this)]
+          (let [{:keys [componentDidMount]} (component-options this)
+                app              (any->app this)
+                index-component! (ah/app-algorithm app :index-component!)]
             (index-component! this)
             (when componentDidMount
               (componentDidMount this))))))
    (component-will-unmount []
      #?(:cljs
         (this-as this
-          (let [{:keys [componentWillUnmount]} (component-options this)]
+          (let [{:keys [componentWillUnmount]} (component-options this)
+                app (any->app this)
+                drop-component! (ah/app-algorithm app :drop-component!)]
             (when componentWillUnmount
               (componentWillUnmount this))
             (gobj/set this "fulcro$mounted" false)
-            (drop-index! this)))))
+            (drop-component! this)))))
    (wrap-this
      [handler]
      #?(:clj (fn [& args] (apply handler args))
@@ -627,12 +605,13 @@
          :qualifier qualifier}))))
 
 (defn transact!
-  ([comp tx options]
-   (when-let [app (any->app comp)]
-     (let [tx!     (:com.fulcrologic.fulcro.application/tx! app)
+  "Submit a transaction for processing."
+  ([app-or-component tx options]
+   (when-let [app (any->app app-or-component)]
+     (let [tx!     (ah/app-algorithm app :tx!)
            options (cond-> options
-                     (has-ident? comp) (assoc :ref (get-ident comp))
-                     (component? comp) (assoc :component comp))]
+                     (has-ident? app-or-component) (assoc :ref (get-ident app-or-component))
+                     (component? app-or-component) (assoc :component app-or-component))]
        (tx! app tx options))))
   ([comp tx]
    (transact! comp tx {})))

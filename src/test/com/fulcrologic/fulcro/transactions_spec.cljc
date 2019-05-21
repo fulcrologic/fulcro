@@ -14,7 +14,8 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [edn-query-language.core :as eql]
     [clojure.test :refer [is are deftest]]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
 
 (>defn ->send
   ([id options]
@@ -70,7 +71,7 @@
                                           "schedules activation"
                                           app => mock-app)
 
-      (let [actual (app/tx! mock-app '[(f) (g)])
+      (let [actual (app/default-tx! mock-app '[(f) (g)])
             queue  (-> mock-app ::app/runtime-atom deref ::txn/submission-queue)
             node   (first queue)]
         (assertions
@@ -171,8 +172,8 @@
       (txn/process-queue! app) => (assertions
                                     "Processes the active queue."
                                     true => true)
-      (app/tx! app `[(f {})])
-      (app/tx! app `[(g {})])
+      (app/default-tx! app `[(f {})])
+      (app/default-tx! app `[(g {})])
       (txn/activate-submissions! app)
 
       (let [sub-q (-> app ::app/runtime-atom deref ::txn/submission-queue)
@@ -319,7 +320,7 @@
     (let [sends       [(assoc (->send (uuid 2) {}) ::txn/active? true) (->send (uuid 3) {})]
           send-queues {:remote sends}
           remotes     {:remote (fn [send] (throw (ex-info "SHOULD NOT BE CALLED" {})))}
-          {::app/keys [runtime-atom] :as app} (fulcro-app)]
+          {:keys [::app/runtime-atom] :as app} (fulcro-app)]
       (swap! runtime-atom assoc ::app/remotes remotes)
       (swap! runtime-atom assoc ::txn/send-queues send-queues)
 
@@ -410,7 +411,7 @@
   (let [sends          [(->send (uuid 1) {}) (->send (uuid 2) {}) (->send (uuid 3) {})]
         send-queues    {:remote sends
                         :rest   []}
-        {::app/keys [runtime-atom] :as app} (fulcro-app)
+        {:keys [::app/runtime-atom] :as app} (fulcro-app)
         expected-sends [(first sends) (last sends)]]
     (swap! runtime-atom assoc ::txn/send-queues send-queues)
 
@@ -423,7 +424,7 @@
       (-> runtime-atom deref ::txn/send-queues :rest) => [])))
 
 (specification "record-result!"
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (fulcro-app)
         tx-node     (-> (txn/tx-node `[(f {})])
                       (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
                       (assoc ::txn/id (uuid 1))
@@ -442,7 +443,7 @@
       "Leaves other nodes unmodified"
       (-> runtime-atom deref ::txn/active-queue first) => tx-node2))
 
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (fulcro-app)
         tx-node     (-> (txn/tx-node `[(f {})])
                       (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
                       (assoc ::txn/id (uuid 1))
@@ -459,13 +460,13 @@
       (txn/record-result! app (uuid 2) 0 :remote mock-result))))
 
 (specification "add-send!"
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (fulcro-app)
         tx-node (-> (txn/tx-node `[(f {})])
                   (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
                   (assoc ::txn/id (uuid 1))
                   (txn/dispatch-elements {} (fn [e] (m/mutate e))))
-        {::txn/keys [result-handler update-handler]
-         :as        resultant-node} (txn/add-send! app tx-node 0 :remote)]
+        {:keys [::txn/result-handler ::txn/update-handler]
+         :as   resultant-node} (txn/add-send! app tx-node 0 :remote)]
     (component "Handlers"
       (behavior "update handler"
         (when-mocking
@@ -495,7 +496,7 @@
           (result-handler {}))))))
 
 (specification "queue-element-sends!"
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (fulcro-app)
         tx-node (-> (txn/tx-node `[(f {})])
                   (assoc ::txn/id (uuid 1))
                   (txn/dispatch-elements {} (fn [e] (m/mutate e))))
@@ -832,7 +833,7 @@
                                            (::txn/id n) => (uuid 2))
                                          nil)
 
-      (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+      (let [{:keys [::app/runtime-atom] :as app} (-> (fulcro-app) (ah/with-optimized-render (fn [app])))
             active-queue [(assoc (txn/tx-node `[(f {})]) ::txn/id (uuid 1))
                           (assoc (txn/tx-node `[(g {})]) ::txn/id (uuid 2))]]
         (swap! runtime-atom assoc ::txn/active-queue active-queue)
@@ -905,7 +906,7 @@
                                                          (= q original-send-queue) => true)
                                                        q)
 
-        (let [{::txn/keys [send-node send-queue]} (txn/combine-sends app :remote original-send-queue)]
+        (let [{:keys [::txn/send-node ::txn/send-queue]} (txn/combine-sends app :remote original-send-queue)]
           (behavior "Creates a new combined node that: "
             (assertions
               "has a combined AST for the first real send"
@@ -937,8 +938,8 @@
       (when-mocking!
         (txn/sort-queue-writes-before-reads q) =1x=> q
 
-        (let [{::txn/keys [send-node]} (txn/combine-sends app :remote original-send-queue)
-              {::txn/keys [result-handler update-handler]} send-node
+        (let [{:keys [::txn/send-node]} (txn/combine-sends app :remote original-send-queue)
+              {:keys [::txn/result-handler ::txn/update-handler]} send-node
               progress-message {:progress 50 :body {:x 1}}
               network-result   {:status-code 200
                                 :body        {`f {:x 1}
@@ -984,7 +985,7 @@
 
 (def app (->
            (fulcro-app)
-           (assoc ::app/remotes {:remote (fn [{::txn/keys [result-handler ast] :as send}]
+           (assoc ::app/remotes {:remote (fn [{:keys [::txn/result-handler ::txn/ast] :as send}]
                                            (sched/defer
                                              #(let [tx (eql/ast->query ast)]
                                                 (log/info "network send:\n" (with-out-str (pprint send)))
