@@ -5,7 +5,7 @@
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 

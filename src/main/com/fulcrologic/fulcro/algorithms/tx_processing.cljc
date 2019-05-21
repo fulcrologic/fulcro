@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.algorithms.tx-processing
   (:require
     [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
-    [com.fulcrologic.fulcro.algorithms.helpers :as futil]
+    [com.fulcrologic.fulcro.algorithms.misc :as futil]
     [com.fulcrologic.fulcro.mutations :as m]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
@@ -216,7 +216,7 @@
 (defn activate-submissions!
   "Activate all of the transactions that have been submitted since the last activation. After the items are activated
   a single processing step will run for the active queue."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}]
+  [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app}]
   (let [dispatched-nodes (mapv #(dispatch-elements % (build-env app %) m/mutate) (::submission-queue @runtime-atom))]
     (swap! runtime-atom (fn [a]
                           (-> a
@@ -521,4 +521,5 @@
                     (::active-queue @runtime-atom))
         render!   (ah/app-algorithm app :schedule-render!)]
     (swap! runtime-atom assoc ::active-queue new-queue)
-    (render! app)))
+    (render! app)
+    nil))

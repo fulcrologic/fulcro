@@ -79,31 +79,30 @@
     ::algorithms   {:algorithm/tx!               default-tx!
                     :algorithm/optimized-render! ident-optimized/render!
                     :algorithm/render!           render!
-                    :algorithm/merge!            nil
+                    :algorithm/merge!            identity
                     :algorithm/index-component!  indexing/index-component!
                     :algorithm/drop-component!   indexing/drop-component!
                     :algorithm/schedule-render!  schedule-render!}
     ::runtime-atom (atom
-                     {::app-root                                                       nil
-                      ::mount-node                                                     nil
-                      ::root-class                                                     nil
-                      ::root-factory                                                   nil
-                      ::basis-t                                                        1
-                      ::last-rendered-state                                            {}
-                      ::middleware                                                     {:extra-props-middleware extra-props-middleware
-                                                                                        :render-middleware      render-middleware}
-
-                      ::remotes                                                        (or remotes
-                                                                                         {:remote (fn [send]
-                                                                                                    (log/fatal "Remote requested, but no remote defined."))})
-                      ::indexes                                                        {:ident->components {}}
-                      ::mutate                                                         mut/mutate
-                      :com.fulcrologic.fulcro.transactions/activation-scheduled?       false
-                      :com.fulcrologic.fulcro.transactions/queue-processing-scheduled? false
-                      :com.fulcrologic.fulcro.transactions/sends-scheduled?            false
-                      :com.fulcrologic.fulcro.transactions/submission-queue            []
-                      :com.fulcrologic.fulcro.transactions/active-queue                []
-                      :com.fulcrologic.fulcro.transactions/send-queues                 {}})}))
+                     {::app-root                        nil
+                      ::mount-node                      nil
+                      ::root-class                      nil
+                      ::root-factory                    nil
+                      ::basis-t                         1
+                      ::last-rendered-state             {}
+                      ::middleware                      {:extra-props-middleware extra-props-middleware
+                                                         :render-middleware      render-middleware}
+                      ::remotes                         (or remotes
+                                                          {:remote (fn [send]
+                                                                     (log/fatal "Remote requested, but no remote defined."))})
+                      ::indexes                         {:ident->components {}}
+                      ::mutate                          mut/mutate
+                      ::txn/activation-scheduled?       false
+                      ::txn/queue-processing-scheduled? false
+                      ::txn/sends-scheduled?            false
+                      ::txn/submission-queue            []
+                      ::txn/active-queue                []
+                      ::txn/send-queues                 {}})}))
 
 (defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
 

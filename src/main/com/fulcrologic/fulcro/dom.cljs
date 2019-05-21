@@ -5,7 +5,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [cljsjs.react]
     [cljsjs.react.dom]
     [goog.object :as gobj]

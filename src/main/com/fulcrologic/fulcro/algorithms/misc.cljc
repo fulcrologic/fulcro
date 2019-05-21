@@ -1,4 +1,6 @@
-(ns com.fulcrologic.fulcro.algorithms.helpers
+(ns com.fulcrologic.fulcro.algorithms.misc
+  "Random functions that were ported from Fulcro.  Do not use except internally, as I plan to
+  move them around still."
   (:refer-clojure :exclude [ident? uuid])
   (:require
     [clojure.spec.alpha :as s])

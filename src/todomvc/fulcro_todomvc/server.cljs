@@ -2,7 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [clojure.core.async :as async]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.wsscode.pathom.core :as p]
     [com.wsscode.pathom.connect :as pc]
     [taoensso.timbre :as log]))

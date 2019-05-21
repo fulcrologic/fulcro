@@ -11,7 +11,7 @@
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
   #?(:clj
@@ -94,24 +94,11 @@
                  props-from-updates   (computed (gobj/getValueByKeys component "state" "fulcro$value") computed-from-parent)]
              (newer-props props-from-parent props-from-updates))))
 
-#?(:clj
-   (defn react-type
-     "Returns the component type, regardless of whether the component has been
-      mounted"
-     [component]
-     {:pre [(component? component)]}
-     (let [[klass-name] (str/split (reflect/typename (type component)) #"_klass")
-           last-idx-dot (.lastIndexOf klass-name ".")
-           ns           (clojure.main/demunge (subs klass-name 0 last-idx-dot))
-           c            (subs klass-name (inc last-idx-dot))]
-       @(or (find-var (symbol ns c))
-          (find-var (symbol ns (clojure.main/demunge c)))))))
-
-#?(:cljs
-   (defn react-type
-     "Returns the component type, regardless of whether the component has been
-      mounted"
-     [x]
+(defn react-type
+  "Returns the component type, regardless of whether the component has been
+   mounted"
+  [x]
+  #?(:cljs
      (or (gobj/get x "type") (type x))))
 
 (defn component-options
@@ -233,7 +220,7 @@
      #?(:cljs
         (this-as this
           (let [{:keys [componentWillUnmount]} (component-options this)
-                app (any->app this)
+                app             (any->app this)
                 drop-component! (ah/app-algorithm app :drop-component!)]
             (when componentWillUnmount
               (componentWillUnmount this))

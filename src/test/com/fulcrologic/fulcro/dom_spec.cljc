@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.dom-spec
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     com.fulcrologic.fulcro.dom
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [clojure.string :as str]

@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.macros.defmutation
   (:require
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util :refer [join-key join-value join?]]
+    [com.fulcrologic.fulcro.algorithms.misc :as util :refer [join-key join-value join?]]
     [cljs.analyzer :as ana]
     [clojure.string :as str])
   (:import (clojure.lang IFn)))

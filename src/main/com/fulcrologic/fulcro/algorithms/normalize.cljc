@@ -1,6 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.normalize
   (:require
-    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :refer [has-ident? ident get-ident get-query]]))

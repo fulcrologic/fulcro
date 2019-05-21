@@ -3,7 +3,7 @@
   (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [clojure.string :as str])
