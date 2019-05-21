@@ -58,6 +58,7 @@
                               p/env-placeholder-reader]}
      ::p/mutate  pc/mutate-async
      ::p/plugins [(pc/connect-plugin {::pc/register my-resolvers})
+                  (p/post-process-parser-plugin p/elide-not-found)
                   p/error-handler-plugin]}))
 
 

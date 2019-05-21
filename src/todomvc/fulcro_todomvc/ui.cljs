@@ -6,7 +6,8 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
     [fulcro-todomvc.api :as api]
-    [goog.object :as gobj]))
+    [goog.object :as gobj]
+    [taoensso.timbre :as log]))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))
@@ -110,7 +111,7 @@
       (dom/a {:href   "http://todomvc.com"
               :target "_blank"} "TodoMVC"))))
 
-(defsc TodoList [this {:list/keys [id items filter title]}]
+(defsc TodoList [this {:list/keys [id items filter title] :as props}]
   {:initial-state {:list/id 1 :ui/new-item-text "" :list/items [] :list/title "main" :list/filter :list.filter/none}
    :ident         :list/id
    :query         [:list/id :ui/new-item-text {:list/items (comp/get-query TodoItem)} :list/title :list/filter]}
@@ -125,7 +126,6 @@
         delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
         check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
         uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
-
     (dom/div
       (dom/section :.todoapp
         (header this title)
@@ -149,7 +149,7 @@
 
 (def ui-todo-list (comp/factory TodoList))
 
-(defsc Application [this {:keys [todos]}]
+(defsc Application [this {:keys [todos] :as props}]
   {:initial-state (fn [p] {:todos (comp/get-initial-state TodoList {})})
    :ident         (fn [] [:application :root])
    :query         [{:todos (comp/get-query TodoList)}]}

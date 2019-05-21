@@ -82,10 +82,12 @@
 
 (defmutation todo-check-all [{:keys [list-id]}]
   (action [{:keys [state]}]
+    (log/info "CHECK ALL")
     (swap! state on-all-items-in-list list-id set-item-checked* true)))
 
 (defmutation todo-uncheck-all [{:keys [list-id]}]
   (action [{:keys [state]}]
+    (log/info "UNCHECK ALL")
     (swap! state on-all-items-in-list list-id set-item-checked* false)))
 
 (defmutation todo-clear-complete [{:keys [list-id]}]
@@ -117,6 +119,16 @@
         (swap! state assoc-in [:list/id list-id :list/filter] filter)
         (swap! state assoc :root/desired-filter filter)))))
 
+(defn elide-ast-nodes
+  "Remove items from a query (AST) that have a key that returns true for the elision-predicate"
+  [{:keys [key union-key children] :as ast} elision-predicate]
+  (let [union-elision? (elision-predicate union-key)]
+    (when-not (or union-elision? (elision-predicate key))
+      (when (and union-elision? (<= (count children) 2))
+        (log/warn "Unions are not designed to be used with fewer than two children. Check your calls to Fulcro
+        load functions where the :without set contains " (pr-str union-key)))
+      (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c)))))))
+
 (defmutation load-list [{:keys [component target key]}]
   (action [{:keys [state]}]
     (swap! state assoc-in [:load-markers key] :loading!))
@@ -131,8 +143,5 @@
   (remote [{:keys [state]}]
     (let [query [{key (comp/get-query component @state)}]
           ast   (eql/query->ast query)
-          ast   (update ast :children (fn [c]
-                                        (filterv (fn [{:keys [k]}]
-                                                   (not (and (keyword? k) (= (namespace k) "ui"))))
-                                          c)))]
-      ast)))
+          ast   (elide-ast-nodes ast (fn [key] (and (keyword? key) (= (namespace key) "ui"))))]
+      (log/spy :info ast))))

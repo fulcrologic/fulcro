@@ -11,7 +11,8 @@
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.helpers :as util])
+    [com.fulcrologic.fulcro.algorithms.helpers :as util]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn])
   #?(:clj
      (:import (clojure.lang Associative IDeref))))
 
@@ -37,7 +38,7 @@
   (cond
     (nil? props-a) props-b
     (nil? props-b) props-a
-    (> (or (-> props-a meta ::time) 2) (or (-> props-b meta ::time) 1)) props-a
+    (> (or (fdn/denormalization-time props-a) 2) (or (fdn/denormalization-time props-b) 1)) props-a
     :else props-b))
 
 (defn component?
@@ -86,7 +87,7 @@
 (defn props
   "Return a components props."
   [component]
-  #?(:clj  nil                                              ;; FIXME
+  #?(:clj  nil
      :cljs (let [props-from-parent    (gobj/getValueByKeys component "props" "fulcro$value")
                  computed-from-parent (get-computed props-from-parent)
                  props-from-updates   (computed (gobj/getValueByKeys component "state" "fulcro$value") computed-from-parent)]
@@ -227,7 +228,7 @@
                       state-changed?    (not= current-state next-state)
                       next-children     (gobj/get raw-next-props "children")
                       children-changed? (not= (gobj/getValueByKeys this "props" "children") next-children)]
-                  (or props-changed? state-changed? children-changed?)))))
+                  (log/spy :info (or props-changed? state-changed? children-changed?))))))
    (component-did-update
      [raw-prev-props raw-prev-state snapshot]
      #?(:cljs
@@ -313,6 +314,7 @@
                                                                (wrap-props-state-handler shouldComponentUpdate)
                                                                should-component-update?)
                                       :fulcro$isComponent    true
+                                      :type                  cls
                                       :displayName           name}
                                    (cond->
                                      render (assoc :render (wrap-base-render render))
@@ -352,7 +354,7 @@
    (get-state component []))
   ([component k-or-ks]
    (let [cst #?(:clj @(:state component)
-                :cljs (when-let [state (. component -state)] (gobj/get state "fulcro$state")))]
+                :cljs (gobj/getValueByKeys component "state" "fulcro$state"))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
 (let [update-fn (fn [component f args]

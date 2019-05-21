@@ -32,5 +32,6 @@
 
 (comment
   (-> app ::app/runtime-atom deref)
+  (-> app ::app/state-atom deref)
 
   )
