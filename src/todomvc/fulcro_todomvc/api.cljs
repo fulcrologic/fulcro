@@ -127,7 +127,7 @@
         load functions where the :without set contains " (pr-str union-key)))
       (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c)))))))
 
-(defmutation load-list [{:keys [component target key]}]
+#_(defmutation load-list [{:keys [component target key]}]
   (action [{:keys [state]}]
     (swap! state assoc-in [:load-markers key] :loading!))
   (result-action [{:keys [state result app] :as env}]

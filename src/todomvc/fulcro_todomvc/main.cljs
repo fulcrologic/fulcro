@@ -1,18 +1,17 @@
 (ns fulcro-todomvc.main
   (:require
-    [fulcro-todomvc.ui :as ui]
-    [fulcro-todomvc.server :as sapi]
-    [fulcro-todomvc.api :as api]
     [clojure.core.async :as async]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.application :as app]
-    [com.wsscode.pathom.connect :as pc]
-    [com.wsscode.pathom.core :as p]
-    [taoensso.timbre :as log]
-    [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
-    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]))
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
+    [edn-query-language.core :as eql]
+    [fulcro-todomvc.api :as api]
+    [fulcro-todomvc.server :as sapi]
+    [fulcro-todomvc.ui :as ui]
+    [taoensso.timbre :as log]))
 
 (defn handle-remote [{:keys [::txn/ast ::txn/result-handler] :as send-node}]
   (log/info "Remote got AST: " ast)
@@ -30,8 +29,7 @@
   (log/info "mount")
   (app/mount! app ui/Root "app")
   (log/info "submit")
-  (comp/transact! app `[(api/load-list ~{:key       [:list/id 1]
-                                         :component ui/TodoList})]))
+  (df/load! app [:list/id 1] ui/TodoList))
 
 (comment
   (-> app ::app/runtime-atom deref)

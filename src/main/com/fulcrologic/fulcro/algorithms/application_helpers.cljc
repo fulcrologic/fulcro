@@ -39,3 +39,4 @@
   "
   [app render!]
   (set-algorithm app :algorithm/optimized-render! render!))
+

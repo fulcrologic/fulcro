@@ -141,14 +141,18 @@
 (s/def :algorithm/tx! fn?)
 (s/def :algorithm/optimized-render! fn?)
 (s/def :algorithm/render! fn?)
-(s/def :algorithm/merge! fn?)
+(s/def :algorithm/merge* fn?)
+(s/def :algorithm/load-error? fn?)
 (s/def :algorithm/index-component! fn?)
 (s/def :algorithm/drop-component! fn?)
 (s/def :algorithm/schedule-render! fn?)
+(s/def :algorithm/global-query-transform fn?)
 (s/def ::app/algorithms (s/keys :req [:algorithm/tx!
                                       :algorithm/optimized-render!
                                       :algorithm/render!
-                                      :algorithm/merge!
+                                      :algorithm/merge*
+                                      :algorithm/load-error?
+                                      :algorithm/global-query-transform
                                       :algorithm/index-component!
                                       :algorithm/drop-component!
                                       :algorithm/schedule-render!]))

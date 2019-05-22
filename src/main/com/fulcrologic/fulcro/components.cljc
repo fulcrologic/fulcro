@@ -107,13 +107,9 @@
          options #?(:cljs (or (gobj/get this options-key) (gobj/get c options-key))
                     ;; FIXME
                     :clj nil)]
-     (get-in options (vec ks))))
-  ([this]
-   (let [c               (react-type this)
-         options #?(:cljs (or (gobj/get this options-key) (gobj/get c options-key))
-                    ;; FIXME
-                    :clj nil)]
-     options)))
+     (if (seq options)
+       (get-in options (vec ks))
+       options))))
 
 (defn has-feature? #?(:cljs {:tag boolean}) [component option-key] (contains? (component-options component) option-key))
 (defn has-initial-app-state? #?(:cljs {:tag boolean}) [component] (has-feature? component :initial-state))
@@ -600,5 +596,5 @@
                      (has-ident? app-or-component) (assoc :ref (get-ident app-or-component))
                      (component? app-or-component) (assoc :component app-or-component))]
        (tx! app tx options))))
-  ([comp tx]
-   (transact! comp tx {})))
+  ([app-or-comp tx]
+   (transact! app-or-comp tx {})))

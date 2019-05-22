@@ -5,8 +5,10 @@
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.components :as comp]
+    [clojure.string :as str]
     [edn-query-language.core :as eql]
     #?(:cljs [goog.dom :as gdom])
     #?(:cljs [goog.object :as gobj])
@@ -58,7 +60,7 @@
                 (sched/defer r 16)
                 (js/requestAnimationFrame r))))))
 
-(defn default-tx!
+(defn- default-tx!
   "Default (Fulcro-2 compatible) transaction submission."
   ([app tx]
    (default-tx! app tx {:optimistic? true}))
@@ -70,19 +72,37 @@
                                    ref (update ::components-to-refresh (fnil conj []) ref))))
      (::txn/id node))))
 
+(defn- default-load-error? [{:keys [status-code body] :as result}] (not= 200 status-code))
+
+(defn- default-global-query-transform [query]
+  (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
+    (util/elide-query-nodes query (fn [k]
+                                    (when-let [ns (some-> k kw-namespace)]
+                                      (and
+                                        (string? ns)
+                                        (or
+                                          ;; TASK: (= k fs/form-key)
+                                          ;; TASK: other "built-ins" to remove?
+                                          (= "ui" ns)
+                                          (str/ends-with? ns ".ui")
+                                          (str/starts-with? ns "ui.")
+                                          (str/includes? ns ".ui."))))))))
+
 (defn fulcro-app
   ([] (fulcro-app {}))
   ([{:keys [extra-props-middleware
             render-middleware
             remotes]}]
    {::state-atom   (atom {})
-    ::algorithms   {:algorithm/tx!               default-tx!
-                    :algorithm/optimized-render! ident-optimized/render!
-                    :algorithm/render!           render!
-                    :algorithm/merge!            identity
-                    :algorithm/index-component!  indexing/index-component!
-                    :algorithm/drop-component!   indexing/drop-component!
-                    :algorithm/schedule-render!  schedule-render!}
+    ::algorithms   {:algorithm/tx!                    default-tx!
+                    :algorithm/optimized-render!      ident-optimized/render!
+                    :algorithm/render!                render!
+                    :algorithm/load-error?            default-load-error?
+                    :algorithm/merge*                 merge/merge*
+                    :algorithm/global-query-transform default-global-query-transform
+                    :algorithm/index-component!       indexing/index-component!
+                    :algorithm/drop-component!        indexing/drop-component!
+                    :algorithm/schedule-render!       schedule-render!}
     ::runtime-atom (atom
                      {::app-root                        nil
                       ::mount-node                      nil
@@ -115,7 +135,7 @@
        (schedule-render! app)
        (let [dom-node     (gdom/getElement node)
              root-factory (comp/factory root)
-             root-query   (comp/get-query root)
+             root-query   (log/spy :info (comp/get-query root))
              initial-tree (comp/get-initial-state root)
              initial-db   (-> (fnorm/tree->db root-query initial-tree true)
                             (merge/merge-alternate-union-elements root))]

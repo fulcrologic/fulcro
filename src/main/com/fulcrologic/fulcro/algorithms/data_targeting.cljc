@@ -65,26 +65,33 @@
       state actions)))
 
 (defn process-target
-  ([state source-path target] (process-target state source-path target true))
-  ([state source-path target remove-ok?]
+  "Process a load target (which can be a multiple-target).
+
+  `state-map` - the state-map
+  `source-path` - A keyword, ident, or app-state path.  If not an ident, then the thing at the path is pulled from app
+   state and is written at the given location(s).
+   `target` - The target(s)
+   `remove-source?` - When true the source will be removed from app state once it has been written to the new location."
+  ([state-map source-path target] (process-target state-map source-path target true))
+  ([state-map source-path target remove-source?]
    {:pre [(vector? target)]}
    (let [item-to-place (cond (eql/ident? source-path) source-path
-                             (keyword? source-path) (get state source-path)
-                             :else (get-in state source-path))
+                             (keyword? source-path) (get state-map source-path)
+                             :else (get-in state-map source-path))
          many-idents?  (and (vector? item-to-place)
                          (every? eql/ident? item-to-place))]
      (cond
        (and (eql/ident? source-path)
-         (not (special-target? target))) (-> state
+         (not (special-target? target))) (-> state-map
                                            (assoc-in target item-to-place))
        (not (special-target? target)) (cond->
-                                        (assoc-in state target item-to-place)
-                                        remove-ok? (dissoc source-path))
-       (multiple-targets? target) (cond-> (reduce (fn [s t] (process-target s source-path t false)) state target)
-                                    (and (not (eql/ident? source-path)) remove-ok?) (dissoc source-path))
-       (and many-idents? (special-target? target)) (let [state            (if remove-ok?
-                                                                            (dissoc state source-path)
-                                                                            state)
+                                        (assoc-in state-map target item-to-place)
+                                        remove-source? (dissoc source-path))
+       (multiple-targets? target) (cond-> (reduce (fn [s t] (process-target s source-path t false)) state-map target)
+                                    (and (not (eql/ident? source-path)) remove-source?) (dissoc source-path))
+       (and many-idents? (special-target? target)) (let [state            (if remove-source?
+                                                                            (dissoc state-map source-path)
+                                                                            state-map)
                                                          target-has-many? (vector? (get-in state target))]
                                                      (if target-has-many?
                                                        (cond
@@ -92,9 +99,9 @@
                                                          (append-target? target) (update-in state target (fn [v] (vec (concat v item-to-place))))
                                                          :else state)
                                                        (assoc-in state target item-to-place)))
-       (special-target? target) (cond-> state
-                                  remove-ok? (dissoc source-path)
+       (special-target? target) (cond-> state-map
+                                  remove-source? (dissoc source-path)
                                   (prepend-target? target) (integrate-ident item-to-place :prepend target)
                                   (append-target? target) (integrate-ident item-to-place :append target)
                                   (replacement-target? target) (integrate-ident item-to-place :replace target))
-       :else state))))
+       :else state-map))))
