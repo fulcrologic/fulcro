@@ -5,16 +5,25 @@
     [fulcro-spec.core :refer [specification provided! when-mocking! assertions behavior when-mocking component]]
     [clojure.spec.alpha :as s]
     [clojure.pprint :refer [pprint]]
-    [fulcro.util :refer [uuid]]
+    [com.fulcrologic.fulcro.algorithms.misc :refer [uuid]]
     [ghostwheel.core :refer [>defn =>]]
     [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
-    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.application :as app :refer [fulcro-app]]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [edn-query-language.core :as eql]
     [clojure.test :refer [is are deftest]]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
+
+(defn fake-render [& args])
+
+(defn mock-app
+  ([params] (-> (fulcro-app params)
+              (ah/with-optimized-render fake-render)))
+  ([] (mock-app {})))
 
 (>defn ->send
   ([id options]
@@ -29,20 +38,6 @@
     ::txn/result-handler (fn []) ::txn/error-handler (fn []) ::txn/update-handler (fn [])
     ::txn/active?        false
     ::txn/options        options}))
-
-(>defn fulcro-app
-  []
-  [=> ::app/app]
-  {::app/state-atom   (atom {})
-   ::app/runtime-atom (atom {::app/app-root                    nil
-                             ::app/remotes                     {:remote (fn [send])}
-                             ::app/indexes                     {:ident->components {}}
-                             ::txn/activation-scheduled?       false
-                             ::txn/queue-processing-scheduled? false
-                             ::txn/sends-scheduled?            false
-                             ::txn/submission-queue            []
-                             ::txn/active-queue                []
-                             ::txn/send-queues                 {}})})
 
 (specification "atom-of"
   (behavior "Can detect atoms that contain specific types"
@@ -64,13 +59,13 @@
       (-> f-ele ::txn/original-ast-node :dispatch-key) => 'f)))
 
 (specification "tx!"
-  (let [mock-app (fulcro-app)]
+  (let [mock-app (mock-app)]
     (when-mocking!
       (txn/schedule-activation! app) => (assertions
                                           "schedules activation"
                                           app => mock-app)
 
-      (let [actual (app/tx! mock-app '[(f) (g)])
+      (let [actual (app/default-tx! mock-app '[(f) (g)])
             queue  (-> mock-app ::app/runtime-atom deref ::txn/submission-queue)
             node   (first queue)]
         (assertions
@@ -124,7 +119,7 @@
           (::txn/dispatch g-ele) => {})))))
 
 (specification "schedule!"
-  (let [app           (fulcro-app)
+  (let [app           (mock-app)
         action-called (atom 0)
         action        (fn [a]
                         (assertions
@@ -165,14 +160,16 @@
   (remote [env] false))
 
 (specification "activate-submissions!"
-  (let [app (fulcro-app)]
+  (let [app (mock-app)]
     (when-mocking!
       (txn/schedule-activation! app) => nil
       (txn/process-queue! app) => (assertions
                                     "Processes the active queue."
                                     true => true)
-      (app/tx! app `[(f {})])
-      (app/tx! app `[(g {})])
+
+      (comp/transact! app `[(f {})])
+      (comp/transact! app `[(g {})])
+
       (txn/activate-submissions! app)
 
       (let [sub-q (-> app ::app/runtime-atom deref ::txn/submission-queue)
@@ -207,7 +204,7 @@
   (remote [env] true))
 
 (specification "advance-actions!"
-  (let [app               (fulcro-app)
+  (let [app               (mock-app)
         node              (txn/tx-node `[(aa1 {}) (aa2 {}) (aa3 {})])
         node              (txn/dispatch-elements node {} (fn [e] (m/mutate e)))
         step1             (txn/advance-actions! app node)
@@ -232,7 +229,7 @@
       (-> step2 ::txn/elements (nth 2) ::txn/complete?) => #{:action})))
 
 (specification "run-actions!"
-  (let [app     (fulcro-app)
+  (let [app     (mock-app)
         node    (txn/tx-node `[(aa1 {}) (aa2 {}) (aa3 {})])
         node    (txn/dispatch-elements node {} (fn [e] (m/mutate e)))
         actual  (txn/run-actions! app node)
@@ -246,7 +243,7 @@
       (-> actual ::txn/elements (nth 2) ::txn/complete?) => #{:action})))
 
 (specification "fully-complete?"
-  (let [app   (fulcro-app)
+  (let [app   (mock-app)
         node  (txn/tx-node `[(aa1 {}) (aa2 {}) (aa3 {})])
         dnode (txn/dispatch-elements node {} (fn [e] (m/mutate e)))
         rnode (txn/run-actions! app dnode)
@@ -279,9 +276,7 @@
     (let [sends         [(->send (uuid 1) {::txn/parallel? true}) (->send (uuid 2) {}) (->send (uuid 3) {})
                          (-> (->send (uuid 4) {}) (assoc ::txn/ast (eql/query->ast [:x :y])))]
           send-queues   {:remote sends}
-          remotes       {:remote (fn [send])}
-          app           (fulcro-app)
-          _             (swap! (::app/runtime-atom app) assoc ::app/remotes remotes)
+          app           (mock-app {:remotes {:remote (fn [send])}})
           mock-combined (-> (->send (uuid 4) {})
                           (assoc ::txn/active? true))]
       (swap! (::app/runtime-atom app) assoc ::txn/send-queues send-queues)
@@ -319,7 +314,7 @@
     (let [sends       [(assoc (->send (uuid 2) {}) ::txn/active? true) (->send (uuid 3) {})]
           send-queues {:remote sends}
           remotes     {:remote (fn [send] (throw (ex-info "SHOULD NOT BE CALLED" {})))}
-          {::app/keys [runtime-atom] :as app} (fulcro-app)]
+          {:keys [::app/runtime-atom] :as app} (mock-app)]
       (swap! runtime-atom assoc ::app/remotes remotes)
       (swap! runtime-atom assoc ::txn/send-queues send-queues)
 
@@ -332,7 +327,7 @@
             actual => send-queues))))))
 
 (specification "build-env"
-  (let [app        (fulcro-app)
+  (let [app        (mock-app)
         tx-options {:parallel? true}
         tx-node    (txn/tx-node `[(f {})] tx-options)
         addl       {:ref [:x 1] :component :c :crap 22 :app nil}
@@ -350,7 +345,7 @@
       (:crap actual) => 22)))
 
 (specification "schedule-activation!"
-  (let [app (fulcro-app)]
+  (let [app (mock-app)]
     (when-mocking!
       (sched/schedule! app k action tm) =1x=> (assertions
                                                 "schedules based on the correct key"
@@ -369,7 +364,7 @@
       (txn/schedule-activation! app))))
 
 (specification "schedule-queue-processing!"
-  (let [app (fulcro-app)]
+  (let [app (mock-app)]
     (when-mocking!
       (sched/schedule! app k action tm) =1x=> (assertions
                                                 "schedules based on the correct key"
@@ -388,7 +383,7 @@
       (txn/schedule-queue-processing! app))))
 
 (specification "schedule-sends!"
-  (let [app (fulcro-app)]
+  (let [app (mock-app)]
     (when-mocking!
       (sched/schedule! app k action tm) =1x=> (assertions
                                                 "schedules based on the correct key"
@@ -410,7 +405,7 @@
   (let [sends          [(->send (uuid 1) {}) (->send (uuid 2) {}) (->send (uuid 3) {})]
         send-queues    {:remote sends
                         :rest   []}
-        {::app/keys [runtime-atom] :as app} (fulcro-app)
+        {:keys [::app/runtime-atom] :as app} (mock-app)
         expected-sends [(first sends) (last sends)]]
     (swap! runtime-atom assoc ::txn/send-queues send-queues)
 
@@ -423,7 +418,7 @@
       (-> runtime-atom deref ::txn/send-queues :rest) => [])))
 
 (specification "record-result!"
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (mock-app)
         tx-node     (-> (txn/tx-node `[(f {})])
                       (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
                       (assoc ::txn/id (uuid 1))
@@ -442,7 +437,7 @@
       "Leaves other nodes unmodified"
       (-> runtime-atom deref ::txn/active-queue first) => tx-node2))
 
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (mock-app)
         tx-node     (-> (txn/tx-node `[(f {})])
                       (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
                       (assoc ::txn/id (uuid 1))
@@ -459,13 +454,13 @@
       (txn/record-result! app (uuid 2) 0 :remote mock-result))))
 
 (specification "add-send!"
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (mock-app)
         tx-node (-> (txn/tx-node `[(f {})])
                   (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
                   (assoc ::txn/id (uuid 1))
                   (txn/dispatch-elements {} (fn [e] (m/mutate e))))
-        {::txn/keys [result-handler update-handler]
-         :as        resultant-node} (txn/add-send! app tx-node 0 :remote)]
+        {:keys [::txn/result-handler ::txn/update-handler]
+         :as   resultant-node} (txn/add-send! app tx-node 0 :remote)]
     (component "Handlers"
       (behavior "update handler"
         (when-mocking
@@ -495,7 +490,7 @@
           (result-handler {}))))))
 
 (specification "queue-element-sends!"
-  (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+  (let [{:keys [::app/runtime-atom] :as app} (mock-app)
         tx-node (-> (txn/tx-node `[(f {})])
                   (assoc ::txn/id (uuid 1))
                   (txn/dispatch-elements {} (fn [e] (m/mutate e))))
@@ -553,7 +548,7 @@
       (txn/element-with-work #{:remote} complete-element) => nil)))
 
 (specification "queue-next-send!"
-  (let [app                    (fulcro-app)
+  (let [app                    (mock-app)
         idle-node              (-> (txn/tx-node `[(f {}) (g {})])
                                  (txn/dispatch-elements {} (fn [e] (m/mutate e))))
         f-ele                  (get-in idle-node [::txn/elements 0])
@@ -585,7 +580,7 @@
       (txn/queue-next-send! app node-f-complete))))
 
 (specification "queue-sends!"
-  (let [app          (fulcro-app)
+  (let [app          (mock-app)
         pess-tx-node (txn/tx-node `[(f {}) (g {})] {:optimistic? false})
         opt-tx-node  (txn/tx-node `[(f {}) (g {})] {:optimistic? true})]
     (component "Pessimistic mode:"
@@ -631,7 +626,7 @@
     (txn/schedule-queue-processing! a t) => nil
     (txn/build-env app n) => {:mock-env true}
 
-    (let [app         (fulcro-app)
+    (let [app         (mock-app)
           mock-result {:status-code 200 :value 20}
           actual-env  (atom nil)
           mock-action (fn [env] (reset! actual-env env))
@@ -660,7 +655,7 @@
               "Logs an error about the failed handler"
               (second @args) => "The result-action mutation handler for mutation")
 
-      (let [app         (fulcro-app)
+      (let [app         (mock-app)
             mock-action (fn [env] (throw (ex-info "INTENTIONALLY THROWN" {})))
             tx-node     (-> (txn/tx-node `[(f {})])
                           (txn/dispatch-elements {} (fn [e] (m/mutate e)))
@@ -674,7 +669,7 @@
           (::txn/complete? updated-ele) => #{:remote}))))
 
   (behavior "When the handler is missing (ignored result)"
-    (let [app         (fulcro-app)
+    (let [app         (mock-app)
           tx-node     (-> (txn/tx-node `[(f {})])
                         (txn/dispatch-elements {} (fn [e] (m/mutate e)))
                         (assoc-in [::txn/elements 0 ::txn/results :remote] {}))
@@ -703,7 +698,7 @@
                                              r => :remote)
                                            (update e ::txn/complete? conj r))
 
-    (let [app         (fulcro-app)
+    (let [app         (mock-app)
           _           (swap! (::app/runtime-atom app) assoc ::app/remotes {:remote  (fn [send])
                                                                            :rest    (fn [send])
                                                                            :graphql (fn [send])})
@@ -731,7 +726,7 @@
                                                       (contains? #{0 1} (::txn/idx e)) => true)
                                                     (assoc e :touched? true))
 
-    (let [app          (fulcro-app)
+    (let [app          (mock-app)
           tx-node      (txn/tx-node `[(f {}) (g {})])
           updated-node (txn/distribute-results! app tx-node)]
 
@@ -745,7 +740,7 @@
   (when-mocking!
     (txn/build-env app n extra) => (merge extra {:mock-env true})
 
-    (let [app           (fulcro-app)
+    (let [app           (mock-app)
           mock-progress {:done 20}
           actual-env    (atom nil)
           mock-action   (fn [env] (reset! actual-env env))
@@ -772,14 +767,14 @@
     (when-mocking!
       (txn/fully-complete? app n) => true
 
-      (let [app         (fulcro-app)
+      (let [app         (mock-app)
             opt-tx-node (txn/tx-node `[(f {}) (g {})] {:optimistic? true})]
 
         (assertions
           (txn/process-tx-node! app opt-tx-node) => nil))))
 
   (behavior "Optimistic mode"
-    (let [app         (fulcro-app)
+    (let [app         (mock-app)
           opt-tx-node (txn/tx-node `[(f {}) (g {})] {:optimistic? true})]
 
       (when-mocking!
@@ -799,7 +794,7 @@
             (:distributed-results? actual) => true)))))
 
   (behavior "Pessimistic mode"
-    (let [app     (fulcro-app)
+    (let [app     (mock-app)
           tx-node (txn/tx-node `[(f {}) (g {})] {:optimistic? false})]
 
       (when-mocking!
@@ -832,7 +827,9 @@
                                            (::txn/id n) => (uuid 2))
                                          nil)
 
-      (let [{::app/keys [runtime-atom] :as app} (fulcro-app)
+      (let [{:keys [::app/runtime-atom] :as app} (-> (mock-app) (ah/with-optimized-render (fn
+                                                                                              ([app force-root?])
+                                                                                              ([app]))))
             active-queue [(assoc (txn/tx-node `[(f {})]) ::txn/id (uuid 1))
                           (assoc (txn/tx-node `[(g {})]) ::txn/id (uuid 2))]]
         (swap! runtime-atom assoc ::txn/active-queue active-queue)
@@ -891,7 +888,7 @@
 
 (specification "combine-sends"
   (behavior "Combines related nodes in the send queue:"
-    (let [app                 (fulcro-app)
+    (let [app                 (mock-app)
           original-send-queue [(->send 2 0 `[(f {:x 1})] {})
                                (->send 2 1 `[(g {:y 2})] {})
                                (->send 3 0 `[(f {})] {})]
@@ -905,7 +902,7 @@
                                                          (= q original-send-queue) => true)
                                                        q)
 
-        (let [{::txn/keys [send-node send-queue]} (txn/combine-sends app :remote original-send-queue)]
+        (let [{:keys [::txn/send-node ::txn/send-queue]} (txn/combine-sends app :remote original-send-queue)]
           (behavior "Creates a new combined node that: "
             (assertions
               "has a combined AST for the first real send"
@@ -920,7 +917,7 @@
               (= (last original-send-queue) (last send-queue)) => true))))))
 
   (component "The combined node"
-    (let [app                 (fulcro-app)
+    (let [app                 (mock-app)
           f-result            (atom nil)
           g-result            (atom nil)
           f-update            (atom nil)
@@ -937,8 +934,8 @@
       (when-mocking!
         (txn/sort-queue-writes-before-reads q) =1x=> q
 
-        (let [{::txn/keys [send-node]} (txn/combine-sends app :remote original-send-queue)
-              {::txn/keys [result-handler update-handler]} send-node
+        (let [{:keys [::txn/send-node]} (txn/combine-sends app :remote original-send-queue)
+              {:keys [::txn/result-handler ::txn/update-handler]} send-node
               progress-message {:progress 50 :body {:x 1}}
               network-result   {:status-code 200
                                 :body        {`f {:x 1}
@@ -981,14 +978,3 @@
     (log/info "Result action b2: " (:result env))
     ((:ok-action dispatch) env))
   (remote [env] (eql/query->ast `[(bam! ~params)])))
-
-(def app (->
-           (fulcro-app)
-           (assoc ::app/remotes {:remote (fn [{::txn/keys [result-handler ast] :as send}]
-                                           (sched/defer
-                                             #(let [tx (eql/ast->query ast)]
-                                                (log/info "network send:\n" (with-out-str (pprint send)))
-                                                (log/info "tx: " tx)
-                                                (result-handler {:status-code 200 :body {`b1   {:thing 1}
-                                                                                         `bam! {:thing 2}}}))
-                                             10))})))

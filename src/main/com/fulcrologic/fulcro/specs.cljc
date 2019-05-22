@@ -2,8 +2,8 @@
   (:require
     [ghostwheel.core :refer [>fdef =>]]
     [clojure.spec.alpha :as s]
+    [com.fulcrologic.fulcro.algorithms.misc :as futil]
     [edn-query-language.core :as eql]
-    [fulcro.util :as futil]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn])
   #?(:clj
@@ -63,60 +63,60 @@
 (>fdef txn/extract-parallel [sends] [(s/coll-of ::txn/send-node :kind vector?) => (s/cat :p ::txn/send-queue :rest ::txn/send-queue)])
 (>fdef txn/every-ast? [ast-node-or-tree test] [::txn/ast fn? => boolean?])
 (>fdef txn/mutation-ast? [ast-node-or-tree] [::txn/ast => boolean?])
-(>fdef sort-queue-writes-before-reads [send-queue] [::txn/send-queue => ::txn/send-queue])
-(>fdef top-keys [{:keys [type key children] :as ast}] [::txn/ast => (s/coll-of :edn-query-language.ast/key)])
-(>fdef combine-sends [app remote-name send-queue] [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::txn/send-queue => (s/keys :opt [::txn/send-node] :req [::txn/send-queue])])
-(>fdef net-send! [{:com.fulcrologic.fulcro.application/keys [remotes] :as app} send-node remote-name] [:com.fulcrologic.fulcro.application/app ::txn/send-node :com.fulcrologic.fulcro.application/remote-name => any?])
-(>fdef process-send-queues! [{:com.fulcrologic.fulcro.application/keys [remotes runtime-atom] :as app}] [:com.fulcrologic.fulcro.application/app => ::txn/send-queues])
-(>fdef defer [f tm] [fn? int? => any?])
-(>fdef tx-node
+(>fdef txn/sort-queue-writes-before-reads [send-queue] [::txn/send-queue => ::txn/send-queue])
+(>fdef txn/top-keys [{:keys [type key children] :as ast}] [::txn/ast => (s/coll-of :edn-query-language.ast/key)])
+(>fdef txn/combine-sends [app remote-name send-queue] [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::txn/send-queue => (s/keys :opt [::txn/send-node] :req [::txn/send-queue])])
+(>fdef txn/net-send! [{:com.fulcrologic.fulcro.application/keys [remotes] :as app} send-node remote-name] [:com.fulcrologic.fulcro.application/app ::txn/send-node :com.fulcrologic.fulcro.application/remote-name => any?])
+(>fdef txn/process-send-queues! [{:com.fulcrologic.fulcro.application/keys [remotes runtime-atom] :as app}] [:com.fulcrologic.fulcro.application/app => ::txn/send-queues])
+(>fdef txn/defer [f tm] [fn? int? => any?])
+(>fdef txn/tx-node
   ([tx] [::txn/tx => ::txn/tx-node])
   ([tx options] [::txn/tx ::txn/options => ::txn/tx-node]))
-(>fdef build-env
+(>fdef txn/build-env
   ([app tx-node addl] [:com.fulcrologic.fulcro.application/app ::txn/tx-node map? => map?])
   ([app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => map?]))
-(>fdef tx!
+(>fdef app/default-tx!
   ([app tx] [:com.fulcrologic.fulcro.application/app ::txn/tx => ::txn/id])
   ([app tx options] [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]))
-(>fdef dispatch-elements [tx-node env dispatch-fn] [::txn/tx-node map? fn? => ::txn/tx-node])
-(>fdef schedule!
+(>fdef txn/dispatch-elements [tx-node env dispatch-fn] [::txn/tx-node map? fn? => ::txn/tx-node])
+(>fdef txn/schedule!
   ([app scheduled-key action tm] [:com.fulcrologic.fulcro.application/app keyword? fn? int? => any?])
   ([app scheduled-key action] [:com.fulcrologic.fulcro.application/app keyword? fn? => any?]))
-(>fdef activate-submissions! [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}] [:com.fulcrologic.fulcro.application/app => any?])
-(>fdef schedule-activation!
+(>fdef txn/activate-submissions! [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}] [:com.fulcrologic.fulcro.application/app => any?])
+(>fdef txn/schedule-activation!
   ([app tm] [:com.fulcrologic.fulcro.application/app int? => any?])
   ([app] [:com.fulcrologic.fulcro.application/app => any?]))
-(>fdef schedule-queue-processing!
+(>fdef txn/schedule-queue-processing!
   ([app tm] [:com.fulcrologic.fulcro.application/app int? => any?])
   ([app] [:com.fulcrologic.fulcro.application/app => any?]))
-(>fdef schedule-sends!
+(>fdef txn/schedule-sends!
   ([app tm] [:com.fulcrologic.fulcro.application/app int? => any?])
   ([app] [:com.fulcrologic.fulcro.application/app => any?]))
-(>fdef advance-actions! [app node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
-(>fdef run-actions! [app node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
-(>fdef fully-complete? [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => boolean?])
-(>fdef remove-send! [app remote txn-id ele-idx] [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::txn/id ::txn/idx => any?])
-(>fdef record-result!
+(>fdef txn/advance-actions! [app node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
+(>fdef txn/run-actions! [app node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
+(>fdef txn/fully-complete? [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => boolean?])
+(>fdef txn/remove-send! [app remote txn-id ele-idx] [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::txn/id ::txn/idx => any?])
+(>fdef txn/record-result!
   ([app txn-id ele-idx remote result result-key] [:com.fulcrologic.fulcro.application/app ::txn/id int? keyword? any? keyword? => any?])
   ([app txn-id ele-idx remote result] [:com.fulcrologic.fulcro.application/app ::txn/id int? keyword? any? => any?]))
-(>fdef add-send! [app tx-node ele-idx remote] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/idx :com.fulcrologic.fulcro.application/remote-name => ::txn/send-node])
-(>fdef queue-element-sends! [app tx-node tx-element] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::txn/tx-node])
-(>fdef idle-node? [tx-node] [::txn/tx-node => boolean?])
-(>fdef element-with-work [remote-names element] [:com.fulcrologic.fulcro.application/remote-names ::txn/tx-element => (s/nilable ::txn/tx-element)])
-(>fdef queue-next-send! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
-(>fdef queue-sends! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
-(>fdef dispatch-result! [app tx-node tx-element remote] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element keyword? => ::txn/tx-element])
-(>fdef distribute-element-results! [app tx-node tx-element] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::txn/tx-element])
-(>fdef distribute-results! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
-(>fdef update-progress! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
-(>fdef process-tx-node! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => (s/nilable ::txn/tx-node)])
-(>fdef process-queue! [app] [:com.fulcrologic.fulcro.application/app => any?])
+(>fdef txn/add-send! [app tx-node ele-idx remote] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/idx :com.fulcrologic.fulcro.application/remote-name => ::txn/send-node])
+(>fdef txn/queue-element-sends! [app tx-node tx-element] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::txn/tx-node])
+(>fdef txn/idle-node? [tx-node] [::txn/tx-node => boolean?])
+(>fdef txn/element-with-work [remote-names element] [:com.fulcrologic.fulcro.application/remote-names ::txn/tx-element => (s/nilable ::txn/tx-element)])
+(>fdef txn/queue-next-send! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
+(>fdef txn/queue-sends! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
+(>fdef txn/dispatch-result! [app tx-node tx-element remote] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element keyword? => ::txn/tx-element])
+(>fdef txn/distribute-element-results! [app tx-node tx-element] [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::txn/tx-element])
+(>fdef txn/distribute-results! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
+(>fdef txn/update-progress! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node])
+(>fdef txn/process-tx-node! [app tx-node] [:com.fulcrologic.fulcro.application/app ::txn/tx-node => (s/nilable ::txn/tx-node)])
+(>fdef txn/process-queue! [app] [:com.fulcrologic.fulcro.application/app => any?])
 
 ;; ================================================================================
 ;; Application Specs
 ;; ================================================================================
 (s/def ::app/state-atom futil/atom?)
-(s/def ::app/app-root any?)
+(s/def ::app/app-root (s/nilable any?))
 (s/def ::app/indexes (s/keys :req-un [::app/ident->components]))
 (s/def ::app/ident->components (s/map-of eql/ident? set?))
 (s/def ::app/keyword->components (s/map-of keyword? set?))
@@ -124,9 +124,13 @@
 (s/def ::app/remote-name keyword?)
 (s/def ::app/remote-names (s/coll-of keyword? :kind set?))
 (s/def ::app/remotes (s/map-of ::app/remote-name fn?))
+(s/def ::app/basis-t pos-int?)
+(s/def ::app/last-rendered-state map?)
 (s/def ::app/runtime-state (s/keys :req [::app/app-root
                                          ::app/indexes
                                          ::app/remotes
+                                         ::app/basis-t
+                                         ::app/last-rendered-state
                                          ::txn/activation-scheduled?
                                          ::txn/queue-processing-scheduled?
                                          ::txn/sends-scheduled?
@@ -134,7 +138,27 @@
                                          ::txn/active-queue
                                          ::txn/send-queues]))
 (s/def ::app/runtime-atom (atom-of ::app/runtime-state))
+(s/def :algorithm/tx! fn?)
+(s/def :algorithm/optimized-render! fn?)
+(s/def :algorithm/render! fn?)
+(s/def :algorithm/merge* fn?)
+(s/def :algorithm/load-error? fn?)
+(s/def :algorithm/index-component! fn?)
+(s/def :algorithm/drop-component! fn?)
+(s/def :algorithm/schedule-render! fn?)
+(s/def :algorithm/global-query-transform fn?)
+(s/def ::app/algorithms (s/keys :req [:algorithm/tx!
+                                      :algorithm/optimized-render!
+                                      :algorithm/render!
+                                      :algorithm/merge*
+                                      :algorithm/load-error?
+                                      :algorithm/global-query-transform
+                                      :algorithm/index-component!
+                                      :algorithm/drop-component!
+                                      :algorithm/schedule-render!]))
 
 (s/def ::app/app (s/keys :req
                    [::app/state-atom
+                    ::app/algorithms
                     ::app/runtime-atom]))
+

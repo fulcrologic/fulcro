@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.macros.defmutation
   (:require
     [clojure.spec.alpha :as s]
-    [fulcro.util :as util :refer [join-key join-value join?]]
+    [com.fulcrologic.fulcro.algorithms.misc :as util :refer [join-key join-value join?]]
     [cljs.analyzer :as ana]
     [clojure.string :as str])
   (:import (clojure.lang IFn)))
@@ -17,11 +17,6 @@
                          :arglist (fn [a] (and (vector? a) (= 1 (count a))))
                          :sections (s/* (s/or :handler ::handler))))
 
-(comment
-  (s/conform ::mutation-args '(user/boo [params]
-                                (action [env] (swap! state))))
-
-  )
 (defn defmutation* [macro-env args]
   (let [conform!       (fn [element spec value]
                          (when-not (s/valid? spec value)
@@ -54,9 +49,6 @@
                             ~method-map))]
     (if (= fqsym sym)
       multimethod
-      `(def ~(with-meta sym {:doc doc})
-         (do
-           ~multimethod
-           (com.fulcrologic.fulcro.mutations/->Mutation ~fqsym))))))
-
-
+      `(do
+         ~multimethod
+         (def ~(with-meta sym {:doc doc}) (com.fulcrologic.fulcro.mutations/->Mutation '~fqsym))))))

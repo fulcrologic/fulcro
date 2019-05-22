@@ -1,13 +1,12 @@
-(ns com.fulcrologic.fulcro.main
+(ns fulcro_todomvc.playground
   (:require
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     ["react" :as react :refer [useState useEffect]]
     ["react-dom" :as react-dom]
-    [fulcro.client.dom :as dom]
-    [fulcro.util :as util]
     [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.transactions :as txn]))
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.dom :as dom]))
 
 (def ^:dynamic *reconciler* nil)
 
@@ -257,7 +256,7 @@
                               (comp/update-state! this update :n inc))} "Click me!"))))
 
 (defn ui-sample [props & children]
-  (let [{::app/keys [middleware]} *reconciler*
+  (let [{:keys [::app/middleware]} *reconciler*
         ep-mw       (get middleware :extra-props-middleware)
         extra-props (when ep-mw
                       (this-as this (ep-mw this)))]

@@ -1,6 +1,8 @@
 (ns com.fulcrologic.fulcro.algorithms.denormalize
   (:require
-    [com.fulcrologic.fulcro.algorithms.ast :as ast]))
+    [edn-query-language.core :as eql]))
+
+(def ^:dynamic *denormalize-time* 0)
 
 (defn lookup-ref? [v]
   (and (vector? v) (= 2 (count v)) (not (lookup-ref? (first v)))))
@@ -122,9 +124,7 @@
                            top-node
                            (:join grouped-children)
                            idents-seen)]
-    (some-> result-node (persistent!))))
-
-(def ^:dynamic *denormalize-time* 0)
+    (some-> result-node (persistent!) (vary-meta assoc ::time *denormalize-time*))))
 
 (defn db->tree
   "Pull a tree of data from a fulcro normalized database as a tree corresponding to the given query.
@@ -138,6 +138,8 @@
   are hydrating the UI should ensure that this time is bound to Fulcro's current internal
   basis-time using `binding`."
   [query starting-entity state-map]
-  (let [ast (ast/query->ast query)]
+  (let [ast (eql/query->ast query)]
     (some-> (denormalize ast starting-entity state-map {})
-      (vary-meta assoc :fulcro.client.primitives/time *denormalize-time*))))
+      (vary-meta assoc ::time *denormalize-time*))))
+
+(defn denormalization-time [props] (some-> props meta ::time))

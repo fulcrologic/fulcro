@@ -226,7 +226,8 @@
         pre-merge-form                   (build-pre-merge env thissym pre-merge)
         query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
         render-form                      (build-render sym thissym propsym computedsym extra-args body)
-        fqkw                             (keyword (name sym))
+        nspc                             (if (cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
+        fqkw                             (keyword (str nspc) (name sym))
         options-map                      (cond-> options
                                            state-form (assoc :initial-state state-form)
                                            pre-merge-form (assoc :pre-merge pre-merge-form)
@@ -243,5 +244,6 @@
                (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
              (when-let [constructor# (get options# :constructor)]
                (constructor# this# (goog.object/get props# "fulcro$value")))))
-         (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))))
+         (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#))
+      `(def ~sym {}))))
 

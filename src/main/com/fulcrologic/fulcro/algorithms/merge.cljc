@@ -1,11 +1,13 @@
 (ns com.fulcrologic.fulcro.algorithms.merge
   (:require
-    [fulcro.client.impl.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [taoensso.timbre :as log]
-    [fulcro.util :as util]))
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]))
 
 (defn remove-ident*
   "Removes an ident, if it exists, from a list of idents in app state. This
@@ -109,8 +111,8 @@
                                    :else nil)
                     result-value (get result result-key)]
                 (cond
-                  (or (and (util/ident? result-key) (= '_ (second result-key)))
-                    (and (util/ident? element) (= '_ (second element))))
+                  (or (and (eql/ident? result-key) (= '_ (second result-key)))
+                    (and (eql/ident? element) (= '_ (second element))))
                   result
 
                   (is-ui-query-fragment? result-key)
@@ -130,7 +132,7 @@
                       :otherwise (assoc result k (mark-missing result' query))))
 
                   ; pure ident query
-                  (and (util/ident? element) (nil? (get result element)))
+                  (and (eql/ident? element) (nil? (get result element)))
                   (assoc result element missing-entity)
 
                   ; union (a join with a map as a target query)
@@ -146,7 +148,7 @@
                       :else result))
 
                   ; ident-based join to nothing (removing table entries)
-                  (and (util/join? element) (util/ident? (util/join-key element)) (nil? (get result (util/join-key element))))
+                  (and (util/join? element) (eql/ident? (util/join-key element)) (nil? (get result (util/join-key element))))
                   (let [mock-missing-object (mark-missing {} (util/join-value element))]
                     (assoc result (util/join-key element) (merge mock-missing-object missing-entity)))
 
@@ -189,7 +191,7 @@
     (map? m) (reduce (fn [acc [k v]]
                        (cond
                          (or (= ::not-found k) (= ::not-found v) (= ::tempids k) (= :tempids k)) acc
-                         (and (util/ident? v) (= ::not-found (second v))) acc
+                         (and (eql/ident? v) (= ::not-found (second v))) acc
                          :otherwise (assoc acc k (sweep v))))
                (with-meta {} (meta m))
                m)
@@ -209,7 +211,7 @@
         (cond
           (or (= key ::tempids) (= key :tempids) (= key ::not-found)) acc
           (= new-value ::not-found) (dissoc acc key)
-          (and (util/ident? new-value) (= ::not-found (second new-value))) acc
+          (and (eql/ident? new-value) (= ::not-found (second new-value))) acc
           (leaf? new-value) (assoc acc key (sweep-one new-value))
           (and (map? existing-value) (map? new-value)) (update acc key sweep-merge new-value)
           :else (assoc acc key (sweep new-value)))))
@@ -274,8 +276,6 @@
 (defn merge-ident [app-state ident props]
   (update-in app-state ident (comp sweep-one merge) props))
 
-
-
 (defn- sift-idents [res]
   (let [{idents true rest false} (group-by #(vector? (first %)) res)]
     [(into {} idents) (into {} rest)]))
@@ -293,7 +293,7 @@
   (let [ident-joins (into {} (comp
                                (map #(cond-> % (seq? %) first))
                                (filter #(and (util/join? %)
-                                          (util/ident? (util/join-key %)))))
+                                          (eql/ident? (util/join-key %)))))
                       query)]
     (letfn [(step [result-tree [ident props]]
               (let [component-query (get ident-joins ident '[*])
@@ -350,4 +350,130 @@
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
      :merge-data  merge-data}))
+
+(defn merge-alternate-unions
+  "Walks the given query and calls (merge-fn parent-union-component union-child-initial-state) for each non-default element of a union that has initial app state.
+  You probably want to use merge-alternate-union-elements[!] on a state map or app."
+  [merge-fn root-component]
+  (letfn [(walk-ast
+            ([ast visitor]
+             (walk-ast ast visitor nil))
+            ([{:keys [children component type dispatch-key union-key key] :as parent-ast} visitor parent-union]
+             (when (and component parent-union (= :union-entry type))
+               (visitor component parent-union))
+             (when children
+               (doseq [ast children]
+                 (cond
+                   (= (:type ast) :union) (walk-ast ast visitor component) ; the union's component is on the parent join
+                   (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
+                   ast (walk-ast ast visitor nil))))))
+          (merge-union [component parent-union]
+            (let [default-initial-state   (and parent-union (comp/has-initial-app-state? parent-union) (comp/get-initial-state parent-union {}))
+                  to-many?                (vector? default-initial-state)
+                  component-initial-state (and component (comp/has-initial-app-state? component) (comp/get-initial-state component {}))]
+              (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
+                (merge-fn parent-union component-initial-state))))]
+    (walk-ast
+      (eql/query->ast (comp/get-query root-component))
+      merge-union)))
+
+(defn merge-component
+  "Given a state map of the application database, a component, and a tree of component-data: normalizes
+   the tree of data and merges the component table entries into the state, returning a new state map.
+   Since there is not an implied root, the component itself won't be linked into your graph (though it will
+   remain correctly linked for its own consistency).
+   Therefore, this function is just for dropping normalized things into tables
+   when they themselves have a recursive nature. This function is useful when you want to create a new component instance
+   and put it in the database, but the component instance has recursive normalized state. This is a basically a
+   thin wrapper around `prim/tree->db`.
+
+   See also integrate-ident, integrate-ident!, and merge-component!"
+  [state-map component component-data & named-parameters]
+  (if-let [top-ident (comp/get-ident component component-data)]
+    (let [query          [{top-ident (comp/get-query component)}]
+          state-to-merge {top-ident component-data}
+          table-entries  (-> (fnorm/tree->db query state-to-merge true (pre-merge-transform state-map))
+                           (dissoc ::tables top-ident))]
+      (cond-> (util/deep-merge state-map table-entries)
+        (seq named-parameters) (#(apply integrate-ident* % top-ident named-parameters))))
+    state-map))
+
+(defn merge-alternate-union-elements
+  "Just like merge-alternate-union-elements!, but usable from within mutations and on server-side rendering. Ensures
+  that when a component has initial state it will end up in the state map, even if it isn't currently in the
+  initial state of the union component (which can only point to one at a time)."
+  [state-map root-component]
+  (let [initial-state  (comp/get-initial-state root-component nil)
+        state-map-atom (atom state-map)
+        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
+        _              (merge-alternate-unions merge-to-state root-component)
+        new-state      @state-map-atom]
+    new-state))
+
+(defn merge!
+  "Merge an arbitrary data-tree that conforms to the shape of the given query using Fulcro's
+  standard merge and normalization logic.
+
+  query - A query, derived from defui components, that can be used to normalized a tree of data.
+  data-tree - A tree of data that matches the nested shape of query
+  remote - No longer used. May be passed, but is ignored.
+
+  See also `merge*`."
+  [app data-tree query]
+  (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} (comp/any->app app)]
+    (when state-atom
+      (swap! state-atom merge* query data-tree))))
+
+(defn merge-component!
+  "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
+
+  This utility function obtains the ident of the incoming object-data using the UI component's ident function. Once obtained,
+  it uses the component's query and ident to normalize the data and place the resulting objects in the correct tables.
+  It is also quite common to want those new objects to be linked into lists in other spot in app state, so this function
+  supports optional named parameters for doing this. These named parameters can be repeated as many times as you like in order
+  to place the ident of the new object into other data structures of app state.
+
+  This function honors the data merge story for Fulcro: attributes that are queried for but do not appear in the
+  data will be removed from the application. This function also uses the initial state for the component as a base
+  for merge if there was no state for the object already in the database.
+
+  This function will also trigger re-renders of components that directly render object merged, as well as any components
+  into which you integrate that data via the named-parameters.
+
+  This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
+  of the normal mutation story. Do not use this function within abstract mutations.
+
+  - reconciler: A reconciler
+  - component: The class of the component that corresponds to the data. Must have an ident.
+  - object-data: A map (tree) of data to merge. Will be normalized for you.
+  - named-parameter: Post-processing ident integration steps. see integrate-ident!
+
+  Any keywords that appear in ident integration steps will be added to the re-render queue.
+
+  See also `fulcro.client.primitives/merge!`.
+  "
+  [app component object-data & named-parameters]
+  (when-let [app (comp/any->app app)]
+    (if-not (comp/has-ident? component)
+      (log/error "merge-component!: component must implement Ident. Merge skipped.")
+      (let [ident   (comp/get-ident component object-data)
+            state   (:com.fulcrologic.fulcro.application/state-atom app)
+            {:keys [merge-data merge-query]} (-preprocess-merge @state component object-data)
+            render! (ah/app-algorithm app :schedule-render!)]
+        (merge! app merge-data merge-query)
+        (swap! state (fn [s]
+                       (as-> s st
+                         ;; Use utils until we make smaller namespaces, requiring mutations would
+                         ;; cause circular dependency.
+                         (apply integrate-ident* st ident named-parameters)
+                         (dissoc st :fulcro/merge))))
+        (render! app)))))
+
+(defn merge-alternate-union-elements!
+  "Walks the query and initial state of root-component and merges the alternate sides of unions with initial state into
+  the application state database. See also `merge-alternate-union-elements`, which can be used on a state map and
+  is handy for server-side rendering. This function side-effects on your app, and returns nothing."
+  [app root-component]
+  (let [app (comp/any->app app)]
+    (merge-alternate-unions (partial merge-component! app) root-component)))
 

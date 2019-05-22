@@ -1,18 +1,20 @@
-{:paths   ["src/main"]
+{:paths   ["src/main" "src/todomvc"]
 
  :deps    {edn-query-language/eql     {:mvn/version "0.0.3"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
            com.taoensso/tufte         {:mvn/version "2.0.1"}
            com.cognitect/transit-clj  {:mvn/version "0.8.313"}
            com.cognitect/transit-cljs {:mvn/version "0.8.256"}
+           cljsjs/react               {:mvn/version "16.8.3-0"}
+           cljsjs/react-dom           {:mvn/version "16.8.3-0"}
+           com.wsscode/pathom         {:mvn/version "2.2.14"}
            org.clojure/clojure        {:mvn/version "1.10.0"}
            org.clojure/clojurescript  {:mvn/version "1.10.520"}
            org.clojure/core.async     {:mvn/version "0.4.474"}}
 
  :aliases {:test      {:extra-paths ["src/test"]
                        :extra-deps  {org.clojure/test.check  {:mvn/version "0.10.0-alpha4"}
-                                     fulcrologic/fulcro-spec {:mvn/version "3.0.1"
-                                                              :exclusions  [fulcrologic/fulcro]}}}
+                                     fulcrologic/fulcro-spec {:mvn/version "3.0.1"}}}
 
            :clj-tests {:extra-paths ["src/test"]
                        :main-opts   ["-m" "kaocha.runner"]

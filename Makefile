@@ -5,4 +5,4 @@ tests:
 	clojure -A:dev:test:clj-tests -J-Dghostwheel.enabled=true
 
 dev:
-	clojure -A:dev:provided:test:clj-tests --watch --fail-fast 
+	clojure -A:dev:test:clj-tests -J-Dghostwheel.enabled=true --watch --fail-fast --no-capture-output
