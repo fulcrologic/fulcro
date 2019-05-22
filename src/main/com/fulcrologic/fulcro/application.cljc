@@ -90,7 +90,7 @@
 
 (defn fulcro-app
   ([] (fulcro-app {}))
-  ([{:keys [extra-props-middleware
+  ([{:keys [props-middleware
             render-middleware
             remotes]}]
    {::state-atom   (atom {})
@@ -102,6 +102,8 @@
                     :algorithm/global-query-transform default-global-query-transform
                     :algorithm/index-component!       indexing/index-component!
                     :algorithm/drop-component!        indexing/drop-component!
+                    :algorithm/props-middleware       props-middleware
+                    :algorithm/render-middleware      render-middleware
                     :algorithm/schedule-render!       schedule-render!}
     ::runtime-atom (atom
                      {::app-root                        nil
@@ -110,8 +112,6 @@
                       ::root-factory                    nil
                       ::basis-t                         1
                       ::last-rendered-state             {}
-                      ::middleware                      {:extra-props-middleware extra-props-middleware
-                                                         :render-middleware      render-middleware}
                       ::remotes                         (or remotes
                                                           {:remote (fn [send]
                                                                      (log/fatal "Remote requested, but no remote defined."))})

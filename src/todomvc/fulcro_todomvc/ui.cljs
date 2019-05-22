@@ -4,10 +4,13 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro-css.localized-dom :as ldom]
+    [com.fulcrologic.fulcro-css.css-injection :as inj]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
     [fulcro-todomvc.api :as api]
     [goog.object :as gobj]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro-css.css :as css]))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))
@@ -162,6 +165,7 @@
   {:initial-state (fn [p] {:root/application (comp/get-initial-state Application {})})
    :query         [{:root/application (comp/get-query Application)}]}
   (dom/div {}
+    (inj/style-element {:component Root})
     (ui-application application)))
 
 
