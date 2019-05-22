@@ -33,6 +33,16 @@
       (when error-action
         (error-action env)))))
 
+(defn mutation-declaration? [expr] (= Mutation (type expr)))
+
+(defn mutation-symbol
+  "Return the real symbol (for mutation dispatch) of `mutation`, which can be a symbol (this function is then identity)
+   or a mutation-declaration."
+  [mutation]
+  (if (mutation-declaration? mutation)
+    (first (mutation))
+    mutation))
+
 (defmulti mutate (fn [env] (-> env :ast :dispatch-key)))
 
 #?(:clj
@@ -118,9 +128,8 @@
        (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
        (swap! state update-in (conj ref field) not))))
 
-(defmethod mutate :default [{:keys [target]} k _]
-  (when (nil? target)
-    (log/error "Unknown app state mutation. Have you required the file with your mutations?" k)))
+(defmethod mutate :default [{:keys [ast]}]
+  (log/error "Unknown app state mutation. Have you required the file with your mutations?" (:key ast)))
 
 (defn toggle!
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
@@ -192,3 +201,8 @@
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (if event (target-value event) value)]
     (set-value! component field value)))
+
+(comment
+  (deref (.-method_table mutate))
+
+  )
