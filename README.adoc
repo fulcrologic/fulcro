@@ -32,21 +32,26 @@ some of the improved internals do change a few operational semantics.
 == Status
 
 This project is not *even* alpha yet.  It is nearly complete enough to write a full-stack working app, but there is a
-lot of work remaining.  The general road map (with status) is:
+lot of work remaining.
 
-* Rewrite Transaction Internals (80% done)
-** Write tx processing that is extensible, and can support all currently-known use-cases (90%)
-** Make tx system pluggable (designed, but maybe 40% implemented)
+The basic data fetch API has been ported, so most of a full-stack working app can be written (and is in the repo
+as todomvc).  Only the port of HTTP network layer remains before we have something usable for full-stack.
+
+The general road map (with status) is:
+
+* Rewrite Transaction Internals (100% done, but needs more integration testing)
+** Write tx processing that is extensible, and can support all currently-known use-cases (100%)
+** Make tx system pluggable (100%)
 ** Support for new tx-combining at network layer (designed, not implemented)
-** New `defmutation` (possibly to be renamed) (80%)
-*** Support for `result-action` (80%)
+** New `defmutation` (possibly to be renamed) (100%)
+*** Support for `result-action` (100%)
 *** Support for "extensible" mutation semantics (100%)
 *** Support for quote-free transactions (100%)
 
-* Network Layer (0%)
+* Network Layer (80%)
 ** Write adapters or otherwise build new remote networking
 
-* Merge Logic (90%)
+* Merge Logic (95%)
 ** Split merge routines into easily reusable bits (100%)
 ** Make it possible for users to easily choose/customize merge strategy (100%)
 ** Figure out the right place to put helpers like integrate-ident, etc.
@@ -54,11 +59,11 @@ lot of work remaining.  The general road map (with status) is:
 * App DB normalization/denormalization (90%)
 ** Improve performance of `db->tree` (100%, up to 6x faster)
 ** Factor logic out into clear namespaces (100%)
-** Add better tests (0%)
+** Add better tests (50%)
 
 * Components
-** Support for React class-based components (90%)
-*** Rewrite of `defsc` (90%)
+** Support for React class-based components (95%)
+*** Rewrite of `defsc` (100%)
 **** Drop protocols (100%)
 **** Support extensibility  (90% complete)
 ** Turn component-local CSS into a pure library concern (easy to do)
@@ -68,7 +73,7 @@ lot of work remaining.  The general road map (with status) is:
 
 * Move Dynamic Router into this library (0%)
 
-* Move to EQL as Source of AST logic (50%)
+* Move to EQL as Source of AST logic (100%)
 
 * Minimize dependencies (100%)
 
