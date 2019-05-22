@@ -288,6 +288,7 @@
                                      componentWillReceiveProps (assoc :componentWillReceiveProps (wrap-props-handler componentWillReceiveProps))
                                      initLocalState (assoc :initLocalState (wrap-this initLocalState)))))
              statics           (cond-> {:displayName            name
+                                        :fulcro$registryKey     fqkw
                                         :cljs$lang$type         true
                                         :cljs$lang$ctorStr      name
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
@@ -297,6 +298,12 @@
          (gobj/extend constructor (clj->js statics) #js {"fulcro$options" options})
          ;; FIXME: wrong
          (-register-component! fqkw name)))))
+
+(defn registry-key
+  "Returns the registry key (the fully-qualified class name as a keyword) of the given component class."
+  [component-class]
+  #?(:cljs (gobj/get component-class "fulcro$registryKey")
+     :clj  :NOT-IMPLEMENTED))
 
 (defn set-state!
   ([component new-state callback]
@@ -547,13 +554,12 @@
                            [this dbprops computedprops extended-args])}
      defsc
      [& args]
-     (let [location (str *ns* ":" (:line (meta &form)))]
-       (try
-         (defsc* &env args)
-         (catch Exception e
-           (if (contains? (ex-data e) :tag)
-             (throw e)
-             (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e))))))))
+     (try
+       (defsc* &env args)
+       (catch Exception e
+         (if (contains? (ex-data e) :tag)
+           (throw e)
+           (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 
 #?(:cljs
    (defn create-element [class props children]

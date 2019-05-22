@@ -32,5 +32,6 @@
   (df/load! app [:list/id 1] ui/TodoList))
 
 (comment
+  (comp/registry-key ui/Root)
   (-> app ::app/runtime-atom deref)
   (-> app ::app/state-atom deref))
