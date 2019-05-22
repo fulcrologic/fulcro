@@ -288,7 +288,6 @@
                                      componentWillReceiveProps (assoc :componentWillReceiveProps (wrap-props-handler componentWillReceiveProps))
                                      initLocalState (assoc :initLocalState (wrap-this initLocalState)))))
              statics           (cond-> {:displayName            name
-                                        :fulcro$registryKey     fqkw
                                         :cljs$lang$type         true
                                         :cljs$lang$ctorStr      name
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
@@ -296,7 +295,7 @@
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
          (gobj/extend (.-prototype constructor) js/React.Component.prototype js-instance-props #js {"fulcro$options" options})
          (gobj/extend constructor (clj->js statics) #js {"fulcro$options" options})
-         ;; FIXME: wrong
+         (gobj/set constructor "fulcro$registryKey" fqkw) ; done here instead of in extend (clj->js screws it up)
          (-register-component! fqkw name)))))
 
 (defn registry-key

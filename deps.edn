@@ -14,8 +14,7 @@
 
  :aliases {:test      {:extra-paths ["src/test"]
                        :extra-deps  {org.clojure/test.check  {:mvn/version "0.10.0-alpha4"}
-                                     fulcrologic/fulcro-spec {:mvn/version "3.0.1"
-                                                              :exclusions  [fulcrologic/fulcro]}}}
+                                     fulcrologic/fulcro-spec {:mvn/version "3.0.1"}}}
 
            :clj-tests {:extra-paths ["src/test"]
                        :main-opts   ["-m" "kaocha.runner"]

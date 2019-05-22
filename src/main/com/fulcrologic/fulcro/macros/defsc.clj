@@ -3,8 +3,7 @@
     [cljs.analyzer :as ana]
     [clojure.walk :refer [prewalk]]
     [clojure.spec.alpha :as s]
-    [clojure.set :as set]
-    [taoensso.timbre :as log]))
+    [clojure.set :as set]))
 
 (defn cljs? [env]
   (boolean (:ns env)))
@@ -245,5 +244,6 @@
                (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
              (when-let [constructor# (get options# :constructor)]
                (constructor# this# (goog.object/get props# "fulcro$value")))))
-         (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))))
+         (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#))
+      `(def ~sym {}))))
 
