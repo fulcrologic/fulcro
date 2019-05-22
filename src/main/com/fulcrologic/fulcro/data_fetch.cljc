@@ -229,3 +229,8 @@
                                                          :source-key (comp/get-ident component)))]
     (comp/transact! app [(list `internal-load! params)])))
 
+(defn refresh!
+  ([component load-options]
+   (load! component (comp/get-ident component) component load-options))
+  ([component]
+   (load! component (comp/get-ident component) component)))
