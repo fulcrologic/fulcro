@@ -52,3 +52,4 @@
       `(do
          ~multimethod
          (def ~(with-meta sym {:doc doc}) (com.fulcrologic.fulcro.mutations/->Mutation '~fqsym))))))
+

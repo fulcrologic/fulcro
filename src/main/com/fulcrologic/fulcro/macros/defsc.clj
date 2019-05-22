@@ -235,15 +235,17 @@
                                            query-form (assoc :query query-form)
                                            render-form (assoc :render render-form))]
     (if (cljs? env)
-      `(let [options# ~options-map]
-         (defn ~(vary-meta sym assoc :doc doc :once true)
-           [props#]
-           (cljs.core/this-as this#
-             (if-let [init-state# (get options# :initLocalState)]
-               (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this#)))
-               (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
-             (when-let [constructor# (get options# :constructor)]
-               (constructor# this# (goog.object/get props# "fulcro$value")))))
-         (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#))
+      `(do
+         (declare ~sym)
+         (let [options# ~options-map]
+           (defn ~(vary-meta sym assoc :doc doc :once true)
+             [props#]
+             (cljs.core/this-as this#
+               (if-let [init-state# (get options# :initLocalState)]
+                 (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this#)))
+                 (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
+               (when-let [constructor# (get options# :constructor)]
+                 (constructor# this# (goog.object/get props# "fulcro$value")))))
+           (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
       `(def ~sym {}))))
 

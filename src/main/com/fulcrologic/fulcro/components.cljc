@@ -7,6 +7,7 @@
          [cljs.analyzer :as ana]]
         :cljs
         [[goog.object :as gobj]])
+    [cljsjs.react]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
@@ -51,6 +52,27 @@
     #?(:clj  false                                          ; TODO
        :cljs (true? (gobj/get x "fulcro$isComponent")))
     false))
+
+(defn component-class?
+  "Returns true if the argument is a component class."
+  #?(:cljs {:tag boolean})
+  [x]
+  (if-not (nil? x)
+    #?(:clj  false                                          ; TODO
+       :cljs (gobj/containsKey x "fulcro$class"))
+    false))
+
+(defn classname->class
+  "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
+  been (transitively) required by your application.
+
+  `classname` can be a fully-qualified keyword or symbol."
+  [classname]
+  (cond
+    (keyword? classname) (get @component-registry classname)
+    (symbol? classname) (let [k (keyword (namespace classname) (name classname))]
+                          (get @component-registry k))
+    :otherwise nil))
 
 (declare props)
 
@@ -288,6 +310,7 @@
                                      componentWillReceiveProps (assoc :componentWillReceiveProps (wrap-props-handler componentWillReceiveProps))
                                      initLocalState (assoc :initLocalState (wrap-this initLocalState)))))
              statics           (cond-> {:displayName            name
+                                        :fulcro$class           cls
                                         :cljs$lang$type         true
                                         :cljs$lang$ctorStr      name
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
@@ -295,8 +318,8 @@
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
          (gobj/extend (.-prototype constructor) js/React.Component.prototype js-instance-props #js {"fulcro$options" options})
          (gobj/extend constructor (clj->js statics) #js {"fulcro$options" options})
-         (gobj/set constructor "fulcro$registryKey" fqkw) ; done here instead of in extend (clj->js screws it up)
-         (-register-component! fqkw name)))))
+         (gobj/set constructor "fulcro$registryKey" fqkw)   ; done here instead of in extend (clj->js screws it up)
+         (-register-component! fqkw cls)))))
 
 (defn registry-key
   "Returns the registry key (the fully-qualified class name as a keyword) of the given component class."
@@ -572,22 +595,24 @@
    #?(:cljs
       (with-meta
         (fn element-factory [props & children]
-          (let [key (if-not (nil? keyfn)
-                      (keyfn props)
-                      "1")
-                ref (:ref props)
-                ref (cond-> ref (keyword? ref) str)]
-            (create-element class
-              ;; TASK: augmenting props at factory level???
-              #js {:key             key
-                   :ref             ref
-                   :fulcro$reactKey key
-                   :fulcro$value    props
-                   :fulcro$queryid  (query-id class qualifier)
-                   :fulcro$app      *app*
-                   :fulcro$parent   *parent*
-                   :fulcro$depth    *depth*}
-              (or (util/force-children children) []))))
+          (let [key              (if-not (nil? keyfn)
+                                   (keyfn props)
+                                   (hash (registry-key class)))
+                ref              (:ref props)
+                ref              (cond-> ref (keyword? ref) str)
+                app              *app*
+                props-middleware (:algorithm/props-middleware (ah/app-algorithm app))
+                js-props         #js {:key             key
+                                      :ref             ref
+                                      :fulcro$reactKey key
+                                      :fulcro$value    props
+                                      :fulcro$queryid  (query-id class qualifier)
+                                      :fulcro$app      *app*
+                                      :fulcro$parent   *parent*
+                                      :fulcro$depth    *depth*}]
+            (when props-middleware
+              (props-middleware class js-props))
+            (create-element class js-props (or (util/force-children children) []))))
         {:class     class
          :queryid   (query-id class qualifier)
          :qualifier qualifier}))))
