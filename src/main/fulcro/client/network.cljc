@@ -123,8 +123,9 @@
 (defn wrap-fulcro-request
   "Client Remote Middleware to add transit encoding for normal Fulcro requests. Sets the content type and transforms an EDN
   body to a transit+json encoded body. addl-transit-handlers is a map from data type to transit handler (like
-  you would pass using the `:handlers` option of transit). The
-  additional handlers are used to encode new data types into transit. See transit documentation for more details."
+  you would pass using the `:handlers` option of transit). The additional handlers are used to encode new data types
+  into transit. transit-transformation is a function of one argument returning a transformed transit value (like you
+  would pass using the `:transform` option of transit). See transit documentation for more details."
   ([handler addl-transit-handlers transit-transformation]
     #?(:clj identity
        :cljs
