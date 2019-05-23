@@ -125,16 +125,19 @@
   body to a transit+json encoded body. addl-transit-handlers is a map from data type to transit handler (like
   you would pass using the `:handlers` option of transit). The
   additional handlers are used to encode new data types into transit. See transit documentation for more details."
-  ([handler addl-transit-handlers]
+  ([handler addl-transit-handlers transit-transformation]
     #?(:clj identity
        :cljs
-            (let [writer (t/writer (if addl-transit-handlers {:handlers addl-transit-handlers} {}))]
+            (let [writer (t/writer (cond-> {}
+                                     addl-transit-handlers (assoc :handlers addl-transit-handlers)
+                                     transit-transformation (assoc :transform transit-transformation)))]
               (fn [{:keys [headers body] :as request}]
                 (let [body    (ct/write writer body)
                       headers (assoc headers "Content-Type" "application/transit+json")]
                   (handler (merge request {:body body :headers headers :method :post})))))))
-  ([handler] (wrap-fulcro-request handler nil))
-  ([] (wrap-fulcro-request identity nil)))
+  ([handler addl-transit-handlers] (wrap-fulcro-request handler addl-transit-handlers nil))
+  ([handler] (wrap-fulcro-request handler nil nil))
+  ([] (wrap-fulcro-request identity nil nil)))
 
 (defn wrap-csrf-token
   "Client remote request middleware. This middleware can be added to add an X-CSRF-Token header to the request."
