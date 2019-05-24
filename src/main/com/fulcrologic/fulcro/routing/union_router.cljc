@@ -4,6 +4,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
@@ -160,22 +161,21 @@
 
 (declare DynamicRouter get-dynamic-router-target)
 
-;; TASK. port set-query
 (defn- set-routing-query
   "Change the given router's query iff it is a dynamic router. Returns the updated state."
   [state app router-id [target-kw _]]
-  #_(let [router   (-> state :fulcro.client.routing.routers/by-id router-id)
-          dynamic? (-> router ::dynamic boolean)
-          query    (when dynamic?
-                     (some-> target-kw
-                       get-dynamic-router-target
-                       (comp/get-query state)))]
-      (if query
-        (do
-          (when app (p/queue! app [::pending-route]))
-          (comp/set-query* state (comp/factory DynamicRouter {:qualifier router-id})
-            {:query [::id ::dynamic {::current-route query}]}))
-        state)))
+  (let [router   (-> state :fulcro.client.routing.routers/by-id router-id)
+        dynamic? (-> router ::dynamic boolean)
+        query    (when dynamic?
+                   (some-> target-kw
+                     get-dynamic-router-target
+                     (comp/get-query state)))]
+    (if query
+      (do
+        (when app (app/schedule-render! app))
+        (comp/set-query* state (comp/factory DynamicRouter {:qualifier router-id})
+          {:query [::id ::dynamic {::current-route query}]}))
+      state)))
 
 (defn -update-routing-queries
   "PRIVATE.
@@ -562,10 +562,3 @@
      defsc-router [sym arglist options & body]
      (defsc-router* &env sym arglist options body)))
 
-(comment
-  (macroexpand-1 '(defsc-router R [this props]
-                    {:router-id :my-router
-                     :default-route Main
-                     :router-targets {:a A
-                                      :main Main}
-                     :ident (fn [this props] [(:table props) (:id props)])})))
