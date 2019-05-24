@@ -6,8 +6,8 @@
          [com.fulcrologic.fulcro.macros.defsc :refer [defsc*]]
          [cljs.analyzer :as ana]]
         :cljs
-        [[goog.object :as gobj]])
-    [cljsjs.react]
+        [[goog.object :as gobj]
+         [cljsjs.react]])
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
