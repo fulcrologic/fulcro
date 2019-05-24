@@ -720,3 +720,12 @@
     (if (and (string? queryid) (or query params))
       (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
       (log/error "Unable to set query. Invalid arguments."))))
+
+(defn ref->any [app ident]
+  (some-> app :com.fulcrologic.fulcro.application/ident->components (get ident) first))
+
+(defn class->any [app cls]
+  ;; TASK implement this index
+  )
+
+(defn component->state-map [this] (some-> this any->app :com.fulcrologic.fulcro.application/state-atom deref))
