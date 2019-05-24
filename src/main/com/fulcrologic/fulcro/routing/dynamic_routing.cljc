@@ -512,8 +512,8 @@
 
 ;; TASK: no longer needs to be a macro...just use configure-component!...but can be if we want syntax checking
 ;; NO...just use defsc. period.
-#?(:clj
-   (dext/defextended-defsc defsc-route-target [[`RouteLifecycle false] [`RouteTarget true]]))
+;#?(:clj
+   ;(dext/defextended-defsc defsc-route-target [[`RouteLifecycle false] [`RouteTarget true]]))
 
 (defn ssr-initial-state
   "(ALPHA) A helper to get initial state database for SSR.
