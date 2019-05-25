@@ -9,15 +9,19 @@
     [edn-query-language.core :as eql]
     [fulcro-todomvc.ui :as ui]
     [fulcro-todomvc.server :as sapi]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro-css.css :as css]))
 
 (goog-define MOCK false)
 
-(defonce app (app/fulcro-app {:remotes {:remote
-                                        (if MOCK
-                                          (mock-remote/mock-http-server {:parser (fn [req]
-                                                                                   (sapi/parser {} req))})
-                                          (fhr/fulcro-http-remote {:url "/api"}))}}))
+(defonce app (app/fulcro-app {:props-middleware (comp/wrap-update-extra-props
+                                                  (fn [cls extra-props]
+                                                    (merge extra-props (log/spy :info (css/get-classnames cls)))))
+                              :remotes          {:remote
+                                                 (if MOCK
+                                                   (mock-remote/mock-http-server {:parser (fn [req]
+                                                                                            (sapi/parser {} req))})
+                                                   (fhr/fulcro-http-remote {:url "/api"}))}}))
 
 (defn ^:export start []
   (log/info "mount")

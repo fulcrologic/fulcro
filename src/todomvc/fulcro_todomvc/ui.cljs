@@ -24,9 +24,11 @@
 (defsc TodoItem [this
                  {:ui/keys   [ui/editing ui/edit-text]
                   :item/keys [id label complete] :or {complete false} :as props}
-                 {:keys [delete-item check uncheck] :as computed}]
+                 {:keys [delete-item check uncheck] :as computed}
+                 {:keys [red]}]
   {:query              (fn [this] [:item/id :item/label :item/complete :ui/editing :ui/edit-text])
    :ident              :item/id
+   :css                [[:.red {:color "red"}]]
    :initLocalState     (fn [this] {:save-ref (fn [r] (gobj/set this "input-ref" r))})
    :componentDidUpdate (fn [this prev-props _]
                          ;; Code adapted from React TodoMVC implementation
@@ -44,7 +46,7 @@
                           (mut/toggle! this :ui/editing))
                         (delete-item id)))]
 
-    (dom/li {:classes [(when complete (str "completed")) (when editing (str " editing"))]}
+    (dom/li {:classes [red (when complete (str "completed")) (when editing (str " editing"))]}
       (dom/div :.view {}
         (dom/input {:type      "checkbox"
                     :ref       (comp/get-state this :save-ref)
@@ -167,7 +169,3 @@
   (dom/div {}
     (inj/style-element {:component Root})
     (ui-application application)))
-
-
-
-
