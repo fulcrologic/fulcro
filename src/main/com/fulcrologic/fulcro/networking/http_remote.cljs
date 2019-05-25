@@ -23,27 +23,27 @@
                          (.-TIMEOUT ErrorCode)         :timeout})
 
 (defn make-xhrio [] (XhrIo.))
-(defn xhrio-dispose [xhrio] (.dispose xhrio))
-(defn xhrio-enable-progress-events [xhrio] (.setProgressEventsEnabled xhrio true))
-(defn xhrio-abort [xhrio] (.abort xhrio))
-(defn xhrio-send [xhrio url verb body headers] (.send xhrio url verb body (some-> headers clj->js)))
-(defn xhrio-status-code [xhrio] (.getStatus xhrio))
-(defn xhrio-status-text [xhrio] (.getStatusText xhrio))
-(defn xhrio-raw-error [xhrio] (.getLastErrorCode xhrio))
-(defn xhrio-error-code [xhrio]
+(defn xhrio-dispose [^js xhrio] (.dispose xhrio))
+(defn xhrio-enable-progress-events [^js xhrio] (.setProgressEventsEnabled xhrio true))
+(defn xhrio-abort [^js xhrio] (.abort xhrio))
+(defn xhrio-send [^js xhrio url verb body headers] (.send xhrio url verb body (some-> headers clj->js)))
+(defn xhrio-status-code [^js xhrio] (.getStatus xhrio))
+(defn xhrio-status-text [^js xhrio] (.getStatusText xhrio))
+(defn xhrio-raw-error [^js xhrio] (.getLastErrorCode xhrio))
+(defn xhrio-error-code [^js xhrio]
   (let [status (xhrio-status-code xhrio)
         error  (get xhrio-error-states (xhrio-raw-error xhrio) :unknown)
         error  (if (and (= 0 status) (= error :http-error)) :network-error error)]
     error))
-(defn xhrio-error-text [xhrio] (.getLastError xhrio))
-(defn xhrio-response-text [xhrio] (.getResponseText xhrio))
-(defn xhrio-response-headers [xhrio] (js->clj (.getResponseHeaders xhrio)))
+(defn xhrio-error-text [^js xhrio] (.getLastError xhrio))
+(defn xhrio-response-text [^js xhrio] (.getResponseText xhrio))
+(defn xhrio-response-headers [^js xhrio] (js->clj (.getResponseHeaders xhrio)))
 
 (defn xhrio-progress
   "Given an xhrio progress event, returns a map with keys :loaded and :total, where loaded is the
   number of bytes transferred in the given phase (upload/download) and total is the total number
   of bytes to transfer (if known). "
-  [event]
+  [^js event]
   {:loaded (.-loaded event) :total (.-total event)})
 
 (defn progress%
@@ -334,6 +334,7 @@
                                                      (catch :default e
                                                        (log/error "Send aborted due to middleware failure " e)
                                                        nil))]
+                            ;; TODO: need an additional marker to only set this when the txn should be abortable?
                             (let [abort-id             (::txn/id send-node)
                                   xhrio                (make-xhrio)
                                   {:keys [body headers url method]} real-request

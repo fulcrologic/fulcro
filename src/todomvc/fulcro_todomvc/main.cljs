@@ -11,15 +11,6 @@
     [fulcro-todomvc.server :as sapi]
     [taoensso.timbre :as log]))
 
-#_(defn handle-remote [{:keys [::txn/ast ::txn/result-handler] :as send-node}]
-    (log/info "Remote got AST: " ast)
-    (let [query (eql/ast->query ast)]
-      (async/go
-        (result-handler
-          (if-let [result (async/<! (sapi/parser {} query))]
-            {:status-code 200 :body result}
-            {:status-code 500 :body "Parser Failed to return a value"})))))
-
 (goog-define MOCK false)
 
 (defonce app (app/fulcro-app {:remotes {:remote
