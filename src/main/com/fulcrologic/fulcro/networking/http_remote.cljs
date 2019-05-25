@@ -308,7 +308,7 @@
     {:active-requests (atom {})
      :serial?         serial?
      :transmit!       (fn transmit! [{:keys [active-requests]} {:keys [::txn/ast ::txn/result-handler ::txn/update-handler] :as send-node}]
-                        (let [edn              (log/spy :info (eql/ast->query ast))
+                        (let [edn              (eql/ast->query ast)
                               ok-handler       (fn [result]
                                                  (try
                                                    (result-handler (select-keys result #{:transaction :status-code :body :status-text}))

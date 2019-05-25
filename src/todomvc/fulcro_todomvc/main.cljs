@@ -2,11 +2,13 @@
   (:require
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.networking.http-remote :as fhr]
+    [com.fulcrologic.fulcro.networking.mock-server-remote :as mock-remote]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [edn-query-language.core :as eql]
     [fulcro-todomvc.ui :as ui]
+    [fulcro-todomvc.server :as sapi]
     [taoensso.timbre :as log]))
 
 #_(defn handle-remote [{:keys [::txn/ast ::txn/result-handler] :as send-node}]
@@ -18,7 +20,13 @@
             {:status-code 200 :body result}
             {:status-code 500 :body "Parser Failed to return a value"})))))
 
-(defonce app (app/fulcro-app {:remotes {:remote (fhr/fulcro-http-remote {:url "/api"})}}))
+(goog-define MOCK false)
+
+(defonce app (app/fulcro-app {:remotes {:remote
+                                        (if MOCK
+                                          (mock-remote/mock-http-server {:parser (fn [req]
+                                                                                   (sapi/parser {} req))})
+                                          (fhr/fulcro-http-remote {:url "/api"}))}}))
 
 (defn ^:export start []
   (log/info "mount")
