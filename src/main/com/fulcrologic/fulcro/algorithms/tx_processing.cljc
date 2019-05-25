@@ -116,7 +116,7 @@
   "Process the send against the user-defined remote. Catches exceptions and calls error handler with status code 500
   if the remote itself throws exceptions."
   [app send-node remote-name]
-  (enc/if-let [remote (get (app->remotes app) remote-name)
+  (enc/if-let [remote    (get (app->remotes app) remote-name)
                transmit! (get remote :transmit!)]
     (try
       (transmit! remote send-node)
@@ -131,8 +131,6 @@
       (log/error "Transmit was not defined on remote" remote-name)
       ((::result-handler send-node) {:status-code 500
                                      :message     "Transmit missing on remote."}))))
-
-
 
 (defn process-send-queues!
   "Process the send queues against the remotes. Updates the send queues on the app and returns the updated send queues."
@@ -158,8 +156,6 @@
                           remote-names)]
     (swap! runtime-atom assoc ::send-queues new-send-queues)
     new-send-queues))
-
-
 
 (defn tx-node
   ([tx]
