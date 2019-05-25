@@ -1,31 +1,27 @@
 (ns fulcro-todomvc.main
   (:require
-    [clojure.core.async :as async]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.networking.http-remote :as fhr]
+    [com.fulcrologic.fulcro.networking.mock-server-remote :as mock-remote]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.component-middleware :as cmw]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     [edn-query-language.core :as eql]
-    [fulcro-todomvc.api :as api]
-    [fulcro-todomvc.server :as sapi]
     [fulcro-todomvc.ui :as ui]
-    [goog.object :as gobj]
+    [fulcro-todomvc.server :as sapi]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro-css.css :as css]))
 
-(defn handle-remote [{:keys [::txn/ast ::txn/result-handler] :as send-node}]
-  (log/info "Remote got AST: " ast)
-  (let [query (eql/ast->query ast)]
-    (async/go
-      (result-handler
-        (if-let [result (async/<! (sapi/parser {} query))]
-          {:status-code 200 :body result}
-          {:status-code 500 :body "Parser Failed to return a value"})))))
+(goog-define MOCK false)
 
-(defonce app (app/fulcro-app {:remotes {:remote handle-remote}}))
+(defonce app (app/fulcro-app {:props-middleware (comp/wrap-update-extra-props
+                                                  (fn [cls extra-props]
+                                                    (merge extra-props (log/spy :info (css/get-classnames cls)))))
+                              :remotes          {:remote
+                                                 (if MOCK
+                                                   (mock-remote/mock-http-server {:parser (fn [req]
+                                                                                            (sapi/parser {} req))})
+                                                   (fhr/fulcro-http-remote {:url "/api"}))}}))
 
 (defn ^:export start []
   (log/info "mount")

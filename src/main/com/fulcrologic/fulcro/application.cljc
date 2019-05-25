@@ -113,8 +113,8 @@
                       ::basis-t                         1
                       ::last-rendered-state             {}
                       ::remotes                         (or remotes
-                                                          {:remote (fn [send]
-                                                                     (log/fatal "Remote requested, but no remote defined."))})
+                                                          {:remote {:transmit! (fn [send]
+                                                                                 (log/fatal "Remote requested, but no remote defined."))}})
                       ::indexes                         {:ident->components {}}
                       ::mutate                          mut/mutate
                       ::txn/activation-scheduled?       false
