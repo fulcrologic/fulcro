@@ -6,8 +6,8 @@
          [com.fulcrologic.fulcro.macros.defsc :refer [defsc*]]
          [cljs.analyzer :as ana]]
         :cljs
-        [[goog.object :as gobj]])
-    [cljsjs.react]
+        [[goog.object :as gobj]
+         [cljsjs.react]])
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
@@ -628,3 +628,104 @@
        (tx! app tx options))))
   ([app-or-comp tx]
    (transact! app-or-comp tx {})))
+
+(declare normalize-query)
+
+(defn link-element [element]
+  (prewalk (fn link-element-helper [ele]
+             (let [{:keys [queryid]} (meta ele)]
+               (if queryid queryid ele))) element))
+
+(defn normalize-query-elements
+  "Determines if there are query elements in the present query that need to be normalized as well. If so, it does so.
+  Returns the new state map."
+  [state-map query]
+  (reduce (fn normalize-query-elements-reducer [state ele]
+            (let [parameterized? (seq? ele)                 ; not using list? because it could show up as a lazyseq
+                  raw-element    (if parameterized? (first ele) ele)]
+              (cond
+                (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
+                                                union-meta                  (-> union-alternates meta)
+                                                normalized-union-alternates (-> (into {} (map link-element union-alternates))
+                                                                              (with-meta union-meta))
+                                                union-query-id              (-> union-alternates meta :queryid)]
+                                            (assert union-query-id "Union query has an ID. Did you use extended get-query?")
+                                            (util/deep-merge
+                                              {::queries {union-query-id {:query normalized-union-alternates
+                                                                          :id    union-query-id}}}
+                                              (reduce (fn normalize-union-reducer [s [_ subquery]]
+                                                        (normalize-query s subquery)) state union-alternates)))
+                (util/join? raw-element) (normalize-query state (util/join-value raw-element))
+                :else state)))
+    state-map query))
+
+(defn link-query
+  "Find all of the elements (only at the top level) of the given query and replace them
+  with their query ID"
+  [query]
+  (let [metadata (meta query)]
+    (with-meta
+      (mapv link-element query)
+      metadata)))
+
+(defn normalize-query
+  "Given a state map and a query, returns a state map with the query normalized into the database. Query fragments
+  that already appear in the state will not be added. "
+  [state-map query]
+  (let [new-state (normalize-query-elements state-map query)
+        new-state (if (nil? (::queries new-state))
+                    (assoc new-state ::queries {})
+                    new-state)
+        top-query (link-query query)]
+    (if-let [queryid (some-> query meta :queryid)]
+      (util/deep-merge {::queries {queryid {:query top-query :id queryid}}} new-state)
+      new-state)))
+
+(defn set-query*
+  "Put a query in app state.
+  NOTE: Indexes must be rebuilt after setting a query, so this function should primarily be used to build
+  up an initial app state."
+  [state-map class-or-factory {:keys [query] :as args}]
+  (let [queryid   (cond
+                    (nil? class-or-factory)
+                    nil
+
+                    (some-> class-or-factory meta (contains? :queryid))
+                    (some-> class-or-factory meta :queryid)
+
+                    :otherwise (query-id class-or-factory nil))
+        component (or (-> class-or-factory meta :class) class-or-factory)
+        setq*     (fn [state]
+                    (normalize-query
+                      (update state ::queries dissoc queryid)
+                      (vary-meta query assoc :queryid queryid :component component)))]
+    (if (string? queryid)
+      (cond-> state-map
+        (contains? args :query) (setq*))
+      (do
+        (log/error "Set query failed. There was no query ID. Use a class or factory for the second argument.")
+        state-map))))
+
+(defn set-query!
+  "Set a dynamic query. Alters the query, and then rebuilds internal indexes.
+
+  `x` is anything that any->app accepts."
+  [x class-or-factory {:keys [query params] :as opts}]
+  (let [app        (any->app x)
+        state-atom (:com.fulcrologic.fulcro.application/state-atom app)
+        queryid    (cond
+                     (string? class-or-factory) class-or-factory
+                     (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
+                     :otherwise (query-id class-or-factory nil))]
+    (if (and (string? queryid) (or query params))
+      (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
+      (log/error "Unable to set query. Invalid arguments."))))
+
+(defn ref->any [app ident]
+  (some-> app :com.fulcrologic.fulcro.application/ident->components (get ident) first))
+
+(defn class->any [app cls]
+  ;; TASK implement this index
+  )
+
+(defn component->state-map [this] (some-> this any->app :com.fulcrologic.fulcro.application/state-atom deref))

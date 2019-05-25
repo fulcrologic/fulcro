@@ -149,3 +149,4 @@
              (swap! (::runtime-atom app) assoc
                ::app-root app-root)))))))
 
+(defn app-root [app] (-> app ::runtime-atom deref ::app-root))
