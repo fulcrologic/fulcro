@@ -117,29 +117,3 @@
         (swap! state assoc-in [:list/id list-id :list/filter] filter)
         (swap! state assoc :root/desired-filter filter)))))
 
-(defn elide-ast-nodes
-  "Remove items from a query (AST) that have a key that returns true for the elision-predicate"
-  [{:keys [key union-key children] :as ast} elision-predicate]
-  (let [union-elision? (elision-predicate union-key)]
-    (when-not (or union-elision? (elision-predicate key))
-      (when (and union-elision? (<= (count children) 2))
-        (log/warn "Unions are not designed to be used with fewer than two children. Check your calls to Fulcro
-        load functions where the :without set contains " (pr-str union-key)))
-      (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c)))))))
-
-#_(defmutation load-list [{:keys [component target key]}]
-  (action [{:keys [state]}]
-    (swap! state assoc-in [:load-markers key] :loading!))
-  (result-action [{:keys [state result app] :as env}]
-    (let [tree (-> result :body (get key))
-          idnt (comp/get-ident component tree)]
-      (swap! state
-        (fn [s]
-          (cond-> (merge/merge-component s component tree)
-            (and idnt target) (dt/process-target idnt target)
-            (and idnt (keyword? key) (not target)) (assoc key idnt))))))
-  (remote [{:keys [state]}]
-    (let [query [{key (comp/get-query component @state)}]
-          ast   (eql/query->ast query)
-          ast   (elide-ast-nodes ast (fn [key] (and (keyword? key) (= (namespace key) "ui"))))]
-      ast)))

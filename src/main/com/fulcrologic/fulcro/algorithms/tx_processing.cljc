@@ -4,6 +4,7 @@
     [com.fulcrologic.fulcro.algorithms.misc :as futil]
     [com.fulcrologic.fulcro.mutations :as m]
     [taoensso.timbre :as log]
+    [taoensso.encore :as enc]
     [edn-query-language.core :as eql]
     [clojure.set :as set]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
@@ -115,16 +116,21 @@
   "Process the send against the user-defined remote. Catches exceptions and calls error handler with status code 500
   if the remote itself throws exceptions."
   [app send-node remote-name]
-  (let [s! (get (app->remotes app) remote-name)]
+  (enc/if-let [remote (get (app->remotes app) remote-name)
+               transmit! (get remote :transmit!)]
     (try
-      (s! send-node)
+      (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
         (log/error e "Send threw an exception!")
         (try
           ((::result-handler send-node) {:status-code      500
                                          :client-exception e})
           (catch #?(:cljs :default :clj Exception) e
-            (log/fatal e "Error handler failed to handle exception!")))))))
+            (log/fatal e "Error handler failed to handle exception!")))))
+    (do
+      (log/error "Transmit was not defined on remote" remote-name)
+      ((::result-handler send-node) {:status-code 500
+                                     :message     "Transmit missing on remote."}))))
 
 
 
