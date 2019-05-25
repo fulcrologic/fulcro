@@ -4,13 +4,10 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro-css.localized-dom :as ldom]
-    [com.fulcrologic.fulcro-css.css-injection :as inj]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
     [fulcro-todomvc.api :as api]
     [goog.object :as gobj]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro-css.css :as css]))
+    [taoensso.timbre :as log]))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))
@@ -24,11 +21,9 @@
 (defsc TodoItem [this
                  {:ui/keys   [ui/editing ui/edit-text]
                   :item/keys [id label complete] :or {complete false} :as props}
-                 {:keys [delete-item check uncheck] :as computed}
-                 {:keys [red]}]
+                 {:keys [delete-item check uncheck] :as computed}]
   {:query              (fn [this] [:item/id :item/label :item/complete :ui/editing :ui/edit-text])
    :ident              :item/id
-   :css                [[:.red {:color "red"}]]
    :initLocalState     (fn [this] {:save-ref (fn [r] (gobj/set this "input-ref" r))})
    :componentDidUpdate (fn [this prev-props _]
                          ;; Code adapted from React TodoMVC implementation
@@ -46,7 +41,7 @@
                           (mut/toggle! this :ui/editing))
                         (delete-item id)))]
 
-    (dom/li {:classes [red (when complete (str "completed")) (when editing (str " editing"))]}
+    (dom/li {:classes [(when complete (str "completed")) (when editing (str " editing"))]}
       (dom/div :.view {}
         (dom/input {:type      "checkbox"
                     :ref       (comp/get-state this :save-ref)
@@ -167,5 +162,4 @@
   {:initial-state (fn [p] {:root/application (comp/get-initial-state Application {})})
    :query         [{:root/application (comp/get-query Application)}]}
   (dom/div {}
-    (inj/style-element {:component Root})
     (ui-application application)))
