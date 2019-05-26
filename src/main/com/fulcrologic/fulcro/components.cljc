@@ -125,7 +125,7 @@
 
 (defn component-options
   ([this & ks]
-   (let [c               (react-type this)
+   (let [c (react-type this)
          options #?(:cljs (or (gobj/get this options-key) (gobj/get c options-key))
                     ;; FIXME
                     :clj nil)]
@@ -391,7 +391,9 @@
        (when-not (eql/ident? id)
          (log/warn "get-ident returned an invalid ident for class:" class))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
-     (log/warn "get-ident called with something that is either not a class or does not implement ident: " class))))
+     (do
+       (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
+       nil))))
 
 (defn component-name
   "Returns a string version of the given react component's name."

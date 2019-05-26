@@ -26,8 +26,8 @@
     (#'cdom/parse :#j.a.b) => {:id "j" :classes ["a" "b"]}
     (#'cdom/parse :.a#j.b) => {:id "j" :classes ["a" "b"]}
     "throws an exception for invalid keywords"
-    (#'cdom/parse :a) =throws=> {:regex #"Invalid style"}
-    (#'cdom/parse :.a#.j) =throws=> {:regex #"Invalid style"}))
+    (#'cdom/parse :a) =throws=> #"Invalid style"
+    (#'cdom/parse :.a#.j) =throws=> #"Invalid style"))
 
 (specification "Combining keywords on CLJ(s) property maps"
   (let [props         {:className "c1"}

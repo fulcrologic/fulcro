@@ -3,7 +3,8 @@
     [cljs.analyzer :as ana]
     [clojure.walk :refer [prewalk]]
     [clojure.spec.alpha :as s]
-    [clojure.set :as set]))
+    [clojure.set :as set]
+    [taoensso.timbre :as log]))
 
 (defn cljs? [env]
   (boolean (:ns env)))
@@ -59,14 +60,17 @@
      (->> body-forms
        (cons updated-args)
        (cons sym)
-       (cons 'fn)))))
+       (cons `fn)))))
 
 (defn destructured-keys [m]
   (let [regular-destructurings (reduce
                                  (fn [acc k]
                                    (if (and (keyword? k) (= "keys" (name k)))
                                      (let [simple-syms (get m k)
-                                           source-keys (into #{} (map (fn [s] (keyword (namespace k) (str s)))) simple-syms)]
+                                           source-keys (into #{} (map (fn [s]
+                                                                        (if (and (keyword? s) (namespace s))
+                                                                          s
+                                                                          (keyword (namespace k) (str s))))) simple-syms)]
                                        (into acc source-keys))
                                      acc))
                                  #{}
@@ -185,10 +189,6 @@
                    children (or (children-by-prop query) {})]
                (build-and-validate-initial-state-map env sym template legal-keys children))))
 
-(defn- build-pre-merge [env thissym pre-merge]
-  (when pre-merge
-    (replace-and-validate-fn env 'fn [thissym] 1 pre-merge)))
-
 (s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list? :keyword keyword?))
 (s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?))
 (s/def :fulcro.client.primitives.defsc/initial-state (s/or :template map? :method list?))
@@ -212,7 +212,7 @@
                                                        :path) " is invalid."))))
   (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
         [thissym propsym computedsym extra-args] arglist
-        {:keys [ident query initial-state pre-merge]} options
+        {:keys [ident query initial-state]} options
         body                             (or body ['nil])
         ident-template-or-method         (into {} [ident])  ;clojure spec returns a map entry as a vector
         initial-state-template-or-method (into {} [initial-state])
@@ -223,14 +223,12 @@
                                            (complement #{}))
         ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
         state-form                       (build-initial-state env sym thissym initial-state-template-or-method legal-key-checker query-template-or-method)
-        pre-merge-form                   (build-pre-merge env thissym pre-merge)
         query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
         render-form                      (build-render sym thissym propsym computedsym extra-args body)
         nspc                             (if (cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
         fqkw                             (keyword (str nspc) (name sym))
         options-map                      (cond-> options
                                            state-form (assoc :initial-state state-form)
-                                           pre-merge-form (assoc :pre-merge pre-merge-form)
                                            ident-form (assoc :ident ident-form)
                                            query-form (assoc :query query-form)
                                            render-form (assoc :render render-form))]
@@ -247,5 +245,9 @@
                (when-let [constructor# (get options# :constructor)]
                  (constructor# this# (goog.object/get props# "fulcro$value")))))
            (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
-      `(def ~sym {}))))
+      `(do
+         (declare ~sym)
+         (let [options# ~options-map]
+           (defn ~(vary-meta sym assoc :doc doc :once true) [props#])
+           (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#))))))
 

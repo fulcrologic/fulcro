@@ -1,7 +1,5 @@
 (ns com.fulcrologic.fulcro.ui-state-machines-spec
   (:require
-    #?(:cljs ["enzyme" :refer [shallow instance configure]])
-    #?(:cljs ["enzyme-adapter-react-16" :as Adapter])
     [clojure.spec.alpha :as s]
     [fulcro-spec.core :refer [specification provided provided! when-mocking when-mocking! behavior assertions component]]
     [com.fulcrologic.fulcro.data-fetch :as df]
@@ -14,11 +12,6 @@
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]))
 
-#?(:cljs
-   (defonce enzyme-config
-     (do
-       (configure #js {:adapter (new Adapter)}))))
-
 (declare => =1x=>)
 
 (def mock-app (app/fulcro-app))
@@ -29,7 +22,7 @@
     (txn/build-env (txn/tx-node tx) extra-env)
     (assoc :ast (eql/query->ast1 tx))))
 
-(defn mock-component
+#_(defn mock-component
   "Returns a shallow-rendered react Component (rendered instance) that prim/component? will return true for."
   [fulcro-class props]
   #?(:clj  {}
@@ -650,7 +643,7 @@
 
          (uism/set-string! {} :fake :username #js {:target #js {:value "hi"}}))))
 
-  (specification "derive-actor-components"
+  #_(specification "derive-actor-components"
     (let [actual (uism/derive-actor-components {:a [:x 1]
                                                 :b AClass
                                                 :c (mock-component AClass {})
@@ -665,7 +658,7 @@
         (:c actual) => ::AClass
         "finds class on metadata"
         (:d actual) => ::AClass)))
-  (specification "derive-actor-idents"
+  #_(specification "derive-actor-idents"
     (let [actual (uism/derive-actor-idents {:a [:x 1]
                                             :b AClass
                                             :c (mock-component AClass {})

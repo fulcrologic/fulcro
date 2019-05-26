@@ -15,7 +15,8 @@
   (fn [x]
     (and
       (atom? x)
-      (s/valid? content-spec (deref x)))))
+      ;; TODO: figure out how to nest spec
+      )))
 
 ;; ================================================================================
 ;; Transaction Specs
