@@ -23,13 +23,13 @@
                  {:ui/keys   [ui/editing ui/edit-text]
                   :item/keys [id label complete] :or {complete false} :as props}
                  {:keys [delete-item check uncheck] :as computed}]
-  {:query              (fn [this] [:item/id :item/label :item/complete :ui/editing :ui/edit-text])
+  {:query              (fn [] [:item/id :item/label :item/complete :ui/editing :ui/edit-text])
    :ident              :item/id
    :initLocalState     (fn [this] {:save-ref (fn [r] (gobj/set this "input-ref" r))})
    :componentDidUpdate (fn [this prev-props _]
                          ;; Code adapted from React TodoMVC implementation
                          (when (and (not (:editing prev-props)) (:editing (comp/props this)))
-                           (let [input-field        (gobj/get this "input-ref")
+                           (let [input-field (gobj/get this "input-ref")
                                  input-field-length (when input-field (.. input-field -value -length))]
                              (when input-field
                                (.focus input-field)
@@ -116,17 +116,17 @@
   {:initial-state {:list/id 1 :ui/new-item-text "" :list/items [] :list/title "main" :list/filter :list.filter/none}
    :ident         :list/id
    :query         [:list/id :ui/new-item-text {:list/items (comp/get-query TodoItem)} :list/title :list/filter]}
-  (let [num-todos       (count items)
+  (let [num-todos (count items)
         completed-todos (filterv :item/complete items)
-        num-completed   (count completed-todos)
-        all-completed?  (= num-completed num-todos)
-        filtered-todos  (case filter
-                          :list.filter/active (filterv (comp not :item/complete) items)
-                          :list.filter/completed completed-todos
-                          items)
-        delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
-        check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
-        uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
+        num-completed (count completed-todos)
+        all-completed? (= num-completed num-todos)
+        filtered-todos (case filter
+                         :list.filter/active (filterv (comp not :item/complete) items)
+                         :list.filter/completed completed-todos
+                         items)
+        delete-item (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
+        check (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
+        uncheck (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
     (log/info "Shared" (comp/shared this))
     (dom/div {}
       (dom/section :.todoapp {}
@@ -152,7 +152,7 @@
 (def ui-todo-list (comp/factory TodoList))
 
 (defsc Application [this {:keys [todos] :as props}]
-  {:initial-state (fn [p] {:route :application
+  {:initial-state (fn [c p] {:route :application
                            :todos (comp/get-initial-state TodoList {})})
    :ident         (fn [] [:application :root])
    :query         [:route {:todos (comp/get-query TodoList)}]}
@@ -163,14 +163,13 @@
 
 (defsc Other [this props]
   {:query         [:route]
-   :ident         (fn [this props] [:other :root])
+   :ident         (fn [] [:other :root])
    :initial-state {:route :other}}
   (dom/div "OTHER ROUTE"))
 
 (fr/defsc-router TopRouter [this props]
   {:router-id      ::top-router
-   :ident          (fn [this props]
-                     (log/spy :info this)
+   :ident          (fn []
                      [(:route props) :root])
    :default-route  Application
    :router-targets {:application Application
@@ -179,7 +178,7 @@
 (def ui-router (comp/factory TopRouter))
 
 (defsc Root [this {:root/keys [router] :as props}]
-  {:initial-state (fn [p] {:root/router (comp/get-initial-state TopRouter {})})
+  {:initial-state (fn [c p] {:root/router (comp/get-initial-state TopRouter {})})
    :query         [{:root/router (comp/get-query TopRouter)}]}
   (log/info "root props" props)
   (dom/div {}
