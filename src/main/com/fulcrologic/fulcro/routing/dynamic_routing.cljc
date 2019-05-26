@@ -1,5 +1,5 @@
 (ns com.fulcrologic.fulcro.routing.dynamic-routing
-  #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing :refer [defsc-route-target]]))
+  #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
     [ghostwheel.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
@@ -61,7 +61,7 @@
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
 
 (defn get-targets [router] "Returns a set of classes to which this router routes."
-  (comp/component-options router :targets))
+  (set (comp/component-options router :router-targets)))
 
 (defn route-immediate [ident] (with-meta ident {:immediate true}))
 (defn route-deferred [ident completion-fn] (with-meta ident {:immediate false
@@ -273,7 +273,7 @@
 ;; TODO: This algorithm is repeated in more than one place in slightly different forms...refactor it.
 (defn proposed-new-path [this-or-reconciler relative-class-or-instance new-route]
   (let [app        (comp/any->app this-or-reconciler)
-        state-map  (app/current-state deref)
+        state-map  (app/current-state app)
         router     relative-class-or-instance
         root-query (comp/get-query router state-map)
         ast        (eql/query->ast root-query)
@@ -430,7 +430,6 @@
 #?(:clj (s/def ::failed-ui list?))
 #?(:clj (s/def ::defrouter-options (s/keys :req-un [::router-targets] :opt-un [::initial-ui ::loading-ui ::failed-ui])))
 
-;; TASK No macro!
 #?(:clj
    (defn defrouter* [env router-ns router-sym arglist options body]
      (when-not (and (vector? arglist) (= 2 (count arglist)))
@@ -453,7 +452,7 @@
                                       (fn [idx s] [(keyword (str "alt" idx)) `(comp/get-initial-state ~s {})])
                                       (rest router-targets)))
            ident-method           (apply list `(fn [] [::id ~id]))
-           get-targets-method     (apply list `(~'get-targets [~'c] ~(set router-targets)))
+           get-targets-method     (apply list `(fn [~'c] ~(set router-targets)))
            initial-state-lambda   (apply list `(fn [~'params] ~initial-state-map))
            states-to-render-route (if (seq body)
                                     #{:routed :deferred}
@@ -469,11 +468,9 @@
                                                                             :route-factory        (when ~'class (comp/factory ~'class))
                                                                             :current-state        ~'current-state}]
                                                      ~@body))))
-           options                (merge (dissoc options :router-targets) `{:query         ~query
-                                                                            :ident         ~ident-method
-                                                                            :protocols     [~'static fulcro.incubator.dynamic-routing/Router
-                                                                                            ~get-targets-method]
-                                                                            :initial-state ~initial-state-lambda})]
+           options                (merge options `{:query         ~query
+                                                   :ident         ~ident-method
+                                                   :initial-state ~initial-state-lambda})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
           (let [~'current-state (uism/get-active-state ~'this ~id)
@@ -482,7 +479,6 @@
                 ~'pending-path-segment (uism/retrieve ~'sm-env :pending-path-segment)]
             ~render-cases)))))
 
-;; TASK just use defsc...no custom macro needed
 #?(:clj
    (defmacro defrouter
      "Define a router.
@@ -513,7 +509,7 @@
 ;; TASK: no longer needs to be a macro...just use configure-component!...but can be if we want syntax checking
 ;; NO...just use defsc. period.
 ;#?(:clj
-   ;(dext/defextended-defsc defsc-route-target [[`RouteLifecycle false] [`RouteTarget true]]))
+;(dext/defextended-defsc defsc-route-target [[`RouteLifecycle false] [`RouteTarget true]]))
 
 (defn ssr-initial-state
   "(ALPHA) A helper to get initial state database for SSR.
