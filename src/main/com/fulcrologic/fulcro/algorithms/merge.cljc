@@ -403,9 +403,11 @@
   that when a component has initial state it will end up in the state map, even if it isn't currently in the
   initial state of the union component (which can only point to one at a time)."
   [state-map root-component]
-  (let [initial-state  (comp/get-initial-state root-component nil)
-        state-map-atom (atom state-map)
-        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
+  (let [state-map-atom (atom state-map)
+        merge-to-state (fn [comp tree]
+                         (log/info (.-displayName comp))
+                         (log/spy :info tree)
+                         (swap! state-map-atom merge-component comp tree))
         _              (merge-alternate-unions merge-to-state root-component)
         new-state      @state-map-atom]
     new-state))

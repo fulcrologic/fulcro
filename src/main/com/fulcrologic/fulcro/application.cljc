@@ -34,33 +34,80 @@
   [app]
   (swap! (::runtime-atom app) update ::basis-t inc))
 
+(defn update-shared!
+  "Force shared props to be recalculated. This updates the shared props on the app, and future renders will see the
+   updated values."
+  [{::keys [runtime-atom] :as app}]
+  (try
+    (let [shared     (-> app ::runtime-atom deref ::static-shared-props)
+          shared-fn  (ah/app-algorithm app :shared-fn)
+          state      (current-state app)
+          root-class (-> app ::runtime-atom deref ::root-class)
+          query      (comp/get-query root-class state)
+          v          (fdn/db->tree query state state)]
+      (swap! runtime-atom assoc ::shared-props (merge shared (shared-fn v))))
+    (catch #?(:cljs :default :clj Throwable) e
+      (log/error e "Cannot compute shared"))))
+
+(defn props-only-query [query]
+  (reduce
+    (fn [root-query ele]
+      (let [ele (if (list? ele) (first ele) ele)]
+        (cond
+          (util/join? ele) (conj root-query (util/join-key ele))
+          (keyword? ele) (conj root-query ele)
+          :else root-query)))
+    []
+    query))
+
+(defn root-props-changed? [app]
+  (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom :com.fulcrologic.fulcro.application/state-atom]} app
+        {:keys [:com.fulcrologic.fulcro.application/root-class]} @runtime-atom
+        state-map       @state-atom
+        prior-state-map (-> runtime-atom deref :com.fulcrologic.fulcro.application/last-rendered-state)
+        props-query     (props-only-query (comp/get-query root-class state-map))
+        root-old        (fdn/db->tree props-query prior-state-map prior-state-map)
+        root-new        (fdn/db->tree props-query state-map state-map)]
+    (not= root-old root-new)))
+
 (defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
 
-  `force-root?` - boolean.  When true disables all optimizations and forces a full root re-render."
+  Options include:
+  `force-root?` - boolean.  When true disables all optimizations and forces a full root re-render.
+
+  and anything your selected rendering optization system allows.  Shared props are updated via `shared-fn`
+  only on `force-root?` and when (shallow) root props change.
+  "
   ([app]
-   (render! app false))
-  ([app force-root?]
+   (render! app {:force-root? false}))
+  ([app {:keys [force-root?] :as options}]
    (tick! app)
    (let [{:keys [::runtime-atom ::state-atom]} app
-         render! (ah/app-algorithm app :optimized-render!)]
+         render!             (ah/app-algorithm app :optimized-render!)
+         shared-props        (get @runtime-atom ::shared-props)
+         root-props-changed? (root-props-changed? app)]
      (binding [fdn/*denormalize-time* (basis-t app)
+               comp/*app*             app
+               comp/*shared*          shared-props
                comp/*query-state*     @state-atom]
-       (render! app force-root?))
+       (when (or force-root? root-props-changed?)
+         (update-shared! app))
+       (render! app (merge options {:root-props-changed? root-props-changed?})))
      (swap! runtime-atom assoc ::last-rendered-state @state-atom))))
 
 (defn schedule-render!
   "Schedule a render on the next animation frame."
   ([app]
    (schedule-render! app false))
-  ([app force-root?]
-   #?(:clj  (render! app force-root?)
-      :cljs (let [r #(render! app force-root?)]
+  ([app options]
+   #?(:clj  (render! app options)
+      :cljs (let [r #(render! app options)]
               (if (not (exists? js/requestAnimationFrame))
                 (sched/defer r 16)
                 (js/requestAnimationFrame r))))))
 
-(defn- default-tx!
+(defn default-tx!
   "Default (Fulcro-2 compatible) transaction submission."
   ([app tx]
    (default-tx! app tx {:optimistic? true}))
@@ -92,10 +139,13 @@
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             render-middleware
-            remotes]}]
+            remotes
+            shared
+            shared-fn]}]
    {::state-atom   (atom {})
     ::algorithms   {:algorithm/tx!                    default-tx!
                     :algorithm/optimized-render!      ident-optimized/render!
+                    :algorithm/shared-fn              (or shared-fn (constantly {}))
                     :algorithm/render!                render!
                     :algorithm/load-error?            default-load-error?
                     :algorithm/merge*                 merge/merge*
@@ -112,6 +162,10 @@
                       ::root-factory                    nil
                       ::basis-t                         1
                       ::last-rendered-state             {}
+
+                      ::static-shared-props             shared
+                      ::shared-props                    {}
+
                       ::remotes                         (or remotes
                                                           {:remote {:transmit! (fn [send]
                                                                                  (log/fatal "Remote requested, but no remote defined."))}})
@@ -135,7 +189,7 @@
        (schedule-render! app)
        (let [dom-node     (gdom/getElement node)
              root-factory (comp/factory root)
-             root-query   (log/spy :info (comp/get-query root))
+             root-query   (comp/get-query root)
              initial-tree (comp/get-initial-state root)
              initial-db   (-> (fnorm/tree->db root-query initial-tree true)
                             (merge/merge-alternate-union-elements root))]
@@ -144,6 +198,7 @@
            ::mount-node dom-node
            ::root-factory root-factory
            ::root-class root)
+         (update-shared! app)
          (binding [comp/*app* app]
            (let [app-root (js/ReactDOM.render (root-factory initial-tree) dom-node)]
              (swap! (::runtime-atom app) assoc

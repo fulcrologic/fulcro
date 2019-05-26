@@ -276,7 +276,7 @@
     (let [sends         [(->send (uuid 1) {::txn/parallel? true}) (->send (uuid 2) {}) (->send (uuid 3) {})
                          (-> (->send (uuid 4) {}) (assoc ::txn/ast (eql/query->ast [:x :y])))]
           send-queues   {:remote sends}
-          app           (mock-app {:remotes {:remote (fn [send])}})
+          app           (mock-app {:remotes {:remote {:transmit! (fn [send])}}})
           mock-combined (-> (->send (uuid 4) {})
                           (assoc ::txn/active? true))]
       (swap! (::app/runtime-atom app) assoc ::txn/send-queues send-queues)
@@ -699,9 +699,9 @@
                                            (update e ::txn/complete? conj r))
 
     (let [app         (mock-app)
-          _           (swap! (::app/runtime-atom app) assoc ::app/remotes {:remote  (fn [send])
-                                                                           :rest    (fn [send])
-                                                                           :graphql (fn [send])})
+          _           (swap! (::app/runtime-atom app) assoc ::app/remotes {:remote  {:transmit! (fn [send])}
+                                                                           :rest    {:transmit! (fn [send])}
+                                                                           :graphql {:transmit! (fn [send])}})
           mock-result {:status-code 200 :value 20}
           tx-node     (-> (txn/tx-node `[(multi-remote {})])
                         (txn/dispatch-elements {} (fn [e] (m/mutate e)))
@@ -828,8 +828,8 @@
                                          nil)
 
       (let [{:keys [::app/runtime-atom] :as app} (-> (mock-app) (ah/with-optimized-render (fn
-                                                                                              ([app force-root?])
-                                                                                              ([app]))))
+                                                                                            ([app force-root?])
+                                                                                            ([app]))))
             active-queue [(assoc (txn/tx-node `[(f {})]) ::txn/id (uuid 1))
                           (assoc (txn/tx-node `[(g {})]) ::txn/id (uuid 2))]]
         (swap! runtime-atom assoc ::txn/active-queue active-queue)

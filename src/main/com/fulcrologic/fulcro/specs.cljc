@@ -124,7 +124,7 @@
 (s/def ::app/link-joins->components (s/map-of eql/ident? set?))
 (s/def ::app/remote-name keyword?)
 (s/def ::app/remote-names (s/coll-of keyword? :kind set?))
-(s/def ::app/remotes (s/map-of ::app/remote-name fn?))
+(s/def ::app/remotes (s/map-of ::app/remote-name map?))
 (s/def ::app/basis-t pos-int?)
 (s/def ::app/last-rendered-state map?)
 (s/def ::app/runtime-state (s/keys :req [::app/app-root

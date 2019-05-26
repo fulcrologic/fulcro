@@ -25,6 +25,7 @@
 (def ^:dynamic *app* nil)
 (def ^:dynamic *parent* nil)
 (def ^:dynamic *depth* nil)
+(def ^:dynamic *shared* nil)
 
 (defn -register-component!
   "Add a component to Fulcro's component registry.  This is used by defsc and defui to ensure that all Fulcro classes
@@ -171,6 +172,20 @@
                  opt-props  (gobj/get raw-state "fulcro$value")]
              (newer-props next-props opt-props))))
 
+(defn shared
+  "Return the global shared properties of the root. See :shared and
+   :shared-fn reconciler options."
+  ([component]
+   (shared component []))
+  ([component k-or-ks]
+   {:pre [(component? component)]}
+   (let [shared #?(:clj nil                                 ;; FIXME
+                   :cljs (gobj/get (. component -props) "fulcro$shared"))
+         ks             (cond-> k-or-ks
+                          (not (sequential? k-or-ks)) vector)]
+     (cond-> shared
+       (not (empty? ks)) (get-in ks)))))
+
 (letfn
   [(wrap-props-state-handler
      ([handler]
@@ -271,6 +286,7 @@
             (if-let [app (any->app this)]
               (binding [*app*         app
                         *depth*       (inc (depth this))
+                        *shared*      (shared this)
                         *query-state* (-> app (:com.fulcrologic.fulcro.application/state-atom) deref)
                         *parent*      this]
                 (apply render this args))
@@ -327,13 +343,18 @@
   #?(:cljs (gobj/get component-class "fulcro$registryKey")
      :clj  :NOT-IMPLEMENTED))
 
+(defn mounted? [this]
+  #?(:clj  false
+     :cljs (gobj/get this "fulcro$mounted" false)))
+
 (defn set-state!
   ([component new-state callback]
    #?(:cljs
-      (.setState ^js component
-        (fn [prev-state props]
-          #js {"fulcro$state" (merge (gobj/get prev-state "fulcro$state") new-state)})
-        callback)))
+      (if (mounted? component)
+        (.setState ^js component
+          (fn [prev-state props]
+            #js {"fulcro$state" (merge (gobj/get prev-state "fulcro$state") new-state)})
+          callback))))
   ([component new-state]
    (set-state! component new-state nil)))
 
@@ -389,7 +410,7 @@
    (if-let [id (ident class props)]
      (do
        (when-not (eql/ident? id)
-         (log/warn "get-ident returned an invalid ident for class:" class))
+         (log/warn "get-ident returned an invalid ident:" id (.-displayName class)))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
      (do
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
@@ -610,6 +631,7 @@
                                       :fulcro$value    props
                                       :fulcro$queryid  (query-id class qualifier)
                                       :fulcro$app      *app*
+                                      :fulcro$shared   *shared*
                                       :fulcro$parent   *parent*
                                       :fulcro$depth    *depth*}]
             (when props-middleware

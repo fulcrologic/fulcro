@@ -83,7 +83,7 @@
 
   ```
   (defsc Root [this props]
-    {:initial-state (fn [cls params]  (merge {:child-key (prim/get-initial-state Child)}
+    {:initial-state (fn [cls params]  (merge {:child-key (comp/get-initial-state Child)}
                                         (routing-tree
                                           (make-route :route/a [(router-instruction ...)])
                                           ...)))
@@ -247,11 +247,9 @@
 
   (def target-kw :my-component)
 
-  (defui Component
-    static prim/InitialAppState
-    (initial-state [c p] {fulcro.client.routing/dynamic-route-key target-kw})
-    static prim/Ident
-    (ident [this props] [target-kw :singleton])
+  (defsc Component [this props]
+    {:initial-state (fn [c p] {fulcro.client.routing/dynamic-route-key target-kw})
+     :ident (fn [this props] [target-kw :singleton])}
     ...)
 
   and during startup you install this route as:
@@ -317,7 +315,7 @@
                  [])
                (reduce
                  (fn [routes {:keys [target-router target-screen]}]
-                   (let [router (prim/ref->any reconciler [routers-table target-router])]
+                   (let [router (comp/ref->any reconciler [routers-table target-router])]
                      (if (and (-is-dynamic-router? router) (-route-target-missing? target-screen))
                        (conj routes (first target-screen))
                        routes)))
@@ -466,9 +464,9 @@
      (let [{:keys [router-id]} options
            this-sym          (first arglist)
            union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
-           initial-state     (apply list `(fn [~'c ~'params] {::id ~router-id ::current-route (comp/get-initial-state ~union-sym ~'params)}))
-           ident             (apply list `(fn [~'t ~'p] [:fulcro.client.routing.routers/by-id ~router-id]))
-           query-fn          (apply list `(fn [~'t] [::id {::current-route (comp/get-query ~union-sym)}]))
+           initial-state     (list `fn '[c params] {::id router-id ::current-route `(comp/get-initial-state ~union-sym ~'params)})
+           ident             (list `fn '[t p] [:fulcro.client.routing.routers/by-id router-id])
+           query-fn          (list `fn '[t] [::id {::current-route `(comp/get-query ~union-sym)}])
            options           (merge
                                (dissoc options :router-targets :router-id)
                                `{:initial-state ~initial-state

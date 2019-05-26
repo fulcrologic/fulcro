@@ -5,6 +5,7 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
+    [com.fulcrologic.fulcro.routing.union-router :as fr]
     [fulcro-todomvc.api :as api]
     [goog.object :as gobj]
     [taoensso.timbre :as log]))
@@ -126,6 +127,7 @@
         delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
         check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
         uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
+    (log/info "Shared" (comp/shared this))
     (dom/div {}
       (dom/section :.todoapp {}
         (header this title)
@@ -150,16 +152,37 @@
 (def ui-todo-list (comp/factory TodoList))
 
 (defsc Application [this {:keys [todos] :as props}]
-  {:initial-state (fn [p] {:todos (comp/get-initial-state TodoList {})})
+  {:initial-state (fn [p] {:route :application
+                           :todos (comp/get-initial-state TodoList {})})
    :ident         (fn [] [:application :root])
-   :query         [{:todos (comp/get-query TodoList)}]}
+   :query         [:route {:todos (comp/get-query TodoList)}]}
   (dom/div {}
     (ui-todo-list todos)))
 
 (def ui-application (comp/factory Application))
 
-(defsc Root [this {:root/keys [application]}]
-  {:initial-state (fn [p] {:root/application (comp/get-initial-state Application {})})
-   :query         [{:root/application (comp/get-query Application)}]}
+(defsc Other [this props]
+  {:query         [:route]
+   :ident         (fn [this props] [:other :root])
+   :initial-state {:route :other}}
+  (dom/div "OTHER ROUTE"))
+
+(fr/defsc-router TopRouter [this props]
+  {:router-id      ::top-router
+   :ident          (fn [this props]
+                     (log/spy :info this)
+                     [(:route props) :root])
+   :default-route  Application
+   :router-targets {:application Application
+                    :other       Other}})
+
+(def ui-router (comp/factory TopRouter))
+
+(defsc Root [this {:root/keys [router] :as props}]
+  {:initial-state (fn [p] {:root/router (comp/get-initial-state TopRouter {})})
+   :query         [{:root/router (comp/get-query TopRouter)}]}
+  (log/info "root props" props)
   (dom/div {}
-    (ui-application application)))
+    (dom/button {:onClick (fn [] (comp/transact! this `[(fr/set-route {:router ::top-router :target [:application :root]})]))} "App")
+    (dom/button {:onClick (fn [] (comp/transact! this `[(fr/set-route {:router ::top-router :target [:other :root]})]))} "Other")
+    (ui-router router)))
