@@ -45,7 +45,7 @@
   (when-let [will-enter (get-will-enter class)]
     (will-enter app params)))
 
-(defn route-target? [component] (comp/component-options component :route-target?))
+(defn route-target? [component] (comp/component-options component :route-segment))
 
 ;; NON-static protocol for interacting as a route target
 (defn get-will-leave [this] "Returns the function of a route target to be called with
