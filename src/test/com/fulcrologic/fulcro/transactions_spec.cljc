@@ -39,13 +39,6 @@
     ::txn/active?        false
     ::txn/options        options}))
 
-(specification "atom-of"
-  (behavior "Can detect atoms that contain specific types"
-    (assertions
-      ((s+/atom-of int?) (atom 33)) => true
-      ((s+/atom-of int?) (atom {})) => false
-      ((s+/atom-of map?) (atom {})) => true)))
-
 (specification "tx-node"
   (let [n (txn/tx-node '[(f) (g)] {:x 1})
         [f-ele g-ele :as elements] (::txn/elements n)]

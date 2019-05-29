@@ -246,8 +246,7 @@
                  (constructor# this# (goog.object/get props# "fulcro$value")))))
            (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
       `(do
-         (declare ~sym)
          (let [options# ~options-map]
-           (defn ~(vary-meta sym assoc :doc doc :once true) [props#])
-           (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#))))))
+           (def ~(vary-meta sym assoc :doc doc :once true)
+             (com.fulcrologic.fulcro.components/configure-component! ~(str sym) ~fqkw options#)))))))
 

@@ -9,15 +9,6 @@
   #?(:clj
      (:import (clojure.lang Atom))))
 
-(defn atom? [a] (instance? Atom a))
-
-(defn atom-of [content-spec]
-  (fn [x]
-    (and
-      (atom? x)
-      ;; TODO: figure out how to nest spec
-      )))
-
 ;; ================================================================================
 ;; Transaction Specs
 ;; ================================================================================
@@ -138,7 +129,7 @@
                                          ::txn/submission-queue
                                          ::txn/active-queue
                                          ::txn/send-queues]))
-(s/def ::app/runtime-atom (atom-of ::app/runtime-state))
+(s/def ::app/runtime-atom futil/atom?)
 (s/def :algorithm/tx! fn?)
 (s/def :algorithm/optimized-render! fn?)
 (s/def :algorithm/render! fn?)

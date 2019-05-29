@@ -18,8 +18,6 @@
   #?(:clj
      (:import (clojure.lang Associative IDeref))))
 
-(def options-key "fulcro$options")
-
 (defonce ^:private component-registry (atom {}))
 (def ^:dynamic *query-state* nil)
 (def ^:dynamic *app* nil)
@@ -45,12 +43,12 @@
     :else props-b))
 
 (defn component?
-  "Returns true if the argument is a component. A component is defined as a *mounted React-based javascript component*.
+  "Returns true if the argument is a component. A component is defined as a *mounted component*.
    This function returns false for component classes, and also returns false for the output of a Fulcro component factory."
   #?(:cljs {:tag boolean})
   [x]
   (if-not (nil? x)
-    #?(:clj  false                                          ; TODO
+    #?(:clj  (true? (:fulcro$isComponent x))
        :cljs (true? (gobj/get x "fulcro$isComponent")))
     false))
 
@@ -58,10 +56,8 @@
   "Returns true if the argument is a component class."
   #?(:cljs {:tag boolean})
   [x]
-  (if-not (nil? x)
-    #?(:clj  false                                          ; TODO
-       :cljs (gobj/containsKey x "fulcro$class"))
-    false))
+  #?(:clj  (boolean (and x (::component-class? x)))
+     :cljs (boolean (gobj/containsKey x "fulcro$class"))))
 
 (defn classname->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
@@ -105,31 +101,27 @@
 (defn get-extra-props
   "Get any data (as a map) that extensions have associated with the given Fulcro component."
   [this]
-  #?(:clj  {}
-     :cljs (or (gobj/getValueByKeys this "props" "fulcro$extra_props") {})))
+  (util/isoget-in this [:props :fulcro$extra_props] {}))
 
 (defn props
   "Return a components props."
   [component]
-  #?(:clj  nil
-     :cljs (let [props-from-parent    (gobj/getValueByKeys component "props" "fulcro$value")
-                 computed-from-parent (get-computed props-from-parent)
-                 props-from-updates   (computed (gobj/getValueByKeys component "state" "fulcro$value") computed-from-parent)]
-             (newer-props props-from-parent props-from-updates))))
+  (let [props-from-parent    (util/isoget-in component [:props :fulcro$value])
+        computed-from-parent (get-computed props-from-parent)
+        props-from-updates   (computed (util/isoget-in component [:state :fulcro$value]) computed-from-parent)]
+    (newer-props props-from-parent props-from-updates)))
 
 (defn react-type
   "Returns the component type, regardless of whether the component has been
    mounted"
   [x]
-  #?(:cljs
-     (or (gobj/get x "type") (type x))))
+  #?(:clj  (if (component-class? x) x (:fulcro$class x))
+     :cljs (or (gobj/get x "type") (type x))))
 
 (defn component-options
   ([this & ks]
-   (let [c (react-type this)
-         options #?(:cljs (or (gobj/get this options-key) (gobj/get c options-key))
-                    ;; FIXME
-                    :clj nil)]
+   (let [c       (react-type this)
+         options (or (util/isoget this :fulcro$options) (util/isoget c :fulcro$options))]
      (if (seq options)
        (get-in options (vec ks))
        options))))
@@ -143,13 +135,12 @@
 (defn query [this] (when (has-feature? this :query) ((component-options this :query) this)))
 (defn initial-state [clz params] (when (has-feature? clz :initial-state) ((component-options clz :initial-state) clz params)))
 (defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) this data)))
-(defn depth [this] #?(:cljs (gobj/getValueByKeys this "props" "fulcro$depth")))
+(defn depth [this] (util/isoget-in this [:props :fulcro$depth]))
 
 (defn get-raw-react-prop
   "GET a RAW react prop"
   [c k]
-  #?(:clj  nil                                              ;; FIXME
-     :cljs (gobj/getValueByKeys c "props" k)))
+  (util/isoget-in c [:props k]))
 
 (defn fulcro-app? [x] (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom)))
 
@@ -158,8 +149,7 @@
   map with a :reconciler key, or an atom holding any of the above."
   [x]
   (cond
-    (component? x) (get-raw-react-prop x #?(:clj  :fulcro$app
-                                            :cljs "fulcro$app"))
+    (component? x) (get-raw-react-prop x :fulcro$app)
     (fulcro-app? x) x
     #?(:clj  (instance? IDeref x)
        :cljs (satisfies? IDeref x)) (any->app (deref x))))
@@ -295,7 +285,19 @@
     "Configure the given `cls` to act as a react component."
     [cls fqkw options]
     #?(:clj
-       cls
+       (let [name   (str/join "/" [(namespace fqkw) (name fqkw)])
+             result {::component-class? true
+                     :fulcro$options    options
+                     :componentDidMount (fn [this]
+                                          (let [{:keys [componentDidMount]} (component-options this)
+                                                app              (any->app this)
+                                                index-component! (ah/app-algorithm app :index-component!)]
+                                            (index-component! this)
+                                            (when componentDidMount
+                                              (componentDidMount this))))
+                     :displayName       name}]
+         (-register-component! fqkw result)
+         result)
        :cljs
        ;; This user-supplied versions will expect `this` as first arg
        (let [{:keys [getDerivedStateFromProps shouldComponentUpdate getSnapshotBeforeUpdate render
@@ -303,7 +305,6 @@
                      componentWillUpdate componentWillMount componentWillReceiveProps
                      UNSAFE_componentWillMount UNSAFE_componentWillUpdate UNSAFE_componentWillReceiveProps]} options
              name              (str/join "/" [(namespace fqkw) (name fqkw)])
-             constructor       ^js cls
              js-instance-props (clj->js
                                  (-> {:componentDidMount     component-did-mount
                                       :componentWillUnmount  component-will-unmount
@@ -332,9 +333,10 @@
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
                                  getDerivedStateFromError (assoc :getDerivedStateFromError getDerivedStateFromError)
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
-         (gobj/extend (.-prototype constructor) js/React.Component.prototype js-instance-props #js {"fulcro$options" options})
-         (gobj/extend constructor (clj->js statics) #js {"fulcro$options" options})
-         (gobj/set constructor "fulcro$registryKey" fqkw)   ; done here instead of in extend (clj->js screws it up)
+         (gobj/extend (.-prototype cls) js/React.Component.prototype js-instance-props
+           #js {"fulcro$options" options})
+         (gobj/extend cls (clj->js statics) #js {"fulcro$options" options})
+         (gobj/set cls "fulcro$registryKey" fqkw)           ; done here instead of in extend (clj->js screws it up)
          (-register-component! fqkw cls)))))
 
 (defn registry-key
@@ -606,8 +608,16 @@
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 
-#?(:cljs
-   (defn create-element [class props children]
+(defn create-element
+  "Create a react element.  In CLJ this returns the same thing as a mounted instance, whereas in CLJS it is an
+  element (which has yet to instantiate an instance)."
+  [class props children]
+  #?(:clj
+     {:props        props
+      :children     children
+      :state        {}
+      :fulcro$class class}
+     :cljs
      (apply js/React.createElement class props children)))
 
 (defn factory
@@ -615,31 +625,32 @@
    defui."
   ([class] (factory class nil))
   ([class {:keys [keyfn qualifier] :as opts}]
-   #?(:cljs
-      (with-meta
-        (fn element-factory [props & children]
-          (let [key              (if-not (nil? keyfn)
-                                   (keyfn props)
-                                   (hash (registry-key class)))
-                ref              (:ref props)
-                ref              (cond-> ref (keyword? ref) str)
-                app              *app*
-                props-middleware (:algorithm/props-middleware (ah/app-algorithm app))
-                js-props         #js {:key             key
-                                      :ref             ref
-                                      :fulcro$reactKey key
-                                      :fulcro$value    props
-                                      :fulcro$queryid  (query-id class qualifier)
-                                      :fulcro$app      *app*
-                                      :fulcro$shared   *shared*
-                                      :fulcro$parent   *parent*
-                                      :fulcro$depth    *depth*}]
-            (when props-middleware
-              (props-middleware class js-props))
-            (create-element class js-props (or (util/force-children children) []))))
-        {:class     class
-         :queryid   (query-id class qualifier)
-         :qualifier qualifier}))))
+   (with-meta
+     (fn element-factory [props & children]
+       (let [key              (if-not (nil? keyfn)
+                                (keyfn props)
+                                (hash (registry-key class)))
+             ref              (:ref props)
+             ref              (cond-> ref (keyword? ref) str)
+             app              *app*
+             props-middleware (:algorithm/props-middleware (ah/app-algorithm app))
+             ;; Our data-readers.clj makes #js == identity in CLJ
+             props            #js {:key             key
+                                   :ref             ref
+                                   :fulcro$reactKey key
+                                   :fulcro$value    props
+                                   :fulcro$queryid  (query-id class qualifier)
+                                   :fulcro$app      *app*
+                                   :fulcro$shared   *shared*
+                                   :fulcro$parent   *parent*
+                                   :fulcro$depth    *depth*}
+             props            (if props-middleware
+                                (props-middleware class props)
+                                props)]
+         (create-element class props children)))
+     {:class     class
+      :queryid   (query-id class qualifier)
+      :qualifier qualifier})))
 
 (defn transact!
   "Submit a transaction for processing."
@@ -765,13 +776,15 @@
   those and return a new version. "
   ([f]
    (fn [cls raw-props]
-     #?(:clj  false                                         ;; FIXME
+     #?(:clj  (update raw-props :fulcro$extra_props (partial f cls))
         :cljs (let [existing (or (gobj/get raw-props "fulcro$extra_props") {})
                     new      (f cls existing)]
-                (gobj/set raw-props "fulcro$extra_props" new)))))
+                (gobj/set raw-props "fulcro$extra_props" new)
+                raw-props))))
   ([handler f]
    (fn [cls raw-props]
-     #?(:clj  false                                         ;; FIXME
+     #?(:clj  (let [props (update raw-props :fulcro$extra_props (partial f cls))]
+                (handler cls props))
         :cljs (let [existing (or (gobj/get raw-props "fulcro$extra_props") {})
                     new      (f cls existing)]
                 (gobj/set raw-props "fulcro$extra_props" new)

@@ -9,6 +9,9 @@
 
 (declare denormalize)
 
+(defn with-time [props t]
+  (vary-meta props assoc ::time t))
+
 (defn- add-props!
   "Walk the given AST children (which MUST be prop nodes), and add their values from `current-entity`
   (if found)."
@@ -124,7 +127,7 @@
                            top-node
                            (:join grouped-children)
                            idents-seen)]
-    (some-> result-node (persistent!) (vary-meta assoc ::time *denormalize-time*))))
+    (some-> result-node (persistent!) (with-time *denormalize-time*))))
 
 (defn db->tree
   "Pull a tree of data from a fulcro normalized database as a tree corresponding to the given query.
@@ -140,6 +143,6 @@
   [query starting-entity state-map]
   (let [ast (eql/query->ast query)]
     (some-> (denormalize ast starting-entity state-map {})
-      (vary-meta assoc ::time *denormalize-time*))))
+      (with-time *denormalize-time*))))
 
 (defn denormalization-time [props] (some-> props meta ::time))
