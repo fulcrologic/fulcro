@@ -205,3 +205,14 @@
                ::app-root app-root)))))))
 
 (defn app-root [app] (-> app ::runtime-atom deref ::app-root))
+
+(defn force-root-render!
+  "Force a re-render of the root. Runs a root query, disables shouldComponentUpdate, and renders the root component.
+   This effectively forces React to do a full VDOM diff. Useful for things like UI refresh on hot code reload and
+   changing locales where there are no real data changes, but the UI still needs to refresh.
+
+   Argument can be anything that any->reconciler accepts."
+  [app-ish]
+  (when-let [app (comp/any->app app-ish)]
+    (binding [comp/*blindly-render* true]
+      (render! app {:force-root? true}))))

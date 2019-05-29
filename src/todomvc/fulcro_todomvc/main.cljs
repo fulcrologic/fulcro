@@ -27,6 +27,10 @@
   (log/info "submit")
   (df/load! app [:list/id 1] ui/TodoList))
 
+(defn ^:dev/after-load refresh []
+  (js/console.log "refresh UI")
+  (app/force-root-render! app))
+
 (comment
   (comp/registry-key ui/Root)
   (comp/get-query ui/Root {})

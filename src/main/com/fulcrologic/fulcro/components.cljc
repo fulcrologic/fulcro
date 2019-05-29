@@ -24,6 +24,7 @@
 (def ^:dynamic *parent* nil)
 (def ^:dynamic *depth* nil)
 (def ^:dynamic *shared* nil)
+(def ^:dynamic *blindly-render* false)
 
 (defn -register-component!
   "Add a component to Fulcro's component registry.  This is used by defsc and defui to ensure that all Fulcro classes
@@ -169,10 +170,9 @@
    (shared component []))
   ([component k-or-ks]
    {:pre [(component? component)]}
-   (let [shared #?(:clj nil                                 ;; FIXME
-                   :cljs (gobj/get (. component -props) "fulcro$shared"))
-         ks             (cond-> k-or-ks
-                          (not (sequential? k-or-ks)) vector)]
+   (let [shared (util/isoget-in component [:props :fulcro$shared])
+         ks     (cond-> k-or-ks
+                  (not (sequential? k-or-ks)) vector)]
      (cond-> shared
        (not (empty? ks)) (get-in ks)))))
 
@@ -201,16 +201,18 @@
    (should-component-update?
      [raw-next-props raw-next-state]
      #?(:clj true
-        :cljs (this-as this
-                (let [current-props     (props this)
-                      next-props        (raw->newest-props raw-next-props raw-next-state)
-                      next-state        (gobj/get raw-next-state "fulcro$state")
-                      current-state     (gobj/getValueByKeys this "state" "fulcro$state")
-                      props-changed?    (not= current-props next-props)
-                      state-changed?    (not= current-state next-state)
-                      next-children     (gobj/get raw-next-props "children")
-                      children-changed? (not= (gobj/getValueByKeys this "props" "children") next-children)]
-                  (or props-changed? state-changed? children-changed?)))))
+        :cljs (if *blindly-render*
+                true
+                (this-as this
+                  (let [current-props     (props this)
+                        next-props        (raw->newest-props raw-next-props raw-next-state)
+                        next-state        (gobj/get raw-next-state "fulcro$state")
+                        current-state     (gobj/getValueByKeys this "state" "fulcro$state")
+                        props-changed?    (not= current-props next-props)
+                        state-changed?    (not= current-state next-state)
+                        next-children     (gobj/get raw-next-props "children")
+                        children-changed? (not= (gobj/getValueByKeys this "props" "children") next-children)]
+                    (or props-changed? state-changed? children-changed?))))))
    (component-did-update
      [raw-prev-props raw-prev-state snapshot]
      #?(:cljs

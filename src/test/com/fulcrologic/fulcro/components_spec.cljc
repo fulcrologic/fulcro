@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
        :cljs [com.fulcrologic.fulcro.dom :as dom])
     #?(:cljs [goog.object :as gobj])
@@ -55,25 +56,15 @@
     "Returns from registry under fq symbol"
     (nil? (comp/classname->class `A)) => false))
 
-(defn isoget [obj v]
-  #?(:clj  (get obj v)
-     :cljs (gobj/get obj (name v))))
-
 (specification "react-type"
   (assertions
     "Returns the class when passed an instance"
     #?(:clj  (comp/react-type (ui-a {}))
        :cljs (comp/react-type (A.))) => A))
 
-(defn mock-instance [props]
-  #?(:clj  (ui-a props)
-     :cljs #js {"fulcro$value" (clj->js props)}))
-
-(specification "wrap-update-extra-props and extra-props"
-  (let [pretend-instance (mock-instance {})
-        wrapper          (comp/wrap-update-extra-props (fn [_ p] (assoc p :X 1)))
-        updated-props    (wrapper A {})
-        extra-props      (comp/get-extra-props pretend-instance)]
+(specification "wrap-update-extra-props"
+  (let [wrapper       (comp/wrap-update-extra-props (fn [_ p] (assoc p :X 1)))
+        updated-props (wrapper A #js {})]
     (assertions
-      "pulls props from the extra props reserved location"
-      extra-props => {:X 2})))
+      "Places extra props in raw props at :fulcro$extra_props"
+      (util/isoget updated-props :fulcro$extra_props) => {:X 1})))
