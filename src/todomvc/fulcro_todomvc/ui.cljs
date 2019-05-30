@@ -155,7 +155,7 @@
   {:initial-state (fn [p] {:route :application
                            :todos (comp/get-initial-state TodoList {})})
    :route-segment ["app"]
-   :will-enter    (fn [_ _] (dr/route-immediate [:other :application]))
+   :will-enter    (fn [_ _] (dr/route-immediate [:application :root]))
    :will-leave    (fn [_ _] true)
    :ident         (fn [] [:application :root])
    :query         [:route {:todos (comp/get-query TodoList)}]}

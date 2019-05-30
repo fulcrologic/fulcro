@@ -35,4 +35,6 @@
   (comp/registry-key ui/Root)
   (comp/get-query ui/Root {})
   (-> app ::app/runtime-atom deref)
-  (-> app ::app/state-atom deref))
+  (-> app ::app/state-atom deref)
+  (comp/get-query ui/Root
+    (-> app ::app/state-atom deref)))
