@@ -1,21 +1,22 @@
 (ns com.fulcrologic.fulcro.application
   (:require
-    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
-    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [clojure.string :as str]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
-    [com.fulcrologic.fulcro.mutations :as mut]
-    [com.fulcrologic.fulcro.components :as comp]
-    [clojure.string :as str]
-    [edn-query-language.core :as eql]
-    #?(:cljs [goog.dom :as gdom])
-    #?(:cljs [goog.object :as gobj])
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
+    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.mutations :as mut]
+    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
+    [edn-query-language.core :as eql]
+    [ghostwheel.core :refer [>defn => |]]
+    #?@(:cljs [[goog.object :as gobj]
+               [goog.dom :as gdom]])
+    [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
 
 (defn basis-t
@@ -110,8 +111,10 @@
 (defn default-tx!
   "Default (Fulcro-2 compatible) transaction submission."
   ([app tx]
+   [::app ::txn/tx => ::txn/id]
    (default-tx! app tx {:optimistic? true}))
   ([{:keys [::runtime-atom] :as app} tx options]
+   [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
    (txn/schedule-activation! app)
    (let [node (txn/tx-node tx options)
          ref  (get options :ref)]

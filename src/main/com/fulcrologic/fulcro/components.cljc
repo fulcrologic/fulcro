@@ -423,8 +423,7 @@
 (defn component-name
   "Returns a string version of the given react component's name."
   [class]
-  #?(:clj  (str (-> class meta :component-ns) "/" (-> class meta :component-name))
-     :cljs (.-displayName ^js class)))
+  (util/isoget class :displayName))
 
 (defn is-factory?
   [class-or-factory]

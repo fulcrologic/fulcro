@@ -105,11 +105,11 @@
   ([obj kvs default]
    #?(:clj (get-in obj kvs default)
       :cljs
-           (let [ks (mapv name kvs)]
+           (let [ks (mapv (fn [k] (some-> k name)) kvs)]
              (or (apply gobj/getValueByKeys obj ks) default)))))
 
 (defn isoget
   ([obj k] (isoget obj k nil))
   ([obj k default]
    #?(:clj  (get obj k default)
-      :cljs (or (gobj/get obj (name k)) default))))
+      :cljs (or (gobj/get obj (some-> k (name))) default))))
