@@ -368,7 +368,6 @@
                    (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
                    ast (walk-ast ast visitor nil))))))
           (merge-union [component parent-union]
-            (log/info "Merging union")
             (let [default-initial-state   (and parent-union (comp/has-initial-app-state? parent-union) (comp/get-initial-state parent-union {}))
                   to-many?                (vector? default-initial-state)
                   component-initial-state (and component (comp/has-initial-app-state? component) (comp/get-initial-state component {}))]

@@ -10,11 +10,13 @@
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.application :as app]))
 
-(defsc MMChild [this {:db/keys [id] :as props}]
+(declare =>)
+
+(defsc MMChild [_ _]
   {:query         [:db/id]
    :initial-state {:db/id :param/id}})
 
-(defsc MMParent [this {:keys [:db/id] :as props}]
+(defsc MMParent [_ _]
   {:query         [:db/id {:main-child (comp/get-query MMChild)} {:children (comp/get-query MMChild)}]
    :initial-state {:db/id :param/id :main-child :param/main :children :param/children}})
 
@@ -46,7 +48,7 @@
   {:ident (fn [] [:child/by-id (:id props)])
    :query (fn [] [:id :label])})
 
-(defsc MergeTestParent [this props]
+(defsc MergeTestParent [_ props]
   {:initial-state (fn [params] {:ui/checked true})
    :ident         (fn [] [:parent/by-id (:id props)])
    :query         (fn [] [:ui/checked :id :title {:child (comp/get-query MergeTestChild)}])})
@@ -197,7 +199,7 @@
    :ident         (fn [] [:mergea-or-b :at-union])
    :query         (fn [] {:a (comp/get-query MergeA) :b (comp/get-query MergeB)})})
 
-(defsc MergeRoot [_ _] [_ _]
+(defsc MergeRoot [_ _]
   {:initial-state (fn [params] {:a 1 :b (comp/get-initial-state MergeUnion {})})
    :query         (fn [] [:a {:b (comp/get-query MergeUnion)}])})
 
@@ -278,14 +280,15 @@
 
       (merge/merge-alternate-union-elements! :app NestedRoot)))
   (behavior "For applications with non-nested unions"
-    (when-mocking
-      (merge/merge-component! app comp state) => (do
-                                                   (assertions
-                                                     "Merges only the state of branches that are not already initialized"
-                                                     comp => MergeUnion
-                                                     state => (comp/get-initial-state MergeB {})))
+    (let [app (app/fulcro-app)]
+      (when-mocking
+        (merge/merge-component! app comp state) => (do
+                                                     (assertions
+                                                       "Merges only the state of branches that are not already initialized"
+                                                       comp => MergeUnion
+                                                       state => (comp/get-initial-state MergeB {})))
 
-      (merge/merge-alternate-union-elements! :app MergeRoot))))
+        (merge/merge-alternate-union-elements! app MergeRoot)))))
 
 (defn phone-number [id n] {:id id :number n})
 (defn person [id name numbers] {:id id :name name :numbers numbers})
@@ -312,7 +315,7 @@
    :query [:id :name {:numbers (comp/get-query MPhonePM)}]})
 
 (defsc Score
-  [this {::keys []}]
+  [_ {::keys []}]
   {:pre-merge (fn [cls {:keys [current-normalized data-tree]}]
                 (merge
                   {:ui/expanded? false}
@@ -321,7 +324,7 @@
    :ident     [::score-id ::score-id]
    :query     [::score-id ::points :ui/expanded?]})
 
-(defsc Scoreboard [this props]
+(defsc Scoreboard [_ props]
   {:pre-merge (fn [cls {:keys [current-normalized data-tree]}]
                 (let [{::keys [scores]} data-tree
                       high-score (apply max (map ::points scores))
