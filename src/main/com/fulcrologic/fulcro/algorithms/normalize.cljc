@@ -19,8 +19,7 @@
         (if-not (nil? ident)
           (vary-meta (normalize* (get query (first ident)) data refs union-seen transform)
             assoc ::tag (first ident))                      ; FIXME: What is tag for?
-          (throw #?(:clj  (IllegalArgumentException. "Union components must have an ident")
-                    :cljs (js/Error. "Union components must have an ident")))))
+          (throw (ex-info "Union components must have an ident" {}))))
 
       (vector? data) data                                   ;; already normalized
 
@@ -46,8 +45,7 @@
                   (map? v)
                   (let [x (normalize* sel v refs union-entry transform)]
                     (if-not (or (nil? class) (not (has-ident? class)))
-                      (let [i #?(:clj ((-> class meta :ident) class x)
-                                 :cljs (get-ident class x))]
+                      (let [i (get-ident class x)]
                         (swap! refs update-in [(first i) (second i)] merge x)
                         (recur (next q) (assoc ret k i)))
                       (recur (next q) (assoc ret k x))))

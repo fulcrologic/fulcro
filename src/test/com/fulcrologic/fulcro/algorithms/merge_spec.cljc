@@ -42,75 +42,75 @@
           :main-child {:db/id 1}
           :children   [{:db/id 3} {:db/id 1}]})))
 
-(defsc MergeTestChild [_ _]
-  {:ident (fn [this props] [:child/by-id (:id props)])
-   :query (fn [this] [:id :label])})
+(defsc MergeTestChild [_ props]
+  {:ident (fn [] [:child/by-id (:id props)])
+   :query (fn [] [:id :label])})
 
 (defsc MergeTestParent [this props]
-  {:initial-state (fn [cls params] {:ui/checked true})
+  {:initial-state (fn [params] {:ui/checked true})
    :ident         (fn [] [:parent/by-id (:id props)])
    :query         (fn [] [:ui/checked :id :title {:child (comp/get-query MergeTestChild)}])})
 
-#?(:cljs
-   (specification "merge-component!"
-     (assertions
-       "merge-query is the component query joined on it's ident"
-       (merge/component-merge-query {} MergeTestParent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (comp/get-query MergeTestChild)}]}])
-     (component "preprocessing the object to merge"
-       (let [no-state             {:parent/by-id {}}
-             no-state-merge-data  (:merge-data (merge/-preprocess-merge no-state MergeTestParent {:id 42}))
-             state-with-old       {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}}
-             id                   [:parent/by-id 42]
-             old-state-merge-data (-> (merge/-preprocess-merge state-with-old MergeTestParent {:id 42}) :merge-data :fulcro/merge)]
-         (assertions
-           "Uses the existing object in app state as base for merge when present"
-           (get-in old-state-merge-data [id :ui/checked]) => true
-           "Marks fields that were queried but are not present as prim/not-found"
-           old-state-merge-data => {[:parent/by-id 42] {:id         42
-                                                        :ui/checked true
-                                                        :title      ::merge/not-found
-                                                        :child      ::merge/not-found}}))
-       (let [union-query {:union-a [:b] :union-b [:c]}
-             state       (atom {})]
-         (when-mocking
-           (comp/get-ident c d) => :ident
-           (comp/get-query comp) => union-query
-           (merge/component-merge-query s comp data) => :merge-query
-           (fdn/db->tree q d r) => {:ident :data}
-           (merge/mark-missing d q) => (do
-                                         (assertions
-                                           "wraps union queries in a vector"
-                                           q => [union-query])
+(specification "merge-component!"
+  (assertions
+    "merge-query is the component query joined on it's ident"
+    (merge/component-merge-query {} MergeTestParent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (comp/get-query MergeTestChild)}]}])
+  (component "preprocessing the object to merge"
+    (let [no-state             {:parent/by-id {}}
+          no-state-merge-data  (:merge-data (merge/-preprocess-merge no-state MergeTestParent {:id 42}))
+          state-with-old       {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}}
+          id                   [:parent/by-id 42]
+          old-state-merge-data (-> (merge/-preprocess-merge state-with-old MergeTestParent {:id 42}) :merge-data :fulcro/merge)]
+      (assertions
+        "Uses the existing object in app state as base for merge when present"
+        (get-in old-state-merge-data [id :ui/checked]) => true
+        "Marks fields that were queried but are not present as prim/not-found"
+        old-state-merge-data => {[:parent/by-id 42] {:id         42
+                                                     :ui/checked true
+                                                     :title      ::merge/not-found
+                                                     :child      ::merge/not-found}}))
+    (let [union-query {:union-a [:b] :union-b [:c]}
+          state       (atom {})]
+      (when-mocking
+        (comp/get-ident c d) => :ident
+        (comp/get-query comp st) => union-query
+        (merge/component-merge-query s comp data) => :merge-query
+        (fdn/db->tree q d r) => {:ident :data}
+        (merge/mark-missing d q) => (do
+                                      (assertions
+                                        "wraps union queries in a vector"
+                                        q => [union-query])
 
-                                         {:ident :data})
-           (util/deep-merge d1 d2) => :merge-result
+                                      {:ident :data})
+        (util/deep-merge d1 d2) => :merge-result
 
-           (merge/-preprocess-merge state :comp :data))))
-     (let [state (atom {})
-           data  {}]
-       (when-mocking
-         (merge/-preprocess-merge s c d) => (do
-                                              (assertions
-                                                "Runs the data through the preprocess merge step"
-                                                d => data)
-                                              {:merge-data :preprocessed-data :merge-query :the-query})
-         (merge/integrate-ident* s i op1 args1 op2 args2) => (do
-                                                               (assertions
-                                                                 "Calls integrate-ident with appropriate args"
-                                                                 (map? s) => true
-                                                                 i => [:table :id]
-                                                                 op1 => :append
-                                                                 op2 => :replace)
-                                                               s)
+        (merge/-preprocess-merge state :comp :data))))
+  (let [state (atom {})
+        data  {}]
+    (when-mocking
+      (merge/-preprocess-merge s c d) => (do
+                                           (assertions
+                                             "Runs the data through the preprocess merge step"
+                                             d => data)
+                                           {:merge-data :preprocessed-data :merge-query :the-query})
+      (merge/integrate-ident* s i op1 args1 op2 args2) => (do
+                                                            (assertions
+                                                              "Calls integrate-ident with appropriate args"
+                                                              (map? s) => true
+                                                              i => [:table :id]
+                                                              op1 => :append
+                                                              op2 => :replace)
+                                                            s)
 
-         (comp/get-ident c p) => [:table :id]
-         (merge/merge! r d q) => (do
-                                   (assertions
-                                     "merges the preprocessed data (which sweeps marked missing data)"
-                                     d => :preprocessed-data)
-                                   :ignore)
+      (comp/get-ident c p) => [:table :id]
+      (merge/merge! r d q) => (do
+                                (assertions
+                                  "merges the preprocessed data (which sweeps marked missing data)"
+                                  d => :preprocessed-data)
+                                :ignore)
+      (app/schedule-render! a) => nil
 
-         (merge/merge-component! (app/fulcro-app) MergeTestChild data :append [:children] :replace [:items 0])))))
+      (merge/merge-component! (app/fulcro-app) MergeTestChild data :append [:children] :replace [:items 0]))))
 
 (specification "integrate-ident"
   (let [state {:a    {:path [[:table 2]]}
@@ -171,34 +171,34 @@
       => [[:table 99] [:table 3] [:table 77]])))
 
 (defsc MergeX [_ _]
-  {:initial-state (fn [cls params] {:type :x :n :x})
+  {:initial-state (fn [params] {:type :x :n :x})
    :query         (fn [] [:n :type])})
 
 (defsc MergeY [_ _]
-  {:initial-state (fn [cls params] {:type :y :n :y})
+  {:initial-state (fn [params] {:type :y :n :y})
    :query         (fn [] [:n :type])})
 
 
 (defsc MergeAChild [_ _]
-  {:initial-state (fn [cls params] {:child :merge-a})
+  {:initial-state (fn [params] {:child :merge-a})
    :ident         (fn [] [:mergea :child])
    :query         (fn [] [:child])})
 
 (defsc MergeA [_ _]
-  {:initial-state (fn [cls params] {:type :a :n :a :child (comp/get-initial-state MergeAChild nil)})
+  {:initial-state (fn [params] {:type :a :n :a :child (comp/get-initial-state MergeAChild nil)})
    :query         (fn [] [:type :n {:child (comp/get-query MergeAChild)}])})
 
 (defsc MergeB [_ _]
-  {:initial-state (fn [cls params] {:type :b :n :b})
+  {:initial-state (fn [params] {:type :b :n :b})
    :query         (fn [] [:n])})
 
 (defsc MergeUnion [_ _]
-  {:initial-state (fn [cls params] (comp/get-initial-state MergeA {}))
+  {:initial-state (fn [params] (comp/get-initial-state MergeA {}))
    :ident         (fn [] [:mergea-or-b :at-union])
    :query         (fn [] {:a (comp/get-query MergeA) :b (comp/get-query MergeB)})})
 
 (defsc MergeRoot [_ _] [_ _]
-  {:initial-state (fn [cls params] {:a 1 :b (comp/get-initial-state MergeUnion {})})
+  {:initial-state (fn [params] {:a 1 :b (comp/get-initial-state MergeUnion {})})
    :query         (fn [] [:a {:b (comp/get-query MergeUnion)}])})
 
 ;; Nested routing tree
@@ -211,19 +211,19 @@
 ;;  X  Y
 
 (defsc U2 [_ _]
-  {:initial-state (fn [cls params] (comp/get-initial-state MergeX {}))
+  {:initial-state (fn [params] (comp/get-initial-state MergeX {}))
    :query         (fn [] {:x (comp/get-query MergeX) :y (comp/get-query MergeY)})})
 
 (defsc R2 [_ _]
-  {:initial-state (fn [cls params] {:id 1 :u2 (comp/get-initial-state U2 {})})
+  {:initial-state (fn [params] {:id 1 :u2 (comp/get-initial-state U2 {})})
    :query         (fn [] [:id {:u2 (comp/get-query U2)}])})
 
 (defsc U1 [_ _]
-  {:initial-state (fn [cls params] (comp/get-initial-state MergeB {}))
+  {:initial-state (fn [params] (comp/get-initial-state MergeB {}))
    :query         (fn [] {:r2 (comp/get-query R2) :b (comp/get-query MergeB)})})
 
 (defsc NestedRoot [_ _]
-  {:initial-state (fn [cls params] {:u1 (comp/get-initial-state U1 {})})
+  {:initial-state (fn [params] {:u1 (comp/get-initial-state U1 {})})
    :query         (fn [] [{:u1 (comp/get-query U1)}])})
 
 ;; Sibling routing tree
@@ -233,59 +233,59 @@
 ;;  A   B  X  Y
 
 (defsc SU1 [_ props]
-  {:initial-state (fn [cls params] (comp/get-initial-state MergeB {}))
+  {:initial-state (fn [params] (comp/get-initial-state MergeB {}))
    :ident         (fn [] [(:type props) 1])
    :query         (fn [] {:a (comp/get-query MergeA) :b (comp/get-query MergeB)})})
 
 (defsc SU2 [_ props]
-  {:initial-state (fn [cls params] (comp/get-initial-state MergeX {}))
+  {:initial-state (fn [params] (comp/get-initial-state MergeX {}))
    :ident         (fn [] [(:type props) 2])
    :query         (fn [] {:x (comp/get-query MergeX) :y (comp/get-query MergeY)})})
 
 
 (defsc SiblingRoot [_ _]
-  {:initial-state (fn [cls params] {:su1 (comp/get-initial-state SU1 {}) :su2 (comp/get-initial-state SU2 {})})
-   :query         (fn [] [{:su1 (comp/get-query SU1)} {:su2 (comp/get-query SU2)}])}
+  {:initial-state (fn [params] {:su1 (comp/get-initial-state SU1 {}) :su2 (comp/get-initial-state SU2 {})})
+   :query         (fn [] [{:su1 (comp/get-query SU1)} {:su2 (comp/get-query SU2)}])})
 
-  (specification "merge-alternate-union-elements!"
-    (behavior "For applications with sibling unions"
-      (when-mocking
-        (merge/merge-component! app comp state) =1x=> (do
-                                                        (assertions
-                                                          "Merges level one elements"
-                                                          comp => SU1
-                                                          state => (comp/get-initial-state MergeA {})))
-        (merge/merge-component! app comp state) =1x=> (do
-                                                        (assertions
-                                                          "Merges only the state of branches that are not already initialized"
-                                                          comp => SU2
-                                                          state => (comp/get-initial-state MergeY {})))
+(specification "merge-alternate-union-elements!"
+  (behavior "For applications with sibling unions"
+    (when-mocking
+      (merge/merge-component! app comp state) =1x=> (do
+                                                      (assertions
+                                                        "Merges level one elements"
+                                                        comp => SU1
+                                                        state => (comp/get-initial-state MergeA {})))
+      (merge/merge-component! app comp state) =1x=> (do
+                                                      (assertions
+                                                        "Merges only the state of branches that are not already initialized"
+                                                        comp => SU2
+                                                        state => (comp/get-initial-state MergeY {})))
 
-        (merge/merge-alternate-union-elements! :app SiblingRoot)))
+      (merge/merge-alternate-union-elements! :app SiblingRoot)))
 
-    (behavior "For applications with nested unions"
-      (when-mocking
-        (merge/merge-component! app comp state) =1x=> (do
-                                                        (assertions
-                                                          "Merges level one elements"
-                                                          comp => U1
-                                                          state => (comp/get-initial-state R2 {})))
-        (merge/merge-component! app comp state) =1x=> (do
-                                                        (assertions
-                                                          "Merges only the state of branches that are not already initialized"
-                                                          comp => U2
-                                                          state => (comp/get-initial-state MergeY {})))
+  (behavior "For applications with nested unions"
+    (when-mocking
+      (merge/merge-component! app comp state) =1x=> (do
+                                                      (assertions
+                                                        "Merges level one elements"
+                                                        comp => U1
+                                                        state => (comp/get-initial-state R2 {})))
+      (merge/merge-component! app comp state) =1x=> (do
+                                                      (assertions
+                                                        "Merges only the state of branches that are not already initialized"
+                                                        comp => U2
+                                                        state => (comp/get-initial-state MergeY {})))
 
-        (merge/merge-alternate-union-elements! :app NestedRoot)))
-    (behavior "For applications with non-nested unions"
-      (when-mocking
-        (merge/merge-component! app comp state) => (do
-                                                     (assertions
-                                                       "Merges only the state of branches that are not already initialized"
-                                                       comp => MergeUnion
-                                                       state => (comp/get-initial-state MergeB {})))
+      (merge/merge-alternate-union-elements! :app NestedRoot)))
+  (behavior "For applications with non-nested unions"
+    (when-mocking
+      (merge/merge-component! app comp state) => (do
+                                                   (assertions
+                                                     "Merges only the state of branches that are not already initialized"
+                                                     comp => MergeUnion
+                                                     state => (comp/get-initial-state MergeB {})))
 
-        (merge/merge-alternate-union-elements! :app MergeRoot)))))
+      (merge/merge-alternate-union-elements! :app MergeRoot))))
 
 (defn phone-number [id n] {:id id :number n})
 (defn person [id name numbers] {:id id :name name :numbers numbers})
@@ -459,23 +459,21 @@
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defsc Table [_ _]
-  {:initial-state (fn [c p] table-1)
+  {:initial-state (fn [p] table-1)
    :query         (fn [] [:type :id :rows])})
 
 (def graph-1 {:type :graph :id 1 :data [1 2 3]})
 (defsc Graph [_ _]
-  {:initial-state (fn [c p] graph-1)
+  {:initial-state (fn [p] graph-1)
    :query         (fn [] [:type :id :data])})
 
 (defsc Reports [_ props]
-  {:initial-state (fn [c p] (comp/get-initial-state Graph nil)) ; initial state will already include Graph
-   :ident         (fn []
-                    (println "CALLED!!!!: " props)
-                    [(:type props) (:id props)])
+  {:initial-state (fn [p] (comp/get-initial-state Graph nil)) ; initial state will already include Graph
+   :ident         (fn [] [(:type props) (:id props)])
    :query         (fn [] {:graph (comp/get-query Graph) :table (comp/get-query Table)})})
 
 (defsc MRRoot [_ _]
-  {:initial-state (fn [c p] {:reports (comp/get-initial-state Reports nil)})
+  {:initial-state (fn [p] {:reports (comp/get-initial-state Reports nil)})
    :query         (fn [] [{:reports (comp/get-query Reports)}])})
 
 (specification "merge-alternate-union-elements"

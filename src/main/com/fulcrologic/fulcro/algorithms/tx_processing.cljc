@@ -6,6 +6,7 @@
     [com.fulcrologic.fulcro.algorithms.misc :as futil]
     [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.specs]
     [ghostwheel.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]

@@ -368,6 +368,7 @@
                    (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
                    ast (walk-ast ast visitor nil))))))
           (merge-union [component parent-union]
+            (log/info "Merging union")
             (let [default-initial-state   (and parent-union (comp/has-initial-app-state? parent-union) (comp/get-initial-state parent-union {}))
                   to-many?                (vector? default-initial-state)
                   component-initial-state (and component (comp/has-initial-app-state? component) (comp/get-initial-state component {}))]
@@ -404,10 +405,7 @@
   initial state of the union component (which can only point to one at a time)."
   [state-map root-component]
   (let [state-map-atom (atom state-map)
-        merge-to-state (fn [comp tree]
-                         (log/info (.-displayName comp))
-                         (log/spy :info tree)
-                         (swap! state-map-atom merge-component comp tree))
+        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
         _              (merge-alternate-unions merge-to-state root-component)
         new-state      @state-map-atom]
     new-state))

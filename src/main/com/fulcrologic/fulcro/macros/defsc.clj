@@ -60,7 +60,7 @@
      (->> body-forms
        (cons updated-args)
        (cons sym)
-       (cons `fn)))))
+       (cons 'fn)))))
 
 (defn destructured-keys [m]
   (let [regular-destructurings (reduce

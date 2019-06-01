@@ -2,81 +2,77 @@
   (:require
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.misc :as futil]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn])
-  #?(:clj
-     (:import (clojure.lang Atom))))
+    [edn-query-language.core :as eql]))
 
 ;; ================================================================================
 ;; Transaction Specs
 ;; ================================================================================
 
-(s/def ::txn/id uuid?)
-(s/def ::txn/idx int?)
-(s/def ::txn/created inst?)
-(s/def ::txn/started inst?)
-(s/def ::txn/finished inst?)
-(s/def ::txn/tx vector?)
-(s/def ::txn/options map?)
-(s/def ::txn/started? set?)
-(s/def ::txn/complete? set?)
-(s/def ::txn/results (s/map-of keyword? any?))
-(s/def ::txn/progress (s/map-of keyword? any?))
-(s/def ::txn/dispatch map?)
-(s/def ::txn/ast :edn-query-language.ast/node)              ; a tree is also a node
-(s/def ::txn/original-ast-node ::txn/ast)
-(s/def ::txn/tx-element (s/keys
-                          :req [::txn/idx ::txn/original-ast-node ::txn/started? ::txn/complete? ::txn/results ::txn/dispatch]
-                          :opt [::txn/progress]))
-(s/def ::txn/elements (s/coll-of ::txn/tx-element :kind vector?))
-(s/def ::txn/tx-node (s/keys :req [::txn/id ::txn/created ::txn/options ::txn/tx ::txn/elements]
-                       :opt [::txn/started ::txn/finished]))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/id uuid?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/idx int?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/created inst?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/started inst?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/finished inst?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/tx vector?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/options map?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/started? set?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/complete? set?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/results (s/map-of keyword? any?))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/progress (s/map-of keyword? any?))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch map?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/ast :edn-query-language.ast/node) ; a tree is also a node
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/ast)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element (s/keys
+                                                                     :req [:com.fulcrologic.fulcro.algorithms.tx-processing/idx :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/started? :com.fulcrologic.fulcro.algorithms.tx-processing/complete? :com.fulcrologic.fulcro.algorithms.tx-processing/results :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch]
+                                                                     :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/progress]))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/elements (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element :kind vector?))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node (s/keys :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id :com.fulcrologic.fulcro.algorithms.tx-processing/created :com.fulcrologic.fulcro.algorithms.tx-processing/options :com.fulcrologic.fulcro.algorithms.tx-processing/tx :com.fulcrologic.fulcro.algorithms.tx-processing/elements]
+                                                                  :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/started :com.fulcrologic.fulcro.algorithms.tx-processing/finished]))
 
-(s/def ::txn/result-handler fn?)
-(s/def ::txn/update-handler fn?)
-(s/def ::txn/active? boolean?)
-(s/def ::txn/parallel? boolean?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler fn?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler fn?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/active? boolean?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/parallel? boolean?)
 
-(s/def ::txn/send-node (s/keys
-                         :req [::txn/id ::txn/idx ::txn/ast ::txn/result-handler ::txn/update-handler ::txn/active?]
-                         :opt [::txn/parallel?]))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/send-node (s/keys
+                                                                    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id :com.fulcrologic.fulcro.algorithms.tx-processing/idx :com.fulcrologic.fulcro.algorithms.tx-processing/ast :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
+                                                                    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/parallel?]))
 
-(s/def ::txn/submission-queue (s/coll-of ::txn/tx-node :kind vector?))
-(s/def ::txn/active-queue (s/coll-of ::txn/tx-node :kind vector?))
-(s/def ::txn/send-queue (s/coll-of ::txn/send-node :kind vector?))
-(s/def ::txn/send-queues (s/map-of ::app/remote-name ::txn/send-queue))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/send-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/send-node :kind vector?))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/send-queues (s/map-of :com.fulcrologic.fulcro.application/remote-name :com.fulcrologic.fulcro.algorithms.tx-processing/send-queue))
 
-(s/def ::txn/activation-scheduled? boolean?)
-(s/def ::txn/sends-scheduled? boolean?)
-(s/def ::txn/queue-processing-scheduled? boolean?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/activation-scheduled? boolean?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/sends-scheduled? boolean?)
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/queue-processing-scheduled? boolean?)
 
 ;; ================================================================================
 ;; Application Specs
 ;; ================================================================================
-(s/def ::app/state-atom futil/atom?)
-(s/def ::app/app-root (s/nilable any?))
-(s/def ::app/indexes (s/keys :req-un [::app/ident->components]))
-(s/def ::app/ident->components (s/map-of eql/ident? set?))
-(s/def ::app/keyword->components (s/map-of keyword? set?))
-(s/def ::app/link-joins->components (s/map-of eql/ident? set?))
-(s/def ::app/remote-name keyword?)
-(s/def ::app/remote-names (s/coll-of keyword? :kind set?))
-(s/def ::app/remotes (s/map-of ::app/remote-name map?))
-(s/def ::app/basis-t pos-int?)
-(s/def ::app/last-rendered-state map?)
-(s/def ::app/runtime-state (s/keys :req [::app/app-root
-                                         ::app/indexes
-                                         ::app/remotes
-                                         ::app/basis-t
-                                         ::app/last-rendered-state
-                                         ::txn/activation-scheduled?
-                                         ::txn/queue-processing-scheduled?
-                                         ::txn/sends-scheduled?
-                                         ::txn/submission-queue
-                                         ::txn/active-queue
-                                         ::txn/send-queues]))
-(s/def ::app/runtime-atom futil/atom?)
+(s/def :com.fulcrologic.fulcro.application/state-atom futil/atom?)
+(s/def :com.fulcrologic.fulcro.application/app-root (s/nilable any?))
+(s/def :com.fulcrologic.fulcro.application/indexes (s/keys :req-un [:com.fulcrologic.fulcro.application/ident->components]))
+(s/def :com.fulcrologic.fulcro.application/ident->components (s/map-of eql/ident? set?))
+(s/def :com.fulcrologic.fulcro.application/keyword->components (s/map-of keyword? set?))
+(s/def :com.fulcrologic.fulcro.application/link-joins->components (s/map-of eql/ident? set?))
+(s/def :com.fulcrologic.fulcro.application/remote-name keyword?)
+(s/def :com.fulcrologic.fulcro.application/remote-names (s/coll-of keyword? :kind set?))
+(s/def :com.fulcrologic.fulcro.application/remotes (s/map-of :com.fulcrologic.fulcro.application/remote-name map?))
+(s/def :com.fulcrologic.fulcro.application/basis-t pos-int?)
+(s/def :com.fulcrologic.fulcro.application/last-rendered-state map?)
+(s/def :com.fulcrologic.fulcro.application/runtime-state (s/keys :req [:com.fulcrologic.fulcro.application/app-root
+                                                                       :com.fulcrologic.fulcro.application/indexes
+                                                                       :com.fulcrologic.fulcro.application/remotes
+                                                                       :com.fulcrologic.fulcro.application/basis-t
+                                                                       :com.fulcrologic.fulcro.application/last-rendered-state
+                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/activation-scheduled?
+                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/queue-processing-scheduled?
+                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/sends-scheduled?
+                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue
+                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue
+                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/send-queues]))
+(s/def :com.fulcrologic.fulcro.application/runtime-atom futil/atom?)
 (s/def :algorithm/tx! fn?)
 (s/def :algorithm/optimized-render! fn?)
 (s/def :algorithm/render! fn?)
@@ -86,18 +82,18 @@
 (s/def :algorithm/drop-component! fn?)
 (s/def :algorithm/schedule-render! fn?)
 (s/def :algorithm/global-query-transform fn?)
-(s/def ::app/algorithms (s/keys :req [:algorithm/tx!
-                                      :algorithm/optimized-render!
-                                      :algorithm/render!
-                                      :algorithm/merge*
-                                      :algorithm/load-error?
-                                      :algorithm/global-query-transform
-                                      :algorithm/index-component!
-                                      :algorithm/drop-component!
-                                      :algorithm/schedule-render!]))
+(s/def :com.fulcrologic.fulcro.application/algorithms (s/keys :req [:algorithm/tx!
+                                                                    :algorithm/optimized-render!
+                                                                    :algorithm/render!
+                                                                    :algorithm/merge*
+                                                                    :algorithm/load-error?
+                                                                    :algorithm/global-query-transform
+                                                                    :algorithm/index-component!
+                                                                    :algorithm/drop-component!
+                                                                    :algorithm/schedule-render!]))
 
-(s/def ::app/app (s/keys :req
-                   [::app/state-atom
-                    ::app/algorithms
-                    ::app/runtime-atom]))
+(s/def :com.fulcrologic.fulcro.application/app (s/keys :req
+                                                 [:com.fulcrologic.fulcro.application/state-atom
+                                                  :com.fulcrologic.fulcro.application/algorithms
+                                                  :com.fulcrologic.fulcro.application/runtime-atom]))
 

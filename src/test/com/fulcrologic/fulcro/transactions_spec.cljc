@@ -819,6 +819,7 @@
                                            "Processes each node through process-tx-node!"
                                            (::txn/id n) => (uuid 2))
                                          nil)
+      (app/schedule-render! a) => nil
 
       (let [{:keys [::app/runtime-atom] :as app} (-> (mock-app) (ah/with-optimized-render (fn
                                                                                             ([app force-root?])
