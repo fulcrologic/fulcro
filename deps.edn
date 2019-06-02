@@ -25,7 +25,7 @@
            :dev       {:extra-paths ["src/dev" "resources"]
                        :extra-deps  {binaryage/devtools                 {:mvn/version "0.9.10"}
                                      expound                            {:mvn/version "0.7.2"}
-                                     com.fulcrologic/fulcro3-websockets {:local/root "/home/tony/fulcrologic/fulcro3-websockets"}
+                                     com.fulcrologic/fulcro-websockets {:mvn/version "3.0.0-SNAPSHOT"}
                                      ring/ring-core                     {:mvn/version "1.7.1"}
                                      org.immutant/web                   {:mvn/version "2.1.10"}
                                      org.clojure/tools.namespace        {:mvn/version "0.3.0-alpha4"}}}}}
