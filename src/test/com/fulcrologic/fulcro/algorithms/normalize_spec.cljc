@@ -42,8 +42,10 @@
     [ident (get props ident)]))
 
 (defn- quick-ident-class [ident]
-  (comp/configure-component! {} :A
-    {:ident (fn [_ props] (build-simple-ident ident props))}))
+  #?(:cljs (comp/configure-component! (fn []) :A
+             {:ident (fn [_ props] (build-simple-ident ident props))})
+     :clj  (comp/configure-component! {} :A
+             {:ident (fn [_ props] (build-simple-ident ident props))})))
 
 (defn- genc [ident query]
   (with-meta query

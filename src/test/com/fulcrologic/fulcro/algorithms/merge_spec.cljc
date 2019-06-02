@@ -304,7 +304,7 @@
 (defsc MPhonePM [_ _]
   {:ident     [:phone/by-id :id]
    :query     [:id :number]
-   :pre-merge (fn [cls {:keys [current-normalized data-tree]}]
+   :pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (merge
                   {:ui/initial-flag :start}
                   current-normalized
@@ -316,7 +316,7 @@
 
 (defsc Score
   [_ {::keys []}]
-  {:pre-merge (fn [cls {:keys [current-normalized data-tree]}]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (merge
                   {:ui/expanded? false}
                   current-normalized
@@ -325,7 +325,7 @@
    :query     [::score-id ::points :ui/expanded?]})
 
 (defsc Scoreboard [_ props]
-  {:pre-merge (fn [cls {:keys [current-normalized data-tree]}]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (let [{::keys [scores]} data-tree
                       high-score (apply max (map ::points scores))
                       scores     (mapv
@@ -343,7 +343,7 @@
 
 (defsc UiItem
   [_ _]
-  {:pre-merge (fn [cls {:keys [current-normalized data-tree]}]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (merge
                   {::id (swap! id-counter inc)}
                   current-normalized
@@ -353,7 +353,7 @@
 
 (defsc UiLoadedItem
   [_ _]
-  {:pre-merge (fn [cls {:keys [current-normalized data-tree]}]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (merge
                   {:ui/item {}}
                   current-normalized
@@ -390,75 +390,74 @@
       (get-in new-state-map [:person/by-id :sally]) => sally
       (get-in new-state-map [:phone/by-id 3]) => phone-3))
 
-  #?(:cljs
-     (assertions
-       (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
-       => {:person/by-id {:mary {:id      :mary
-                                 :name    "Mary"
-                                 :numbers [[:phone/by-id 55]]}}
-           :phone/by-id  {55 {:id              55
-                              :number          "98765-4321"
-                              :ui/initial-flag :start}}}
+  (assertions
+    (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
+    => {:person/by-id {:mary {:id      :mary
+                              :name    "Mary"
+                              :numbers [[:phone/by-id 55]]}}
+        :phone/by-id  {55 {:id              55
+                           :number          "98765-4321"
+                           :ui/initial-flag :start}}}
 
-       (merge/merge-component {} Scoreboard {::scoreboard-id 123
-                                             ::scores        [{::score-id 1
-                                                               ::points   4}
-                                                              {::score-id 2
-                                                               ::points   8}
-                                                              {::score-id 3
-                                                               ::points   7}]})
-       => {::scoreboard-id {123 {::scoreboard-id 123
-                                 ::scores        [[::score-id 1]
-                                                  [::score-id 2]
-                                                  [::score-id 3]]}}
-           ::score-id      {1 {::score-id    1
-                               ::points      4
-                               :ui/expanded? false}
-                            2 {::score-id    2
-                               ::points      8
-                               :ui/expanded? true}
-                            3 {::score-id    3
-                               ::points      7
-                               :ui/expanded? false}}}
+    (merge/merge-component {} Scoreboard {::scoreboard-id 123
+                                          ::scores        [{::score-id 1
+                                                            ::points   4}
+                                                           {::score-id 2
+                                                            ::points   8}
+                                                           {::score-id 3
+                                                            ::points   7}]})
+    => {::scoreboard-id {123 {::scoreboard-id 123
+                              ::scores        [[::score-id 1]
+                                               [::score-id 2]
+                                               [::score-id 3]]}}
+        ::score-id      {1 {::score-id    1
+                            ::points      4
+                            :ui/expanded? false}
+                         2 {::score-id    2
+                            ::points      8
+                            :ui/expanded? true}
+                         3 {::score-id    3
+                            ::points      7
+                            :ui/expanded? false}}}
 
-       (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]) :replace [:main-person])
-       => {:person/by-id {:mary {:id      :mary
-                                 :name    "Mary"
-                                 :numbers [[:phone/by-id 55]]}}
-           :phone/by-id  {55 {:id              55
-                              :number          "98765-4321"
-                              :ui/initial-flag :start}}
-           :main-person  [:person/by-id :mary]}
+    (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]) :replace [:main-person])
+    => {:person/by-id {:mary {:id      :mary
+                              :name    "Mary"
+                              :numbers [[:phone/by-id 55]]}}
+        :phone/by-id  {55 {:id              55
+                           :number          "98765-4321"
+                           :ui/initial-flag :start}}
+        :main-person  [:person/by-id :mary]}
 
-       (do
-         (reset! id-counter 0)
-         (merge/merge-component {} UiLoadedItem
-           {::loaded-id 1
-            ::name      "a"}))
-       => {::loaded-id {1 {::loaded-id 1
-                           ::name      "a"
-                           :ui/item    [::id 1]}}
-           ::id        {1 {::id 1}}}
+    (do
+      (reset! id-counter 0)
+      (merge/merge-component {} UiLoadedItem
+        {::loaded-id 1
+         ::name      "a"}))
+    => {::loaded-id {1 {::loaded-id 1
+                        ::name      "a"
+                        :ui/item    [::id 1]}}
+        ::id        {1 {::id 1}}}
 
-       (do
-         (reset! id-counter 0)
-         (merge/merge-component {} UiCollectionHolder
-           {::col-id     123
-            ::load-items [{::loaded-id 1
-                           ::name      "a"}
-                          {::loaded-id 2
-                           ::name      "b"}]}))
-       => {::col-id    {123 {::col-id     123
-                             ::load-items [[::loaded-id 1]
-                                           [::loaded-id 2]]}}
-           ::loaded-id {1 {::loaded-id 1
-                           ::name      "a"
-                           :ui/item    [::id 1]}
-                        2 {::loaded-id 2
-                           ::name      "b"
-                           :ui/item    [::id 2]}}
-           ::id        {1 {::id 1}
-                        2 {::id 2}}})))
+    (do
+      (reset! id-counter 0)
+      (merge/merge-component {} UiCollectionHolder
+        {::col-id     123
+         ::load-items [{::loaded-id 1
+                        ::name      "a"}
+                       {::loaded-id 2
+                        ::name      "b"}]}))
+    => {::col-id    {123 {::col-id     123
+                          ::load-items [[::loaded-id 1]
+                                        [::loaded-id 2]]}}
+        ::loaded-id {1 {::loaded-id 1
+                        ::name      "a"
+                        :ui/item    [::id 1]}
+                     2 {::loaded-id 2
+                        ::name      "b"
+                        :ui/item    [::id 2]}}
+        ::id        {1 {::id 1}
+                     2 {::id 2}}}))
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defsc Table [_ _]

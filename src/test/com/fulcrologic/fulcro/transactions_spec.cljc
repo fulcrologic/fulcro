@@ -14,9 +14,15 @@
     [com.fulcrologic.fulcro.application :as app :refer [fulcro-app]]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [edn-query-language.core :as eql]
-    [clojure.test :refer [is are deftest]]
+    [clojure.test :as test :refer [is are deftest]]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
+
+(test/use-fixtures :once
+  ;; NOTE: This makes submission processing immediate
+  (fn [tests]
+    (with-redefs [sched/defer (fn [f tm] (f))]
+      (tests))))
 
 (defn fake-render [& args])
 
@@ -662,16 +668,19 @@
           (::txn/complete? updated-ele) => #{:remote}))))
 
   (behavior "When the handler is missing (ignored result)"
-    (let [app         (mock-app)
-          tx-node     (-> (txn/tx-node `[(f {})])
-                        (txn/dispatch-elements {} (fn [e] (m/mutate e)))
-                        (assoc-in [::txn/elements 0 ::txn/results :remote] {}))
-          ele         (get-in tx-node [::txn/elements 0])
-          updated-ele (txn/dispatch-result! app tx-node ele :remote)]
+    (when-mocking
+      (app/schedule-render! a) => nil
 
-      (assertions
-        "Marks the element as complete"
-        (::txn/complete? updated-ele) => #{:remote}))))
+      (let [app         (mock-app)
+            tx-node     (-> (txn/tx-node `[(f {})])
+                          (txn/dispatch-elements {} (fn [e] (m/mutate e)))
+                          (assoc-in [::txn/elements 0 ::txn/results :remote] {}))
+            ele         (get-in tx-node [::txn/elements 0])
+            updated-ele (txn/dispatch-result! app tx-node ele :remote)]
+
+        (assertions
+          "Marks the element as complete"
+          (::txn/complete? updated-ele) => #{:remote})))))
 
 (defmutation multi-remote [p]
   (remote [env] true)

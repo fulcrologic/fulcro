@@ -4,7 +4,7 @@
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
     [com.fulcrologic.fulcro.algorithms.misc :as futil]
-    [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
+    [com.fulcrologic.fulcro.algorithms.scheduling :as sched :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.specs]
     [ghostwheel.core :refer [>defn => |]]
@@ -129,7 +129,7 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote    (get (app->remotes app) remote-name)
+  (enc/if-let [remote (get (app->remotes app) remote-name)
                transmit! (get remote :transmit!)]
     (try
       (transmit! remote send-node)
