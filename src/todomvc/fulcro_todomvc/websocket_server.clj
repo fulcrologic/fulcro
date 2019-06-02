@@ -36,11 +36,13 @@
 
 (comment
 
+  ;; start
   (http-server)
+
+  ;; stop
   (@server)
 
-  (async/<!! (parser {} `[(fulcro-todomvc.api/todo-new-item {:id 2 :text "Hello"})]))
-
+  ;; look at server "db"
   @item-db
 
   )

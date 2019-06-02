@@ -135,7 +135,7 @@
 (defn ident [this props] (when (has-feature? this :ident) ((component-options this :ident) this props)))
 (defn query [this] (when (has-feature? this :query) ((component-options this :query) this)))
 (defn initial-state [clz params] (when (has-feature? clz :initial-state) ((component-options clz :initial-state) clz params)))
-(defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) this data)))
+(defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) data)))
 (defn depth [this] (util/isoget-in this [:props :fulcro$depth]))
 
 (defn get-raw-react-prop
@@ -558,7 +558,7 @@
       ;; initial-state template is magic..see dev guide. Lambda version is normal.
       :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
       ;; pre-merge, use a lamba to modify new merged data with component needs
-      :pre-merge (fn [tree] (merge {:ui/default-value :start} tree))
+      :pre-merge (fn [{:keys [...]}] (merge {:ui/default-value :start} tree))
 
       ; React Lifecycle Methods (this in scope)
       :initLocalState            (fn [this] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
