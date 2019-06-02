@@ -42,11 +42,13 @@
 
 (defmutation todo-check [{:keys [id]}]
   (action [{:keys [state]}]
-    (swap! state set-item-checked* id true)))
+    (swap! state set-item-checked* id true))
+  (remote [_] true))
 
 (defmutation todo-uncheck [{:keys [id]}]
   (action [{:keys [state]}]
-    (swap! state set-item-checked* id false)))
+    (swap! state set-item-checked* id false))
+  (remote [_] true))
 
 (defn set-item-label*
   "Set the given item's label"
@@ -57,7 +59,8 @@
   "Mutation: Commit the given text as the new label for the item with id."
   [{:keys [id text]}]
   (action [{:keys [state]}]
-    (swap! state set-item-label* id text)))
+    (swap! state set-item-label* id text))
+  (remote [_] true))
 
 (defn remove-from-idents
   "Given a vector of idents and an id, return a vector of idents that have none that use that ID for their second (id) element."
@@ -68,7 +71,8 @@
   (action [{:keys [state]}]
     (swap! state #(-> %
                     (update-in [:list/id list-id :list/items] remove-from-idents id)
-                    (update :item/id dissoc id)))))
+                    (update :item/id dissoc id))))
+  (remote [_] true))
 
 (defn on-all-items-in-list
   "Run the xform on all of the todo items in the list with list-id. The xform will be called with the state map and the
@@ -82,17 +86,20 @@
 
 (defmutation todo-check-all [{:keys [list-id]}]
   (action [{:keys [state]}]
-    (swap! state on-all-items-in-list list-id set-item-checked* true)))
+    (swap! state on-all-items-in-list list-id set-item-checked* true))
+  (remote [_] true))
 
 (defmutation todo-uncheck-all [{:keys [list-id]}]
   (action [{:keys [state]}]
-    (swap! state on-all-items-in-list list-id set-item-checked* false)))
+    (swap! state on-all-items-in-list list-id set-item-checked* false))
+  (remote [_] true))
 
 (defmutation todo-clear-complete [{:keys [list-id]}]
   (action [{:keys [state]}]
     (let [is-complete? (fn [item-ident] (get-in @state (conj item-ident :item/complete)))]
       (swap! state update-in [:list/id list-id :list/items]
-        (fn [todos] (vec (remove (fn [ident] (is-complete? ident)) todos)))))))
+             (fn [todos] (vec (remove (fn [ident] (is-complete? ident)) todos))))))
+  (remote [_] true))
 
 (defn current-list-id [state] (get-in state [:application :root :todos 1]))
 

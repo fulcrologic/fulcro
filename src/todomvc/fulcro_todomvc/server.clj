@@ -32,6 +32,68 @@
     {:tempids {id new-id}
      :item/id new-id}))
 
+(pc/defmutation todo-check [env {:keys [id list-id]}]
+  {::pc/sym `fulcro-todomvc.api/todo-check
+   ::pc/params [:list-id :id]
+   ::pc/output []}
+  (log/info "Checked item" id)
+  (swap! item-db assoc-in [id :item/complete] true)
+  {})
+
+(pc/defmutation todo-uncheck [env {:keys [id list-id]}]
+  {::pc/sym `fulcro-todomvc.api/todo-uncheck
+   ::pc/params [:list-id :id]
+   ::pc/output []}
+  (log/info "Unchecked item" id)
+  (swap! item-db assoc-in [id :item/complete] false)
+  {})
+
+(pc/defmutation commit-label-change [env {:keys [id list-id text]}]
+  {::pc/sym `fulcro-todomvc.api/commit-label-change
+   ::pc/params [:list-id :id :text]
+   ::pc/output []}
+  (log/info "Set item label text of" id "to" text)
+  (swap! item-db assoc-in [id :item/label] text)
+  {})
+
+(pc/defmutation todo-delete-item [env {:keys [id list-id]}]
+  {::pc/sym `fulcro-todomvc.api/todo-delete-item
+   ::pc/params [:list-id :id]
+   ::pc/output []}
+  (log/info "Deleted item" id)
+  (swap! item-db dissoc id)
+  {})
+
+(defn- to-all-todos [db f]
+  (into {}
+        (map (fn [[id todo]]
+               [id (f todo)]))
+        db))
+
+(pc/defmutation todo-check-all [env {:keys [list-id]}]
+  {::pc/sym `fulcro-todomvc.api/todo-check-all
+   ::pc/params [:list-id]
+   ::pc/output []}
+  (log/info "Checked all items")
+  (swap! item-db to-all-todos #(assoc % :item/complete true))
+  {})
+
+(pc/defmutation todo-uncheck-all [env {:keys [list-id]}]
+  {::pc/sym `fulcro-todomvc.api/todo-uncheck-all
+   ::pc/params [:list-id]
+   ::pc/output []}
+  (log/info "Unchecked all items")
+  (swap! item-db to-all-todos #(assoc % :item/complete false))
+  {})
+
+(pc/defmutation todo-clear-complete [env {:keys [list-id]}]
+  {::pc/sym `fulcro-todomvc.api/todo-clear-complete
+   ::pc/params [:list-id]
+   ::pc/output []}
+  (log/info "Cleared completed items")
+  (swap! item-db (fn [db] (into {} (remove #(-> % val :item/complete)) db)))
+  {})
+
 ;; How to go from :person/id to that person's details
 (pc/defresolver list-resolver [env params]
   {::pc/input  #{:list/id}
@@ -49,7 +111,11 @@
   (get @item-db id))
 
 ;; define a list with our resolvers
-(def my-resolvers [list-resolver item-resolver todo-new-item])
+(def my-resolvers [list-resolver item-resolver
+                   todo-new-item commit-label-change todo-delete-item
+                   todo-check todo-uncheck
+                   todo-check-all todo-uncheck-all
+                   todo-clear-complete])
 
 ;; setup for a given connect system
 (def parser

@@ -91,13 +91,16 @@
       (dom/ul :.filters {}
         (dom/li {}
           (dom/a {:className (when (or (nil? filter) (= :list.filter/none filter)) "selected")
-                  :href      "#"} "All"))
+                  :href      "#"
+                  :onClick #(comp/transact! component `[(api/todo-filter {:filter :list.filter/none})])} "All"))
         (dom/li {}
           (dom/a {:className (when (= :list.filter/active filter) "selected")
-                  :href      "#/active"} "Active"))
+                  :href      "#/active"
+                  :onClick #(comp/transact! component `[(api/todo-filter {:filter :list.filter/active})])} "Active"))
         (dom/li {}
           (dom/a {:className (when (= :list.filter/completed filter) "selected")
-                  :href      "#/completed"} "Completed")))
+                  :href      "#/completed"
+                  :onClick #(comp/transact! component `[(api/todo-filter {:filter :list.filter/completed})])} "Completed")))
       (when (pos? num-completed)
         (dom/button {:className "clear-completed"
                      :onClick   #(comp/transact! component `[(api/todo-clear-complete {:list-id ~id})])} "Clear Completed")))))
