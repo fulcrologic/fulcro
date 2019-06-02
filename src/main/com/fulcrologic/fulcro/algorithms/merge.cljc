@@ -345,7 +345,7 @@
         base-query    (component-merge-query state-map component object-data)
         ;; :fulcro/merge is way to make unions merge properly when joined by idents
         merge-query   [{:fulcro/merge base-query}]
-        existing-data (get (fdn/db->tree base-query state-map state-map) ident {})
+        existing-data (get (fdn/db->tree (log/spy :warn base-query) (log/spy :warn state-map) state-map) ident {})
         marked-data   (mark-missing object-data object-query)
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
@@ -393,7 +393,7 @@
     (let [query          [{top-ident (comp/get-query component)}]
           state-to-merge {top-ident component-data}
           table-entries  (-> (fnorm/tree->db query state-to-merge true (pre-merge-transform state-map))
-                           (dissoc ::tables top-ident))]
+                           (dissoc top-ident))]
       (cond-> (util/deep-merge state-map table-entries)
         (seq named-parameters) (#(apply integrate-ident* % top-ident named-parameters))))
     state-map))
@@ -403,8 +403,7 @@
   that when a component has initial state it will end up in the state map, even if it isn't currently in the
   initial state of the union component (which can only point to one at a time)."
   [state-map root-component]
-  (let [initial-state  (comp/get-initial-state root-component nil)
-        state-map-atom (atom state-map)
+  (let [state-map-atom (atom state-map)
         merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
         _              (merge-alternate-unions merge-to-state root-component)
         new-state      @state-map-atom]

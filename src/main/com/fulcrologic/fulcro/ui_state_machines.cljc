@@ -5,7 +5,7 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [ghostwheel.core :as gw :refer [>fdef => | ? <-]]
+    [ghostwheel.core :refer [>defn => | ? <-]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.application :as app]
@@ -61,8 +61,7 @@
                :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
                      ::queued-mutations ::queued-loads ::queued-timeouts]))
 
-(defn fake-handler [env] [::env => ::env] env)
-(>fdef fake-handler [env] [::env => ::env])
+(>defn fake-handler [env] [::env => ::env] env)
 
 ;; State Machine Definition Specs
 (s/def ::actor-names (s/coll-of ::actor-name :kind set?))
@@ -96,21 +95,18 @@
 (defn register-state-machine! [id definition] (swap! registry assoc id definition))
 
 
-(defn get-state-machine [id] (get @registry id))
-(>fdef get-state-machine [id] [::state-machine-id => (s/nilable ::state-machine-definition)])
+(>defn get-state-machine [id] [::state-machine-id => (s/nilable ::state-machine-definition)] (get @registry id))
 
-(defn lookup-state-machine [env] (some->> (asm-value env [::state-machine-id]) (get @registry)))
-(>fdef lookup-state-machine [env] [::env => (s/nilable ::state-machine-definition)])
+(>defn lookup-state-machine [env]
+  [::env => (s/nilable ::state-machine-definition)]
+  (some->> (asm-value env [::state-machine-id]) (get @registry)))
 
-(defn lookup-state-machine-field
+(>defn lookup-state-machine-field
   [env ks]
   [::env (s/or :k keyword? :kpath vector?) => any?]
   (if (vector? ks)
     (get-in (lookup-state-machine env) ks)
     (get (lookup-state-machine env) ks)))
-(>fdef lookup-state-machine-field
-  [env ks]
-  [::env (s/or :k keyword? :kpath vector?) => any?])
 
 ;; ================================================================================
 ;; Active State Machine API
@@ -134,7 +130,7 @@
                                                        ::event-data extra-data})])))
 
 
-(defn new-asm
+(>defn new-asm
   "Create the runtime state for the given state machine in it's initial state.
 
   - `::state-machine-id` is the globally unique key of for a state machine definition.
@@ -145,6 +141,7 @@
   Returns an active state machine that can be stored in Fulcro state for a specific
   state machine definition."
   [{::keys [state-machine-id asm-id actor->ident actor->component-name]}]
+  [(s/keys :req [::state-machine-id ::asm-id ::actor->ident]) => ::asm]
   (let [i->a (set/map-invert actor->ident)]
     {::asm-id                asm-id
      ::state-machine-id      state-machine-id
@@ -154,35 +151,34 @@
      ::actor->component-name (or actor->component-name {})
      ::active-timers         {}
      ::local-storage         {}}))
-(>fdef new-asm [options]
-  [(s/keys :req [::state-machine-id ::asm-id ::actor->ident]) => ::asm])
 
-(defn asm-path
+(>defn asm-path
   "Returns the path to an asm elements in an asm `env`."
   [{::keys [state-map asm-id] :as env} ks]
+  [::env (s/or :v vector? :k keyword?) => vector?]
   (let [path (if (vector? ks)
                (into [::state-map ::asm-id asm-id] ks)
                [::state-map ::asm-id asm-id ks])]
     (when (not (get-in state-map [::asm-id asm-id]))
       (log/debug "Attempt to get an ASM path" ks "for a state machine that is not in Fulcro state. ASM ID: " asm-id))
     path))
-(>fdef asm-path [env ks] [::env (s/or :v vector? :k keyword?) => vector?])
 
-(defn asm-value
+(>defn asm-value
   "Get the value of an ASM based on keyword OR key-path `ks`."
   [env ks]
+  [::env (s/or :v vector? :k keyword?) => any?]
   (get-in env (asm-path env ks)))
-(>fdef asm-value [env ks] [::env (s/or :v vector? :k keyword?) => any?])
 
-(defn valid-state?
+(>defn valid-state?
   [env state-id]
+  [::env ::state-id => boolean?]
   (let [states (set/union #{::exit ::started} (-> (lookup-state-machine-field env ::states) keys set))]
     (contains? states state-id)))
-(>fdef valid-state? [env state-id] [::env ::state-id => boolean?])
 
-(defn activate
+(>defn activate
   "Move to the given state. Returns a new env."
   [env state-id]
+  [::env ::state-id => ::env]
   (if (valid-state? env state-id)
     (do
       (log/debug "Activating state " state-id "on" (::asm-id env))
@@ -190,89 +186,86 @@
     (do
       (log/error "Activate called for invalid state: " state-id "on" (::asm-id env))
       env)))
-(>fdef activate [env state-id] [::env ::state-id => ::env])
 
-(defn store
+(>defn store
   "Store a k/v pair with the active state machine (will only exist as long as it is active)"
   [env k v]
+  [::env keyword? any? => ::env]
   (log/debug "Storing" k "->" v "on" (::asm-id env))
   (update-in env (asm-path env ::local-storage) assoc k v))
-(>fdef store [env k v] [::env keyword? any? => ::env])
 
-(defn retrieve
+(>defn retrieve
   "Retrieve the value for a k from the active state machine. See `store`."
   ([env k]
+   [::env keyword? => any?]
    (retrieve env k nil))
   ([env k dflt]
+   [::env keyword? any? => any?]
    (get-in env (asm-path env [::local-storage k]) dflt)))
-(>fdef retrieve
-  ([env k] [::env keyword? => any?])
-  ([env k dflt] [::env keyword? any? => any?]))
 
-(defn actor->ident
+(>defn actor->ident
   [env actor-name]
+  [::env ::actor-name => (s/nilable ::fulcro-ident)]
   (when-let [lookup (get-in env (asm-path env ::actor->ident))]
     (lookup actor-name)))
-(>fdef actor->ident [env actor-name] [::env ::actor-name => (s/nilable ::fulcro-ident)])
 
-(defn resolve-alias
+(>defn resolve-alias
   "Looks up the given alias in the alias map and returns the real Fulcro state path or nil if no such path exists."
   [env alias]
+  [::env ::alias => any?]
   (when-let [resolution-path (lookup-state-machine-field env [::aliases alias])]
     (let [[actor & subpath] resolution-path
           base-path (actor->ident env actor)
           real-path (into base-path subpath)]
       real-path)))
-(>fdef resolve-alias [env alias] [::env ::alias => any?])
 
-(defn actor-path
+(>defn actor-path
   "Get the real Fulcro state-path for the entity of the given actor."
   ([env actor-name]
+   [::env ::actor-name => (s/nilable vector?)]
    (actor-path env actor-name nil))
   ([env actor-name k]
+   [::env ::actor-name any? => (s/nilable vector?)]
    (if-let [ident (actor->ident env actor-name)]
      (cond-> ident
        k (conj k))
      nil)))
-(>fdef actor-path
-  ([env actor-name] [::env ::actor-name => (s/nilable vector?)])
-  ([env actor-name k] [::env ::actor-name any? => (s/nilable vector?)]))
 
-(defn set-actor-value
+(>defn set-actor-value
   "Set a value in the actor's Fulcro entity. Only the actor is resolved. The k is not processed as an alias. "
   [env actor-name k v]
+  [::env ::actor-name any? any? => ::env]
   (if-let [path (actor-path env actor-name k)]
     (update env ::state-map assoc-in path v)
     env))
-(>fdef set-actor-value [env actor-name k v] [::env ::actor-name any? any? => ::env])
 
-(defn actor-value
+(>defn actor-value
   "Get the value of a particular key in the given actor's entity. If follow-idents? is true (which is the default),
   then it will recursively follow idents until it finds a non-ident value."
   ([{::keys [state-map] :as env} actor-name k follow-idents?]
+   [::env ::actor-name any? boolean? => any?]
    (when-let [path (actor-path env actor-name k)]
      (loop [v (get-in state-map path) depth 100]
        (if (and follow-idents? (eql/ident? v) (pos-int? depth))
          (recur (get-in state-map v) (dec depth))
          v))))
   ([env actor-name k]
+   [::env ::actor-name any? => any?]
    (actor-value env actor-name k true)))
-(>fdef actor-value
-  ([env actor-name k follow-idents?] [::env ::actor-name any? boolean? => any?])
-  ([env actor-name k] [::env ::actor-name any? => any?]))
 
-(defn alias-value
+(>defn alias-value
   "Get a Fulcro state value by state machine data alias."
   [{::keys [state-map] :as env} alias]
+  [::env keyword? => any?]
   (if-let [real-path (resolve-alias env alias)]
     (get-in state-map real-path)
     (do
       (log/error "Unable to find alias in state machine:" alias)
       nil)))
-(>fdef alias-value [env alias] [::env keyword? => any?])
 
-(defn set-aliased-value
+(>defn set-aliased-value
   ([env alias new-value alias-2 value-2 & kv-pairs]
+   [::env ::alias any? ::alias any? (s/* any?) => ::env]
    (let [kvs (into [[alias new-value] [alias-2 value-2]] (partition 2 kv-pairs))]
      (reduce
        (fn [e [k v]]
@@ -280,6 +273,7 @@
        env
        kvs)))
   ([env alias new-value]
+   [::env ::alias any? => ::env]
    (if-let [real-path (resolve-alias env alias)]
      (do
        (log/debug "Updating value for " (::asm-id env) "alias" alias "->" new-value)
@@ -287,23 +281,20 @@
      (do
        (log/error "Attempt to set a value on an invalid alias:" alias)
        env))))
-(>fdef set-aliased-value
-  ([env alias new-value alias-2 value-2 & kv-pairs] [::env ::alias any? ::alias any? (s/* any?) => ::env])
-  ([env alias new-value] [::env ::alias any? => ::env]))
 
-(defn aliased-data
+(>defn aliased-data
   "Extracts aliased data from Fulcro state to construct arguments. If explicit-args is supplied,
    then that is merged with aliased data, passed to the named plugin.  The return of the plugin is
    the result of this function"
   [env]
+  [::env => map?]
   (let [alias-keys (some-> (lookup-state-machine-field env ::aliases) keys)]
     (reduce (fn [result k]
               (assoc result k (alias-value env k)))
       {}
       alias-keys)))
-(>fdef aliased-data [env] [::env => map?])
 
-(defn run
+(>defn run
   "Run a state-machine plugin. Extracts aliased data from Fulcro state to construct arguments. If explicit-args is supplied,
    then that is merged with aliased data, passed to the named plugin.  The return of the plugin is
    the result of this function. Plugins cannot side-effect, and are meant for providing external computation algorithms
@@ -313,49 +304,44 @@
    If explicit-args are passed, then they will take *precedence* over the auto-extracted aliased data that is passed to
    the plugin."
   ([env plugin-name]
+   [::env keyword? => any?]
    (run env plugin-name nil))
   ([env plugin-name explicit-args]
+   [::env keyword? (s/nilable map?) => any?]
    (when-let [plugin (lookup-state-machine-field env [::plugins plugin-name])]
      (let [params (merge (aliased-data env) explicit-args)]
        (plugin params)))))
-(>fdef run
-  ([env plugin-name] [::env keyword? => any?])
-  ([env plugin-name explicit-args] [::env keyword? (s/nilable map?) => any?]))
 
-(defn exit
+(>defn exit
   "Indicate that the state machine is done."
   [env]
+  [::env => ::env]
   (log/debug "Exiting state machine" (::asm-id env))
   (activate env ::exit))
-(>fdef exit [env] [::env => ::env])
 
-(defn apply-event-value
+(>defn apply-event-value
   [env {::keys [event-id event-data]}]
+  [::env (s/keys :opt [::event-id ::event-data]) => ::env]
   (let [alias (::alias event-data)
         value (:value event-data)]
     (cond-> env
       (and (= ::value-changed event-id) alias)
       (set-aliased-value alias value))))
-(>fdef apply-event-value [env {::keys [event-id event-data]}]
-  [::env (s/keys :opt [::event-id ::event-data]) => ::env])
 
-(defn state-machine-env
+(>defn state-machine-env
   "Create an env for use with other functions. Used internally, but may be used as a helper ."
   ([state-map asm-id]
+   [::state-map ::asm-id => ::env]
    (state-machine-env state-map nil asm-id nil nil))
   ([state-map ref asm-id event-id event-data]
+   [::state-map (s/nilable ::fulcro-ident) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) => ::env]
    (cond-> {::state-map state-map
             ::asm-id    asm-id}
      event-id (assoc ::event-id event-id)
      (seq event-data) (assoc ::event-data event-data)
      ref (assoc ::source-actor-ident ref))))
-(>fdef state-machine-env
-  ([state-map asm-id]
-   [::state-map ::asm-id => ::env])
-  ([state-map ref asm-id event-id event-data]
-   [::state-map (s/nilable ::fulcro-ident) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) => ::env]))
 
-(defn with-actor-class
+(>defn with-actor-class
   "Associate a given component UI Fulcro class with an ident.  This is used with `begin!` in your actor map if the
   actor in question is going to be used with loads or mutations that return a value of that type. The actor's class
   can be retrieved for use in a handler using `(uism/actor-class env)`.
@@ -365,11 +351,10 @@
   ```
   "
   [ident class]
+  [::fulcro-ident ::comp/component-class => ::fulcro-ident]
   (vary-meta ident assoc ::class class))
-(>fdef with-actor-class [ident class]
-  [::fulcro-ident ::comp/component-class => ::fulcro-ident])
 
-(defn any->actor-component-registry-key
+(>defn any->actor-component-registry-key
   "Convert one of the possible inputs for an actor into an actor component registry key.
 
   v can be an ident with actor metadata (see `with-actor-class`), a Fulcro runtime instance whose `get-ident` returns
@@ -378,6 +363,7 @@
   Returns the Fulcro component registry key (a keyword) that will be able to find the real Fulcro
   component for `v`."
   [v]
+  [any? => (s/nilable keyword?)]
   (when-let [cls (cond
                    (and (eql/ident? v) (comp/component-class? (some-> v meta ::class))) (some-> v meta ::class)
                    (and (comp/component? v) (-> (comp/get-ident v) second)) (comp/react-type v)
@@ -387,24 +373,22 @@
           [ns nm] (str/split str-name #"/")
           k        (keyword ns nm)]
       k)))
-(>fdef any->actor-component-registry-key [v]
-  [any? => (s/nilable keyword?)])
 
-(defn actor-class
+(>defn actor-class
   "Returns the Fulcro component class that for the given actor, if set."
   [env actor-name]
+  [::env ::actor-name => (s/nilable ::comp/component-class)]
   (let [actor->component-name (asm-value env ::actor->component-name)
         cls                   (some-> actor-name actor->component-name comp/classname->class)]
     cls))
-(>fdef actor-class [env actor-name]
-  [::env ::actor-name => (s/nilable ::comp/component-class)])
 
-(defn reset-actor-ident
+(>defn reset-actor-ident
   "Safely changes the ident of an actor.
 
   Makes sure ident is consistently reset and updates the actor class (if one is specified
   using `with-actor-class`)."
   [env actor ident]
+  [::env ::alias ::fulcro-ident => ::env]
   (let [new-actor             (any->actor-component-registry-key ident)
         actor->ident          (-> env
                                 (asm-value ::actor->ident)
@@ -419,51 +403,42 @@
       (assoc-in ident->actor-path ident->actor)
       (cond->
         new-actor (assoc-in actor->component-path new-actor)))))
-(>fdef reset-actor-ident [env actor ident]
-  [::env ::alias ::fulcro-ident => ::env])
 
-(defn assoc-aliased
+(>defn assoc-aliased
   "Similar to clojure.core/assoc but works on UISM env and aliases."
   ([env alias new-value alias-2 value-2 & kv-pairs]
+   [::env ::alias any? ::alias any? (s/* any?) => ::env]
    (apply set-aliased-value env alias new-value
      alias-2 value-2 kv-pairs))
   ([env alias new-value]
+   [::env ::alias any? => ::env]
    (set-aliased-value env alias new-value)))
-(>fdef assoc-aliased
-  ([env alias new-value alias-2 value-2 & kv-pairs]
-   [::env ::alias any? ::alias any? (s/* any?) => ::env])
-  ([env alias new-value]
-   [::env ::alias any? => ::env]))
 
-(defn update-aliased
+(>defn update-aliased
   "Similar to clojure.core/update but works on UISM env and aliases."
   ([env k f]
+   [::env ::alias any? => ::env]
    (assoc-aliased env k (f (alias-value env k))))
   ([env k f x]
+   [::env ::alias any? any? => ::env]
    (assoc-aliased env k (f (alias-value env k) x)))
   ([env k f x y]
+   [::env ::alias any? any? any? => ::env]
    (assoc-aliased env k (f (alias-value env k) x y)))
   ([env k f x y z]
+   [::env ::alias any? any? any? any? => ::env]
    (assoc-aliased env k (f (alias-value env k) x y z)))
   ([env k f x y z & more]
+   [::env ::alias any? any? any? any? (s/* any?) => ::env]
    (assoc-aliased env k (apply f (alias-value env k) x y z more))))
-(>fdef update-aliased
-  ([env k f]
-   [::env ::alias any? => ::env])
-  ([env k f x]
-   [::env ::alias any? any? => ::env])
-  ([env k f x y]
-   [::env ::alias any? any? any? => ::env])
-  ([env k f x y z]
-   [::env ::alias any? any? any? any? => ::env])
-  ([env k f x y z & more]
-   [::env ::alias any? any? any? any? (s/* any?) => ::env]))
 
-
-(defn dissoc-aliased
+(>defn dissoc-aliased
   "Similar to clojure.core/dissoc but works on UISM env and aliases."
-  ([env] env)
+  ([env]
+   [::env => ::env]
+   env)
   ([env alias]
+   [::env ::alias => ::env]
    (when-not (nil? env)
      (let [path     (resolve-alias env alias)
            sub-path (butlast path)
@@ -471,17 +446,14 @@
        (log/debug "Dissoc of aliased value" alias "on" (::asm-id env))
        (apply-action env #(update-in % sub-path dissoc k)))))
   ([env k & ks]
+   [::env ::alias (s/* ::alias) => ::env]
    (when-not (nil? env)
      (let [ret (dissoc-aliased env k)]
        (if ks
          (recur ret (first ks) (next ks))
          ret)))))
-(>fdef dissoc-aliased
-  ([env] [::env => ::env])
-  ([env alias] [::env ::alias => ::env])
-  ([env k & ks] [::env ::alias (s/* ::alias) => ::env]))
 
-(defn integrate-ident
+(>defn integrate-ident
   "Integrate an ident into any number of aliases in the state machine.
   Aliases must point to a list of idents.
 
@@ -492,6 +464,7 @@
   - prepend: A keyword (alias) to a list in your app state where this new object's ident should be prepended. Will not append
   the ident if that ident is already in the list."
   [env ident & named-parameters]
+  [::env ::fulcro-ident (s/* (s/cat :name #{:prepend :append} :param keyword?)) => ::env]
   (log/debug "Integrating" ident "on" (::asm-id env))
   (let [actions (partition 2 named-parameters)]
     (reduce (fn [env [command alias-to-idents]]
@@ -506,36 +479,28 @@
                             (update-aliased env alias-to-idents (fnil conj []) ident))
                   (throw (ex-info "Unknown operation for integrate-ident: " {:command command :arg alias-to-idents})))))
       env actions)))
-(>fdef integrate-ident
-  [env ident & named-parameters]
-  [::env ::fulcro-ident
-   (s/* (s/cat :name #{:prepend :append} :param keyword?))
-   => ::env])
 
-(defn remove-ident
+(>defn remove-ident
   "Removes an ident, if it exists, from an alias that points to a list of idents."
   [env ident alias-to-idents]
+  [::env ::fulcro-ident ::alias => ::env]
   (log/debug "Removing" ident "from" alias-to-idents "on" (::asm-id env))
   (let [new-list (fn [old-list]
                    (vec (filter #(not= ident %) old-list)))]
     (update-aliased env alias-to-idents new-list)))
-(>fdef remove-ident
-  [env ident alias-to-idents]
-  [::env ::fulcro-ident ::alias => ::env])
 
-(defn queue-mutations!
+(>defn queue-mutations!
   [app env]
+  [::fulcro-app ::env => nil?]
   (let [queued-mutations (::queued-mutations env)]
     (doseq [mutation-params queued-mutations]
       (comp/transact! app [(mutation-delegate mutation-params)]))
     nil))
-(>fdef queue-mutations!
-  [app env]
-  [::fulcro-app ::env => nil?])
 
-(defn queue-actor-load!
+(>defn queue-actor-load!
   "Internal implementation. Queue a load of an actor."
   [app env actor-name component-class load-options]
+  [::fulcro-app ::env ::actor-name (s/nilable ::comp/component-class) ::load-options => nil?]
   (let [actor-ident (actor->ident env actor-name)
         cls         (or component-class (actor-class env actor-name))]
     (log/debug "Starting actor load" actor-name "on" (::asm-id env))
@@ -543,24 +508,20 @@
       (log/error "Cannot run load. Counld not derive Fulcro class (and none was configured) for " actor-name)
       (df/load app actor-ident cls load-options))
     nil))
-(>fdef queue-actor-load!
-  [app env actor-name component-class load-options]
-  [::fulcro-app ::env ::actor-name (s/nilable ::comp/component-class) ::load-options => nil?])
 
-(defn queue-normal-load!
+(>defn queue-normal-load!
   "Internal implementation. Queue a load."
   [app query-key component-class load-options]
+  [::fulcro-app ::query-key (s/nilable ::comp/component-class) ::load-options => nil?]
   (if (nil? query-key)
     (log/error "Cannot run load. query-key cannot be nil.")
     (do
       (log/debug "Starting load of" query-key)
       (df/load app query-key component-class load-options)))
   nil)
-(>fdef queue-normal-load!
-  [app query-key component-class load-options]
-  [::fulcro-app ::query-key (s/nilable ::comp/component-class) ::load-options => nil?])
 
-(defn handle-load-error* [app load-request]
+(>defn handle-load-error* [app load-request]
+  [::fulcro-app ::load-options => nil?]
   (let [{::keys [asm-id error-event error-data]} (some-> load-request :post-mutation-params)]
     (log/debug "Handling load error" asm-id ":" error-event)
     (if (and asm-id error-event)
@@ -572,14 +533,13 @@
         (comp/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
                                                                    ::event-id ::load-error}))]))))
   nil)
-(>fdef handle-load-error* [r req]
-  [::fulcro-app ::load-options => nil?])
 
 (defmutation handle-load-error [_]
   (action [{:keys [app load-request]}]
     (handle-load-error* app load-request)))
 
-(defn queue-loads! [app env]
+(>defn queue-loads! [app env]
+  [::fulcro-app ::env => nil?]
   (let [queued-loads (::queued-loads env)]
     (doseq [{::comp/keys [component-class]
              ::keys      [actor-name query-key load-options] :as load-params} queued-loads]
@@ -587,11 +547,11 @@
         (queue-actor-load! app env actor-name component-class load-options)
         (queue-normal-load! app query-key component-class load-options))))
   nil)
-(>fdef queue-loads! [app env] [::fulcro-app ::env => nil?])
 
-(defn update-fulcro-state!
+(>defn update-fulcro-state!
   "Put the evolved state-map from an env into a (Fulcro) state-atom"
   [{::keys [asm-id] :as env} state-atom]
+  [::env ::atom => nil?]
   (let [next-state (when env (asm-value env ::active-state))]
     (when-let [new-fulcro-state (some-> (::state-map env)
                                   ;; GC state machine if it exited
@@ -599,10 +559,8 @@
                                     (= ::exit next-state) (update ::asm-id dissoc asm-id)))]
       (reset! state-atom new-fulcro-state)))
   nil)
-(>fdef update-fulcro-state! [{::keys [asm-id] :as env} state-atom]
-  [::env ::atom => nil?])
 
-(defn set-timeout
+(>defn set-timeout
   "Add a timeout named `timer-id` to the `env` that will send `event-id` with `event-data` event
    after `timeout` (in milliseconds) unless an event (i.e. some-event-id) occurs where a call
    to `(cancel-on-events some-event-id)` returns true.
@@ -613,8 +571,10 @@
     on an event before the timeout fires, then the timeout will be auto-cancelled. If not specified, then
     it defaults to `(constantly false)`."
   ([env timer-id event-id event-data timeout]
+   [::env ::timer-id ::event-id ::event-data pos-int? => ::env]
    (set-timeout env timer-id event-id event-data timeout (constantly false)))
   ([env timer-id event-id event-data timeout cancel-on-events]
+   [::env ::timer-id ::event-id ::event-data pos-int? ::cancel-fn => ::env]
    (let [descriptor (cond-> {::timeout   timeout
                              ::timer-id  timer-id
                              ::js-timer  (with-meta {} {:timer true})
@@ -622,16 +582,12 @@
                              ::cancel-on (with-meta {} {:cancel-on cancel-on-events})}
                       event-data (assoc ::event-data event-data))]
      (update env ::queued-timeouts (fnil conj []) descriptor))))
-(>fdef set-timeout
-  ([env timer-id event-id event-data timeout]
-   [::env ::timer-id ::event-id ::event-data pos-int? => ::env])
-  ([env timer-id event-id event-data timeout cancel-on-events]
-   [::env ::timer-id ::event-id ::event-data pos-int? ::cancel-fn => ::env]))
 
-(defn clear-timeout!
+(>defn clear-timeout!
   "Clear a scheduled timeout (if it has yet to fire).  Harmless to call if the timeout is gone. This call takes
   effect immediately (in terms of making sure the timeout does not fire)."
   [env timer-id]
+  [::env ::timer-id => ::env]
   (log/debug "Clearing timeout " (::asm-id env) ":" timer-id)
   (let [{::keys [js-timer]} (asm-value env [::active-timers timer-id])
         real-js-timer (-> js-timer meta :timer)]
@@ -639,14 +595,13 @@
       (clear-js-timeout! real-js-timer))
     (-> env
       (update-in (asm-path env [::active-timers]) dissoc timer-id))))
-(>fdef clear-timeout! [env timer-id]
-  [::env ::timer-id => ::env])
 
-(defn generic-event-handler
+(>defn generic-event-handler
   "Returns an event handler that can process events according to a state machine
   ::uism/events definition of the current event/state in `env`.
   If a definition cannot be found then it returns nil."
   [original-env]
+  [::env => (s/nilable ::handler)]
   (let [smdef            (lookup-state-machine original-env)
         current-state-id (asm-value original-env ::active-state)
         current-event    (::event-id original-env)
@@ -662,10 +617,8 @@
           ;; IMPORTANT: UNDO value changes if the predicate is disabled
           original-env))
       nil)))
-(>fdef generic-event-handler [original-env]
-  [::env => (s/nilable ::handler)])
 
-(defn active-state-handler
+(>defn active-state-handler
   "Find the handler for the active state in the current env."
   [env]
   [::env => ::handler]
@@ -679,27 +632,22 @@
       (let [{::keys [event-id]} env]
         (log/warn "UNEXPECTED EVENT: Did not find a way to handle event" event-id "in the current active state:" current-state)
         identity))))
-(>fdef active-state-handler [env]
-  [::env => ::handler])
 
-(defn- ui-refresh-list
+(>defn ui-refresh-list
   "Returns a vector of things to refresh in Fulcro based on the final state of an active SM env."
   [env]
+  [::env => (s/coll-of eql/ident? :kind vector?)]
   (let [actor-idents (or (some-> env (get-in (asm-path env ::actor->ident)) vals vec) [])]
     actor-idents))
-(>fdef ui-refresh-list
-  [env]
-  [::env => (s/coll-of eql/ident? :kind vector?)])
 
-(defn- get-js-timer [env timer-id]
+(>defn get-js-timer [env timer-id]
+  [::env ::timer-id => any?]
   (some-> (asm-value env [::active-timers timer-id]) ::js-timer meta :timer))
-(>fdef get-js-timer [env timer-id]
-  [::env ::timer-id => any?])
 
-
-(defn schedule-timeouts!
+(>defn schedule-timeouts!
   "INTERNAL: actually schedule the timers that were submitted during the event handler."
   [app env]
+  [::fulcro-app ::env => ::env]
   (let [{::keys [queued-timeouts asm-id]} env]
     (reduce
       (fn [env {::keys [timeout event-id event-data timer-id] :as descriptor}]
@@ -715,14 +663,13 @@
           (assoc-in env (asm-path env [::active-timers timer-id]) descriptor)))
       env
       queued-timeouts)))
-(>fdef schedule-timeouts! [app env]
-  [::fulcro-app ::env => ::env])
 
-(defn clear-timeouts-on-event!
+(>defn clear-timeouts-on-event!
   "Processes the auto-cancel of events. This is a normal part of the internals, but can be used in handlers
   to simulate a *different* event than acutally occured for the purpose of clearing sets of timers that
   auto-cancel on other events than what occurred."
   [env event-id]
+  [::env ::event-id => ::env]
   (let [active-timers (asm-value env ::active-timers)]
     (reduce
       (fn [env timer-id]
@@ -736,25 +683,22 @@
             env)))
       env
       (keys active-timers))))
-(>fdef clear-timeouts-on-event! [env event-id]
-  [::env ::event-id => ::env])
-
 
 (s/def :fulcro/app ::fulcro-app)
 (s/def :fulcro/state ::atom)
 (s/def ::mutation-env (s/keys :req-un [:fulcro/state :fulcro/app]))
 
-(defn trigger-queued-events! [mutation-env queued-triggers refresh-list]
+(>defn trigger-queued-events!
+  [mutation-env queued-triggers refresh-list]
+  [::mutation-env (? ::queued-triggers) ::refresh-vector => ::refresh-vector]
   (let [result
         (reduce (fn [refresh-list event]
                   (into refresh-list (trigger-state-machine-event! mutation-env event)))
           refresh-list
           queued-triggers)]
     result))
-(>fdef trigger-queued-events! [mutation-env queued-triggers refresh-list]
-  [::mutation-env (? ::queued-triggers) ::refresh-vector => ::refresh-vector])
 
-(defn trigger-state-machine-event!
+(>defn trigger-state-machine-event!
   "IMPLEMENTATION DETAIL. Low-level implementation of triggering a state machine event. Does no direct interaction with
   Fulcro UI refresh.  Use `trigger!` instead.
 
@@ -764,6 +708,7 @@
 
   Returns a vector of actor idents that should be refreshed."
   [{:keys [app state ref] :as mutation-env} {::keys [event-id event-data asm-id] :as params}]
+  [::mutation-env ::trigger-descriptor => ::refresh-vector]
   (when-not (get-in @state [::asm-id asm-id])
     (log/error "Attemped to trigger event " event-id "on state machine" asm-id ", but that state machine has not been started (call begin! first)."))
   (let [sm-env       (state-machine-env @state ref asm-id event-id event-data)
@@ -778,11 +723,8 @@
     (queue-loads! app final-env)
     (update-fulcro-state! final-env state)
     (trigger-queued-events! mutation-env (::queued-triggers final-env) refresh-list)))
-(>fdef trigger-state-machine-event!
-  [mutation-env params]
-  [::mutation-env ::trigger-descriptor => ::refresh-vector])
 
-(defn trigger
+(>defn trigger
   "Trigger an event on another state machine.
 
   `env` - is the env in a state machine handler
@@ -791,16 +733,14 @@
   `event-data` - A map of data to send with the event
 
   Returns the updated env.  The actual event will not be sent until this handler finishes."
-  ([env state-machine-id event] (trigger env state-machine-id event {}))
+  ([env state-machine-id event]
+   [::env ::asm-id ::event-id => ::env]
+   (trigger env state-machine-id event {}))
   ([env state-machine-id event event-data]
+   [::env ::asm-id ::event-id ::event-data => ::env]
    (update env ::queued-triggers (fnil conj []) {::asm-id     state-machine-id
                                                  ::event-id   event
                                                  ::event-data event-data})))
-(>fdef trigger
-  ([env state-machine-id event] [::env ::asm-id ::event-id => ::env])
-  ([env state-machine-id event event-data] [::env ::asm-id ::event-id ::event-data => ::env]))
-
-
 
 (defn set-string!
   "Similar to Fulcro's set-string, but it sets the string on an active state machine's data alias.
@@ -845,9 +785,13 @@
                                         event-data (assoc ::event-data event-data)))
     (app/schedule-render! app)))
 
-(defn derive-actor-idents
+(>defn derive-actor-idents
   "Generate an actor->ident map."
   [actors]
+  [(s/map-of ::actor-name (s/or
+                            :ident ::fulcro-ident
+                            :component comp/component?
+                            :class comp/component-class?)) => ::actor->ident]
   (into {}
     ;; v can be an ident, component, or component class
     (keep (fn [[actor-id v]]
@@ -863,28 +807,22 @@
                            (log/error "The value given for actor" actor-id "had (or was) an invalid ident:" v)
                            nil))))
     actors))
-(>fdef derive-actor-idents [actors] [(s/map-of ::actor-name (s/or
-                                                              :ident ::fulcro-ident
-                                                              :component comp/component?
-                                                              :class comp/component-class?)) => ::actor->ident])
 
-
-
-(defn derive-actor-components
+(>defn derive-actor-components
   "Calculate the map from actor names to the Fulcro component registry names that represent those actors."
   [actors]
+  [(s/map-of ::actor-name (s/or
+                            :ident ::fulcro-ident
+                            :component comp/component?
+                            :class comp/component-class?)) => ::actor->component-name]
   (into {}
     ;; v can be an ident, component, or component class
     (keep (fn [[actor-id v]]
             (when-let [k (any->actor-component-registry-key v)]
               [actor-id k])))
     actors))
-(>fdef derive-actor-components [actors] [(s/map-of ::actor-name (s/or
-                                                                  :ident ::fulcro-ident
-                                                                  :component comp/component?
-                                                                  :class comp/component-class?)) => ::actor->component-name])
 
-(defn begin!
+(>defn begin!
   "Install and start a state machine.
 
   this - A UI component or app
@@ -893,8 +831,10 @@
   actors - A map of actor-names -> The ident, class, or react instance that represent them in the UI. Raw idents do not support SM loads.
   started-event-data - Data that will be sent with the ::uism/started event as ::uism/event-data"
   ([this machine instance-id actors]
+   [(s/or :c ::comp/component :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
    (begin! this machine instance-id actors {}))
   ([this machine instance-id actors started-event-data]
+   [(s/or :c ::comp/component :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
    (let [actors->idents          (derive-actor-idents actors)
          actors->component-names (derive-actor-components actors)]
      (log/debug "begin!" instance-id)
@@ -903,11 +843,6 @@
                                    ::event-data            started-event-data
                                    ::actor->component-name actors->component-names
                                    ::actor->ident          actors->idents})]))))
-(>fdef begin!
-  ([this machine instance-id actors]
-   [(s/or :c ::comp/component :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?])
-  ([this machine instance-id actors started-event-data]
-   [(s/or :c ::comp/component :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]))
 
 #?(:clj
    (defmacro defstatemachine [name body]
@@ -937,7 +872,7 @@
 (s/def ::mutation-remote keyword?)
 (s/def ::queued-mutations (s/coll-of ::mutation-descriptor))
 
-(defn compute-target
+(>defn compute-target
   "Compute a raw Fulcro target based on the possible options.
 
   `env` - The SM env
@@ -961,9 +896,6 @@
         (into target (keep identity [actor field]))
         (apply df/multiple-targets (keep identity [target actor field])))
       (or target actor field))))
-(>fdef compute-target
-  [env target-options]
-  [::env (s/keys :opt [::m/target ::target-actor ::target-alias]) => (s/nilable vector?)])
 
 (let [mtrigger! (fn mutation-trigger* [{:keys [app state]} actor-ident asm-id event data]
                   (let [response   (get-in @state (conj actor-ident ::m/mutation-response))
@@ -999,7 +931,7 @@
                                                (log/debug "Remote mutation " mutation "error")
                                                (mtrigger! fixed-env actor-ident asm-id error-event error-data)))))))))
 
-(defn trigger-remote-mutation
+(>defn trigger-remote-mutation
   "Run the given REMOTE mutation (a symbol or mutation declaration) in the context of the state machine.
 
   `env` - The SM handler environment
@@ -1023,6 +955,11 @@
 
   This function does *not* side effect.  It queues the mutation to run after the handler exits."
   [env actor mutation options-and-params]
+  [::env ::actor-name
+   (s/or :sym ::mutation :decl ::mutation-decl)
+   (s/keys :opt [::m/returning ::m/target ::target-actor
+                 ::target-alias ::ok-event ::error-event ::ok-data ::error-data ::mutation-remote])
+   => ::env]
   (let [target              (compute-target env options-and-params)
         asm-id              (::asm-id env)
         mutation-sym        (m/mutation-symbol mutation)
@@ -1032,13 +969,6 @@
                               (cond->
                                 (seq target) (assoc ::m/target target)))]
     (update env ::queued-mutations (fnil conj []) mutation-descriptor)))
-(>fdef trigger-remote-mutation
-  [env actor mutation options-and-params]
-  [::env ::actor-name
-   (s/or :sym ::mutation :decl ::mutation-decl)
-   (s/keys :opt [::m/returning ::m/target ::target-actor
-                 ::target-alias ::ok-event ::error-event ::ok-data ::error-data ::mutation-remote])
-   => ::env])
 
 ;; ================================================================================
 ;; I/O: Load integration
@@ -1052,9 +982,10 @@
 (s/def ::post-event-params map?)
 (s/def ::fallback-event-params map?)
 
-(defn convert-load-options
+(>defn convert-load-options
   "INTERNAL: Convert SM load options into Fulcro load options."
   [env options]
+  [::env (s/keys :opt [::post-event ::post-event-params ::fallback-event ::fallback-event-params]) => map?]
   (let [{::keys [post-event post-event-params fallback-event fallback-event-params target-actor target-alias]} options
         {:keys [marker]} options
         marker  (if (nil? marker) false marker)             ; force marker to false if it isn't set
@@ -1072,10 +1003,8 @@
                     fallback-event (update :post-mutation-params assoc ::error-event fallback-event)
                     fallback-event-params (update :post-mutation-params assoc ::error-data fallback-event-params)))]
     options))
-(>fdef convert-load-options [env options]
-  [::env (s/keys :opt [::post-event ::post-event-params ::fallback-event ::fallback-event-params]) => map?])
 
-(defn load
+(>defn load
   "Identical API to fulcro's data fetch `load`, but using a handle `env` instead of a component/app.
    Adds the load request to then env which will be sent to Fulcro as soon as the handler finishes.
 
@@ -1093,8 +1022,10 @@
    NOTE: In general a state machine should declare an actor for items in the machine and use `load-actor` instead of
    this function so that the state definitions themselves need not be coupled (via code) to the UI."
   ([env key-or-ident component-class-or-actor-name]
+   [::env ::query-key (s/or :a ::actor-name :c ::comp/component-class) => ::env]
    (load env key-or-ident component-class-or-actor-name {}))
   ([env key-or-ident component-class-or-actor-name options]
+   [::env ::query-key (s/or :a ::actor-name :c ::comp/component-class) ::load-options => ::env]
    (let [options (convert-load-options env options)
          class   (if (s/valid? ::actor-name component-class-or-actor-name)
                    (actor-class env component-class-or-actor-name)
@@ -1103,11 +1034,8 @@
                                                  class (assoc ::comp/component-class class)
                                                  key-or-ident (assoc ::query-key key-or-ident)
                                                  options (assoc ::load-options options))))))
-(>fdef load
-  ([env k actor-or-class] [::env ::query-key (s/or :a ::actor-name :c ::comp/component-class) => ::env])
-  ([env k actor-or-class options] [::env ::query-key (s/or :a ::actor-name :c ::comp/component-class) ::load-options => ::env]))
 
-(defn load-actor
+(>defn load-actor
   "Load (refresh) the given actor. If the actor *is not* on the UI, then you *must* specify
    `:com.fulcrologic.fulcro.primitives/component-class` in the `options` map.
 
@@ -1122,31 +1050,29 @@
 
    Adds a load request to then env which will be sent to Fulcro as soon as the handler finishes."
   ([env actor-name]
+   [::env ::actor-name => ::env]
    (load-actor env actor-name {}))
   ([env actor-name {::comp/keys [component-class] :as options}]
+   [::env ::actor-name ::load-options => ::env]
    (let [options (convert-load-options env options)]
      (update env ::queued-loads (fnil conj []) (cond-> {::actor-name   actor-name
                                                         ::load-options options}
                                                  component-class (assoc ::comp/component-class component-class))))))
-(>fdef load-actor
-  ([env actor-name] [::env ::actor-name => ::env])
-  ([env actor-name {::comp/keys [component-class] :as options}] [::env ::actor-name ::load-options => ::env]))
 
-(defn apply-action
+(>defn apply-action
   "Run a mutation helper function (e.g. a fn of Fulcro state)."
   [env mutation-helper & args]
   [::env fn? (s/* any?) => ::env]
   (log/debug "Applying mutation helper to state of" (::asm-id env))
   (apply update env ::state-map mutation-helper args))
-(>fdef apply-action [env mutation-helper & args] [::env fn? (s/* any?) => ::env])
 
-(defn get-active-state
+
+(>defn get-active-state
   "Get the name of the active state for an active state machine using a component."
   [this asm-id]
+  [(s/or :c comp/component? :r ::fulcro-app) ::asm-id => (? keyword?)]
   (let [state-map (-> this (comp/any->app) (app/current-state))]
     (some-> state-map
       ::asm-id
       (get asm-id)
       ::active-state)))
-(>fdef get-active-state [this asm-id]
-  [(s/or :c comp/component? :r ::fulcro-app) ::asm-id => (? keyword?)])

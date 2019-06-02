@@ -6,24 +6,6 @@
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
-(defn props-only-query [query]
-  (let [ast (eql/query->ast query)
-        ast (update ast :children (fn [cs] (mapv (fn [node]
-                                                   (cond-> node
-                                                     (= :join (:type node)) (assoc :type :prop)))
-                                             cs)))]
-    (eql/ast->query ast)))
-
-(defn root-changed? [app]
-  (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom :com.fulcrologic.fulcro.application/state-atom]} app
-        {:keys [:com.fulcrologic.fulcro.application/root-class]} @runtime-atom
-        state-map       @state-atom
-        prior-state-map (-> runtime-atom deref :com.fulcrologic.fulcro.application/last-rendered-state)
-        props-query     (props-only-query (comp/get-query root-class state-map))
-        root-old        (fdn/db->tree props-query prior-state-map prior-state-map)
-        root-new        (fdn/db->tree props-query state-map state-map)]
-    (not= root-old root-new)))
-
 (defn dirty-table-entries [old-state new-state idents]
   (reduce
     (fn [result ident]
@@ -42,7 +24,7 @@
            data-tree (when query (fdn/db->tree q state-map state-map))
            new-props (get data-tree ident)]
        (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
-       (binding [comp/*app* app]
+       (when (comp/mounted? c)
          (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))))
 
 (defn render-stale-components! [app]
@@ -60,9 +42,9 @@
 
 (defn render!
   ([app]
-   (render! app false))
-  ([app force-root?]
-   (if (or force-root? (root-changed? app))
-     (kr/render! app)
+   (render! app {}))
+  ([app {:keys [force-root? root-props-changed?] :as options}]
+   (if (or force-root? root-props-changed?)
+     (kr/render! app options)
      (render-stale-components! app))))
 

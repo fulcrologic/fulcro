@@ -1,11 +1,11 @@
-(ns fulcro-todomvc.ui
+(ns fulcro-todomvc.ui-with-union-router
   (:require
     [com.fulcrologic.fulcro.algorithms.tempid :as tmp]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
-    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
+    [com.fulcrologic.fulcro.routing.union-router :as fr]
     [fulcro-todomvc.api :as api]
     [goog.object :as gobj]
     [taoensso.timbre :as log]))
@@ -29,7 +29,7 @@
    :componentDidUpdate (fn [this prev-props _]
                          ;; Code adapted from React TodoMVC implementation
                          (when (and (not (:editing prev-props)) (:editing (comp/props this)))
-                           (let [input-field        (gobj/get this "input-ref")
+                           (let [input-field (gobj/get this "input-ref")
                                  input-field-length (when input-field (.. input-field -value -length))]
                              (when input-field
                                (.focus input-field)
@@ -116,17 +116,17 @@
   {:initial-state {:list/id 1 :ui/new-item-text "" :list/items [] :list/title "main" :list/filter :list.filter/none}
    :ident         :list/id
    :query         [:list/id :ui/new-item-text {:list/items (comp/get-query TodoItem)} :list/title :list/filter]}
-  (let [num-todos       (count items)
+  (let [num-todos (count items)
         completed-todos (filterv :item/complete items)
-        num-completed   (count completed-todos)
-        all-completed?  (= num-completed num-todos)
-        filtered-todos  (case filter
-                          :list.filter/active (filterv (comp not :item/complete) items)
-                          :list.filter/completed completed-todos
-                          items)
-        delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
-        check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
-        uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
+        num-completed (count completed-todos)
+        all-completed? (= num-completed num-todos)
+        filtered-todos (case filter
+                         :list.filter/active (filterv (comp not :item/complete) items)
+                         :list.filter/completed completed-todos
+                         items)
+        delete-item (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
+        check (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
+        uncheck (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
     (log/info "Shared" (comp/shared this))
     (dom/div {}
       (dom/section :.todoapp {}
@@ -152,11 +152,8 @@
 (def ui-todo-list (comp/factory TodoList))
 
 (defsc Application [this {:keys [todos] :as props}]
-  {:initial-state (fn [p] {:route :application
+  {:initial-state (fn [c p] {:route :application
                            :todos (comp/get-initial-state TodoList {})})
-   :route-segment ["app"]
-   :will-enter    (fn [_ _] (dr/route-immediate [:application :root]))
-   :will-leave    (fn [_ _] true)
    :ident         (fn [] [:application :root])
    :query         [:route {:todos (comp/get-query TodoList)}]}
   (dom/div {}
@@ -167,21 +164,24 @@
 (defsc Other [this props]
   {:query         [:route]
    :ident         (fn [] [:other :root])
-   :route-segment ["other"]
-   :will-enter    (fn [_ _] (dr/route-immediate [:other :root]))
-   :will-leave    (fn [_ _] true)
    :initial-state {:route :other}}
   (dom/div "OTHER ROUTE"))
 
-(dr/defrouter TopRouter [this props] {:router-targets [Application Other]})
+(fr/defsc-router TopRouter [this props]
+  {:router-id      ::top-router
+   :ident          (fn []
+                     [(:route props) :root])
+   :default-route  Application
+   :router-targets {:application Application
+                    :other       Other}})
 
 (def ui-router (comp/factory TopRouter))
 
 (defsc Root [this {:root/keys [router] :as props}]
-  {:initial-state (fn [p] {:root/router (comp/get-initial-state TopRouter {})})
+  {:initial-state (fn [c p] {:root/router (comp/get-initial-state TopRouter {})})
    :query         [{:root/router (comp/get-query TopRouter)}]}
   (log/info "root props" props)
   (dom/div {}
-    (dom/button {:onClick (fn [] (dr/change-route this ["app"]))} "App")
-    (dom/button {:onClick (fn [] (dr/change-route this ["other"]))} "Other")
+    (dom/button {:onClick (fn [] (comp/transact! this `[(fr/set-route {:router ::top-router :target [:application :root]})]))} "App")
+    (dom/button {:onClick (fn [] (comp/transact! this `[(fr/set-route {:router ::top-router :target [:other :root]})]))} "Other")
     (ui-router router)))

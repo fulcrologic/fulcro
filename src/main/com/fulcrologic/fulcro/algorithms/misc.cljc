@@ -5,6 +5,7 @@
   (:require
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
+    #?(:cljs [goog.object :as gobj])
     [clojure.spec.alpha :as s])
   #?(:clj
      (:import (clojure.lang Atom))))
@@ -97,3 +98,18 @@
    a set as a predicate to elide specific well-known UI-only paths."
   [query node-predicate]
   (-> query eql/query->ast (elide-ast-nodes node-predicate) eql/ast->query))
+
+(defn isoget-in
+  ([obj kvs]
+   (isoget-in obj kvs nil))
+  ([obj kvs default]
+   #?(:clj (get-in obj kvs default)
+      :cljs
+           (let [ks (mapv (fn [k] (some-> k name)) kvs)]
+             (or (apply gobj/getValueByKeys obj ks) default)))))
+
+(defn isoget
+  ([obj k] (isoget obj k nil))
+  ([obj k default]
+   #?(:clj  (get obj k default)
+      :cljs (or (gobj/get obj (some-> k (name))) default))))

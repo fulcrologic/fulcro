@@ -14,9 +14,15 @@
     [com.fulcrologic.fulcro.application :as app :refer [fulcro-app]]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [edn-query-language.core :as eql]
-    [clojure.test :refer [is are deftest]]
+    [clojure.test :as test :refer [is are deftest]]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
+
+(test/use-fixtures :once
+  ;; NOTE: This makes submission processing immediate
+  (fn [tests]
+    (with-redefs [sched/defer (fn [f tm] (f))]
+      (tests))))
 
 (defn fake-render [& args])
 
@@ -38,13 +44,6 @@
     ::txn/result-handler (fn []) ::txn/error-handler (fn []) ::txn/update-handler (fn [])
     ::txn/active?        false
     ::txn/options        options}))
-
-(specification "atom-of"
-  (behavior "Can detect atoms that contain specific types"
-    (assertions
-      ((s+/atom-of int?) (atom 33)) => true
-      ((s+/atom-of int?) (atom {})) => false
-      ((s+/atom-of map?) (atom {})) => true)))
 
 (specification "tx-node"
   (let [n (txn/tx-node '[(f) (g)] {:x 1})
@@ -276,7 +275,7 @@
     (let [sends         [(->send (uuid 1) {::txn/parallel? true}) (->send (uuid 2) {}) (->send (uuid 3) {})
                          (-> (->send (uuid 4) {}) (assoc ::txn/ast (eql/query->ast [:x :y])))]
           send-queues   {:remote sends}
-          app           (mock-app {:remotes {:remote (fn [send])}})
+          app           (mock-app {:remotes {:remote {:transmit! (fn [send])}}})
           mock-combined (-> (->send (uuid 4) {})
                           (assoc ::txn/active? true))]
       (swap! (::app/runtime-atom app) assoc ::txn/send-queues send-queues)
@@ -669,16 +668,19 @@
           (::txn/complete? updated-ele) => #{:remote}))))
 
   (behavior "When the handler is missing (ignored result)"
-    (let [app         (mock-app)
-          tx-node     (-> (txn/tx-node `[(f {})])
-                        (txn/dispatch-elements {} (fn [e] (m/mutate e)))
-                        (assoc-in [::txn/elements 0 ::txn/results :remote] {}))
-          ele         (get-in tx-node [::txn/elements 0])
-          updated-ele (txn/dispatch-result! app tx-node ele :remote)]
+    (when-mocking
+      (app/schedule-render! a) => nil
 
-      (assertions
-        "Marks the element as complete"
-        (::txn/complete? updated-ele) => #{:remote}))))
+      (let [app         (mock-app)
+            tx-node     (-> (txn/tx-node `[(f {})])
+                          (txn/dispatch-elements {} (fn [e] (m/mutate e)))
+                          (assoc-in [::txn/elements 0 ::txn/results :remote] {}))
+            ele         (get-in tx-node [::txn/elements 0])
+            updated-ele (txn/dispatch-result! app tx-node ele :remote)]
+
+        (assertions
+          "Marks the element as complete"
+          (::txn/complete? updated-ele) => #{:remote})))))
 
 (defmutation multi-remote [p]
   (remote [env] true)
@@ -699,9 +701,9 @@
                                            (update e ::txn/complete? conj r))
 
     (let [app         (mock-app)
-          _           (swap! (::app/runtime-atom app) assoc ::app/remotes {:remote  (fn [send])
-                                                                           :rest    (fn [send])
-                                                                           :graphql (fn [send])})
+          _           (swap! (::app/runtime-atom app) assoc ::app/remotes {:remote  {:transmit! (fn [send])}
+                                                                           :rest    {:transmit! (fn [send])}
+                                                                           :graphql {:transmit! (fn [send])}})
           mock-result {:status-code 200 :value 20}
           tx-node     (-> (txn/tx-node `[(multi-remote {})])
                         (txn/dispatch-elements {} (fn [e] (m/mutate e)))
@@ -826,10 +828,11 @@
                                            "Processes each node through process-tx-node!"
                                            (::txn/id n) => (uuid 2))
                                          nil)
+      (app/schedule-render! a) => nil
 
       (let [{:keys [::app/runtime-atom] :as app} (-> (mock-app) (ah/with-optimized-render (fn
-                                                                                              ([app force-root?])
-                                                                                              ([app]))))
+                                                                                            ([app force-root?])
+                                                                                            ([app]))))
             active-queue [(assoc (txn/tx-node `[(f {})]) ::txn/id (uuid 1))
                           (assoc (txn/tx-node `[(g {})]) ::txn/id (uuid 2))]]
         (swap! runtime-atom assoc ::txn/active-queue active-queue)

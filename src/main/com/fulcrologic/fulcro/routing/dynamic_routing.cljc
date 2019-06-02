@@ -1,5 +1,5 @@
 (ns com.fulcrologic.fulcro.routing.dynamic-routing
-  #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing :refer [defsc-route-target]]))
+  #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
     [ghostwheel.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
@@ -45,7 +45,7 @@
   (when-let [will-enter (get-will-enter class)]
     (will-enter app params)))
 
-(defn route-target? [component] (comp/component-options component :route-target?))
+(defn route-target? [component] (comp/component-options component :route-segment))
 
 ;; NON-static protocol for interacting as a route target
 (defn get-will-leave [this] "Returns the function of a route target to be called with
@@ -61,7 +61,7 @@
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
 
 (defn get-targets [router] "Returns a set of classes to which this router routes."
-  (comp/component-options router :targets))
+  (set (comp/component-options router :router-targets)))
 
 (defn route-immediate [ident] (with-meta ident {:immediate true}))
 (defn route-deferred [ident completion-fn] (with-meta ident {:immediate false
@@ -273,7 +273,7 @@
 ;; TODO: This algorithm is repeated in more than one place in slightly different forms...refactor it.
 (defn proposed-new-path [this-or-reconciler relative-class-or-instance new-route]
   (let [app        (comp/any->app this-or-reconciler)
-        state-map  (app/current-state deref)
+        state-map  (app/current-state app)
         router     relative-class-or-instance
         root-query (comp/get-query router state-map)
         ast        (eql/query->ast root-query)
@@ -430,7 +430,6 @@
 #?(:clj (s/def ::failed-ui list?))
 #?(:clj (s/def ::defrouter-options (s/keys :req-un [::router-targets] :opt-un [::initial-ui ::loading-ui ::failed-ui])))
 
-;; TASK No macro!
 #?(:clj
    (defn defrouter* [env router-ns router-sym arglist options body]
      (when-not (and (vector? arglist) (= 2 (count arglist)))
@@ -453,7 +452,7 @@
                                       (fn [idx s] [(keyword (str "alt" idx)) `(comp/get-initial-state ~s {})])
                                       (rest router-targets)))
            ident-method           (apply list `(fn [] [::id ~id]))
-           get-targets-method     (apply list `(~'get-targets [~'c] ~(set router-targets)))
+           get-targets-method     (apply list `(fn [~'c] ~(set router-targets)))
            initial-state-lambda   (apply list `(fn [~'params] ~initial-state-map))
            states-to-render-route (if (seq body)
                                     #{:routed :deferred}
@@ -469,11 +468,9 @@
                                                                             :route-factory        (when ~'class (comp/factory ~'class))
                                                                             :current-state        ~'current-state}]
                                                      ~@body))))
-           options                (merge (dissoc options :router-targets) `{:query         ~query
-                                                                            :ident         ~ident-method
-                                                                            :protocols     [~'static fulcro.incubator.dynamic-routing/Router
-                                                                                            ~get-targets-method]
-                                                                            :initial-state ~initial-state-lambda})]
+           options                (merge options `{:query         ~query
+                                                   :ident         ~ident-method
+                                                   :initial-state ~initial-state-lambda})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
           (let [~'current-state (uism/get-active-state ~'this ~id)
@@ -482,7 +479,6 @@
                 ~'pending-path-segment (uism/retrieve ~'sm-env :pending-path-segment)]
             ~render-cases)))))
 
-;; TASK just use defsc...no custom macro needed
 #?(:clj
    (defmacro defrouter
      "Define a router.
@@ -510,12 +506,7 @@
    (s/fdef defrouter
      :args (s/cat :sym symbol? :arglist vector? :options map? :body (s/* any?))))
 
-;; TASK: no longer needs to be a macro...just use configure-component!...but can be if we want syntax checking
-;; NO...just use defsc. period.
-;#?(:clj
-   ;(dext/defextended-defsc defsc-route-target [[`RouteLifecycle false] [`RouteTarget true]]))
-
-(defn ssr-initial-state
+#_(defn ssr-initial-state
   "(ALPHA) A helper to get initial state database for SSR.
 
   Returns:
@@ -533,55 +524,55 @@
   may not actually be correct for the starting app with respect to the routers.
   "
   [app-root-class root-router-class route-path]
-  #_(let [initial-tree (comp/get-initial-state app-root-class {})
-          initial-db   (ssr/build-initial-state initial-tree app-root-class)
-          router-ident (comp/get-ident root-router-class {})
-          instance-id  (second router-ident)
-          {:keys [target matching-prefix]} (route-target root-router-class route-path)
-          target-ident (will-enter target nil nil)          ; Target in this example needs neither
-          params       {::uism/asm-id                instance-id
-                        ::uism/state-machine-id      (::state-machine-id RouterStateMachine)
-                        ::uism/event-data            (merge
-                                                       {:path-segment matching-prefix
-                                                        :router       (vary-meta router-ident assoc
-                                                                        :component root-router-class)
-                                                        :target       (vary-meta target-ident assoc
-                                                                        :component target)})
-                        ::uism/actor->component-name {:router (uism/any->actor-component-registry-key root-router-class)}
-                        ::uism/actor->ident          {:router router-ident}}
-          initial-db   (assoc-in initial-db [::uism/asm-id instance-id] (uism/new-asm params))]
-      {:db    initial-db
-       :props (comp/db->tree (comp/get-query app-root-class initial-db)
-                initial-db initial-db)}))
+  (let [initial-tree (comp/get-initial-state app-root-class {})
+        initial-db   (ssr/build-initial-state initial-tree app-root-class)
+        router-ident (comp/get-ident root-router-class {})
+        instance-id  (second router-ident)
+        {:keys [target matching-prefix]} (route-target root-router-class route-path)
+        target-ident (will-enter target nil nil)            ; Target in this example needs neither
+        params       {::uism/asm-id                instance-id
+                      ::uism/state-machine-id      (::state-machine-id RouterStateMachine)
+                      ::uism/event-data            (merge
+                                                     {:path-segment matching-prefix
+                                                      :router       (vary-meta router-ident assoc
+                                                                      :component root-router-class)
+                                                      :target       (vary-meta target-ident assoc
+                                                                      :component target)})
+                      ::uism/actor->component-name {:router (uism/any->actor-component-registry-key root-router-class)}
+                      ::uism/actor->ident          {:router router-ident}}
+        initial-db   (assoc-in initial-db [::uism/asm-id instance-id] (uism/new-asm params))]
+    {:db    initial-db
+     :props (fdn/db->tree (comp/get-query app-root-class initial-db)
+              initial-db initial-db)}))
 
-#_(defn all-reachable-routers
-    "Returns a sequence of all of the routers reachable in the query of the app."
-    [state-map component-class]
-    (let [root-query  (comp/get-query component-class state-map)
-          {:keys [children]} (comp/query->ast root-query)
-          get-routers (fn get-routers* [nodes]
-                        (reduce
-                          (fn [acc {:keys [component children]}]
-                            (into (if (router? component)
-                                    (conj acc component)
-                                    acc)
-                              (get-routers* children)))
-                          []
-                          nodes))]
-      (get-routers children)))
+(defn all-reachable-routers
+  "Returns a sequence of all of the routers reachable in the query of the app."
+  [state-map component-class]
+  (let [root-query  (comp/get-query component-class state-map)
+        {:keys [children]} (eql/query->ast root-query)
+        get-routers (fn get-routers* [nodes]
+                      (reduce
+                        (fn [acc {:keys [component children]}]
+                          (into (if (router? component)
+                                  (conj acc component)
+                                  acc)
+                            (get-routers* children)))
+                        []
+                        nodes))]
+    (get-routers children)))
 
-#_(defn initialize!
-    "Initialize the routing system.  This ensures that all routers have state machines in app state."
-    [reconciler]
-    (let [state-map (-> reconciler comp/app-state deref)
-          root      (comp/app-root reconciler)
-          routers   (all-reachable-routers state-map root)
-          tx        (mapv (fn [r]
-                            (let [router-ident (comp/get-ident r {})
-                                  router-id    (second router-ident)]
-                              (uism/begin {::uism/asm-id           router-id
-                                           ::uism/state-machine-id (::uism/state-machine-id RouterStateMachine)
-                                           ::uism/event-data       {:path-segment []
-                                                                    :router       (vary-meta router-ident assoc :component r)}
-                                           ::uism/actor->ident     {:router (uism/with-actor-class router-ident r)}}))) routers)]
-      (comp/transact! reconciler tx)))
+(defn initialize!
+  "Initialize the routing system.  This ensures that all routers have state machines in app state."
+  [app]
+  (let [state-map (app/current-state app)
+        root      (app/app-root app)
+        routers   (all-reachable-routers state-map root)
+        tx        (mapv (fn [r]
+                          (let [router-ident (comp/get-ident r {})
+                                router-id    (second router-ident)]
+                            (uism/begin {::uism/asm-id           router-id
+                                         ::uism/state-machine-id (::uism/state-machine-id RouterStateMachine)
+                                         ::uism/event-data       {:path-segment []
+                                                                  :router       (vary-meta router-ident assoc :component r)}
+                                         ::uism/actor->ident     {:router (uism/with-actor-class router-ident r)}}))) routers)]
+    (comp/transact! app tx)))
