@@ -145,7 +145,8 @@
             remotes
             shared
             shared-fn]}]
-   {::state-atom   (atom {})
+   {::id           (util/uuid)
+    ::state-atom   (atom {})
     ::algorithms   {:algorithm/tx!                    default-tx!
                     :algorithm/optimized-render!      ident-optimized/render!
                     :algorithm/shared-fn              (or shared-fn (constantly {}))

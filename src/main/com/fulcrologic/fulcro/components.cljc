@@ -112,6 +112,11 @@
         props-from-updates   (computed (util/isoget-in component [:state :fulcro$value]) computed-from-parent)]
     (newer-props props-from-parent props-from-updates)))
 
+(defn children
+  "Get the sequence of react children of the given component."
+  [component]
+  (util/isoget-in component "props" "children"))
+
 (defn react-type
   "Returns the component type, regardless of whether the component has been
    mounted"
