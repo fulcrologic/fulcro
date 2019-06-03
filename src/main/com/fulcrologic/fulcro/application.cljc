@@ -138,49 +138,97 @@
                                           (str/starts-with? ns "ui.")
                                           (str/includes? ns ".ui."))))))))
 
+(defonce fulcro-tools (atom {}))
+
+(defn register-tool!
+  "Register a debug tool. When an app starts, the debug tool can have several hooks that are notified:
+
+  ::tool-id some identifier to place the tool into the tool map
+  ::tx-listen is a (fn [tx info] ...) that will be called on every `transact!` of the app. Return value is ignored.
+  ::network-wrapper is (fn [network-map] network-map') that will be given the networking config BEFORE it is initialized. You can wrap
+  them, but you MUST return a compatible map out or you'll disable networking.
+  ::component-lifecycle is (fn [component evt]) that is called with evt of :mounted and :unmounted to tell you when the given component mounts/unmounts.
+  ::instrument-wrapper is a (fn [instrument] instrument') that allows you to wrap your own instrumentation (for rendering) around any existing (which may be nil)
+  ::app-started (fn [app] ...) that will be called once the app is mounted, just like started-callback/client-did-mount. Return value is ignored."
+  [{:keys [::tool-id] :as tool-registry}]
+  (log/info "Installing tool" tool-id)
+  (swap! fulcro-tools assoc tool-id tool-registry))
+
+(defn- add-tools [{::keys [runtime-atom]
+                   :keys  [client-did-mount] :as app}]
+  (if (seq (vals @fulcro-tools))
+    (let [remotes (some-> runtime-atom deref ::remotes)
+          tx!     (-> app ::algorithms :algorithm/tx!)
+          started (or client-did-mount (constantly nil))
+          new-tx! (fn wrapped-tx*
+                    ([app tx] (wrapped-tx* app tx {}))
+                    ([app tx options]
+                     (log/info "Running normal tx" tx)
+                     (tx! app tx options)
+                     (try
+                       (log/info "Sending tool mesg about tx" tx)
+                       (doseq [tool (vals @fulcro-tools)]
+                         (when-let [tx-listen (get tool ::tx-listen)]
+                           (tx-listen app tx options)))
+                       (catch :default e))))
+          [started remotes] (reduce
+                              (fn [[start net] {:keys [::network-wrapper ::app-started]}]
+                                (let [start (if app-started (fn [app] (app-started app) (start app)) start)
+                                      net   (if network-wrapper (network-wrapper net) net)]
+                                  [start net]))
+                              [started remotes]
+                              (vals @fulcro-tools))]
+      (swap! runtime-atom assoc ::remotes (log/spy :info remotes))
+      (-> app
+        (assoc-in [::algorithms :algorithm/tx!] new-tx!)
+        (assoc :client-did-mount started)))
+    app))
+
 (defn fulcro-app
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             render-middleware
+            client-did-mount
             remotes
             shared
             shared-fn]}]
    {::id           (util/uuid)
-    ::state-atom   (atom {})
-    ::algorithms   {:algorithm/tx!                    default-tx!
-                    :algorithm/optimized-render!      ident-optimized/render!
-                    :algorithm/shared-fn              (or shared-fn (constantly {}))
-                    :algorithm/render!                render!
-                    :algorithm/load-error?            default-load-error?
-                    :algorithm/merge*                 merge/merge*
-                    :algorithm/global-query-transform default-global-query-transform
-                    :algorithm/index-component!       indexing/index-component!
-                    :algorithm/drop-component!        indexing/drop-component!
-                    :algorithm/props-middleware       props-middleware
-                    :algorithm/render-middleware      render-middleware
-                    :algorithm/schedule-render!       schedule-render!}
-    ::runtime-atom (atom
-                     {::app-root                        nil
-                      ::mount-node                      nil
-                      ::root-class                      nil
-                      ::root-factory                    nil
-                      ::basis-t                         1
-                      ::last-rendered-state             {}
+    ::state-atom      (atom {})
+    :client-did-mount client-did-mount
+    ::algorithms      {:algorithm/tx!                    default-tx!
+                       :algorithm/optimized-render!      ident-optimized/render!
+                       :algorithm/shared-fn              (or shared-fn (constantly {}))
+                       :algorithm/render!                render!
+                       :algorithm/load-error?            default-load-error?
+                       :algorithm/merge*                 merge/merge*
+                       :algorithm/global-query-transform default-global-query-transform
+                       :algorithm/index-component!       indexing/index-component!
+                       :algorithm/drop-component!        indexing/drop-component!
+                       :algorithm/props-middleware       props-middleware
+                       :algorithm/render-middleware      render-middleware
+                       :algorithm/schedule-render!       schedule-render!}
+    ::runtime-atom    (atom
+                        {::app-root                        nil
+                         ::mount-node                      nil
+                         ::root-class                      nil
+                         ::root-factory                    nil
+                         ::basis-t                         1
+                         ::last-rendered-state             {}
 
-                      ::static-shared-props             shared
-                      ::shared-props                    {}
+                         ::static-shared-props             shared
+                         ::shared-props                    {}
 
-                      ::remotes                         (or remotes
-                                                          {:remote {:transmit! (fn [send]
-                                                                                 (log/fatal "Remote requested, but no remote defined."))}})
-                      ::indexes                         {:ident->components {}}
-                      ::mutate                          mut/mutate
-                      ::txn/activation-scheduled?       false
-                      ::txn/queue-processing-scheduled? false
-                      ::txn/sends-scheduled?            false
-                      ::txn/submission-queue            []
-                      ::txn/active-queue                []
-                      ::txn/send-queues                 {}})}))
+                         ::remotes                         (or remotes
+                                                             {:remote {:transmit! (fn [send]
+                                                                                    (log/fatal "Remote requested, but no remote defined."))}})
+                         ::indexes                         {:ident->components {}}
+                         ::mutate                          mut/mutate
+                         ::txn/activation-scheduled?       false
+                         ::txn/queue-processing-scheduled? false
+                         ::txn/sends-scheduled?            false
+                         ::txn/submission-queue            []
+                         ::txn/active-queue                []
+                         ::txn/send-queues                 {}})}))
 
 (defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
 
@@ -191,7 +239,8 @@
   #?(:cljs
      (if (mounted? app)
        (schedule-render! app)
-       (let [dom-node     (gdom/getElement node)
+       (let [app          (add-tools app)
+             dom-node     (gdom/getElement node)
              root-factory (comp/factory root)
              root-query   (comp/get-query root)
              initial-tree (comp/get-initial-state root)
@@ -206,7 +255,9 @@
          (binding [comp/*app* app]
            (let [app-root (js/ReactDOM.render (root-factory initial-tree) dom-node)]
              (swap! (::runtime-atom app) assoc
-               ::app-root app-root)))))))
+               ::app-root app-root)))
+         (when-let [cdm (:client-did-mount app)]
+           (cdm app))))))
 
 (defn app-root [app] (-> app ::runtime-atom deref ::app-root))
 

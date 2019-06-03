@@ -145,8 +145,8 @@
 
 (comment
 
-  (web/stop @server)
   (http-server)
+  (web/stop @server)
 
   (async/<!! (parser {} `[(fulcro-todomvc.api/todo-new-item {:id 2 :text "Hello"})]))
 

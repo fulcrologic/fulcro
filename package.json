@@ -17,5 +17,15 @@
     "url": "git@github.com:fulcrologic/fulcro3.git"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "codemirror": "^5.47.0",
+    "d3": "^5.9.2",
+    "highlight.js": "^9.15.8",
+    "parinfer": "^3.12.0",
+    "parinfer-codemirror": "^1.4.2",
+    "react-grid-layout": "^0.16.6",
+    "react-icons": "^2.2.7",
+    "reakit": "^0.11.2"
+  }
 }

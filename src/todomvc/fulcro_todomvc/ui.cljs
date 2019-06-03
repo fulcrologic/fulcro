@@ -185,6 +185,4 @@
    :query         [{:root/router (comp/get-query TopRouter)}]}
   (log/info "root props" props)
   (dom/div {}
-    (dom/button {:onClick (fn [] (dr/change-route this ["app"]))} "App")
-    (dom/button {:onClick (fn [] (dr/change-route this ["other"]))} "Other")
     (ui-router router)))

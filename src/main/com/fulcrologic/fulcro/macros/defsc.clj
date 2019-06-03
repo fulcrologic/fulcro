@@ -189,28 +189,28 @@
                    children (or (children-by-prop query) {})]
                (build-and-validate-initial-state-map env sym template legal-keys children))))
 
-(s/def :fulcro.client.primitives.defsc/ident (s/or :template (s/and vector? #(= 2 (count %))) :method list? :keyword keyword?))
-(s/def :fulcro.client.primitives.defsc/query (s/or :template vector? :method list?))
-(s/def :fulcro.client.primitives.defsc/initial-state (s/or :template map? :method list?))
-(s/def :fulcro.client.primitives.defsc/options (s/keys :opt-un [:fulcro.client.primitives.defsc/query
-                                                                :fulcro.client.primitives.defsc/ident
-                                                                :fulcro.client.primitives.defsc/initial-state]))
+(s/def ::ident (s/or :template (s/and vector? #(= 2 (count %))) :method list? :keyword keyword?))
+(s/def ::query (s/or :template vector? :method list?))
+(s/def ::initial-state (s/or :template map? :method list?))
+(s/def ::options (s/keys :opt-un [::query
+                                                                ::ident
+                                                                ::initial-state]))
 
-(s/def :fulcro.client.primitives.defsc/args (s/cat
+(s/def ::args (s/cat
                                               :sym symbol?
                                               :doc (s/? string?)
                                               :arglist (s/and vector? #(<= 2 (count %) 5))
-                                              :options (s/? :fulcro.client.primitives.defsc/options)
+                                              :options (s/? ::options)
                                               :body (s/* any?)))
 
 (defn defsc*
   [env args]
-  (if-not (s/valid? :fulcro.client.primitives.defsc/args args)
-    (throw (ana/error env (str "Invalid arguments. " (-> (s/explain-data :fulcro.client.primitives.defsc/args args)
+  (if-not (s/valid? ::args args)
+    (throw (ana/error env (str "Invalid arguments. " (-> (s/explain-data ::args args)
                                                        ::s/problems
                                                        first
                                                        :path) " is invalid."))))
-  (let [{:keys [sym doc arglist options body]} (s/conform :fulcro.client.primitives.defsc/args args)
+  (let [{:keys [sym doc arglist options body]} (s/conform ::args args)
         [thissym propsym computedsym extra-args] arglist
         {:keys [ident query initial-state]} options
         body                             (or body ['nil])
