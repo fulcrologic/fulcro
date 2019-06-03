@@ -991,7 +991,7 @@ z"
                  :has #{:descendents :focus :actions}})
 
 (defn concat-class-string
-  "`fragments` is a collection of fragmentsto concatinate."
+  "`fragments` is a collection of fragments to concat."
   ([fragments]
    (concat-class-string "" "" fragments))
   ([type fragments]
@@ -1016,29 +1016,38 @@ z"
 #?(:clj (def clj->js identity))
 
 (defn icon
-  "Gets an SVG representation of the given icon. See material-icon-paths."
-  [icon-name
-   & {:keys [width height modifiers states className title onClick]}]
+  "Gets an SVG representation of the given icon. See material-icon-paths.
+
+  - `props`:
+     - `width` and `height`: Size. defaults to 24.
+     - `modifiers`: A sequence of modifiers as keywords, like :X, which adds `c-icon--X` to the resulting classes.
+     - `states`: A sequence of states like :open. Adds classes like `is-open`
+     - `title`: A string to use as the title element
+     - All other keys pass through to the SVG element itself. If you specify className then it overrides
+       `modifiers` and `states`.
+  - `icon-name`: One of the icons defined in this file, as a keyword.
+
+   "
+  [{:keys [width height modifiers states title] :as props} icon-name]
   (assert (keyword? icon-name) "Icon name must be a keyword")
   (let [path-check (icon-name material-icon-paths)
-        icon-name  (str/replace (name icon-name) #"_" "-")]
+        icon-name  (str/replace (name icon-name) #"_" "-")
+        w          (str (or width "24"))
+        h          (str (or height "24"))]
     (when-not (str/blank? path-check)
       (dom/svg (clj->js
-                 (cond->
-                   {:className       (str/join " " [(concat-class-string "c-icon" "--" modifiers)
-                                                    (str "c-icon--" icon-name)
-                                                    (concat-state-string states)
-                                                    (concat-class-string className)])
-                    :version         "1.1"
-                    :xmlns           "http://www.w3.org/2000/svg"
-                    :width           "24"
-                    :height          "24"
-                    :aria-labelledby "title"
-                    :role            "img"
-                    :viewBox         "0 0 24 24"}
-                   onClick (assoc :onClick #(onClick))))
+                 (merge {:className       (str/join " " [(concat-class-string "c-icon" "--" modifiers)
+                                                         (str "c-icon--" icon-name)
+                                                         (concat-state-string states)])
+                         :version         "1.1"
+                         :xmlns           "http://www.w3.org/2000/svg"
+                         :width           w
+                         :height          h
+                         :aria-labelledby "title"
+                         :role            "img"
+                         :viewBox         (str "0 0 " w " " h)}
+                   props))
         (dom/title
           (or title
             (str (title-case (str/replace (name icon-name) #"_" " ")))))
         (dom/path {:d path-check})))))
-
