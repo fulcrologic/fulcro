@@ -14,8 +14,7 @@
            org.clojure/core.async     {:mvn/version "0.4.474"}}
 
  :aliases {:test      {:extra-paths ["src/test"]
-                       :extra-deps  {fulcrologic/fulcro         {:mvn/version "2.8.11"}
-                                     org.clojure/test.check     {:mvn/version "0.10.0-alpha4"}
+                       :extra-deps  {org.clojure/test.check     {:mvn/version "0.10.0-alpha4"}
                                      com.stuartsierra/component {:mvn/version "0.4.0"}
                                      fulcrologic/fulcro-spec    {:mvn/version "3.1.0"}}}
 
@@ -24,9 +23,9 @@
                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-418"}}}
 
            :dev       {:extra-paths ["src/dev" "resources"]
-                       :extra-deps  {binaryage/devtools                 {:mvn/version "0.9.10"}
-                                     expound                            {:mvn/version "0.7.2"}
+                       :extra-deps  {binaryage/devtools                {:mvn/version "0.9.10"}
+                                     expound                           {:mvn/version "0.7.2"}
                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.0.0-SNAPSHOT"}
-                                     ring/ring-core                     {:mvn/version "1.7.1"}
-                                     org.immutant/web                   {:mvn/version "2.1.10"}
-                                     org.clojure/tools.namespace        {:mvn/version "0.3.0-alpha4"}}}}}
+                                     ring/ring-core                    {:mvn/version "1.7.1"}
+                                     org.immutant/web                  {:mvn/version "2.1.10"}
+                                     org.clojure/tools.namespace       {:mvn/version "0.3.0-alpha4"}}}}}

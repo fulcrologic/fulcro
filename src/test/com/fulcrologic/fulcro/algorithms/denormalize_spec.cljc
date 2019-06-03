@@ -15,7 +15,7 @@
             [edn-query-language.core :as eql]
             [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro-spec.diff :as diff]
-            [fulcro.client.primitives :as fpp]))
+            [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fpp]))
 
 ;; helpers
 

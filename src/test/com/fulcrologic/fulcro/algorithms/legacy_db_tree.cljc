@@ -1,5 +1,7 @@
 (ns com.fulcrologic.fulcro.algorithms.legacy-db-tree
-  (:require [clojure.zip :as zip]))
+  (:require
+    [clojure.zip :as zip]
+    [taoensso.timbre :as log]))
 
 (declare focus-query*)
 
@@ -8,14 +10,14 @@
   [expr]
   (let [expr (cond-> expr (seq? expr) first)]
     (and (map? expr)
-         (map? (-> expr first second)))))
+      (map? (-> expr first second)))))
 
 (defn util-recursion?
   #?(:cljs {:tag boolean})
   [x]
   (or #?(:clj  (= '... x)
          :cljs (symbol-identical? '... x))
-      (number? x)))
+    (number? x)))
 
 (defn util-join-entry [expr]
   (let [[k v] (if (seq? expr)
@@ -37,8 +39,8 @@
   #?(:cljs {:tag boolean})
   [x]
   (and (vector? x)
-       (== 2 (count x))
-       (keyword? (nth x 0))))
+    (== 2 (count x))
+    (keyword? (nth x 0))))
 
 (defn util-unique-ident?
   #?(:cljs {:tag boolean})
@@ -56,7 +58,7 @@
                     (map? expr)
                     (let [join-value (-> expr first second)
                           join-value (if (and (util-recursion? join-value)
-                                              (seq ks))
+                                           (seq ks))
                                        (if-not (nil? union-expr)
                                          union-expr
                                          full-expr)
@@ -147,7 +149,7 @@
                         k' (expr->key node)]
                     (if (= k k')
                       (if (or (map? node)
-                              (and (seq? node) (map? (first node))))
+                            (and (seq? node) (map? (first node))))
                         (let [loc'  (move-to-key (cond-> loc (seq? node) zip/down) k)
                               node' (zip/node loc')]
                           (if (map? node')                  ;; UNION
@@ -157,10 +159,13 @@
                                   (zip/node (move-to-key loc' (first ks))))
                                 (next ks))
                               loc')
-                            (recur loc' ks))) ;; JOIN
+                            (recur loc' ks)))               ;; JOIN
                         (recur (some-> loc zip/down zip/down zip/down zip/right) ks)) ;; CALL
                       (recur (zip/right loc) path)))))))]
     (query-template* (query-zip query) path)))
+
+(defn- replace [template new-query]
+  (-> template (zip/replace new-query) zip/root))
 
 (defn reduce-query-depth
   "Changes a join on key k with depth limit from [:a {:k n}] to [:a {:k (dec n)}]"
@@ -178,12 +183,12 @@
    is recursive."
   [union-expr recursion-key]
   (->> union-expr
-       (map (fn [[k q]] [k (reduce-query-depth q recursion-key)]))
-       (into {})))
+    (map (fn [[k q]] [k (reduce-query-depth q recursion-key)]))
+    (into {})))
 
 (defn- mappable-ident? [refs ident]
   (and (util-ident? ident)
-       (contains? refs (first ident))))
+    (contains? refs (first ident))))
 
 (defn- denormalize*
   "Denormalize a data based on query. refs is a data structure which maps idents
@@ -243,7 +248,7 @@
       (if (= '[*] query)
         data
         (let [{props false joins true} (group-by #(or (util-join? %) (util-ident? %)
-                                                      (and (seq? %) (util-ident? (first %))))
+                                                    (and (seq? %) (util-ident? (first %))))
                                          query)
               props (mapv #(cond-> % (seq? %) first) props)]
           (loop [joins (seq joins) ret {}]
@@ -283,21 +288,21 @@
                                     (reduce-query-depth query key))
 
                                   (and (mappable-ident? refs v)
-                                       (util-union? join))
+                                    (util-union? join))
                                   (get sel (first v))
 
                                   (and (util-ident? key)
-                                       (util-union? join))
+                                    (util-union? join))
                                   (get sel (first key))
 
                                   :else sel)
                     graph-loop? (and recurse?
-                                     (contains? (set (get idents-seen key)) v)
-                                     (= :none limit))
+                                  (contains? (set (get idents-seen key)) v)
+                                  (= :none limit))
                     idents-seen (if (and (mappable-ident? refs v) recurse?)
                                   (-> idents-seen
-                                      (update-in [key] (fnil conj #{}) v)
-                                      (assoc-in [:last-ident key] v)) idents-seen)]
+                                    (update-in [key] (fnil conj #{}) v)
+                                    (assoc-in [:last-ident key] v)) idents-seen)]
                 (cond
                   (= 0 limit) (recur (next joins) ret)
                   graph-loop? (recur (next joins) ret)

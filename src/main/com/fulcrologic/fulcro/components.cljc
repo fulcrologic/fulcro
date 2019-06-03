@@ -414,7 +414,7 @@
    (if-let [id (ident class props)]
      (do
        (when-not (eql/ident? id)
-         (log/warn "get-ident returned an invalid ident:" id (.-displayName class)))
+         (log/warn "get-ident returned an invalid ident:" id (:displayName (component-options class))))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
      (do
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
