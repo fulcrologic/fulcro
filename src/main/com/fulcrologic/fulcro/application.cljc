@@ -170,7 +170,7 @@
                        (doseq [tool (vals @fulcro-tools)]
                          (when-let [tx-listen (get tool ::tx-listen)]
                            (tx-listen app tx options)))
-                       (catch :default e))))
+                       (catch #?(:cljs :default :clj Exception) e))))
           [started remotes] (reduce
                               (fn [[start net] {:keys [::network-wrapper ::app-started]}]
                                 (let [start (if app-started (fn [app] (app-started app) (start app)) start)
@@ -192,7 +192,7 @@
             remotes
             shared
             shared-fn]}]
-   {::id           (util/uuid)
+   {::id              (util/uuid)
     ::state-atom      (atom {})
     :client-did-mount client-did-mount
     ::algorithms      {:algorithm/tx!                    default-tx!
