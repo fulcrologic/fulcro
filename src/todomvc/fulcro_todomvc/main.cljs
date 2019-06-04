@@ -11,7 +11,7 @@
     [taoensso.timbre :as log]))
 
 (goog-define MOCK false)
-(goog-define WEBSOCKETS true)
+(goog-define WEBSOCKETS false)
 
 (defonce app (app/fulcro-app {:shared    {:STATIC 1}
                               :shared-fn (fn [root-props]

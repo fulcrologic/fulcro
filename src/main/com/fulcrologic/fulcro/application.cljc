@@ -164,17 +164,17 @@
                     ([app tx] (wrapped-tx* app tx {}))
                     ([app tx options]
                      (log/info "Running normal tx" tx)
-                     (tx! app tx options)
-                     (try
-                       (log/info "Sending tool mesg about tx" tx)
-                       (doseq [tool (vals @fulcro-tools)]
-                         (when-let [tx-listen (get tool ::tx-listen)]
-                           (tx-listen app tx options)))
-                       (catch #?(:cljs :default :clj Exception) e))))
+                     (let [txid (tx! app tx options)]
+                       (try
+                         (log/info "Sending tool mesg about tx" tx)
+                         (doseq [tool (vals @fulcro-tools)]
+                           (when-let [tx-listen (get tool ::tx-listen)]
+                             (tx-listen app tx (assoc options ::txn/id txid))))
+                         (catch #?(:cljs :default :clj Exception) e)))))
           [started remotes] (reduce
                               (fn [[start net] {:keys [::network-wrapper ::app-started]}]
                                 (let [start (if app-started (fn [app] (app-started app) (start app)) start)
-                                      net   (if network-wrapper (network-wrapper net) net)]
+                                      net   (if network-wrapper (network-wrapper app net) net)]
                                   [start net]))
                               [started remotes]
                               (vals @fulcro-tools))]
