@@ -1,3 +1,11 @@
+3.0.0-alpha-2
+-------------
+- Added Inspect preload so F3 can work with Chrome extension
+- Updated readme
+- Integrated many namespaces from F2: form-state, icons, events, entities...
+- Added numerous tests.
+- Added a few more missing utility functions
+
 3.0.0-alpha-1
 -------------
 - Major APIs all ported, and somewhat tested

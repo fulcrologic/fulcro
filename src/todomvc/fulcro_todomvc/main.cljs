@@ -2,7 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.networking.http-remote :as fhr]
     [com.fulcrologic.fulcro.networking.mock-server-remote :as mock-remote]
-    [com.fulcrologic.fulcro.networking.websockets :as fws]
+    ;[com.fulcrologic.fulcro.networking.websockets :as fws]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.data-fetch :as df]
@@ -11,7 +11,7 @@
     [taoensso.timbre :as log]))
 
 (goog-define MOCK false)
-(goog-define WEBSOCKETS true)
+; (goog-define WEBSOCKETS false)
 
 (defonce app (app/fulcro-app {:shared    {:STATIC 1}
                               :shared-fn (fn [root-props]
@@ -21,9 +21,10 @@
                                           (if MOCK
                                             (mock-remote/mock-http-server {:parser (fn [req]
                                                                                      (sapi/parser {} req))})
-                                            (if WEBSOCKETS
-                                              (fws/fulcro-websocket-remote {})
-                                              (fhr/fulcro-http-remote {:url "/api"})))}}))
+                                            (fhr/fulcro-http-remote {:url "/api"})
+                                            #_(if WEBSOCKETS
+                                                (fws/fulcro-websocket-remote {})
+                                                (fhr/fulcro-http-remote {:url "/api"})))}}))
 
 (defn ^:export start []
   (log/info "mount")

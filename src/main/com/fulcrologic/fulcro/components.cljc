@@ -112,6 +112,11 @@
         props-from-updates   (computed (util/isoget-in component [:state :fulcro$value]) computed-from-parent)]
     (newer-props props-from-parent props-from-updates)))
 
+(defn children
+  "Get the sequence of react children of the given component."
+  [component]
+  (util/isoget-in component "props" "children"))
+
 (defn react-type
   "Returns the component type, regardless of whether the component has been
    mounted"
@@ -414,7 +419,7 @@
    (if-let [id (ident class props)]
      (do
        (when-not (eql/ident? id)
-         (log/warn "get-ident returned an invalid ident:" id (.-displayName class)))
+         (log/warn "get-ident returned an invalid ident:" id (:displayName (component-options class))))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
      (do
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
