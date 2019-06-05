@@ -6,7 +6,7 @@
                        :output-dir "resources/public/js/todomvc"
                        :asset-path "/js/todomvc"
                        :modules    {:main {:entries [fulcro-todomvc.main]}}
-                       :devtools   {:preloads [fulcro.inspect.preload3]}}
+                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
 
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"

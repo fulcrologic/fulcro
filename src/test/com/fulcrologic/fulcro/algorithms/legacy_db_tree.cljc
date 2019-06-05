@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.legacy-db-tree
+  (:refer-clojure :exclude [replace])
   (:require
     [clojure.zip :as zip]
     [taoensso.timbre :as log]))
