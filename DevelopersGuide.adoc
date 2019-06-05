@@ -3352,7 +3352,7 @@ A typical file will have the following layout:
 
 ; Add the CSS from Root as a HEAD style element. If it already exists, replace it. This
 ; will recursively follow all of the CSS includes *just* for components that Root includes!
-(css/upsert-css "my-css" Root) ; NOTE: Use css-injection in Fulcro 2.6+
+(css/upsert-css "my-css" {:component Root}) ; NOTE: Use css-injection in Fulcro 2.6+
 -----
 
 
@@ -3411,14 +3411,14 @@ See https://github.com/noprompt/garden[Garden's] documentation for more details 
 
 There are two ways of placing the CSS for a (group of) components on a page:
 
-`(upsert-css ID Component)` will pull (recursively) the rules of Component, translate them to legal CSS, and then insert them
+`(upsert-css ID {:component Component})` will pull (recursively) the rules of Component, translate them to legal CSS, and then insert them
 on the *body* of the page's DOM at the given ID (overwriting the old style element with that same ID). If you ensure that
 this `upsert` happens on hot code reload, then your CSS will update as you edit your code.
 
 Typically, you'll run `upsert-css` with your initial mount and in your hot code reload trigger. This means that the
 computational overhead for the CSS is limited to initial startup.
 
-`(style-element Component)` will pull (recursively) the rules for Component and return a React style element. This allows
+`(style-element {:component Component})` will pull (recursively) the rules for Component and return a React style element. This allows
 you to embed CSS for a sub-tree of components in an "on-demand" fashion, since the element will only render of the component
 that uses it renders. The problem with this method is that the computational overhead for computing the CSS is moved into
 your primary rendering. This, however, is quite convenient in situations like `devcards` where you'd like to easily ensure
