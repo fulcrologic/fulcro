@@ -1,28 +1,46 @@
 (ns com.fulcrologic.fulcro.algorithms.data-targeting
-  (:require [clojure.set :as set]
-            [edn-query-language.core :as eql]))
+  (:require
+    [clojure.spec.alpha :as s]
+    [clojure.set :as set]
+    [com.fulcrologic.fulcro.algorithms.misc :as misc]
+    [ghostwheel.core :refer [>defn =>]]
+    [edn-query-language.core :as eql]))
 
-(defn multiple-targets [& targets]
+(when (misc/ghostwheel-enabled?)
+  (s/def ::path vector?)
+  (s/def ::target (s/and vector?
+                    (fn [t] (boolean (seq (set/intersection
+                                            #{::prepend-target ::multiple-targets ::append-target ::replace-target}
+                                            (some-> t meta keys))))))))
+
+(>defn multiple-targets
+  [& targets]
+  [(s/* ::path) => ::target]
   (with-meta (vec targets) {::multiple-targets true}))
 
-(defn prepend-to [target]
+(>defn prepend-to [target]
+  [::path => ::target]
   (with-meta target {::prepend-target true}))
 
-(defn append-to [target]
+(>defn append-to [target]
+  [::path => ::target]
   (with-meta target {::append-target true}))
 
-(defn replace-at [target]
+(>defn replace-at
+  [target]
+  [::path => ::target]
   (with-meta target {::replace-target true}))
 
-(defn replacement-target? [t] (-> t meta ::replace-target boolean))
-(defn prepend-target? [t] (-> t meta ::prepend-target boolean))
-(defn append-target? [t] (-> t meta ::append-target boolean))
-(defn multiple-targets? [t] (-> t meta ::multiple-targets boolean))
+(>defn replacement-target? [t] [any? => boolean?] (-> t meta ::replace-target boolean))
+(>defn prepend-target? [t] [any? => boolean?] (-> t meta ::prepend-target boolean))
+(>defn append-target? [t] [any? => boolean?] (-> t meta ::append-target boolean))
+(>defn multiple-targets? [t] [any? => boolean?] (-> t meta ::multiple-targets boolean))
 
-(defn special-target? [target]
+(>defn special-target? [target]
+  [any? => boolean?]
   (boolean (seq (set/intersection (-> target meta keys set) #{::replace-target ::append-target ::prepend-target ::multiple-targets}))))
 
-(defn integrate-ident
+(>defn integrate-ident
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
   implementations as a general helper function.
 
@@ -33,9 +51,13 @@
   - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
   the ident if that ident is already in the list.
   - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector."
+   If the target is a vector element then that element must already exist in the vector.
+
+  NOTE: `ident` does not have to be an ident if you want to place denormalized data.  It can really be anything.
+
+  Returns the updated state map."
   [state ident & named-parameters]
-  {:pre [(map? state)]}
+  [map? any? (s/* (s/or :path ::path :command #{:append :prepend :replace})) => map?]
   (let [actions (partition 2 named-parameters)]
     (reduce (fn [state [command data-path]]
               (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
@@ -64,7 +86,7 @@
                   (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
       state actions)))
 
-(defn process-target
+(>defn process-target
   "Process a load target (which can be a multiple-target).
 
   `state-map` - the state-map
@@ -72,9 +94,11 @@
    state and is written at the given location(s).
    `target` - The target(s)
    `remove-source?` - When true the source will be removed from app state once it has been written to the new location."
-  ([state-map source-path target] (process-target state-map source-path target true))
+  ([state-map source-path target]
+   [map? (s/or :key keyword? :ident eql/ident? :path vector?) ::path => map?]
+   (process-target state-map source-path target true))
   ([state-map source-path target remove-source?]
-   {:pre [(vector? target)]}
+   [map? (s/or :key keyword? :ident eql/ident? :path vector?) ::path boolean? => map?]
    (let [item-to-place (cond (eql/ident? source-path) source-path
                              (keyword? source-path) (get state-map source-path)
                              :else (get-in state-map source-path))
