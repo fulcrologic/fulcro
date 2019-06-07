@@ -26,8 +26,9 @@
                                                                      :req [:com.fulcrologic.fulcro.algorithms.tx-processing/idx :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/started? :com.fulcrologic.fulcro.algorithms.tx-processing/complete? :com.fulcrologic.fulcro.algorithms.tx-processing/results :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch]
                                                                      :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/progress]))
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/elements (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element :kind vector?))
-(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node (s/keys :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id :com.fulcrologic.fulcro.algorithms.tx-processing/created :com.fulcrologic.fulcro.algorithms.tx-processing/options :com.fulcrologic.fulcro.algorithms.tx-processing/tx :com.fulcrologic.fulcro.algorithms.tx-processing/elements]
-                                                                  :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/started :com.fulcrologic.fulcro.algorithms.tx-processing/finished]))
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node
+  (s/keys :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id :com.fulcrologic.fulcro.algorithms.tx-processing/created :com.fulcrologic.fulcro.algorithms.tx-processing/options :com.fulcrologic.fulcro.algorithms.tx-processing/tx :com.fulcrologic.fulcro.algorithms.tx-processing/elements]
+    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/started :com.fulcrologic.fulcro.algorithms.tx-processing/finished]))
 
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler fn?)
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler fn?)

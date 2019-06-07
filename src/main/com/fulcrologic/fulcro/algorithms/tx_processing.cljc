@@ -219,7 +219,7 @@
   "Run through the elements on the given tx-node and do the side-effect-free dispatch.  This generates the dispatch map
   of things to do on that node."
   [tx-node env dispatch-fn]
-  [::tx-node map? fn? => ::tx-node]
+  [::tx-node map? any? => ::tx-node]
   (let [do-dispatch  (fn run* [env]
                        (try
                          (dispatch-fn env)

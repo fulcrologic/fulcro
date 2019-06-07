@@ -117,5 +117,5 @@
 (defn ghostwheel-enabled?
   #?(:cljs {:tag boolean})
   []
-  #?(:cljs goog.DEBUG
-     :clj (= (System/getProperty "ghostwheel.enabled") "true")))
+  true
+)

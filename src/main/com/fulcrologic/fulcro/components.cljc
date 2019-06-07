@@ -9,6 +9,7 @@
         [[goog.object :as gobj]
          [cljsjs.react]])
     [edn-query-language.core :as eql]
+    [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
@@ -59,6 +60,8 @@
   [x]
   #?(:clj  (boolean (and x (::component-class? x)))
      :cljs (boolean (gobj/containsKey x "fulcro$class"))))
+
+(s/def ::component-class component-class?)
 
 (defn classname->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
