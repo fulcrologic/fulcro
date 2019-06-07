@@ -23,7 +23,7 @@
                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-418"}}}
 
            :dev       {:extra-paths ["src/dev" "resources"]
-                       :extra-deps  {binaryage/devtools                {:mvn/version "0.9.10"}
-                                     ring/ring-core                    {:mvn/version "1.7.1"}
-                                     org.immutant/web                  {:mvn/version "2.1.10"}
-                                     org.clojure/tools.namespace       {:mvn/version "0.3.0-alpha4"}}}}}
+                       :extra-deps  {binaryage/devtools          {:mvn/version "0.9.10"}
+                                     ring/ring-core              {:mvn/version "1.7.1"}
+                                     org.immutant/web            {:mvn/version "2.1.10"}
+                                     org.clojure/tools.namespace {:mvn/version "0.3.0-alpha4"}}}}}
