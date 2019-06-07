@@ -1,25 +1,12 @@
-(ns com.fulcrologic.fulcro.networking.server-middleware
+(ns com.fulcrologic.fulcro.server.api-middleware
   (:require
     [clojure.pprint :refer [pprint]]
     [clojure.test :refer :all]
     [clojure.repl :refer [doc source]]
-    [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]
-    [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.params :refer [wrap-params]]
-    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
-    [ring.middleware.not-modified :refer [wrap-not-modified]]
-    [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :refer [response file-response resource-response]]
     [com.fulcrologic.fulcro.algorithms.transit :as transit]
-    [immutant.web :as web]
     [cognitect.transit :as ct]
-    [com.wsscode.pathom.connect :as pc]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
-    [com.wsscode.pathom.core :as p]
-    [clojure.core.async :as async])
-  (:import (java.io ByteArrayOutputStream)
-           (clojure.lang ExceptionInfo)))
+    [taoensso.timbre :as log])
+  (:import (java.io ByteArrayOutputStream)))
 
 (def not-found-handler
   (fn [req]

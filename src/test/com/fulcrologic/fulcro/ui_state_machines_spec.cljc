@@ -23,13 +23,6 @@
     (txn/build-env (txn/tx-node tx) extra-env)
     (assoc :ast (eql/query->ast1 tx))))
 
-#_(defn mock-component
-    "Returns a shallow-rendered react Component (rendered instance) that prim/component? will return true for."
-    [fulcro-class props]
-    #?(:clj  {}
-       :cljs (.instance (shallow (binding [comp/*app* mock-app]
-                                   ((comp/factory fulcro-class) props))))))
-
 (defsc AClass [_ _] {:query ['*] :ident (fn [] [:A 1])})
 (defn A-handler [env] env)
 (uism/defstatemachine test-machine
@@ -644,10 +637,9 @@
 
          (uism/set-string! {} :fake :username #js {:target #js {:value "hi"}}))))
 
-  #_(specification "derive-actor-components"
+  (specification "derive-actor-components"
       (let [actual (uism/derive-actor-components {:a [:x 1]
                                                   :b AClass
-                                                  :c (mock-component AClass {})
                                                   :d (uism/with-actor-class [:A 1] AClass)})]
         (assertions
           "allows a bare ident (no mapping)"
@@ -655,14 +647,13 @@
           "accepts a singleton classes"
           (:b actual) => ::AClass
           ;; Need enzyme configured consistently for this test
-          "accepts a react instance"
-          (:c actual) => ::AClass
+          ;"accepts a react instance"
+          ;(:c actual) => ::AClass
           "finds class on metadata"
           (:d actual) => ::AClass)))
-  #_(specification "derive-actor-idents"
+  (specification "derive-actor-idents"
       (let [actual (uism/derive-actor-idents {:a [:x 1]
                                               :b AClass
-                                              :c (mock-component AClass {})
                                               :d (uism/with-actor-class [:A 1] AClass)})]
         (assertions
           "allows a bare ident"
@@ -672,8 +663,8 @@
           "remembers the singleton class as metadata"
           (:b actual) => [:A 1]
           ;; Need enzyme configured consistently for this test
-          "remembers the class of a react instance"
-          (:c actual) => [:A 1]
+          ;"remembers the class of a react instance"
+          ;(:c actual) => [:A 1]
           "records explicit idents that use with-actor-class"
           (:d actual) => [:A 1])))
   (specification "set-timeout"
@@ -824,4 +815,3 @@
         (uism/compute-target test-env {::m/target          (df/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-alias :x})
         => [[:a 1] [:b 2] [:dialog 1 :foo]]))))
-

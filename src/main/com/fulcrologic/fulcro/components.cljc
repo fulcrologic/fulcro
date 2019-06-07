@@ -661,6 +661,20 @@
       :queryid   (query-id class qualifier)
       :qualifier qualifier})))
 
+(defn computed-factory
+  "Similar to factory, but returns a function with the signature
+  [props computed & children] instead of default [props & children].
+  This makes easier to send computed."
+  ([class] (computed-factory class {}))
+  ([class options]
+   (let [real-factory (factory class options)]
+     (fn
+       ([props] (real-factory props))
+       ([props computed-props]
+        (real-factory (computed props computed-props)))
+       ([props computed-props & children]
+        (apply real-factory (computed props computed-props) children))))))
+
 (defn transact!
   "Submit a transaction for processing."
   ([app-or-component tx options]

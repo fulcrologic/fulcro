@@ -2,7 +2,7 @@
   (:require
     [clojure.core.async :as async]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
-    [com.fulcrologic.fulcro.networking.server-middleware :refer [not-found-handler wrap-api]]
+    [com.fulcrologic.fulcro.server.api-middleware :refer [not-found-handler wrap-api]]
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
     [immutant.web :as web]

@@ -4,42 +4,45 @@
     [clojure.set :as set]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
+    [ghostwheel.core :refer [>defn =>]]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
-(defn get-form-fields [class] (comp/component-options class :form-fields))
+(when (util/ghostwheel-enabled?)
+  (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 
-(def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
-(s/def ::id (s/with-gen eql/ident? ident-generator))        ; form config uses the entity's ident as an ID
-(s/def ::fields (s/every keyword? :kind set?))              ; a set of kws that are fields to track
-(s/def ::subforms (s/map-of keyword? any?))                 ; a map of subform field to component class
-(s/def ::pristine-state (s/map-of keyword? any?))           ; the saved state of the form
-(s/def ::complete? (s/every keyword? :kind set?))           ; the fields that have been interacted with
-(s/def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
-(s/def ::field-tester (s/fspec
-                        :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
-                        :ret boolean?))
-(s/def ::form-operation (s/fspec
-                          :args (s/cat :entity map? :config ::config)
-                          :ret (s/cat :entity map? :config ::config)))
-(s/def ::validity #{:valid :invalid :unchecked})
-(s/def ::denormalized-form (s/keys :req [::config]))
+  (s/def ::id (s/with-gen eql/ident? ident-generator))      ; form config uses the entity's ident as an ID
+  (s/def ::fields (s/every keyword? :kind set?))            ; a set of kws that are fields to track
+  (s/def ::subforms (s/map-of keyword? any?))               ; a map of subform field to component class
+  (s/def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
+  (s/def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
+  (s/def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
+  (s/def ::field-tester (s/fspec
+                          :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
+                          :ret boolean?))
+  (s/def ::form-operation (s/fspec
+                            :args (s/cat :entity map? :config ::config)
+                            :ret (s/cat :entity map? :config ::config)))
+  (s/def ::validity #{:valid :invalid :unchecked})
+  (s/def ::denormalized-form (s/keys :req [::config])))
+
+(>defn get-form-fields [class]
+  [comp/component-class? => (s/nilable ::fields)]
+  (comp/component-options class :form-fields))
 
 (defn- assume-field [props field]
   (when-not (and (seq props) (contains? (some-> props ::config ::fields) field))
     (log/error (str "It appears you're using " field " as a form field, but it is *not* declared as a form field "
                  "on the component. It will fail to function properly (perhaps you forgot to initialize via `add-form-config`)."))))
 
-(defn form-id
+(>defn form-id
   "Returns the form database table ID for the given entity ident."
   [entity-ident]
+  [(s/cat :id eql/ident?) => map?]
   {:table (first entity-ident)
    :row   (second entity-ident)})
-
-(s/fdef form-id
-  :args (s/cat :id eql/ident?)
-  :ret map?)
 
 (defsc FormConfig
   "A component supporting normalization of form state configuration. Use Fulcro Inspect for viewing that data.
@@ -57,27 +60,22 @@
 
 (def form-config-join "A query join to ::form-config." {::config (comp/get-query FormConfig)})
 
-(defn form-config
+(>defn form-config
   "Generate a form config given:
 
   entity-ident - The ident of the entity you're configuring forms for.
   fields - A set of keywords on the entity that is the form.
   subforms - An optional set of keywords on the entity that is the form, for the joins to subforms."
   ([entity-ident fields]
+   [eql/ident? ::fields => ::config]
    (form-config entity-ident fields {}))
   ([entity-ident fields subforms]
+   [eql/ident? ::fields ::fields => ::config]
    {::id       entity-ident
     ::fields   fields
     ::subforms (into {}
                  (map (fn [[k v]] {k (with-meta {} {:component v})}))
                  subforms)}))
-
-(s/fdef form-config
-  :args (s/cat
-          :id ::id
-          :fields ::fields
-          :subforms (s/? ::subforms))
-  :ret ::config)
 
 (defn- derive-form-info [class]
   (let [query-nodes         (some-> class
@@ -118,6 +116,7 @@
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   [class entity]
+  [comp/component-class? map? => map?]
   (let [[fields subform-classmap subform-keys] (derive-form-info class)
         local-entity (if (contains? entity ::config)
                        entity
