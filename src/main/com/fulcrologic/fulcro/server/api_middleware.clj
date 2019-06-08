@@ -24,9 +24,7 @@
 
 (defn augment-map
   "Fulcro queries and mutations can wrap their responses with `augment-response` to indicate they need access to
-   the raw Ring response. This function processes those into the response.
-
-  IMPORTANT: This function expects that the parser results have already been raised via the raise-response function."
+   the raw Ring response. This function processes those into the response."
   [response]
   (->> (keep #(some-> (second %) meta :fulcro.server/augment-response) response)
     (reduce (fn [response f] (f response)) {})))

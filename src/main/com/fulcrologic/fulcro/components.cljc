@@ -812,3 +812,18 @@
                     new      (f cls existing)]
                 (gobj/set raw-props "fulcro$extra_props" new)
                 (handler cls raw-props))))))
+
+(defn fragment
+  "Wraps children in a React.Fragment. Props are optional, like normal DOM elements."
+  [& args]
+  #?(:clj
+     (let [[props children] (if (map? (first args))
+                              [(first args) (rest args)]
+                              [{} args])]
+       (vec children))
+     :cljs
+     (let [[props children] (if (map? (first args))
+                              [(first args) (rest args)]
+                              [#js {} args])]
+       (apply js/React.createElement js/React.Fragment (clj->js props) children))))
+

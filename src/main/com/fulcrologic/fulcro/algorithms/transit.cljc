@@ -74,19 +74,20 @@
              true
              (catch :default e false))))
 
-(comment
-  ;; cljs
-  (t/read (reader) (t/write (writer) (tempid/tempid)))
+(defn transit-clj->str
+  "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering."
+  ([coll] (transit-clj->str coll {}))
+  ([coll opts]
+   #?(:cljs (t/write (writer opts) coll)
+      :clj
+            (with-open [out (java.io.ByteArrayOutputStream.)]
+              (t/write (writer out opts) coll)
+              (.toString out "UTF-8")))))
 
-  ;; clj
-  (import '[java.io ByteArrayOutputStream ByteArrayInputStream])
+(defn transit-str->clj
+  "Use transit to decode a string into a clj data structure. Useful for decoding initial app state when starting from a server-side rendering."
+  ([str] (transit-str->clj str {}))
+  ([str opts]
+   #?(:cljs (t/read (reader opts) str)
+      :clj  (t/read (reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8")) opts)))))
 
-  (def baos (ByteArrayOutputStream. 4096))
-  (def w (writer baos))
-  (t/write w (TempId. (java.util.UUID/randomUUID)))
-  (.toString baos)
-
-  (def in (ByteArrayInputStream. (.toByteArray baos)))
-  (def r (reader in))
-  (t/read r)
-  )
