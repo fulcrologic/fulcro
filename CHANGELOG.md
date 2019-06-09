@@ -1,3 +1,10 @@
+3.0.0-alpha-3
+-------------
+- Fixed bug in tx processing
+- Fixed missing refresh in ident optimized render when using ident joins
+- Added missing indexes
+- Added various missing functions and namespaces
+
 3.0.0-alpha-2
 -------------
 - Added Inspect preload so F3 can work with Chrome extension
