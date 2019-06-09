@@ -26,9 +26,11 @@ NOTE: As a curious historical note: there were early debates as to what to call
 these things, both `ref` and `ident` were in use in Om Next's early code, and "ident" won;
 however, some things like mutation `env` were missed and have always had a `:ref` member.
 
-Since we're renaming a bunch of stuff already: Fulcro 3 adopts "lookup ref" or "ref"
-as the new official terminology in its function and parameter naming. The EDN
-Query Language will also be updated to reflect this change.
+Since we're renaming a bunch of stuff already: Fulcro 3 may adopt "lookup ref" or "ref"
+as the new official terminology in its function and parameter naming.
+
+One problem is that `ref` is another already claimed "thing", and `:lookup-ref` is
+a bit cumbersome to type.
 
 === Namespaces and Name Changes
 
@@ -45,13 +47,11 @@ The following list documents some common ones that you might be using,
 and where to find them now:
 
 `ident?`:: Most EQL-related functions like this are in the
-    `edn-query-language.core` namespace. Prefer `ref?` over `ident?` in new code.
+    `edn-query-language.core` namespace.
 
 `merge-*`:: Merge-related logic is now in the
 `com.fulcrologic.fulcro.algorithms.merge` namespace.
 
-`ref`:: The term `ref` comes from Datomic's lookup refs, which is essentially what
-Fulcro idents are.  In the interest of
 
 === API Improvements that Should Not Hurt
 
