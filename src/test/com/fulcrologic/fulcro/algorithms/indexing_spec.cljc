@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.algorithms.indexing-spec
   (:require
-    ;[com.fulcrologic.fulcro.macros.defsc :refer [defsc]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.algorithms.indexing :as idx]
     [fulcro-spec.core :refer [specification assertions behavior component when-mocking]]))
 
@@ -56,7 +56,7 @@
   {:query [[:root/prop '_] {[:table 1] (comp/get-query Child)}]})
 
 (defsc RootLinks [_ _]
-  {:query [{:left (comp/get-query LinkChild)}]})
+  {:query [:root/prop {:left (comp/get-query LinkChild)}]})
 
 (specification "index-query"
   (let [prop->classes (idx/index-query (comp/get-query Root))]
@@ -79,5 +79,24 @@
     (assertions
       "Properly indexes components that have link queries and ident joins"
       (prop->classes :left) => #{RootLinks}
-      (prop->classes :root/prop) => #{LinkChild}
+      (prop->classes :root/prop) => #{RootLinks LinkChild}
       (prop->classes [:table 1]) => #{LinkChild})))
+
+(specification "index-component*"
+  (let [runtime-state {::app/indexes {}}
+        ra2           (idx/index-component* runtime-state :instance1 [:x 1] LinkChild)]
+    (assertions
+      "adds the component instance to the ident index"
+      (-> ra2 ::app/indexes :ident->components (get [:x 1])) => #{:instance1}
+      "adds the component instance to the class index"
+      (-> ra2 ::app/indexes :class->components (get LinkChild)) => #{:instance1})))
+
+(specification "drop-component*"
+  (let [runtime-state {::app/indexes {:ident->components {[:x 1] #{:instance1}}
+                                      :class->components {LinkChild #{:instance1}}}}
+        ra2           (idx/drop-component* runtime-state :instance1 [:x 1] LinkChild)]
+    (assertions
+      "removes the component instance to the ident index"
+      (-> ra2 ::app/indexes :ident->components (get [:x 1])) => #{}
+      "removes the component instance to the class index"
+      (-> ra2 ::app/indexes :class->components (get LinkChild)) => #{})))
