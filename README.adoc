@@ -148,8 +148,7 @@ just changing the "missing macro" to plain `defsc` will make it work.
 ==== Transact Changes
 
 The most significant change is in the internal plumbing of `transact!`, which is now in the `component` namespace.  Transactions are now safe
-to submit from *anywhere* in the code base, even from within helpers that are running within `swap!` against the state
-atom!
+to submit from *anywhere* in the code base.
 
 The `transact!` function just puts the tx on a submission queue.  That's it.  At some point (very soon) after submission
 Fulcro will process the current submissions into an active queue.
