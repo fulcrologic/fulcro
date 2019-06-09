@@ -123,9 +123,3 @@
       "Prepends the additional arguments to the front of the argument list"
       (#'defsc/replace-and-validate-fn nil 'nm ['that 'other-thing] 3 '(fn [x y z] ...)) => '(fn nm [that other-thing x y z] ...))))
 
-(specification "defsc*"
-  (let [forms (defsc/defsc* {} ['X ['this 'props] {:query {:a [:x] :b [:y]}}])]
-    (assertions
-      forms => `(do)))
-
-  )
