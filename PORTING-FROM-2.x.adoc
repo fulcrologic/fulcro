@@ -1,0 +1,89 @@
+== Porting From Fulcro 2.x
+
+Fulcro 3 is intended to be as API-friendly to Fulcro 2 applications as
+possible but internal cleanup and changes mean that existing applications will
+have to at least make some name changes, and in many cases clean
+up arguments and logic. This document covers the known porting
+tasks. If you run into an issue when porting that is not documented
+here please ask on the Fulcro Slack channel in Clojurians.
+
+=== Idents are Refs (UNDER CONSIDERATION)
+
+One central theme of Fulcro from the very beginning is component-based
+database normalization.  The term `ident` was used by the original Om Next
+project from which Fulcro claims its roots.  Over time it has become apparent that
+the term "ident", which Cognitect uses in Clojure to mean "a keyword or symbol"
+(`ident?` was added to core in 1.9), is a somewhat poor choice for the name.
+
+The real origin of the concept came from Datomic's Lookup Refs, which name
+a "unique identity" attribute and the value of that attribute as a vector (e.g.
+`[:account/id 33]`).
+
+Thus the larger Clojure community generally recognizes these kinds of vectors as
+"lookup refs".
+
+NOTE: As a curious historical note: there were early debates as to what to call
+these things, both `ref` and `ident` were in use in Om Next's early code, and "ident" won;
+however, some things like mutation `env` were missed and have always had a `:ref` member.
+
+Since we're renaming a bunch of stuff already: Fulcro 3 adopts "lookup ref" or "ref"
+as the new official terminology in its function and parameter naming. The EDN
+Query Language will also be updated to reflect this change.
+
+=== Namespaces and Name Changes
+
+Since the API changed, we thought it a good opportunity to clean
+up some naming and split things into smaller files. This will help
+with long-term maintenance of the project.
+
+If you look at the `com.fulcrologic.fulco` package you should be able
+to guess the location of the function you need. There are some functions
+that were moved out of Fulcro completely or were dropped because they
+were deprecated or no longer made sense.
+
+The following list documents some common ones that you might be using, 
+and where to find them now:
+
+`ident?`:: Most EQL-related functions like this are in the
+    `edn-query-language.core` namespace. Prefer `ref?` over `ident?` in new code.
+
+`merge-*`:: Merge-related logic is now in the
+`com.fulcrologic.fulcro.algorithms.merge` namespace.
+
+`ref`:: The term `ref` comes from Datomic's lookup refs, which is essentially what
+Fulcro idents are.  In the interest of
+
+=== API Improvements that Should Not Hurt
+
+Default query transform:: When issuing loads the new code elides `:ui/...` keywords
+*and also* the form-state config join.
+
+Rendering:: The default renderer no longer needs "follow-on reads".  Performance
+testing showed that the process of trying to figure out UI updates from the indexes
+added more overhead than they saved.  The rendering optimizations are actually pluggable,
+and two versions of the algorithm are supplied: one that always renders from root
+(`keyframe-render`) and relies on `shouldComponentUpdate` for performance,
+and one that uses database analysis to find the minimum number of components to update.
+Different applications might find one better than the other depending on usage patterns.
+Both should be faster than Fulcro 2 for various internal reasons.  Until heavy use proves otherwise
+The "keyframe" one is more likely to be bug-free.
+
+=== Breaking API Changes
+
+App vs. Reconciler:: There is no longer a separate reconciler or indexer.  Everything
+is in the app, and is held in atoms such that there is no need to do top-level swaps. Your
+app can be declared once in a namespace of it's own and then used directly everywhere
+the reconciler could have been. There are no protocols involved.
+
+Remotes:: Remotes were protocol based, and are now simply maps. The primary
+"method" to implement is a function under the `:transmit!` key, which now receives
+a send node and should return a result that includes both the status code and EDN
+result.  There are new versions of pre-supplied HTTP and Websocket remotes that
+should be top-level API compatible with your existing code.
+
+Server:: Easy server is gone. Supported server middleware helpers and config support
+are in the `com.fulcrologic.fulcro.server` package. Fulcro 3 no longer supplies
+server-side macros for mutations and reads, as `pathom` is a much better choice for
+EQL service.
+
+

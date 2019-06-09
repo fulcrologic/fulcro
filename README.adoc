@@ -132,37 +132,40 @@ code will be trivial to port to Fulcro 3, and should operate without much furthe
 
 ==== Defsc
 
-As mentioned earlier: `defsc` no longer uses protocols at all.  The options map is "beefed up" but the `defsc` macro,
-but in fact you can simply create a "contructor function" and call `configure-component!` on it and pass a non-magic
+As mentioned earlier: `defsc` no longer uses protocols at all.  The options map is "beefed up" by the `defsc` macro,
+but in fact you can simply create a "contructor function" and call `configure-component!` on it and pass a (non-magic)
 options map to create a component.  The macro just helps you with typos and is easier to read.
 
-This also means things like CSS can now be a pure library concern (and in fact, fulcro-garden-css is where that
-functionality lives now).
+This also means things like CSS can now be a pure library concern. In fact, the `fulcro-garden-css` library is where CSS
+functionality lives now.
 
 NOTE: Some things that *were* macros in Fulcro 2.x no longer need to be.  The incubator dynamic routers are an example
-of this.  The old union router is still a custom macro because it actually emits more than one thing.
+of this.  The old union router is still a custom macro because it actually emits more than one thing.  In most cases
+just changing the "missing macro" to plain `defsc` will make it work.
 
 ==== Transact Changes
 
-The most significant change is in `transact!`, which is now in the `component` namespace.  Transactions are now safe
+The most significant change is in the internal plumbing of `transact!`, which is now in the `component` namespace.  Transactions are now safe
 to submit from *anywhere* in the code base, even from within helpers that are running within `swap!` against the state
 atom!
 
-The `transact!` function just puts the tx on a submission queue.  That's it.  At some point in the (very) near future
+The `transact!` function just puts the tx on a submission queue.  That's it.  At some point (very soon) after submission
 Fulcro will process the current submissions into an active queue.
+
+NOTE: My intention is to make the transaction plumbing "pluggable" (it is already structured to be) so that various approaches to transaction
+semantics can be implemented as standard or even library concerns.
 
 This simplifies a lot of things:
 
-- You no longer need `ptransact!`.  Just embed a `transact!` in the `ok-action` of your mutation.
+- You no longer need `ptransact!`.  Just embed a `transact!` in some part of the `result-action` (see below) of your mutation.
 - Timing issues in dynamic routing and ui state machines should be easier to avoid/solve.
-- You can submit transactions without using `setTimeout`, and be sure they will activate in the order submitted.
-
+- You can submit transactions without using `setTimeout` and be sure they will activate in the order submitted.
 
 ==== Mutation Generalizations
 
 Mutations have become an even more central notion in the library.  All versions of Fulcro have actually treated loads
 internally as mutations, because in fact a load is a combination of some state changes (recording the fact that something
-is loading) and fetching the actual data.
+is loading, i.e. load markers) and fetching the actual data.
 
 Prior versions of Fulcro had Om Next structure in the middle.  Version 3 does not.  The logic in 3 is *much* more direct:
 
@@ -174,10 +177,11 @@ Prior versions of Fulcro had Om Next structure in the middle.  Version 3 does no
 All of that should sound pretty much identical to what you've been doing all along.  The big difference is what
 happens next:
 
-- Network results are delivered *straight* to the `result-action` of the mutation.  If the user does not supply a `result-action`,
+- Network results are delivered to a new `result-action` of the mutation.  If the user does not supply a `result-action`,
 then the `defmutation` macro supplies a default that behaves like Fulcro 2.
 
-As a result any full-stack operation is completely under your control:
+As a result any full-stack operation is completely under your control, and you can even "invent" new sections of
+the mutation that will appear as `handlers` in the `env`:
 
 ```
 (defmutation do-thing [params]
@@ -198,11 +202,11 @@ you can trigger new transactions from any part of that code means that chaining 
 trivial and no longer needs the concept of `ptransact!` (though there is an `:optimistic? false` option
 of the new `transact!` that emulates that behavior.
 
-Interestingly, this also makes it super easy to generalize loads even more than before.
-Loads are now implemented something like this (simplified for ease of understanding):
+Interestingly, this also makes it super easy to generalize the implementation of loads even more than before.
+Loads are now implemented internally something like this (simplified for ease of understanding):
 
 ```
-(defmutation internal-load! [{:keys [remote query marker] :as params}]
+(defmutation internal-load! [{:keys [query marker] :as params}]
   (action [{:keys [app]}] (set-load-marker! app marker :loading))
   (result-action [{:keys [result app] :as env}]
       (if (load-error? result)
@@ -211,18 +215,16 @@ Loads are now implemented something like this (simplified for ease of understand
   (remote  [{:keys [ast]}] (eql/query->ast query)))
 ```
 
-and the `data-fecth` API just internally calls `transact!` for you.
+NOTE: The `data-fecth` API (e.g. `load`) still exists, and is pretty much like it was. The primary change is boolean/in-place
+load markers are no longer supported.
 
 WARNING: The multimethod `mutate` is still at the center of this; however, the arguments have changed.  The multimethod
 is sent *only* an `env`, which contains `(-> env :ast :params)`.
 
-
-
 === Using Inspect
 
 Do NOT include Fulcro Inspect as a dependency.  Instead, Fulcro now includes the client-side code necessary to talk
-to the Chrome extension without pulling in all of inspect's dependencies  in your project.  Just add the following
-preload:
+to the Chrome extension without pulling in all of inspect's dependencies. Just add the following preload:
 
 ```
  :builds   {:app  {:target     :browser
@@ -230,7 +232,7 @@ preload:
                    :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
 ```
 
-At the the db, transactions, and network tab are known to mostly work.  Expanding Inspect to include some cool
+At the time of this writing the db, transactions, and network tabs all mostly work.  Expanding Inspect to include some cool
 new features is one of my top priorities.  I want to support better helpers for UI state machines, perhaps some UI
 performance monitoring, etc.
 
@@ -238,20 +240,19 @@ performance monitoring, etc.
 
 - If you use link/ident joins in UI queries the new optimal render may miss refreshes. Use `with-optimized-renderer` in
 `application-helpers` (see the doc string) to select keyframe rendering if you have problems.
--
-
+- The root component of the app won't hot-code reload
+- Some lifecycle signature arities might have changed. I'm on the fence about which things `defsc` should make "close over"
+`this` and `props`. I'm leaning towards "everything except query/ident/initial-state is raw".
 - Some Inspect features are not implemented.
-- Inspect transactions report the before/after db as the same every time, even though it is changing (this has to do
+- Inspect transactions incorrectly report the before/after db as the same, even though it is changing (this has to do
 with changes in how transactions are processed internally...the inspect hook isn't hooked up in the right places).
--
+- Easy server and some related server stuff is gone.  I do not plan to add much, if any, of it back.
 
 == Status
 
-Version 3 is now officially in Alpha.  Most APIs have been ported, and some have been tested.  Some code (CSS and websockets)
-was moved to external libraries to reduce complexity and dependencies.
+Version 3 is now officially in Alpha.  Most APIs have been ported, and some have even been tested ;)
 
-The basic data fetch API has been ported, so most of a full-stack working app can be written (and is in the repo
-as todomvc).  Only the port of HTTP network layer remains before we have something usable for full-stack.
+Some code (CSS and websockets) were moved to external libraries to reduce dependencies.
 
 The general road map (with status) is:
 
@@ -283,7 +284,7 @@ The general road map (with status) is:
 **** Drop protocols (100%)
 **** Support extensibility  (90% complete)
 ** Turn component-local CSS into a pure library concern (100%)
-** Turn i18n into a pure library concern (easy)
+** Turn i18n into a pure library concern (0%)
 
 * Move UI State Machines into this library (90%, needs more testing)
 
@@ -292,6 +293,32 @@ The general road map (with status) is:
 * Move to EQL as Source of AST logic (100%)
 
 * Minimize dependencies (100%)
+
+* Documentation
+** Rewrite Developer's Guide (0%)
+*** Port book examples
+** Record new YouTube videos (0%)
+** Write new README (50%)
+** Doll up docstrings (50%)
+** Ensure it all works with cljdocs (0%)
+
+* Tests
+** Port over tests from F2 (40%)
+
+* Inspect
+** Get basics working (100%)
+** Get full set of classic functionality (100%)
+** Add state machine tab (0%)
+** Other possible tabs (nice to have):
+*** UI Performance measurement (0%)
+*** Faster search (0%)
+*** Improved data folding UI (0%)
+*** Make transactions tab show more of tx (currently params always show as `...`)
+
+* Specs
+** Add more specs to functions (20%)
+** Fix up spec definitions to prevent cljs code bloat (50%)
+** Fix up ghostwheel usage so it doesn't bloat adv compile builds (10%)
 
 * Nice to Haves (depends a bit on contributors)
 ** React Hooks-based `defsc` (designed and prototyped, but needs integration work)

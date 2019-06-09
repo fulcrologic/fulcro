@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.macros.defsc
+  #?(:cljs (:require-macros com.fulcrologic.fulcro.macros.defsc))
   (:require
     [cljs.analyzer :as ana]
     [clojure.walk :refer [prewalk]]
@@ -193,26 +194,33 @@
 (s/def ::query (s/or :template vector? :method list?))
 (s/def ::initial-state (s/or :template map? :method list?))
 (s/def ::options (s/keys :opt-un [::query
-                                                                ::ident
-                                                                ::initial-state]))
+                                  ::ident
+                                  ::initial-state]))
 
 (s/def ::args (s/cat
-                                              :sym symbol?
-                                              :doc (s/? string?)
-                                              :arglist (s/and vector? #(<= 2 (count %) 5))
-                                              :options (s/? ::options)
-                                              :body (s/* any?)))
+                :sym symbol?
+                :doc (s/? string?)
+                :arglist (s/and vector? #(<= 2 (count %) 5))
+                :options (s/? map?)
+                :body (s/* any?)))
 
 (defn defsc*
   [env args]
-  (if-not (s/valid? ::args args)
+  (when-not (s/valid? ::args args)
     (throw (ana/error env (str "Invalid arguments. " (-> (s/explain-data ::args args)
                                                        ::s/problems
                                                        first
                                                        :path) " is invalid."))))
   (let [{:keys [sym doc arglist options body]} (s/conform ::args args)
         [thissym propsym computedsym extra-args] arglist
-        {:keys [ident query initial-state]} options
+        _                                (when (and options (not (s/valid? ::options options)))
+                                           (let [path    (-> (s/explain-data ::options options) ::s/problems first :path)
+                                                 message (cond
+                                                           (= path [:query :template]) "The query template only supports vectors as queries. Unions or expression require the lambda form."
+                                                           (= :ident (first path)) "The ident must be a keyword, 2-vector, or lambda of no arguments."
+                                                           :else "Invalid component options. Please check to make\nsure your query, ident, and initial state are correct.")]
+                                             (throw (ana/error env message))))
+        {:keys [ident query initial-state]} (s/conform ::options options)
         body                             (or body ['nil])
         ident-template-or-method         (into {} [ident])  ;clojure spec returns a map entry as a vector
         initial-state-template-or-method (into {} [initial-state])
@@ -250,3 +258,14 @@
            (def ~(vary-meta sym assoc :doc doc :once true)
              (com.fulcrologic.fulcro.components/configure-component! ~(str sym) ~fqkw options#)))))))
 
+
+(defmacro defsc
+  "Identical to comp/defsc.  Here for dynamic testing ability."
+  [& args]
+  (try
+    (defsc* &env args)
+    (catch Exception e
+      (if (contains? (ex-data e) :tag)
+
+        (throw e)
+        (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e))))))

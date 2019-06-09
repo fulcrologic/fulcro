@@ -29,14 +29,13 @@
 
 ;; Active State Machine and ENV specs
 (s/def ::state-map map?)
-(s/def ::fulcro-ident (s/with-gen eql/ident? #(s/gen #{[:table 1] [:other :tab]})))
-(s/def ::refresh-vector (s/with-gen (s/coll-of ::fulcro-ident :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
-(s/def ::fulcro-app (s/with-gen comp/fulcro-app? #(s/gen #{(app/fulcro-app)})))
-(s/def ::source-actor-ident ::fulcro-ident)
+(s/def ::refresh-vector (s/with-gen (s/coll-of eql/ident? :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
+(s/def ::fulcro-app comp/fulcro-app?)
+(s/def ::source-actor-ident eql/ident?)
 (s/def ::actor-name keyword?)
 (s/def ::actor->component-name (s/map-of ::actor-name keyword?))
-(s/def ::actor->ident (s/map-of ::actor-name ::fulcro-ident))
-(s/def ::ident->actor (s/map-of ::fulcro-ident ::actor-name))
+(s/def ::actor->ident (s/map-of ::actor-name eql/ident?))
+(s/def ::ident->actor (s/map-of eql/ident? ::actor-name))
 (s/def ::active-state keyword?)                             ; The state the active instance is currently in
 (s/def ::state-machine-id (s/with-gen symbol? #(s/gen #{'the-state-machine}))) ; The symbol of the state machine's definition
 (s/def ::asm-id any?)                                       ; The ID of the active instance in fulcro state
@@ -205,7 +204,7 @@
 
 (>defn actor->ident
   [env actor-name]
-  [::env ::actor-name => (s/nilable ::fulcro-ident)]
+  [::env ::actor-name => (s/nilable eql/ident?)]
   (when-let [lookup (get-in env (asm-path env ::actor->ident))]
     (lookup actor-name)))
 
@@ -334,7 +333,7 @@
    [::state-map ::asm-id => ::env]
    (state-machine-env state-map nil asm-id nil nil))
   ([state-map ref asm-id event-id event-data]
-   [::state-map (s/nilable ::fulcro-ident) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) => ::env]
+   [::state-map (s/nilable eql/ident?) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) => ::env]
    (cond-> {::state-map state-map
             ::asm-id    asm-id}
      event-id (assoc ::event-id event-id)
@@ -351,7 +350,7 @@
   ```
   "
   [ident class]
-  [::fulcro-ident ::comp/component-class => ::fulcro-ident]
+  [eql/ident? comp/component-class? => eql/ident?]
   (vary-meta ident assoc ::class class))
 
 (>defn any->actor-component-registry-key
@@ -377,7 +376,7 @@
 (>defn actor-class
   "Returns the Fulcro component class that for the given actor, if set."
   [env actor-name]
-  [::env ::actor-name => (s/nilable ::comp/component-class)]
+  [::env ::actor-name => (s/nilable comp/component-class?)]
   (let [actor->component-name (asm-value env ::actor->component-name)
         cls                   (some-> actor-name actor->component-name comp/classname->class)]
     cls))
@@ -388,7 +387,7 @@
   Makes sure ident is consistently reset and updates the actor class (if one is specified
   using `with-actor-class`)."
   [env actor ident]
-  [::env ::alias ::fulcro-ident => ::env]
+  [::env ::alias eql/ident? => ::env]
   (let [new-actor             (any->actor-component-registry-key ident)
         actor->ident          (-> env
                                 (asm-value ::actor->ident)
@@ -464,7 +463,7 @@
   - prepend: A keyword (alias) to a list in your app state where this new object's ident should be prepended. Will not append
   the ident if that ident is already in the list."
   [env ident & named-parameters]
-  [::env ::fulcro-ident (s/* (s/cat :name #{:prepend :append} :param keyword?)) => ::env]
+  [::env eql/ident? (s/* (s/cat :name #{:prepend :append} :param keyword?)) => ::env]
   (log/debug "Integrating" ident "on" (::asm-id env))
   (let [actions (partition 2 named-parameters)]
     (reduce (fn [env [command alias-to-idents]]
@@ -483,7 +482,7 @@
 (>defn remove-ident
   "Removes an ident, if it exists, from an alias that points to a list of idents."
   [env ident alias-to-idents]
-  [::env ::fulcro-ident ::alias => ::env]
+  [::env eql/ident? ::alias => ::env]
   (log/debug "Removing" ident "from" alias-to-idents "on" (::asm-id env))
   (let [new-list (fn [old-list]
                    (vec (filter #(not= ident %) old-list)))]
@@ -500,7 +499,7 @@
 (>defn queue-actor-load!
   "Internal implementation. Queue a load of an actor."
   [app env actor-name component-class load-options]
-  [::fulcro-app ::env ::actor-name (s/nilable ::comp/component-class) ::load-options => nil?]
+  [::fulcro-app ::env ::actor-name (s/nilable comp/component-class?) ::load-options => nil?]
   (let [actor-ident (actor->ident env actor-name)
         cls         (or component-class (actor-class env actor-name))]
     (log/debug "Starting actor load" actor-name "on" (::asm-id env))
@@ -512,7 +511,7 @@
 (>defn queue-normal-load!
   "Internal implementation. Queue a load."
   [app query-key component-class load-options]
-  [::fulcro-app ::query-key (s/nilable ::comp/component-class) ::load-options => nil?]
+  [::fulcro-app ::query-key (s/nilable comp/component-class?) ::load-options => nil?]
   (if (nil? query-key)
     (log/error "Cannot run load. query-key cannot be nil.")
     (do
@@ -531,8 +530,8 @@
       (do
         (log/warn "A fallback occurred, but no event was defined by the client. Sending generic ::uism/load-error event.")
         (comp/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
-                                                                   ::event-id ::load-error}))]))))
-  nil)
+                                                                   ::event-id ::load-error}))])))
+    nil))
 
 (defmutation handle-load-error [_]
   (action [{:keys [app load-request]}]
@@ -789,7 +788,7 @@
   "Generate an actor->ident map."
   [actors]
   [(s/map-of ::actor-name (s/or
-                            :ident ::fulcro-ident
+                            :ident eql/ident?
                             :component comp/component?
                             :class comp/component-class?)) => ::actor->ident]
   (into {}
@@ -812,7 +811,7 @@
   "Calculate the map from actor names to the Fulcro component registry names that represent those actors."
   [actors]
   [(s/map-of ::actor-name (s/or
-                            :ident ::fulcro-ident
+                            :ident eql/ident?
                             :component comp/component?
                             :class comp/component-class?)) => ::actor->component-name]
   (into {}
@@ -831,10 +830,10 @@
   actors - A map of actor-names -> The ident, class, or react instance that represent them in the UI. Raw idents do not support SM loads.
   started-event-data - Data that will be sent with the ::uism/started event as ::uism/event-data"
   ([this machine instance-id actors]
-   [(s/or :c ::comp/component :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
+   [(s/or :c comp/component? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
    (begin! this machine instance-id actors {}))
   ([this machine instance-id actors started-event-data]
-   [(s/or :c ::comp/component :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
+   [(s/or :c comp/component? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
    (let [actors->idents          (derive-actor-idents actors)
          actors->component-names (derive-actor-components actors)]
      (log/debug "begin!" instance-id)
@@ -975,7 +974,7 @@
 ;; ================================================================================
 
 (s/def ::load-options map?)
-(s/def ::query-key (s/or :key keyword? :ident ::fulcro-ident))
+(s/def ::query-key (s/or :key keyword? :ident eql/ident?))
 (s/def ::load (s/keys :opt [::query-key ::comp/component-class ::load-options]))
 (s/def ::queued-loads (s/coll-of ::load))
 (s/def ::post-event ::event-id)
@@ -1022,10 +1021,10 @@
    NOTE: In general a state machine should declare an actor for items in the machine and use `load-actor` instead of
    this function so that the state definitions themselves need not be coupled (via code) to the UI."
   ([env key-or-ident component-class-or-actor-name]
-   [::env ::query-key (s/or :a ::actor-name :c ::comp/component-class) => ::env]
+   [::env ::query-key (s/or :a ::actor-name :c comp/component-class?) => ::env]
    (load env key-or-ident component-class-or-actor-name {}))
   ([env key-or-ident component-class-or-actor-name options]
-   [::env ::query-key (s/or :a ::actor-name :c ::comp/component-class) ::load-options => ::env]
+   [::env ::query-key (s/or :a ::actor-name :c comp/component-class?) ::load-options => ::env]
    (let [options (convert-load-options env options)
          class   (if (s/valid? ::actor-name component-class-or-actor-name)
                    (actor-class env component-class-or-actor-name)
@@ -1041,7 +1040,7 @@
 
    options can contain the normal `df/load` parameters, and also:
 
-  `::prim/component-class` - The defsc name of the component to use for normalization and query. Only needed if the
+  `::comp/component-class` - The defsc name of the component to use for normalization and query. Only needed if the
     actor was not declared using a Fulcro component or component class.
   `::uism/post-event`:: An event to send when the load is done (instead of calling a mutation)
   `::uism/post-event-params`:: Extra parameters to send as event-data on the post-event.

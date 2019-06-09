@@ -315,7 +315,7 @@
                  [])
                (reduce
                  (fn [routes {:keys [target-router target-screen]}]
-                   (let [router (comp/ref->any reconciler [routers-table target-router])]
+                   (let [router (comp/ident->any reconciler [routers-table target-router])]
                      (if (and (-is-dynamic-router? router) (-route-target-missing? target-screen))
                        (conj routes (first target-screen))
                        routes)))

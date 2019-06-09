@@ -319,7 +319,7 @@
                          (when (eql/ident? target)
                            (swap! to-cancel conj target))
                          (when (and (not= new-target active-target) (vector? active-target))
-                           (when-let [c (comp/ref->any app active-target)]
+                           (when-let [c (comp/ident->any app active-target)]
                              (swap! to-signal conj c)))
                          (when next-router
                            (recur next-router (rest new-path-remaining))))))

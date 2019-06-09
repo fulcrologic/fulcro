@@ -9,6 +9,7 @@
         [[goog.object :as gobj]
          [cljsjs.react]])
     [edn-query-language.core :as eql]
+    [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
@@ -59,6 +60,8 @@
   [x]
   #?(:clj  (boolean (and x (::component-class? x)))
      :cljs (boolean (gobj/containsKey x "fulcro$class"))))
+
+(s/def ::component-class component-class?)
 
 (defn classname->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
@@ -468,7 +471,7 @@
   "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
-  ([class-or-factory] (get-query class-or-factory *query-state*))
+  ([class-or-factory] (get-query class-or-factory (or *query-state* {})))
   ([class-or-factory state-map]
    (when (nil? class-or-factory)
      (throw (ex-info "nil passed to get-query" {})))
@@ -611,6 +614,7 @@
        (defsc* &env args)
        (catch Exception e
          (if (contains? (ex-data e) :tag)
+
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 
@@ -657,6 +661,20 @@
      {:class     class
       :queryid   (query-id class qualifier)
       :qualifier qualifier})))
+
+(defn computed-factory
+  "Similar to factory, but returns a function with the signature
+  [props computed & children] instead of default [props & children].
+  This makes easier to send computed."
+  ([class] (computed-factory class {}))
+  ([class options]
+   (let [real-factory (factory class options)]
+     (fn
+       ([props] (real-factory props))
+       ([props computed-props]
+        (real-factory (computed props computed-props)))
+       ([props computed-props & children]
+        (apply real-factory (computed props computed-props) children))))))
 
 (defn transact!
   "Submit a transaction for processing."
@@ -759,17 +777,45 @@
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
-      (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
+      (let [index-root! (ah/app-algorithm :index-root!)]
+        (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
+        (when index-root! (index-root! app)))
       (log/error "Unable to set query. Invalid arguments."))))
 
-(defn ref->any [app ident]
-  (some-> app :com.fulcrologic.fulcro.application/ident->components (get ident) first))
+(defn get-indexes
+  "Get the component indexes from a component instance or app. See also `ref->any`, `class->any`, etc."
+  [x]
+  (let [app (any->app x)]
+    (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/indexes)))
 
-(defn class->any [app cls]
-  ;; TASK implement this index
-  )
+(defn ident->components
+  "Return all components for a given ident. `x` is anything any->app accepts."
+  [x ident]
+  (some-> (get-indexes x) :ident->components (get ident)))
 
-(defn component->state-map [this] (some-> this any->app :com.fulcrologic.fulcro.application/state-atom deref))
+(defn ident->any
+  "Return a components that uses the given ident. `x` is anything any->app accepts."
+  [x ident]
+  (first (ident->components x ident)))
+
+(defn class->all
+  "Get all components from the indexes that are instances of the component class.
+  `x` can be anything `any->app` is ok with."
+  [x class]
+  (some-> (get-indexes x) :class->components (get class)))
+
+(defn class->any
+  "Get any component from the indexes that are instances of the component class.
+  `x` can be anything `any->app` is ok with."
+  [x cls]
+  (first (class->all x cls)))
+
+(defn component->state-map
+  "Returns the current value of the state map via a component instance. Note that it is not safe to render
+  arbitrary data from the state map since Fulcro will have no idea that it should refresh a component that
+  does so; however, it is sometimes useful to look at the state map for information that doesn't
+  change over time."
+  [this] (some-> this any->app :com.fulcrologic.fulcro.application/state-atom deref))
 
 (defn wrap-update-extra-props
   "Wrap the props middleware such that `f` is called to get extra props that should be placed
@@ -778,8 +824,8 @@
   `handler` - (optional) The next item in the props middleware chain.
   `f` - A (fn [cls extra-props] new-extra-props)
 
-  `f` will be passed the class being rendered, and the current map of extra props. It should augment
-  those and return a new version. "
+  `f` will be passed the class being rendered and the current map of extra props. It should augment
+  those and return a new version."
   ([f]
    (fn [cls raw-props]
      #?(:clj  (update raw-props :fulcro$extra_props (partial f cls))
@@ -795,3 +841,55 @@
                     new      (f cls existing)]
                 (gobj/set raw-props "fulcro$extra_props" new)
                 (handler cls raw-props))))))
+
+(defn fragment
+  "Wraps children in a React.Fragment. Props are optional, like normal DOM elements."
+  [& args]
+  #?(:clj
+     (let [[props children] (if (map? (first args))
+                              [(first args) (rest args)]
+                              [{} args])]
+       (vec children))
+     :cljs
+     (let [[props children] (if (map? (first args))
+                              [(first args) (rest args)]
+                              [#js {} args])]
+       (apply js/React.createElement js/React.Fragment (clj->js props) children))))
+
+#?(:clj
+   (defmacro with-parent-context
+     "Wraps the given body with the correct internal bindings of the parent so that Fulcro internals
+     will work when that body is embedded in unusual ways (e.g. as the body in a child-as-a-function
+     React pattern)."
+     [outer-parent & body]
+     (if-not (:ns &env)
+       `(do ~@body)
+       `(let [parent# ~outer-parent
+              r#      (or *app* (any->app parent#))
+              d#      (or *depth* (inc (depth parent#)))
+              s#      (or *shared* (shared parent#))
+              p#      (or *parent* parent#)]
+          (binding [*app*    r#
+                    *depth*  d#
+                    *shared* s#
+                    *parent* p#]
+            ~@body)))))
+
+(defn ptransact!
+  "
+  DEPRECATED: Generally use `result-action` in mutations to chain sequences instead.
+
+  Like `transact!`, but ensures each call completes (in a full-stack, pessimistic manner) before the next call starts
+  in any way. Note that two calls of this function have no guaranteed relationship to each other. They could end up
+  intermingled at runtime. The only guarantee is that for *a single call* to `ptransact!`, the calls in the given tx will run
+  pessimistically (one at a time) in the order given. Follow-on reads in the given transaction will be repeated after each remote
+  interaction.
+
+  `comp-or-reconciler` a mounted component or reconciler
+  `tx` the tx to run
+  `ref` the ident (ref context) in which to run the transaction (including all deferrals)"
+  ([comp-or-reconciler tx]
+   (transact! comp-or-reconciler tx {:optimistic? false}))
+  ([comp-or-reconciler ref tx]
+   (transact! comp-or-reconciler tx {:optimistic? false
+                                     :ref         ref})))

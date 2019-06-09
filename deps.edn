@@ -1,6 +1,6 @@
 {:paths   ["src/main" "src/todomvc"]
 
- :deps    {edn-query-language/eql     {:mvn/version "0.0.3"}
+ :deps    {edn-query-language/eql     {:local/root "/Users/tonykay/fulcrologic/eql"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
            com.taoensso/tufte         {:mvn/version "2.0.1"}
            com.cognitect/transit-clj  {:mvn/version "0.8.313"}
@@ -8,7 +8,7 @@
            cljsjs/react               {:mvn/version "16.8.3-0"}
            cljsjs/react-dom           {:mvn/version "16.8.3-0"}
            com.wsscode/pathom         {:mvn/version "2.2.14"}
-           gnl/ghostwheel             {:mvn/version "0.3.9"}
+           gnl/ghostwheel             {:mvn/version "0.3.8"}
            org.clojure/clojure        {:mvn/version "1.10.0"}
            org.clojure/clojurescript  {:mvn/version "1.10.520"}
            org.clojure/core.async     {:mvn/version "0.4.474"}}
@@ -16,14 +16,14 @@
  :aliases {:test      {:extra-paths ["src/test"]
                        :extra-deps  {org.clojure/test.check     {:mvn/version "0.10.0-alpha4"}
                                      com.stuartsierra/component {:mvn/version "0.4.0"}
-                                     fulcrologic/fulcro-spec    {:mvn/version "3.1.0"}}}
+                                     fulcrologic/fulcro-spec    {:mvn/version "3.1.1"}}}
 
            :clj-tests {:extra-paths ["src/test"]
                        :main-opts   ["-m" "kaocha.runner"]
                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-418"}}}
 
            :dev       {:extra-paths ["src/dev" "resources"]
-                       :extra-deps  {binaryage/devtools                {:mvn/version "0.9.10"}
-                                     ring/ring-core                    {:mvn/version "1.7.1"}
-                                     org.immutant/web                  {:mvn/version "2.1.10"}
-                                     org.clojure/tools.namespace       {:mvn/version "0.3.0-alpha4"}}}}}
+                       :extra-deps  {binaryage/devtools          {:mvn/version "0.9.10"}
+                                     ring/ring-core              {:mvn/version "1.7.1"}
+                                     org.immutant/web            {:mvn/version "2.1.10"}
+                                     org.clojure/tools.namespace {:mvn/version "0.3.0-alpha4"}}}}}
