@@ -471,7 +471,7 @@
   "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
-  ([class-or-factory] (get-query class-or-factory *query-state*))
+  ([class-or-factory] (get-query class-or-factory (or *query-state* {})))
   ([class-or-factory state-map]
    (when (nil? class-or-factory)
      (throw (ex-info "nil passed to get-query" {})))
@@ -614,6 +614,7 @@
        (defsc* &env args)
        (catch Exception e
          (if (contains? (ex-data e) :tag)
+
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 
@@ -776,6 +777,7 @@
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
+      ;; TASK: Re-index and force root render
       (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
       (log/error "Unable to set query. Invalid arguments."))))
 
@@ -785,6 +787,20 @@
 (defn class->any [app cls]
   ;; TASK implement this index
   )
+
+#_(defn class->all
+    "Get any component from the indexer that matches the component class.
+    `x` can be anything that any->reconciler works with."
+    [x class]
+    (let [indexer (get-indexer (any->reconciler x))]
+      (get-in @indexer [:class->components class])))
+
+#_(defn ref->components
+    "Return all components for a given ref. `x` is anything any->reconciler accepts."
+    [x ref]
+    (when-not (nil? ref)
+      (let [indexer (get-indexer (any->reconciler x))]
+        (p/key->components indexer ref))))
 
 (defn component->state-map [this] (some-> this any->app :com.fulcrologic.fulcro.application/state-atom deref))
 
@@ -827,3 +843,40 @@
                               [#js {} args])]
        (apply js/React.createElement js/React.Fragment (clj->js props) children))))
 
+#?(:clj
+   (defmacro with-parent-context
+     "Wraps the given body with the correct internal bindings of the parent so that Fulcro internals
+     will work when that body is embedded in unusual ways (e.g. as the body in a child-as-a-function
+     React pattern)."
+     [outer-parent & body]
+     (if-not (:ns &env)
+       `(do ~@body)
+       `(let [parent# ~outer-parent
+              r#      (or *app* (any->app parent#))
+              d#      (or *depth* (inc (depth parent#)))
+              s#      (or *shared* (shared parent#))
+              p#      (or *parent* parent#)]
+          (binding [*app*    r#
+                    *depth*  d#
+                    *shared* s#
+                    *parent* p#]
+            ~@body)))))
+
+(defn ptransact!
+  "
+  DEPRECATED: Generally use `result-action` in mutations to chain sequences instead.
+
+  Like `transact!`, but ensures each call completes (in a full-stack, pessimistic manner) before the next call starts
+  in any way. Note that two calls of this function have no guaranteed relationship to each other. They could end up
+  intermingled at runtime. The only guarantee is that for *a single call* to `ptransact!`, the calls in the given tx will run
+  pessimistically (one at a time) in the order given. Follow-on reads in the given transaction will be repeated after each remote
+  interaction.
+
+  `comp-or-reconciler` a mounted component or reconciler
+  `tx` the tx to run
+  `ref` the ident (ref context) in which to run the transaction (including all deferrals)"
+  ([comp-or-reconciler tx]
+   (transact! comp-or-reconciler tx {:optimistic? false}))
+  ([comp-or-reconciler ref tx]
+   (transact! comp-or-reconciler tx {:optimistic? false
+                                     :ref         ref})))
