@@ -17,7 +17,7 @@
 
 (defn render-component! [app ident c]
   #?(:cljs
-     (let [{:keys [:com.fulcrologic.fulcro.application/state-atom]} app
+     (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
            state-map @state-atom
            query     (comp/get-query c state-map)
            q         [{ident query}]
@@ -28,15 +28,22 @@
          (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))))
 
 (defn render-stale-components! [app]
-  (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom :com.fulcrologic.fulcro.application/state-atom]} app
-        {:keys [:com.fulcrologic.fulcro.application/indexes :com.fulcrologic.fulcro.application/last-rendered-state :com.fulcrologic.fulcro.application/components-to-refresh]} @runtime-atom
-        {:keys [ident->components]} indexes
-        state-map      @state-atom
-        mounted-idents (keys ident->components)
-        stale-idents   (into (dirty-table-entries last-rendered-state state-map mounted-idents)
-                         components-to-refresh)]
+  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
+        {:com.fulcrologic.fulcro.application/keys [indexes last-rendered-state]} @runtime-atom
+        {:keys [ident->components prop->classes idents-in-joins]} indexes
+        state-map       @state-atom
+        idents-in-joins (or idents-in-joins #{})
+        mounted-idents  (concat (keys ident->components) idents-in-joins)
+        stale-idents    (dirty-table-entries last-rendered-state state-map mounted-idents)]
     (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/components-to-refresh [])
     (doseq [ident stale-idents]
+      ;; Components that are querying for the ident directly
+      (when (contains? idents-in-joins ident)
+        (let [components (prop->classes ident)]
+          (when (seq components)
+            (doseq [c components]
+              (render-component! app ident c)))))
+      ;; Components that HAVE the ident
       (doseq [c (ident->components ident)]
         (render-component! app ident c)))))
 

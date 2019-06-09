@@ -31,15 +31,23 @@
   (let [ast (eql/query->ast query)]
     (index-query* {} ast)))
 
+(defn index-root*
+  [runtime-state root-query]
+  (encore/when-let [prop->classes   (index-query root-query)
+                    idents-in-joins (into #{}
+                                      (filter eql/ident?)
+                                      (keys prop->classes))]
+    (-> runtime-state
+      (assoc-in [:com.fulcrologic.fulcro.application/indexes :idents-in-joins] idents-in-joins)
+      (assoc-in [:com.fulcrologic.fulcro.application/indexes :prop->classes] prop->classes))))
+
 (defn index-root!
   [app]
   (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} app
         {:com.fulcrologic.fulcro.application/keys [root-class]} @runtime-atom]
-    (encore/when-let [root-query    (comp/get-query root-class @state-atom)
-                      prop->classes (index-query root-query)]
+    (encore/when-let [root-query (comp/get-query root-class @state-atom)]
       (log/debug "(Re)indexing application query for prop->classes")
-      (swap! runtime-atom assoc-in [:com.fulcrologic.fulcro.application/indexes
-                                    :com.fulcrologic.fulcro.application/prop->classes] prop->classes))))
+      (swap! runtime-atom index-root* root-query))))
 
 (defn index-component* [runtime-state instance ident cls]
   (-> runtime-state

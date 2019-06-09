@@ -1,6 +1,6 @@
 {:paths   ["src/main" "src/todomvc"]
 
- :deps    {edn-query-language/eql     {:mvn/version "0.0.3"}
+ :deps    {edn-query-language/eql     {:local/root "/Users/tonykay/fulcrologic/eql"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
            com.taoensso/tufte         {:mvn/version "2.0.1"}
            com.cognitect/transit-clj  {:mvn/version "0.8.313"}

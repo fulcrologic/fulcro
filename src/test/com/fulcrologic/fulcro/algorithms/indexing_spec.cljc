@@ -82,6 +82,16 @@
       (prop->classes :root/prop) => #{RootLinks LinkChild}
       (prop->classes [:table 1]) => #{LinkChild})))
 
+(specification "index-root*"
+  (let [runtime-state {::app/indexes {}}
+        root-query    (comp/get-query RootLinks)
+        rs2           (idx/index-root* runtime-state root-query)]
+    (assertions
+      "Adds a list of all ident join keys to the indexes"
+      (-> rs2 ::app/indexes :idents-in-joins) => #{[:table 1]}
+      "Adds the prop->classes index"
+      (contains? (-> rs2 ::app/indexes) :prop->classes) => true)))
+
 (specification "index-component*"
   (let [runtime-state {::app/indexes {}}
         ra2           (idx/index-component* runtime-state :instance1 [:x 1] LinkChild)]

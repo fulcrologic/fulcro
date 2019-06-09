@@ -38,38 +38,44 @@
 
 (defn update-shared!
   "Force shared props to be recalculated. This updates the shared props on the app, and future renders will see the
-   updated values."
+   updated values. This is a no-op if no shared-fn is defined on the app. If you're using React 16+ consider using
+   Context instead of shared."
   [{::keys [runtime-atom] :as app}]
   (try
-    (let [shared     (-> app ::runtime-atom deref ::static-shared-props)
-          shared-fn  (ah/app-algorithm app :shared-fn)
-          state      (current-state app)
-          root-class (-> app ::runtime-atom deref ::root-class)
-          query      (comp/get-query root-class state)
-          v          (fdn/db->tree query state state)]
-      (swap! runtime-atom assoc ::shared-props (merge shared (shared-fn v))))
+    (when-let [shared-fn (ah/app-algorithm app :shared-fn)]
+      (let [shared     (-> app ::runtime-atom deref ::static-shared-props)
+            state      (current-state app)
+            root-class (-> app ::runtime-atom deref ::root-class)
+            query      (comp/get-query root-class state)
+            v          (fdn/db->tree query state state)]
+        (swap! runtime-atom assoc ::shared-props (merge shared (shared-fn v)))))
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 
 (defn props-only-query [query]
-  (reduce
-    (fn [root-query ele]
-      (let [ele (if (list? ele) (first ele) ele)]
-        (cond
-          (util/join? ele) (conj root-query (util/join-key ele))
-          (keyword? ele) (conj root-query ele)
-          :else root-query)))
-    []
-    query))
+  (let [{:keys [children]} (eql/query->shallow-ast query)]
+    (into []
+      (comp
+        (map :key)
+        (filter keyword?))
+      children)))
 
-(defn root-props-changed? [app]
-  (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom :com.fulcrologic.fulcro.application/state-atom]} app
-        {:keys [:com.fulcrologic.fulcro.application/root-class]} @runtime-atom
+(defn root-props-changed?
+  "Returns true if the props queries directly by the root component of the app (if mounted) have changed since the last
+  render.  This is a shallow analysis such that, for example, a join from root (in a normalized db) will be checked as a difference
+  of idents that the root prop points to.  This can be used for determining if things like shared-fn need to be re-run,
+  and if it would simply be quicker to keyframe render the entire tree.
+
+  This is a naivé algorithm that is essentially `select-keys` on the root props. It does not interpret the query in
+  any way."
+  [app]
+  (let [{::keys [runtime-atom state-atom]} app
+        {::keys [root-class]} @runtime-atom
         state-map       @state-atom
-        prior-state-map (-> runtime-atom deref :com.fulcrologic.fulcro.application/last-rendered-state)
+        prior-state-map (-> runtime-atom deref ::last-rendered-state)
         props-query     (props-only-query (comp/get-query root-class state-map))
-        root-old        (fdn/db->tree props-query prior-state-map prior-state-map)
-        root-new        (fdn/db->tree props-query state-map state-map)]
+        root-old        (select-keys prior-state-map props-query)
+        root-new        (select-keys state-map props-query)]
     (not= root-old root-new)))
 
 (defn render!
