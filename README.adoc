@@ -327,7 +327,7 @@ The general road map (with status) is:
 
 Fulcro is:
 
-Copyright (c) 2017, Fulcrologic, LLC
+Copyright (c) 2017-2019, Fulcrologic, LLC
 The MIT License (MIT)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
