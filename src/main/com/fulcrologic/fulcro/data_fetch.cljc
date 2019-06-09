@@ -206,27 +206,25 @@
   Parameters
   - `component`: The component (**instance**, not class). This component MUST have an Ident.
   - `field`: A field on the component's query that you wish to load.
-  - `parameters` : A map of: (will also accept as named parameters)
-
-    See `load`
+  - `parameters` : A map of parameters. See `load`.
 
   WARNING: If you're using dynamic queries, you won't really know what factory your parent is using,
   nor can you pass it as a parameter to this function. Therefore, it is not recommended to use load-field from within
   a component that has a dynamic query unless you can base it on the original static query.
   "
-  [component field & params]
-  (let [params       (if (map? (first params)) (first params) params)
-        app          (comp/any->app component)
+  [component field params]
+  (let [params                 (if (map? (first params)) (first params) params)
+        app                    (comp/any->app component)
+        global-query-transform (get (ah/app-algorithm app) :algorithm/global-query-transform nil)
         {:keys [params update-query]
-         :or   {;; TASK: restore query-transform-default
-                #_#_update-query query-transform-default}} params
-        ident        (comp/get-ident component)
-        update-query (fn [q]
-                       (cond-> (eql/focus-subquery q [field])
-                         update-query (update-query)))
-        params       (load-params* app ident component (assoc params
-                                                         :update-query update-query
-                                                         :source-key (comp/get-ident component)))]
+         :or   {update-query global-query-transform}} params
+        ident                  (comp/get-ident component)
+        update-query           (fn [q]
+                                 (cond-> (eql/focus-subquery q [field])
+                                   update-query (update-query)))
+        params                 (load-params* app ident component (assoc params
+                                                                   :update-query update-query
+                                                                   :source-key (comp/get-ident component)))]
     (comp/transact! app [(list `internal-load! params)])))
 
 (defn refresh!

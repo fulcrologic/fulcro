@@ -9,6 +9,7 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
@@ -124,19 +125,22 @@
 
 (defn- default-load-error? [{:keys [status-code body] :as result}] (not= 200 status-code))
 
-(defn- default-global-query-transform [query]
+(defn- default-global-query-transform
+  "The default query transform function.  It makes sure the following items on a component query
+  are never sent to the server:
+
+  - Props whose namespace is `ui`
+  - The form-state configuration join
+  "
+  [query]
   (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
     (util/elide-query-nodes query (fn [k]
                                     (when-let [ns (some-> k kw-namespace)]
-                                      (and
-                                        (string? ns)
-                                        (or
-                                          ;; TASK: (= k fs/form-key)
-                                          ;; TASK: other "built-ins" to remove?
-                                          (= "ui" ns)
-                                          (str/ends-with? ns ".ui")
-                                          (str/starts-with? ns "ui.")
-                                          (str/includes? ns ".ui."))))))))
+                                      (or
+                                        (= k ::fs/config)
+                                        (and
+                                          (string? ns)
+                                          (= "ui" ns))))))))
 
 (defonce fulcro-tools (atom {}))
 
