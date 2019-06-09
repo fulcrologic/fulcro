@@ -35,7 +35,7 @@ The documentation is mostly correct in the Developer's Guide.
 
 `defsc`:: The new `defsc` *looks* like the old one, and even does
 some of the same error checking (NOTE: there is a known bug in the new props destructuring checks I have not had time
-to fix...the workaround is to use lambda query/ident if you run into it). However, `defsc`'s option map support user-additions.
+to fix...the workaround is to use lambda query/ident if you run into it). However, `defsc`'s option map now supports user-additions.
 Anything you include in that map now appears (unaltered) in `component-options`.  This allows library authors to co-locate
 information on a component without having to modify the macro.  The "magic" behaviors of query/ident/initial-state (and error
 checking) are still present for developer aid and bw compatibility.  Some of the arities may be wrong. I was considering
@@ -125,6 +125,8 @@ At some point in your logic you will want to associate the root of your UI with 
 ```
 
 === Significant Changes
+
+See also the porting guide in the main repo root at PORTING-FROM-2.3.adoc.
 
 I call these significant more for their long-term implications than their impact on existing code.  Most existing
 code will be trivial to port to Fulcro 3, and should operate without much further change; however, some of the
@@ -238,8 +240,6 @@ performance monitoring, etc.
 
 === Known Issues
 
-- If you use link/ident joins in UI queries the new optimal render may miss refreshes. Use `with-optimized-renderer` in
-`application-helpers` (see the doc string) to select keyframe rendering if you have problems.
 - The root component of the app won't hot-code reload
 - Some lifecycle signature arities might have changed. I'm on the fence about which things `defsc` should make "close over"
 `this` and `props`. I'm leaning towards "everything except query/ident/initial-state is raw".
@@ -303,7 +303,7 @@ The general road map (with status) is:
 ** Ensure it all works with cljdocs (0%)
 
 * Tests
-** Port over tests from F2 (40%)
+** Port over tests from F2 (50%)
 
 * Inspect
 ** Get basics working (100%)
@@ -317,8 +317,8 @@ The general road map (with status) is:
 
 * Specs
 ** Add more specs to functions (20%)
-** Fix up spec definitions to prevent cljs code bloat (50%)
-** Fix up ghostwheel usage so it doesn't bloat adv compile builds (10%)
+** Fix up spec definitions to prevent cljs code bloat (60%)
+** Fix up ghostwheel usage so it doesn't bloat adv compile builds (30%)
 
 * Nice to Haves (depends a bit on contributors)
 ** React Hooks-based `defsc` (designed and prototyped, but needs integration work)
@@ -327,7 +327,7 @@ The general road map (with status) is:
 
 Fulcro is:
 
-Copyright (c) 2017, Fulcrologic, LLC
+Copyright (c) 2017-2019, Fulcrologic, LLC
 The MIT License (MIT)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated

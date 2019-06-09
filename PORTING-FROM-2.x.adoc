@@ -26,9 +26,11 @@ NOTE: As a curious historical note: there were early debates as to what to call
 these things, both `ref` and `ident` were in use in Om Next's early code, and "ident" won;
 however, some things like mutation `env` were missed and have always had a `:ref` member.
 
-Since we're renaming a bunch of stuff already: Fulcro 3 adopts "lookup ref" or "ref"
-as the new official terminology in its function and parameter naming. The EDN
-Query Language will also be updated to reflect this change.
+Since we're renaming a bunch of stuff already: Fulcro 3 may adopt "lookup ref" or "ref"
+as the new official terminology in its function and parameter naming.
+
+One problem is that `ref` is another already claimed "thing", and `:lookup-ref` is
+a bit cumbersome to type.
 
 === Namespaces and Name Changes
 
@@ -45,13 +47,11 @@ The following list documents some common ones that you might be using,
 and where to find them now:
 
 `ident?`:: Most EQL-related functions like this are in the
-    `edn-query-language.core` namespace. Prefer `ref?` over `ident?` in new code.
+    `edn-query-language.core` namespace.
 
 `merge-*`:: Merge-related logic is now in the
 `com.fulcrologic.fulcro.algorithms.merge` namespace.
 
-`ref`:: The term `ref` comes from Datomic's lookup refs, which is essentially what
-Fulcro idents are.  In the interest of
 
 === API Improvements that Should Not Hurt
 
@@ -66,9 +66,35 @@ and two versions of the algorithm are supplied: one that always renders from roo
 and one that uses database analysis to find the minimum number of components to update.
 Different applications might find one better than the other depending on usage patterns.
 Both should be faster than Fulcro 2 for various internal reasons.  Until heavy use proves otherwise
-The "keyframe" one is more likely to be bug-free.
+The "keyframe" one is more likely to be bug-free.  There is some chance that I'll support
+follow-on reads as a fallback to the 2.x meaning (when they are present on a tx). In general the majority
+of the overhead at this point is in React, so relying on Fulcro 3 to calculate what to refresh is not likely to
+be your bottleneck.
+
+Pessimistic Transactions:: These were always a bit of a "hard edge" in Fulcro 2.  In the JS world the ability to
+"chain" operations in callbacks with async/await is just sometimes desirable. Fulcro 3 allows this sort of thing
+more directly (though it still keeps it
+out of the UI layer). The new mutation abilities allow you to chain your next operation from the network
+result of a prior one right in the mutation's declaration.  `ptransact!` is technically still supported, and
+actually should even have a bug or two fixed, but should probably not be used in new applications.
+
+Transactions:: The new transact API uses a proper submission queue. This gets rid of internal uses of core async,
+makes the internals more visible to APIs and tooling, and even allows for the entire transaction processing system
+to be "pluggable".  The new system allows `transact!` to be safely called from anywhere. Semantically speaking it
+should not be called from within `swap!`, though in js (single-threaded) even *that* would not hurt anything
+with the new implementation.
+
+`defmutation`:: The `defmutation` macro on the client side "looks" the same as the old one; however, it is quite a bit
+more powerful.  Lessons learned in incubator and with pessimistic mutations led to a complete redesign.  Dumping the
+internal structure of Om Next simplified the whole process greatly.  The backing `defmulti` is still there, but the arguments
+changed (it takes only and env now), and you are guaranteed that the built-in tx processing will only ever call the
+method *once*.  Remotes are now truly lambdas (instead of values), and receive an env that allows them to see app state
+as it existed before the optimistic update.
 
 === Breaking API Changes
+
+Mutation Multimethod:: The `defmulti` for mutations is still present, but the API is presents and the return value
+it expects have changed.  If you directly use `defmethod m/mutate` you will need to adapt your code.
 
 App vs. Reconciler:: There is no longer a separate reconciler or indexer.  Everything
 is in the app, and is held in atoms such that there is no need to do top-level swaps. Your
