@@ -1,3 +1,7 @@
+3.0.0-alpha-4
+-------------
+- Fixed dependency on EQL
+
 3.0.0-alpha-3
 -------------
 - Fixed bug in tx processing
