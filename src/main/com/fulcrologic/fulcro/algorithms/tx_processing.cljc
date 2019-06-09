@@ -459,7 +459,9 @@
     (let [remotes   (app->remote-names app)
           with-work (partial element-with-work remotes)
           element   (some with-work elements)]
-      (queue-element-sends! app tx-node element))
+      (if element
+        (queue-element-sends! app tx-node element)
+        tx-node))
     tx-node))
 
 (>defn queue-sends!
