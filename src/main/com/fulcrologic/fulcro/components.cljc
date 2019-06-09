@@ -777,32 +777,45 @@
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
-      ;; TASK: Re-index and force root render
-      (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
+      (let [index-root! (ah/app-algorithm :index-root!)]
+        (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
+        (when index-root! (index-root! app)))
       (log/error "Unable to set query. Invalid arguments."))))
 
-(defn ref->any [app ident]
-  (some-> app :com.fulcrologic.fulcro.application/ident->components (get ident) first))
+(defn get-indexes
+  "Get the component indexes from a component instance or app. See also `ref->any`, `class->any`, etc."
+  [x]
+  (let [app (any->app x)]
+    (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/indexes)))
 
-(defn class->any [app cls]
-  ;; TASK implement this index
-  )
+(defn ident->components
+  "Return all components for a given ident. `x` is anything any->app accepts."
+  [x ident]
+  (some-> (get-indexes x) :ident->components (get ident)))
 
-#_(defn class->all
-    "Get any component from the indexer that matches the component class.
-    `x` can be anything that any->reconciler works with."
-    [x class]
-    (let [indexer (get-indexer (any->reconciler x))]
-      (get-in @indexer [:class->components class])))
+(defn ident->any
+  "Return a components that uses the given ident. `x` is anything any->app accepts."
+  [x ident]
+  (first (ident->components x ident)))
 
-#_(defn ref->components
-    "Return all components for a given ref. `x` is anything any->reconciler accepts."
-    [x ref]
-    (when-not (nil? ref)
-      (let [indexer (get-indexer (any->reconciler x))]
-        (p/key->components indexer ref))))
+(defn class->all
+  "Get all components from the indexes that are instances of the component class.
+  `x` can be anything `any->app` is ok with."
+  [x class]
+  (some-> (get-indexes x) :class->components (get class)))
 
-(defn component->state-map [this] (some-> this any->app :com.fulcrologic.fulcro.application/state-atom deref))
+(defn class->any
+  "Get any component from the indexes that are instances of the component class.
+  `x` can be anything `any->app` is ok with."
+  [x cls]
+  (first (class->all x cls)))
+
+(defn component->state-map
+  "Returns the current value of the state map via a component instance. Note that it is not safe to render
+  arbitrary data from the state map since Fulcro will have no idea that it should refresh a component that
+  does so; however, it is sometimes useful to look at the state map for information that doesn't
+  change over time."
+  [this] (some-> this any->app :com.fulcrologic.fulcro.application/state-atom deref))
 
 (defn wrap-update-extra-props
   "Wrap the props middleware such that `f` is called to get extra props that should be placed
@@ -811,8 +824,8 @@
   `handler` - (optional) The next item in the props middleware chain.
   `f` - A (fn [cls extra-props] new-extra-props)
 
-  `f` will be passed the class being rendered, and the current map of extra props. It should augment
-  those and return a new version. "
+  `f` will be passed the class being rendered and the current map of extra props. It should augment
+  those and return a new version."
   ([f]
    (fn [cls raw-props]
      #?(:clj  (update raw-props :fulcro$extra_props (partial f cls))

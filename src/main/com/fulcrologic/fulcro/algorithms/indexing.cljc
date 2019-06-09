@@ -3,6 +3,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [edn-query-language.core :as eql]
+    [taoensso.encore :as encore]
     [taoensso.timbre :as log]))
 
 (defn index-query*
@@ -29,6 +30,16 @@
   [query]
   (let [ast (eql/query->ast query)]
     (index-query* {} ast)))
+
+(defn index-root!
+  [app]
+  (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} app
+        {:com.fulcrologic.fulcro.application/keys [root-class]} @runtime-atom]
+    (encore/when-let [root-query    (comp/get-query root-class @state-atom)
+                      prop->classes (index-query root-query)]
+      (log/debug "(Re)indexing application query for prop->classes")
+      (swap! runtime-atom assoc-in [:com.fulcrologic.fulcro.application/indexes
+                                    :com.fulcrologic.fulcro.application/prop->classes] prop->classes))))
 
 (defn index-component* [runtime-state instance ident cls]
   (-> runtime-state

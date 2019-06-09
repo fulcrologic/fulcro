@@ -202,6 +202,7 @@
                        :algorithm/load-error?            default-load-error?
                        :algorithm/merge*                 merge/merge*
                        :algorithm/global-query-transform default-global-query-transform
+                       :algorithm/index-root!            indexing/index-root!
                        :algorithm/index-component!       indexing/index-component!
                        :algorithm/drop-component!        indexing/drop-component!
                        :algorithm/props-middleware       props-middleware
@@ -252,6 +253,7 @@
            ::root-factory root-factory
            ::root-class root)
          (update-shared! app)
+         (indexing/index-root! app)
          (binding [comp/*app* app]
            (let [app-root (js/ReactDOM.render (root-factory initial-tree) dom-node)]
              (swap! (::runtime-atom app) assoc
