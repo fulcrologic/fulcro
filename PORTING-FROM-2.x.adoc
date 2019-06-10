@@ -93,6 +93,10 @@ as it existed before the optimistic update.
 
 === Breaking API Changes
 
+React Lifecycle Methods:: The *non-static* React lifecycle methods (e.g. componentDidMount, shouldComponentUpdate, etc.) now all require
+an explicit `this`. Everything in the options map in Fulcro 3 except query/ident/initial-state are completely literal
+(e.g. lambdas or data).
+
 Mutation Multimethod:: The `defmulti` for mutations is still present, but the API is presents and the return value
 it expects have changed.  If you directly use `defmethod m/mutate` you will need to adapt your code.
 

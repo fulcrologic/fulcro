@@ -3,6 +3,7 @@
   (:require
     #?(:clj com.fulcrologic.fulcro.macros.defmutation)
     [com.fulcrologic.fulcro.components :as comp]
+    [edn-query-language.core :as eql]
     [taoensso.timbre :as log])
   #?(:clj
      (:import (clojure.lang IFn))))
@@ -202,7 +203,30 @@
   (let [value (if event (target-value event) value)]
     (set-value! component field value)))
 
-(comment
-  (deref (.-method_table mutate))
+(defn returning
+  "Indicate the the remote operation will return a value of the given component type. The server-side mutation need
+  simply return a tree matching that component's query and it will auto-merge into state. The ast param MUST be a query ast
+  containing exactly one mutation that is *not* already a mutation join. The state is required for looking up dynamic queries, and
+  may be nil if you use only static queries."
+  [ast state class]
+  {:pre [(symbol? (-> ast :key))]}
+  (let [{:keys [key params query]} ast]
+    (let [query' (cond-> (comp/get-query class state)
+                   query (vary-meta #(merge (meta query) %)))]
+      (eql/query->ast1 `[{(~key ~params) ~query'}]))))
 
-  )
+(defn with-target
+  "Set's a target for the return value from the mutation to be merged into. This can be combined with returning to define
+  a path to insert the new entry."
+  [ast target]
+  {:pre [(symbol? (-> ast :key))]}
+  (let [{:keys [key params query]} ast
+        query' (if query
+                 (vary-meta query assoc :fulcro.client.impl.data-fetch/target target)
+                 (with-meta '[*] {:fulcro.client.impl.data-fetch/target target}))]
+    (eql/query->ast1 `[{(~key ~params) ~query'}])))
+
+(defn with-params
+  "Modify an AST containing a single mutation, changing it's parameters to those given as an argument."
+  [ast params]
+  (assoc ast :params params))

@@ -70,13 +70,16 @@
   any way."
   [app]
   (let [{::keys [runtime-atom state-atom]} app
-        {::keys [root-class]} @runtime-atom
-        state-map       @state-atom
-        prior-state-map (-> runtime-atom deref ::last-rendered-state)
-        props-query     (props-only-query (comp/get-query root-class state-map))
-        root-old        (select-keys prior-state-map props-query)
-        root-new        (select-keys state-map props-query)]
-    (not= root-old root-new)))
+        {::keys [root-class]} @runtime-atom]
+    (if-not (comp/get-query root-class)
+      true
+      (let [
+            state-map       @state-atom
+            prior-state-map (-> runtime-atom deref ::last-rendered-state)
+            props-query     (props-only-query (comp/get-query root-class state-map))
+            root-old        (select-keys prior-state-map props-query)
+            root-new        (select-keys state-map props-query)]
+        (not= root-old root-new)))))
 
 (defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
@@ -189,7 +192,7 @@
                                   [start net]))
                               [started remotes]
                               (vals @fulcro-tools))]
-      (swap! runtime-atom assoc ::remotes (log/spy :info remotes))
+      (swap! runtime-atom assoc ::remotes remotes)
       (-> app
         (assoc-in [::algorithms :algorithm/tx!] new-tx!)
         (assoc :client-did-mount started)))
@@ -292,8 +295,10 @@
               (let [initial-db   (-> app ::state-atom deref)
                     root-query   (comp/get-query root)
                     initial-tree (comp/get-initial-state root)
-                    db-from-ui   (-> (fnorm/tree->db root-query initial-tree true)
-                                   (merge/merge-alternate-union-elements root))
+                    db-from-ui   (if root-query
+                                   (-> (fnorm/tree->db root-query initial-tree true)
+                                     (merge/merge-alternate-union-elements root))
+                                   initial-tree)
                     db           (util/deep-merge initial-db db-from-ui)]
                 (reset! (::state-atom app) db)))
             (reset-mountpoint!)
