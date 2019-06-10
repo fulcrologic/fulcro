@@ -129,7 +129,7 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote (get (app->remotes app) remote-name)
+  (enc/if-let [remote    (get (app->remotes app) remote-name)
                transmit! (get remote :transmit!)]
     (try
       (transmit! remote send-node)

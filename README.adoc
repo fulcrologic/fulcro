@@ -239,7 +239,6 @@ performance monitoring, etc.
 
 === Known Issues
 
-- The root component of the app won't hot-code reload
 - Some lifecycle signature arities might have changed. I'm on the fence about which things `defsc` should make "close over"
 `this` and `props`. I'm leaning towards "everything except query/ident/initial-state is raw".
 - Some Inspect features are not implemented.

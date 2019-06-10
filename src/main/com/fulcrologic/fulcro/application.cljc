@@ -123,8 +123,9 @@
   ([{:keys [::runtime-atom] :as app} tx options]
    [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
    (txn/schedule-activation! app)
-   (let [node (txn/tx-node tx options)
-         ref  (get options :ref)]
+   (let [options (merge {:optimistic? true} options)
+         node    (txn/tx-node tx options)
+         ref     (get options :ref)]
      (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
                                    ref (update ::components-to-refresh (fnil conj []) ref))))
      (::txn/id node))))
@@ -195,15 +196,25 @@
     app))
 
 (defn fulcro-app
+  "Create a new Fulcro application.
+
+  `options` - A map of initial options
+      - `initial-state` If an atom, will be used raw.  If a map, will be wrapped in an atom
+      but will *NOT* be auto-normalized.  You should use `tree->db` on initial state if you are
+      supplying it.
+  "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
+            initial-state
             render-middleware
             client-did-mount
             remotes
             shared
-            shared-fn]}]
+            shared-fn] :as options}]
    {::id              (util/uuid)
-    ::state-atom      (atom {})
+    ::state-atom      (if (util/atom? initial-state)
+                        initial-state
+                        (atom (or initial-state {})))
     :client-did-mount client-did-mount
     ::algorithms      {:algorithm/tx!                    default-tx!
                        :algorithm/optimized-render!      ident-optimized/render!
@@ -248,28 +259,31 @@
 
 (defn mount! [app root node]
   #?(:cljs
-     (if (mounted? app)
-       (schedule-render! app)
-       (let [app          (add-tools app)
-             dom-node     (gdom/getElement node)
-             root-factory (comp/factory root)
-             root-query   (comp/get-query root)
-             initial-tree (comp/get-initial-state root)
-             initial-db   (-> (fnorm/tree->db root-query initial-tree true)
-                            (merge/merge-alternate-union-elements root))]
-         (reset! (::state-atom app) initial-db)
-         (swap! (::runtime-atom app) assoc
-           ::mount-node dom-node
-           ::root-factory root-factory
-           ::root-class root)
-         (update-shared! app)
-         (indexing/index-root! app)
-         (binding [comp/*app* app]
-           (let [app-root (js/ReactDOM.render (root-factory initial-tree) dom-node)]
-             (swap! (::runtime-atom app) assoc
-               ::app-root app-root)))
-         (when-let [cdm (:client-did-mount app)]
-           (cdm app))))))
+     (let [re-mount! (fn []
+                       (log/info "(Re)-mounting app" (:id app))
+                       (let [dom-node     (if (string? node) (gdom/getElement node) node)
+                             root-factory (comp/factory root)]
+                         (swap! (::runtime-atom app) assoc
+                           ::mount-node dom-node
+                           ::root-factory root-factory
+                           ::root-class root)
+                         (update-shared! app)
+                         (indexing/index-root! app)
+                         (schedule-render! app {:force-root? true})))]
+       (if (mounted? app)
+         (re-mount!)
+         (let [app          (add-tools app)
+               state-atom   (::state-atom app)
+               root-query   (comp/get-query root)
+               initial-tree (comp/get-initial-state root)
+               initial-db   (-> (fnorm/tree->db root-query initial-tree true)
+                              (merge/merge-alternate-union-elements root))]
+           (if (empty? @state-atom)
+             (reset! (::state-atom app) initial-db)
+             (log/info "Using user-supplied initial state instead of UI initial state"))
+           (re-mount!)
+           (when-let [cdm (:client-did-mount app)]
+             (cdm app)))))))
 
 (defn app-root [app] (-> app ::runtime-atom deref ::app-root))
 
