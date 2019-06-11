@@ -183,14 +183,14 @@
   Given the reconciler, state, and a routing tree route: finds and sets all of the dynamic queries needed to
   accomplish that route. Returns the updated state. reconciler can be nil, in which case UI refresh may not
   happen, but that is useful for SSR."
-  [state reconciler {:keys [handler route-params]}]
+  [state app {:keys [handler route-params]}]
   (let [routing-instructions (get-in state [routing-tree-key handler])]
     (if-not (or (nil? routing-instructions) (vector? routing-instructions))
       (do
         (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
         state)
       (reduce (fn [ongoing-state {:keys [target-router target-screen]}]
-                (set-routing-query ongoing-state reconciler target-router target-screen))
+                (set-routing-query ongoing-state app target-router target-screen))
         state routing-instructions))))
 
 (defn update-routing-links
@@ -263,9 +263,9 @@
 (def dynamic-route-key ::dynamic-route)
 
 (defsc DynamicRouter [this props]
-  {:initial-state (fn [clz {:keys [id]}] {::id id ::dynamic true ::current-route {}})
-   :ident         (fn [this props] [routers-table (::id props)])
-   :query         (fn [this] [::id ::dynamic ::current-route])}
+  {:initial-state (fn [{:keys [id]}] {::id id ::dynamic true ::current-route {}})
+   :ident         (fn [] [routers-table (::id props)])
+   :query         (fn [] [::id ::dynamic ::current-route])}
   (let [{:keys [::id ::current-route]} (comp/props this)
         target-key (get current-route dynamic-route-key)
         c          (get-dynamic-router-target target-key)
@@ -284,12 +284,12 @@
 
 (defn -process-pending-route!
   "Finish doing the routing after a module completes loading"
-  [{:keys [state reconciler] :as env}]
+  [{:keys [state app] :as env}]
   (let [target (::pending-route @state)]
     (swap! state
       (fn [s]
         (cond-> (dissoc s ::pending-route)
-          :always (-update-routing-queries reconciler target)
+          :always (-update-routing-queries app target)
           (contains? target :handler) (update-routing-links target))))))
 
 (defn -route-target-missing?
@@ -306,7 +306,7 @@
 
 (defn -get-missing-routes
   "Returns a sequence of routes that need to be loaded in order for routing to succeed."
-  [reconciler state-map {:keys [handler route-params] :as params}]
+  [app state-map {:keys [handler route-params] :as params}]
   #?(:clj  []
      :cljs (let [routing-instructions (get-in state-map [routing-tree-key handler])]
              (if-not (or (nil? routing-instructions) (vector? routing-instructions))
@@ -315,7 +315,7 @@
                  [])
                (reduce
                  (fn [routes {:keys [target-router target-screen]}]
-                   (let [router (comp/ident->any reconciler [routers-table target-router])]
+                   (let [router (comp/ident->any app [routers-table target-router])]
                      (if (and (-is-dynamic-router? router) (-route-target-missing? target-screen))
                        (conj routes (first target-screen))
                        routes)))
@@ -370,8 +370,8 @@
   will be your `bidi-match`. You can use a link query to pull this into your UI to show some kind of indicator.
 
   NOTE: this function updates application state and *must not* be used from within a swap on that state."
-  [{:keys [state reconciler] :as env} bidi-match]
-  (if-let [missing-routes (seq (-get-missing-routes reconciler @state bidi-match))]
+  [{:keys [state app] :as env} bidi-match]
+  (if-let [missing-routes (seq (-get-missing-routes app @state bidi-match))]
     (if (= bidi-match (get @state ::pending-route))
       ; TODO: This could be the user clicking again, or a legitimate failure...Not much more I can do yet.
       (log/error "Attempt to trigger a route that was pending, but that wasn't done loading (or failed to load).")
@@ -380,7 +380,7 @@
         (-load-routes env missing-routes)))
     (do
       (swap! state #(-> %
-                      (-update-routing-queries reconciler bidi-match)
+                      (-update-routing-queries app bidi-match)
                       (dissoc ::pending-route)
                       (update-routing-links bidi-match))))))
 
