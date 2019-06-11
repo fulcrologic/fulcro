@@ -261,7 +261,7 @@
                     subtree (get data-tree k)]
                 (if (and k subtree)
                   (let [subquery         (util/join-value query-element)
-                        target           (-> (meta subquery) :fulcro.client.impl.data-fetch/target)
+                        target           (-> (meta subquery) ::targeting/target)
                         idnt             ::temporary-key
                         norm-query       [{idnt subquery}]
                         norm-tree        {idnt subtree}

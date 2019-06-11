@@ -489,3 +489,13 @@
       (get new-state :a) => 1
       (get new-state :reports) => [:graph 1]
       (get-in new-state [:graph 1]) => graph-1)))
+
+(defsc User [_ _]
+  :query [:user/id :user/name]
+  :ident :user/id)
+
+(specification "merge-mutation-joins"
+  (let [state {}
+        tree  {:user/id 1 :user/name "Joe"}
+        query (comp/get-query User)])
+  )

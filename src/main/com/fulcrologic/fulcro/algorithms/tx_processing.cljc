@@ -391,11 +391,15 @@
         env            (build-env app tx-node {:ast                 original-ast-node
                                                :state-before-action state-before-action})
         remote-fn      (get dispatch remote)
-        ast            (when remote-fn (remote-fn env))
+        remote-desire  (when remote-fn (remote-fn env))
         ast            (cond
-                         (nil? remote-fn) nil
-                         (true? ast) original-ast-node
-                         :else ast)
+                         (nil? remote-desire) nil
+                         (true? remote-desire) original-ast-node
+                         (and (map? remote-desire) (contains? remote-desire :ast)) (:ast remote-desire)
+                         (and (map? remote-desire) (contains? remote-desire :type)) remote-desire
+                         :else (do
+                                 (log/error "Remote dispatch for" remote "returned an invalid value." remote-desire)
+                                 remote-desire))
         send-node      {::id             id
                         ::idx            ele-idx
                         ::ast            ast

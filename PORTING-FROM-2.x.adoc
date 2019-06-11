@@ -109,6 +109,9 @@ is in the app, and is held in atoms such that there is no need to do top-level s
 app can be declared once in a namespace of it's own and then used directly everywhere
 the reconciler could have been. There are no protocols involved.
 
+Returning and Targeting:: The `returning`, `with-target`, and `with-params` helpers take `env` now.  The return value
+of client-side mutations now support returning the `env` in addition to the original boolean or AST.
+
 Remotes:: Remotes were protocol based, and are now simply maps. The primary
 "method" to implement is a function under the `:transmit!` key, which now receives
 a send node and should return a result that includes both the status code and EDN
