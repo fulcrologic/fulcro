@@ -135,22 +135,26 @@
 
 (defn- default-load-error? [{:keys [status-code body] :as result}] (not= 200 status-code))
 
-(defn- default-global-query-transform
+(defn- default-global-eql-transform
   "The default query transform function.  It makes sure the following items on a component query
   are never sent to the server:
 
   - Props whose namespace is `ui`
   - The form-state configuration join
+
+  Takes an AST and returns the modified AST.
   "
-  [query]
-  (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
-    (util/elide-query-nodes query (fn [k]
-                                    (when-let [ns (some-> k kw-namespace)]
-                                      (or
-                                        (= k ::fs/config)
-                                        (and
-                                          (string? ns)
-                                          (= "ui" ns))))))))
+  [ast]
+  (log/info "Rewriting network AST" ast)
+  (log/spy :info
+    (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
+      (util/elide-ast-nodes ast (fn [k]
+                                  (when-let [ns (some-> k kw-namespace)]
+                                    (or
+                                      (= k ::fs/config)
+                                      (and
+                                        (string? ns)
+                                        (= "ui" ns)))))))))
 
 (defonce fulcro-tools (atom {}))
 
@@ -203,10 +207,38 @@
 
   `options` - A map of initial options
       - `initial-db` a *map* containing a *normalized* Fulcro app db.  Normally Fulcro will populate app state with
-      your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
-  "
+        your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
+      - `:optimized-render!` - A function that can analyze the state of the application and optimally refresh the screen.
+        Defaults to `ident-optimized-render/render!`, but can also be set to `keyframe-render/render!`.  Further customizations are
+        also possible.  Most applications will likely be best with the default (which analyzes changes by ident and targets
+        refreshes), but applications with a lot of on-screen components may find the keyframe renderer to be faster. Both
+        get added benefits from Fulcro's default `shouldComponentUpdate`, which will prevent rendering when there are no real
+        changes.
+      - `default-result-action` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
+        default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
+        and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
+        default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action`.
+      - `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
+        before they are placed on the network layer.
+      - `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
+      - `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
+        a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
+      - `:shared` - A (static) map of data that should be visible in all components through `comp/shared`.
+      - `:shared-fn` - A function on root props that can select/augment shared whenever a forced root render
+        or explicit call to `app/update-shared!` happens.
+      - `:props-middleware` - A function that can add data to the 4th (optional) argument of
+        `defsc`.  Useful for allowing users to quickly destructure extra data created by
+        component extensions. See the fulcro-garden-css project on github for an example usage.
+      - `:render-middleware` - A `(fn [this real-render])`. If supplied it will be called for every Fulcro component
+        render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
+        function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
+        `this` is the component being rendered.
+    "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
+            global-eql-transform
+            default-result-action
+            optimized-render!
             render-middleware
             initial-db
             client-did-mount
@@ -216,19 +248,21 @@
    {::id              (util/uuid)
     ::state-atom      (atom (or initial-db {}))
     :client-did-mount client-did-mount
-    ::algorithms      {:algorithm/tx!                    default-tx!
-                       :algorithm/optimized-render!      ident-optimized/render!
-                       :algorithm/shared-fn              (or shared-fn (constantly {}))
-                       :algorithm/render!                render!
-                       :algorithm/load-error?            default-load-error?
-                       :algorithm/merge*                 merge/merge*
-                       :algorithm/global-query-transform default-global-query-transform
-                       :algorithm/index-root!            indexing/index-root!
-                       :algorithm/index-component!       indexing/index-component!
-                       :algorithm/drop-component!        indexing/drop-component!
-                       :algorithm/props-middleware       props-middleware
-                       :algorithm/render-middleware      render-middleware
-                       :algorithm/schedule-render!       schedule-render!}
+    ::algorithms      {:algorithm/tx!                   default-tx!
+                       :algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
+                       :algorithm/shared-fn             (or shared-fn (constantly {}))
+                       :algorithm/render!               render!
+                       :algorithm/load-error?           default-load-error?
+                       :algorithm/merge*                merge/merge*
+
+                       :algorithm/default-result-action (or default-result-action mut/default-result-action)
+                       :algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
+                       :algorithm/index-root!           indexing/index-root!
+                       :algorithm/index-component!      indexing/index-component!
+                       :algorithm/drop-component!       indexing/drop-component!
+                       :algorithm/props-middleware      props-middleware
+                       :algorithm/render-middleware     render-middleware
+                       :algorithm/schedule-render!      schedule-render!}
     ::runtime-atom    (atom
                         {::app-root                        nil
                          ::mount-node                      nil

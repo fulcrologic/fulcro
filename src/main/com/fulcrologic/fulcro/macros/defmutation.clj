@@ -1,9 +1,9 @@
 (ns com.fulcrologic.fulcro.macros.defmutation
   (:require
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.misc :as util :refer [join-key join-value join?]]
     [cljs.analyzer :as ana]
-    [clojure.string :as str])
+    [clojure.string :as str]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
   (:import (clojure.lang IFn)))
 
 (s/def ::handler (s/cat
@@ -29,7 +29,7 @@
         handlers       (reduce (fn [acc [_ {:keys [handler-name handler-args handler-body]}]]
                                  (let [action? (str/ends-with? (str handler-name) "action")]
                                    (into acc
-                                     (if action?
+                                      (if action?
                                        [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
                                                                          ~@handler-body
                                                                          nil)]
@@ -42,7 +42,9 @@
         method-map     (if result-action?
                          `{~(first handlers) ~@(rest handlers)}
                          `{~(first handlers) ~@(rest handlers)
-                           :result-action    (fn [~'env] (com.fulcrologic.fulcro.mutations/default-result-action ~'env))})
+                           :result-action    (fn [env#]
+                                               (when-let [default-action# (ah/app-algorithm (:app env#) :default-result-action)]
+                                                 (default-action# env#)))})
         doc            (or doc "")
         multimethod    `(defmethod com.fulcrologic.fulcro.mutations/mutate '~fqsym [~env-symbol]
                           (let [~(first arglist) (-> ~env-symbol :ast :params)]

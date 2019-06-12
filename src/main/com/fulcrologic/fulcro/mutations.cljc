@@ -3,12 +3,17 @@
   (:require
     #?(:clj com.fulcrologic.fulcro.macros.defmutation)
     [com.fulcrologic.fulcro.components :as comp]
+    [ghostwheel.core :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
+    [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge])
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
   #?(:clj
      (:import (clojure.lang IFn))))
+
+(s/def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
 
 #?(:clj
    (deftype Mutation [sym]
@@ -25,17 +30,43 @@
      (-invoke [this args]
        (list sym args))))
 
-(defn default-result-action [env]
-  (let [{:keys [state result handlers]} env
-        {:keys [ok-action error-action]} handlers
-        {:keys [status-code body transaction]} result]
-    (if (= 200 status-code)
-      (do
-        (swap! state merge/merge-mutation-joins transaction body)
-        (when ok-action
-          (ok-action env)))
-      (when error-action
-        (error-action env)))))
+(>defn default-result-action
+  "The default Fulcro result action for `defmutation`.  This function checks the status code. When it is
+  200 it will do merge/targeting of mutation joins, and  call `ok-action` (if defined on the mutation),
+  and otherwise will call `error-action`.
+
+  You can optionally pass options to this function to augment the behavior:
+
+  `:is-error?` - A `(fn [env] boolean)` that should return true on errors. Defaults to a status (not 200) code check.
+  `:global-error-action` - A `(fn [env])` that will be called on any remote errors, independent of the mutation.
+
+  Set this when you create a new application. If you want to set the options, just use partial:
+
+  ```
+  (app/fulcro-app {:default-result-action (partial m/default-result-action {:global-error-action ...})})
+  ```
+   "
+  ([env]
+   [::env => any?]
+   (default-result-action {} env))
+  ([{:keys [is-error? global-error-action]
+     :or   {is-error? (fn [env] (not= 200 (-> env :result :status-code)))}} env]
+   [map? ::env => any?]
+   (let [{:keys [state result dispatch]} env
+         {:keys [ok-action error-action]} dispatch
+         {:keys [body transaction]} result]
+     (log/info "Default result action" (keys env))
+     (if (is-error? env)
+       (do
+         (when global-error-action
+           (global-error-action env))
+         (when error-action
+           (error-action env)))
+       (do
+         (swap! state merge/merge-mutation-joins transaction body)
+         (when ok-action
+           (ok-action env)))))
+   nil))
 
 (defn mutation-declaration? [expr] (= Mutation (type expr)))
 
@@ -250,3 +281,17 @@
    Returns an updated `env`, which can be used as the return value from a remote section of a mutation."
   [env params]
   (assoc-in env [:ast :params] params))
+
+"Build a function for handling result actions.  Returns a function that is the default scheme for handling
+  remote mutation return values.  It is pluggable with hooks that can do additional work at well-defined
+  points in the result processing.
+
+  The options map can contain:
+
+  - `:result-pre-action` - A `(fn [env])` that will be run (if present) before any user-supplied `ok-action` body when
+    using `defmutation` with the default result action.
+  - `:result-post-action` - A `(fn [env])` that will be run (if present) after the user-supplied `ok-action` body when
+    using `defmutation` with the default result action.
+  - `:global-error-action` a `(fn [env])` that is called on status codes other than 200 on *mutations* if the default
+    result-action is in use.
+   "

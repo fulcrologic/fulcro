@@ -47,25 +47,23 @@
          (or (nil? post-mutation-params) (map? post-mutation-params))
          (or (nil? params) (map? params))
          (or (eql/ident? server-property-or-ident) (keyword? server-property-or-ident))]}
-  (let [state-map              (app/current-state app)
-        global-query-transform (get (ah/app-algorithm app) :algorithm/global-query-transform nil)
-        transformed-query      (if class-or-factory
-                                 (cond-> (comp/get-query class-or-factory state-map)
-                                   global-query-transform (global-query-transform)
-                                   (set? without) (util/elide-query-nodes without)
-                                   focus (eql/focus-subquery focus)
-                                   update-query update-query)
-                                 nil)
-        query                  (cond
-                                 (and class-or-factory (map? params)) `[({~server-property-or-ident ~transformed-query} ~params)]
-                                 class-or-factory [{server-property-or-ident transformed-query}]
-                                 (map? params) [(list server-property-or-ident params)]
-                                 :else [server-property-or-ident])
-        marker                 (if (true? marker)
-                                 (do
-                                   (log/warn "Boolean load marker no longer supported.")
-                                   false)
-                                 marker)]
+  (let [state-map         (app/current-state app)
+        transformed-query (if class-or-factory
+                            (cond-> (comp/get-query class-or-factory state-map)
+                              (set? without) (util/elide-query-nodes without)
+                              focus (eql/focus-subquery focus)
+                              update-query update-query)
+                            nil)
+        query             (cond
+                            (and class-or-factory (map? params)) `[({~server-property-or-ident ~transformed-query} ~params)]
+                            class-or-factory [{server-property-or-ident transformed-query}]
+                            (map? params) [(list server-property-or-ident params)]
+                            :else [server-property-or-ident])
+        marker            (if (true? marker)
+                            (do
+                              (log/warn "Boolean load marker no longer supported.")
+                              false)
+                            marker)]
     {:query                query
      :source-key           server-property-or-ident
      :remote               remote
@@ -213,18 +211,16 @@
   a component that has a dynamic query unless you can base it on the original static query.
   "
   [component field params]
-  (let [params                 (if (map? (first params)) (first params) params)
-        app                    (comp/any->app component)
-        global-query-transform (get (ah/app-algorithm app) :algorithm/global-query-transform nil)
-        {:keys [params update-query]
-         :or   {update-query global-query-transform}} params
-        ident                  (comp/get-ident component)
-        update-query           (fn [q]
-                                 (cond-> (eql/focus-subquery q [field])
-                                   update-query (update-query)))
-        params                 (load-params* app ident component (assoc params
-                                                                   :update-query update-query
-                                                                   :source-key (comp/get-ident component)))]
+  (let [params       (if (map? (first params)) (first params) params)
+        app          (comp/any->app component)
+        {:keys [params update-query]} params
+        ident        (comp/get-ident component)
+        update-query (fn [q]
+                       (cond-> (eql/focus-subquery q [field])
+                         update-query (update-query)))
+        params       (load-params* app ident component (assoc params
+                                                         :update-query update-query
+                                                         :source-key (comp/get-ident component)))]
     (comp/transact! app [(list `internal-load! params)])))
 
 (defn refresh!
