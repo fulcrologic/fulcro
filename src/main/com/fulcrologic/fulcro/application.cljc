@@ -218,12 +218,6 @@
         default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
         and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
         default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action`.
-      - `:result-pre-action` - A `(fn [env])` that will be run (if present) before any user-supplied `ok-action` body when
-        using `defmutation` with the default result action. (may not apply if you override default-result-action)
-      - `:result-post-action` - A `(fn [env])` that will be run (if present) after the user-supplied `ok-action` body when
-        using `defmutation` with the default result action. (may not apply if you override default-result-action)
-      - `:global-error-action` a `(fn [env])` that is called on status codes other than 200 on *mutations* if the default
-        result-action is in use. (may not apply if you override default-result-action)
       - `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
         before they are placed on the network layer.
       - `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
@@ -244,9 +238,6 @@
   ([{:keys [props-middleware
             global-eql-transform
             default-result-action
-            result-pre-action
-            result-post-action
-            global-error-action
             optimized-render!
             render-middleware
             initial-db
@@ -265,9 +256,6 @@
                        :algorithm/merge*                merge/merge*
 
                        :algorithm/default-result-action (or default-result-action mut/default-result-action)
-                       :algorithm/result-pre-action     result-pre-action
-                       :algorithm/result-post-action    result-post-action
-                       :algorithm/global-error-action   global-error-action
                        :algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
                        :algorithm/index-root!           indexing/index-root!
                        :algorithm/index-component!      indexing/index-component!

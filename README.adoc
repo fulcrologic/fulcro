@@ -182,16 +182,16 @@ happens next:
 then the `defmutation` macro supplies a default that behaves like Fulcro 2.
 
 As a result any full-stack operation is completely under your control, and you can even "invent" new sections of
-the mutation that will appear as `handlers` in the `env`:
+the mutation that will appear as `dispatch` in the `env`:
 
 ```
 (defmutation do-thing [params]
   (action [env] ...optimistic actions...)
   (remote [env] true)
   (ok-action [env] ...your custom action type!...)
-  (result-action [{:keys [result app handlers] :as env}]
+  (result-action [{:keys [result app dispatch] :as env}]
     (let [{:keys [status-code body]} result
-          {:keys [ok-action]} handlers]
+          {:keys [ok-action]} dispatch]
       (if (= 200 status-code)
         (ok-action env)
         ...))))

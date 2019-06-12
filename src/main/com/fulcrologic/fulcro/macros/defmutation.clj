@@ -27,13 +27,13 @@
                          sym
                          (symbol (name (ns-name *ns*)) (name sym)))
         handlers       (reduce (fn [acc [_ {:keys [handler-name handler-args handler-body]}]]
-                                 (let [action? (str/ends-with? (str handler-name) "action")
-                                       ]
+                                 (let [action? (str/ends-with? (str handler-name) "action")]
                                    (into acc
-                                     [(keyword (name handler-name))
                                       (if action?
-                                        `(fn ~handler-name ~handler-args ~@handler-body nil)
-                                        `(fn ~handler-name ~handler-args ~@handler-body))])))
+                                       [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
+                                                                         ~@handler-body
+                                                                         nil)]
+                                       [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
                          []
                          sections)
         ks             (into #{} (filter keyword?) handlers)
@@ -55,4 +55,3 @@
          ~multimethod
          (def ~(with-meta sym {:doc doc}) (com.fulcrologic.fulcro.mutations/->Mutation '~fqsym))))))
 
-(defmacro defmutation [& args] (defmutation* &env args))

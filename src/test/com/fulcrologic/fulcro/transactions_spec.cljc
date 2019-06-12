@@ -27,9 +27,8 @@
 (defn fake-render [& args])
 
 (defn mock-app
-  ([params] (-> (fulcro-app params)
-              (ah/with-optimized-render fake-render)))
-  ([] (mock-app {})))
+  ([params] (fulcro-app (assoc params :optimized-render! identity)))
+  ([] (mock-app {:optimized-render! identity})))
 
 (>defn ->send
   ([id options]
@@ -620,10 +619,9 @@
               "Returns the updated node"
               (:updated actual) => 2)))))))
 
-(specification "dispatch-result!"
+(specification "dispatch-result!" :focus
   (when-mocking
     (txn/schedule-queue-processing! a t) => nil
-    (txn/build-env app n) => {:mock-env true}
 
     (let [app         (mock-app)
           mock-result {:status-code 200 :value 20}
@@ -637,8 +635,6 @@
           updated-ele (txn/dispatch-result! app tx-node ele :remote)]
 
       (assertions
-        "Uses `build-env` to build the env"
-        (-> actual-env deref :mock-env) => true
         "Calls the :result-action handler"
         (nil? (deref actual-env)) => false
         "Passes the result on the :result key of env"
@@ -830,9 +826,7 @@
                                          nil)
       (app/schedule-render! a) => nil
 
-      (let [{:keys [::app/runtime-atom] :as app} (-> (mock-app) (ah/with-optimized-render (fn
-                                                                                            ([app force-root?])
-                                                                                            ([app]))))
+      (let [{:keys [::app/runtime-atom] :as app} (mock-app)
             active-queue [(assoc (txn/tx-node `[(f {})]) ::txn/id (uuid 1))
                           (assoc (txn/tx-node `[(g {})]) ::txn/id (uuid 2))]]
         (swap! runtime-atom assoc ::txn/active-queue active-queue)
