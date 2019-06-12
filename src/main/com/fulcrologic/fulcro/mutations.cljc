@@ -3,7 +3,10 @@
   (:require
     #?(:clj com.fulcrologic.fulcro.macros.defmutation)
     [com.fulcrologic.fulcro.components :as comp]
-    [taoensso.timbre :as log])
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge])
   #?(:clj
      (:import (clojure.lang IFn))))
 
@@ -23,13 +26,14 @@
        (list sym args))))
 
 (defn default-result-action [env]
-  (let [{:keys [result handlers]} env
+  (let [{:keys [state result handlers]} env
         {:keys [ok-action error-action]} handlers
-        {:keys [status-code]} result]
+        {:keys [status-code body transaction]} result]
     (if (= 200 status-code)
-      (when ok-action
-        ;...merge mutation joins...
-        (ok-action env))
+      (do
+        (swap! state merge/merge-mutation-joins transaction body)
+        (when ok-action
+          (ok-action env)))
       (when error-action
         (error-action env)))))
 
@@ -202,7 +206,47 @@
   (let [value (if event (target-value event) value)]
     (set-value! component field value)))
 
-(comment
-  (deref (.-method_table mutate))
+(defn returning
+  "Indicate the the remote operation will return a value of the given component type.
 
-  )
+  `env` - The env of the mutation
+  `class` - A component class that represents the return type.  You may supply a fully-qualified symbol instead of the
+  actual class, and this method will look up the class for you (useful to avoid circular references).
+
+  Returns an update `env`, and is a valid return value from mutation remote sections."
+  [env class]
+  (let [class (if (or (keyword? class) (symbol? class))
+                (comp/classname->class class)
+                class)]
+    (let [{:keys [state ast]} env
+          {:keys [key params query]} (log/spy :info ast)]
+      (let [updated-query (cond-> (comp/get-query class @state)
+                            query (vary-meta #(merge (meta query) %)))]
+        (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}]))))))
+
+(defn with-target
+  "Set's a target for the return value from the mutation to be merged into. This can be combined with returning to define
+  a path to insert the new entry.
+
+  `env` - The mutation env (you can thread together `returning` and `with-target`)
+  `target` - A vector path, or any special target defined in `data-targeting` such as `append-to`.
+
+  Returns an updated env (which is a valid return value from remote sections of mutations).
+  "
+  [{:keys [ast] :as env} target]
+  (let [{:keys [key params query]} ast
+        targeted-query (if query
+                         (vary-meta query assoc ::targeting/target target)
+                         (with-meta '[*] {::targeting/target target}))]
+    (assoc env :ast (eql/query->ast1 [{(list key params) targeted-query}]))))
+
+(defn with-params
+  "Modify an AST containing a single mutation, changing it's parameters to those given as an argument. Overwrites
+   any existing params of the mutation.
+
+   `env` - the mutation environment
+   `params` - A new map to use as the mutations parameters
+
+   Returns an updated `env`, which can be used as the return value from a remote section of a mutation."
+  [env params]
+  (assoc-in env [:ast :params] params))

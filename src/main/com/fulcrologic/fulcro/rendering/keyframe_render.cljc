@@ -10,5 +10,7 @@
         {:keys [:com.fulcrologic.fulcro.application/root-factory :com.fulcrologic.fulcro.application/root-class :com.fulcrologic.fulcro.application/mount-node]} @runtime-atom
         state-map @state-atom
         query     (comp/get-query root-class state-map)
-        data-tree (fdn/db->tree query state-map state-map)]
+        data-tree (if query
+                    (fdn/db->tree query state-map state-map)
+                    state-map)]
     #?(:cljs (js/ReactDOM.render (root-factory data-tree) mount-node))))

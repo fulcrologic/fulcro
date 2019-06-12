@@ -1,13 +1,10 @@
 (ns com.fulcrologic.fulcro.inspect.diff
   (:require [clojure.spec.alpha :as s]))
 
-(s/def ::updates map?)
-(s/def ::removals vector?)
-
 (defn updates [a b]
   (reduce
     (fn [adds [k v]]
-      (let [va (get a k ::unset)]
+      (let [va (get a k :fulcro.inspect.lib.diff/unset)]
         (if (= v va)
           adds
           (if (and (map? v) (map? va))
@@ -26,32 +23,32 @@
               (conj rems {k childs})
               rems))
           rems)
-        (conj rems (cond-> k (map? k) (assoc ::key? true)))))
+        (conj rems (cond-> k (map? k) (assoc :fulcro.inspect.lib.diff/key? true)))))
     []
     a))
 
 (defn diff [a b]
-  {::updates  (updates a b)
-   ::removals (removals a b)})
+  {:fulcro.inspect.lib.diff/updates  (updates a b)
+   :fulcro.inspect.lib.diff/removals (removals a b)})
 
 (defn deep-merge [x y]
   (if (and (map? x) (map? y))
     (merge-with deep-merge x y)
     y))
 
-(defn patch-updates [x {::keys [updates]}]
+(defn patch-updates [x {:fulcro.inspect.lib.diff/keys [updates]}]
   (merge-with deep-merge x updates))
 
-(defn patch-removals [x {::keys [removals]}]
+(defn patch-removals [x {:fulcro.inspect.lib.diff/keys [removals]}]
   (reduce
     (fn [final rem]
       (cond
-        (::key? rem)
-        (dissoc final (dissoc rem ::key?))
+        (:fulcro.inspect.lib.diff/key? rem)
+        (dissoc final (dissoc rem :fulcro.inspect.lib.diff/key?))
 
         (map? rem)
         (let [[k v] (first rem)]
-          (update final k #(patch-removals % {::removals v})))
+          (update final k #(patch-removals % {:fulcro.inspect.lib.diff/removals v})))
 
         :else
         (dissoc final rem)))

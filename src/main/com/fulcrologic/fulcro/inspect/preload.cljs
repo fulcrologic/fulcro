@@ -29,6 +29,7 @@
 (defn start-send-message-loop []
   (async/go-loop []
     (when-let [[type data] (async/<! send-ch)]
+      (log/info "Posting message" type)
       (.postMessage js/window (clj->js {:fulcro-inspect-remote-message (encode/write {:type type :data data :timestamp (js/Date.)})}) "*")
       (recur))))
 
@@ -45,7 +46,7 @@
         (start-send-message-loop)))
     false))
 
-(defn app-uuid [app] (:fulcro.inspect.core/app-uuid (app/current-state app)))
+(defn app-uuid [app] (get (app/current-state app) app-uuid-key))
 
 (defn app-id [app]
   (or (some-> (app/current-state app) :fulcro.inspect.core/app-id)
@@ -57,7 +58,25 @@
   ([ref tx]
    (post-message :fulcro.inspect.client/transact-inspector {:fulcro.inspect.client/tx-ref ref :fulcro.inspect.client/tx tx})))
 
+(def MAX_HISTORY_SIZE 100)
+
+(defn fixed-size-assoc [size db key value]
+  (let [{:fulcro.inspect.client/keys [history] :as db'}
+        (-> db
+          (assoc key value)
+          (update :fulcro.inspect.client/history (fnil conj []) key))]
+    (if (> (count history) size)
+      (-> db'
+        (dissoc (first history))
+        (update :fulcro.inspect.client/history #(vec (next %))))
+      db')))
+
+(defn update-state-history [app state]
+  (swap! (::app/runtime-atom app) update :fulcro.inspect.client/state-history
+    #(fixed-size-assoc MAX_HISTORY_SIZE % (hash state) state)))
+
 (defn db-update [app app-uuid old-state new-state]
+  (update-state-history app new-state)
   (let [diff (diff/diff old-state new-state)]
     (post-message :fulcro.inspect.client/db-update {app-uuid-key                           app-uuid
                                                     :fulcro.inspect.client/prev-state-hash (hash old-state)
@@ -79,6 +98,7 @@
         app-uuid   (random-uuid)]
 
     (swap! apps* assoc app-uuid app)
+    (update-state-history app @state*)
 
     (post-message :fulcro.inspect.client/init-app {app-uuid-key                         app-uuid
                                                    :fulcro.inspect.core/app-id          (app-id app)
@@ -174,7 +194,7 @@
       (if-let [app (get @apps* app-uuid)]
         (do
           (if target-state
-            (let [target-state (assoc target-state :fulcro.inspect.core/app-uuid app-uuid)]
+            (let [target-state (assoc target-state app-uuid-key app-uuid)]
               (reset! (::app/state-atom app) target-state)))
           (app/force-root-render! app))
         (js/console.log "Reset app on invalid uuid" app-uuid)))

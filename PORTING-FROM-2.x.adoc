@@ -93,13 +93,24 @@ as it existed before the optimistic update.
 
 === Breaking API Changes
 
+React Lifecycle Methods:: The *non-static* React lifecycle methods (e.g. componentDidMount, shouldComponentUpdate, etc.) now all require
+an explicit `this`. Everything in the options map in Fulcro 3 except query/ident/initial-state are completely literal
+(e.g. lambdas or data).
+
 Mutation Multimethod:: The `defmulti` for mutations is still present, but the API is presents and the return value
 it expects have changed.  If you directly use `defmethod m/mutate` you will need to adapt your code.
+
+Initial State:: The initial state story is the same if your initial state is purely on your root component. If
+you were passing an initial state to the reconciler, then that option has changed.  You can pass a *normalized* database
+to `fulcro-app`, and you can turn on/off auto inclusion of initial state from root via `mount!`.
 
 App vs. Reconciler:: There is no longer a separate reconciler or indexer.  Everything
 is in the app, and is held in atoms such that there is no need to do top-level swaps. Your
 app can be declared once in a namespace of it's own and then used directly everywhere
 the reconciler could have been. There are no protocols involved.
+
+Returning and Targeting:: The `returning`, `with-target`, and `with-params` helpers take `env` now.  The return value
+of client-side mutations now support returning the `env` in addition to the original boolean or AST.
 
 Remotes:: Remotes were protocol based, and are now simply maps. The primary
 "method" to implement is a function under the `:transmit!` key, which now receives

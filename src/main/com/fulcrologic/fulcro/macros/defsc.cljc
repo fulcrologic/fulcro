@@ -68,10 +68,15 @@
                                  (fn [acc k]
                                    (if (and (keyword? k) (= "keys" (name k)))
                                      (let [simple-syms (get m k)
-                                           source-keys (into #{} (map (fn [s]
-                                                                        (if (and (keyword? s) (namespace s))
-                                                                          s
-                                                                          (keyword (namespace k) (str s))))) simple-syms)]
+                                           included-ns (namespace k)
+                                           source-keys (into #{}
+                                                         (map (fn [s]
+                                                                (cond
+                                                                  included-ns (keyword included-ns (name s))
+                                                                  (and (keyword? s) (namespace s)) s
+                                                                  (namespace s) (keyword (namespace s) (name s))
+                                                                  :else (keyword s))))
+                                                         simple-syms)]
                                        (into acc source-keys))
                                      acc))
                                  #{}

@@ -148,8 +148,7 @@ just changing the "missing macro" to plain `defsc` will make it work.
 ==== Transact Changes
 
 The most significant change is in the internal plumbing of `transact!`, which is now in the `component` namespace.  Transactions are now safe
-to submit from *anywhere* in the code base, even from within helpers that are running within `swap!` against the state
-atom!
+to submit from *anywhere* in the code base.
 
 The `transact!` function just puts the tx on a submission queue.  That's it.  At some point (very soon) after submission
 Fulcro will process the current submissions into an active queue.
@@ -240,7 +239,6 @@ performance monitoring, etc.
 
 === Known Issues
 
-- The root component of the app won't hot-code reload
 - Some lifecycle signature arities might have changed. I'm on the fence about which things `defsc` should make "close over"
 `this` and `props`. I'm leaning towards "everything except query/ident/initial-state is raw".
 - Some Inspect features are not implemented.
