@@ -1,3 +1,12 @@
+3.0.0-alpha-5
+-------------
+- Fixed Fulcro Inspect db view (was missing deltas)
+- Added missing support for returning/with-params/with-target to mutations,
+but change remotes to allow `env` in addition to boolean and AST so that
+the threading of those functions are cleaner.
+- Added/modified how custom start-up state is given to an app.  
+- Fixed rendering bug so that app normalization is optional (useful in small demos)
+
 3.0.0-alpha-4
 -------------
 - Fixed dependency on EQL
