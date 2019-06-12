@@ -28,15 +28,12 @@
 (defn default-result-action [env]
   (let [{:keys [state result handlers]} env
         {:keys [ok-action error-action]} handlers
-        {:keys [status-code body]} result]
-    (log/spy :info (keys env))
-    (log/spy :info (keys result))
+        {:keys [status-code body transaction]} result]
     (if (= 200 status-code)
-      (when ok-action
-        ;...merge mutation joins...
-        #_(let []
-            (swap! state merge/merge-mutation-joins))
-        (ok-action env))
+      (do
+        (swap! state merge/merge-mutation-joins transaction body)
+        (when ok-action
+          (ok-action env)))
       (when error-action
         (error-action env)))))
 
