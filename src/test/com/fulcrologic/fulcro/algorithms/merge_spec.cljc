@@ -500,19 +500,19 @@
   {:query     [:user/id :user/name]
    :pre-merge (fn [{:keys [data-tree current-normalized state-map]}]
                 (merge
-                  data-tree
+                  {:ui/visible? true}
                   current-normalized
-                  {:ui/visible? true}))
+                  data-tree))
    :ident     :user/id})
 
 (defsc UserPMT [_ _]
   {:query     [:user/id :user/name]
-   :pre-merge (fn [{:keys [data-tree current-normalized state-map]}]
+   :pre-merge (fn [{:keys [data-tree current-normalized]}]
                 ;; rewriting the ID to verify that targeting uses the correct (altered) ident
-                (log/spy :info (merge
-                   (log/spy :info data-tree)
-                   (log/spy :info current-normalized)
-                   {:user/id 2})))
+                (merge
+                  current-normalized
+                  data-tree
+                  {:user/id 2}))
    :ident     :user/id})
 
 (specification "merge-mutation-joins" :focus
@@ -548,4 +548,4 @@
       (assertions
         new-state => {:top-key [:user/id 2]
                       :user/id {1 {:user/id 1 :user/name "Tom"}
-                                2 {:user/id 2 :user/name "Tom"}}}))))
+                                2 {:user/id 2 :user/name "Joe"}}}))))
