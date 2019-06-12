@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.fulcrologic</groupId>
+    <artifactId>fulcro</artifactId>
+    <packaging>jar</packaging>
+    <version>3.0.0-alpha-6-SNAPSHOT</version>
+
+    <name>fulcro</name>
+    <description>A library for building full-stack SPA webapps in Clojure and Clojurescript</description>
+    <url>https://github.com/fulcrologic/fulcro</url>
+
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>https://github.com/fulcrologic/fulcro3</url>
+        <connection>scm:git:git://github.com/fulcrologic/fulcro3.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro3.git</developerConnection>
+        <tag>9e75c6dd6b2346aefb12ba5c40affa051543e9f3</tag>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>clojars</id>
+            <name>Clojars repository</name>
+            <url>https://clojars.org/repo</url>
+        </repository>
+    </distributionManagement>
+
+    <build>
+        <sourceDirectory>src/main</sourceDirectory>
+
+        <resources>
+            <resource>
+                <directory>src/main</directory>
+            </resource>
+        </resources>
+    </build>
+
+    <repositories>
+        <repository>
+            <id>clojars</id>
+            <url>https://repo.clojars.org/</url>
+        </repository>
+        <repository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.clojure</groupId>
+            <artifactId>clojure</artifactId>
+            <version>1.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.wsscode</groupId>
+            <artifactId>pathom</artifactId>
+            <version>2.2.14</version>
+        </dependency>
+        <dependency>
+            <groupId>edn-query-language</groupId>
+            <artifactId>eql</artifactId>
+            <version>0.0.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.taoensso</groupId>
+            <artifactId>tufte</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>gnl</groupId>
+            <artifactId>ghostwheel</artifactId>
+            <version>0.3.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cognitect</groupId>
+            <artifactId>transit-cljs</artifactId>
+            <version>0.8.256</version>
+        </dependency>
+        <dependency>
+            <groupId>org.clojure</groupId>
+            <artifactId>clojurescript</artifactId>
+            <version>1.10.520</version>
+        </dependency>
+        <dependency>
+            <groupId>com.taoensso</groupId>
+            <artifactId>timbre</artifactId>
+            <version>4.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cognitect</groupId>
+            <artifactId>transit-clj</artifactId>
+            <version>0.8.313</version>
+        </dependency>
+        <dependency>
+            <groupId>org.clojure</groupId>
+            <artifactId>core.async</artifactId>
+            <version>0.4.474</version>
+        </dependency>
+    </dependencies>
+</project>

@@ -31,8 +31,6 @@ figwheel_server.log
 lib
 node_modules
 out
-pom.xml
-pom.xml*
 pom.xml.asc
 resources/private/js
 resources/public/js
