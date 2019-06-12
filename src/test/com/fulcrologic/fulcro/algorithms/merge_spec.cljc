@@ -8,7 +8,9 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
-    [com.fulcrologic.fulcro.application :as app]))
+    [com.fulcrologic.fulcro.application :as app]
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
 
 (declare =>)
 
@@ -491,11 +493,59 @@
       (get-in new-state [:graph 1]) => graph-1)))
 
 (defsc User [_ _]
-  :query [:user/id :user/name]
-  :ident :user/id)
+  {:query [:user/id :user/name]
+   :ident :user/id})
 
-#_(specification "merge-mutation-joins"
-  (let [state {}
-        tree  {:user/id 1 :user/name "Joe"}
-        query (comp/get-query User)])
-  )
+(defsc UserPM [_ _]
+  {:query     [:user/id :user/name]
+   :pre-merge (fn [{:keys [data-tree current-normalized state-map]}]
+                (merge
+                  data-tree
+                  current-normalized
+                  {:ui/visible? true}))
+   :ident     :user/id})
+
+(defsc UserPMT [_ _]
+  {:query     [:user/id :user/name]
+   :pre-merge (fn [{:keys [data-tree current-normalized state-map]}]
+                ;; rewriting the ID to verify that targeting uses the correct (altered) ident
+                (log/spy :info (merge
+                   (log/spy :info data-tree)
+                   (log/spy :info current-normalized)
+                   {:user/id 2})))
+   :ident     :user/id})
+
+(specification "merge-mutation-joins" :focus
+  (behavior "Merges basic return values into app state"
+    (let [state     {}
+          tree      {'some-mutation {:user/id 1 :user/name "Joe"}}
+          query     [{(list 'some-mutation {:x 1}) (comp/get-query User)}]
+          new-state (merge/merge-mutation-joins state query tree)]
+      (assertions
+        new-state => {:user/id {1 {:user/id 1 :user/name "Joe"}}})))
+  (behavior "Does pre-merge processing"
+    (let [state     {}
+          tree      {'some-mutation {:user/id 1 :user/name "Joe"}}
+          query     [{(list 'some-mutation {:x 1}) (comp/get-query UserPM)}]
+          new-state (merge/merge-mutation-joins state query tree)]
+      (assertions
+        new-state => {:user/id {1 {:ui/visible? true :user/id 1 :user/name "Joe"}}})))
+  (behavior "Does data targeting based on pre-merge result"
+    (let [state     {}
+          tree      {'some-mutation {:user/id 1 :user/name "Joe"}}
+          query     [{(list 'some-mutation {:x 1}) (vary-meta (comp/get-query UserPMT)
+                                                     assoc ::targeting/target [:top-key])}]
+          new-state (merge/merge-mutation-joins state query tree)]
+      (assertions
+        new-state => {:top-key [:user/id 2]
+                      :user/id {2 {:user/id 2 :user/name "Joe"}}})))
+  (behavior "Targeting on pre-merge overwrite with id re-assignment"
+    (let [state     {:user/id {1 {:user/id 1 :user/name "Tom"}}}
+          tree      {'some-mutation {:user/id 1 :user/name "Joe"}}
+          query     [{(list 'some-mutation {:x 1}) (vary-meta (comp/get-query UserPMT)
+                                                     assoc ::targeting/target [:top-key])}]
+          new-state (merge/merge-mutation-joins state query tree)]
+      (assertions
+        new-state => {:top-key [:user/id 2]
+                      :user/id {1 {:user/id 1 :user/name "Tom"}
+                                2 {:user/id 2 :user/name "Tom"}}}))))
