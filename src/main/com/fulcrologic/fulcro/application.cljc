@@ -203,10 +203,43 @@
 
   `options` - A map of initial options
       - `initial-db` a *map* containing a *normalized* Fulcro app db.  Normally Fulcro will populate app state with
-      your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
-  "
+        your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
+      - `:optimized-render!` - A function that can analyze the state of the application and optimally refresh the screen.
+        Defaults to `ident-optimized-render/render!`, but can also be set to `keyframe-render/render!`.  Further customizations are
+        also possible.  Most applications will likely be best with the default (which analyzes changes by ident and targets
+        refreshes), but applications with a lot of on-screen components may find the keyframe renderer to be faster. Both
+        get added benefits from Fulcro's default `shouldComponentUpdate`, which will prevent rendering when there are no real
+        changes.
+      - `default-result-action` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
+        default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
+        and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality.
+      - `:mutation-pre-action` - A `(fn [env])` that will be run (if present) before the user-supplied action body when
+        using `defmutation`.
+      - `:mutation-post-action` - A `(fn [env])` that will be run (if present) after the user-supplied action body when
+        using `defmutation`.
+      - `:global-query-transform` - A `(fn [query] new-query)` that will be asked to rewrite queries submitted through
+        the standard data fetch API.
+      - `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
+      - `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
+        a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
+      - `:shared` - A (static) map of data that should be visible in all components through `comp/shared`.
+      - `:shared-fn` - A function on root props that can select/augment shared whenever a forced root render
+        or explicit call to `app/update-shared!` happens.
+      - `:props-middleware` - A function that can add data to the 4th (optional) argument of
+        `defsc`.  Useful for allowing users to quickly destructure extra data created by
+        component extensions. See the fulcro-garden-css project on github for an example usage.
+      - `:render-middleware` - A `(fn [this real-render])`. If supplied it will be called for every Fulcro component
+        render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
+        function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
+        `this` is the component being rendered.
+    "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
+            global-query-transform
+            default-result-action
+            mutation-pre-action
+            mutation-post-action
+            optimized-render!
             render-middleware
             initial-db
             client-did-mount
@@ -217,12 +250,15 @@
     ::state-atom      (atom (or initial-db {}))
     :client-did-mount client-did-mount
     ::algorithms      {:algorithm/tx!                    default-tx!
-                       :algorithm/optimized-render!      ident-optimized/render!
+                       :algorithm/optimized-render!      (or optimized-render! ident-optimized/render!)
                        :algorithm/shared-fn              (or shared-fn (constantly {}))
                        :algorithm/render!                render!
                        :algorithm/load-error?            default-load-error?
                        :algorithm/merge*                 merge/merge*
-                       :algorithm/global-query-transform default-global-query-transform
+                       :algorithm/default-result-action (or default-result-action mut/default-result-action)
+                       :algorithm/mutation-pre-action    mutation-pre-action
+                       :algorithm/mutation-post-action   mutation-post-action
+                       :algorithm/global-query-transform (or global-query-transform default-global-query-transform)
                        :algorithm/index-root!            indexing/index-root!
                        :algorithm/index-component!       indexing/index-component!
                        :algorithm/drop-component!        indexing/drop-component!

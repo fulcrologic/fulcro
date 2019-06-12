@@ -15,27 +15,3 @@
      (get-in app [:com.fulcrologic.fulcro.application/algorithms nm]
        (fn [& any]
          (throw (ex-info "Missing algorithm: " {:name nm})))))))
-
-(defn with-tx
-  "Replace the transaction submission logic.
-  "
-  [app tx!]
-  (set-algorithm app :algorithm/tx! tx!))
-
-(defn with-optimized-render
-  "Replace the render refresh algorithm on an app. Returns a new app:
-
-  ```
-  (defonce app (atom nil))
-
-  (reset! app (fulcro-app))
-
-  ;; later
-  (swap! app with-render my-render!)
-
-  ;; OR at beginning
-  (defonce app (with-render (fulcro-app) my-render))
-  ```
-  "
-  [app render!]
-  (set-algorithm app :algorithm/optimized-render! render!))

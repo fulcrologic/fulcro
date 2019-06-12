@@ -540,8 +540,8 @@
   #?(:clj
      (real-render)
      :cljs
-     (let [{:com.fulcrologic.fulcro.application/keys [middleware] :as app} (gobj/getValueByKeys this "props" "fulcro$app")
-           {:keys [render-middleware]} middleware]
+     (let [app               (gobj/getValueByKeys this "props" "fulcro$app")
+           render-middleware (ah/app-algorithm app :render-middleware)]
        (if render-middleware
          (render-middleware this real-render)
          (real-render)))))
