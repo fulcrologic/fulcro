@@ -494,7 +494,7 @@
   :query [:user/id :user/name]
   :ident :user/id)
 
-(specification "merge-mutation-joins"
+#_(specification "merge-mutation-joins"
   (let [state {}
         tree  {:user/id 1 :user/name "Joe"}
         query (comp/get-query User)])
