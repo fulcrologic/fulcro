@@ -1,3 +1,10 @@
+3.0.0-alpha-6
+-------------
+- Added official hooks to a number of places, and added a bit to docs
+- Finished defining the "default" amount of pluggability for default mutations
+- Make global query transform apply closer to the network layer to catch both mutations and queries
+- Added confirmation tests to some more elements of merge join and pre-merge
+
 3.0.0-alpha-5
 -------------
 - Fixed Fulcro Inspect db view (was missing deltas)
