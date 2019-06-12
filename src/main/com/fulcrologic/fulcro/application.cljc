@@ -135,22 +135,26 @@
 
 (defn- default-load-error? [{:keys [status-code body] :as result}] (not= 200 status-code))
 
-(defn- default-global-query-transform
+(defn- default-global-eql-transform
   "The default query transform function.  It makes sure the following items on a component query
   are never sent to the server:
 
   - Props whose namespace is `ui`
   - The form-state configuration join
+
+  Takes an AST and returns the modified AST.
   "
-  [query]
-  (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
-    (util/elide-query-nodes query (fn [k]
-                                    (when-let [ns (some-> k kw-namespace)]
-                                      (or
-                                        (= k ::fs/config)
-                                        (and
-                                          (string? ns)
-                                          (= "ui" ns))))))))
+  [ast]
+  (log/info "Rewriting network AST" ast)
+  (log/spy :info
+    (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
+      (util/elide-ast-nodes ast (fn [k]
+                                  (when-let [ns (some-> k kw-namespace)]
+                                    (or
+                                      (= k ::fs/config)
+                                      (and
+                                        (string? ns)
+                                        (= "ui" ns)))))))))
 
 (defonce fulcro-tools (atom {}))
 
@@ -212,13 +216,16 @@
         changes.
       - `default-result-action` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
         default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
-        and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality.
-      - `:mutation-pre-action` - A `(fn [env])` that will be run (if present) before the user-supplied action body when
-        using `defmutation`.
-      - `:mutation-post-action` - A `(fn [env])` that will be run (if present) after the user-supplied action body when
-        using `defmutation`.
-      - `:global-query-transform` - A `(fn [query] new-query)` that will be asked to rewrite queries submitted through
-        the standard data fetch API.
+        and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
+        default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action`.
+      - `:result-pre-action` - A `(fn [env])` that will be run (if present) before any user-supplied `ok-action` body when
+        using `defmutation` with the default result action. (may not apply if you override default-result-action)
+      - `:result-post-action` - A `(fn [env])` that will be run (if present) after the user-supplied `ok-action` body when
+        using `defmutation` with the default result action. (may not apply if you override default-result-action)
+      - `:global-error-action` a `(fn [env])` that is called on status codes other than 200 on *mutations* if the default
+        result-action is in use. (may not apply if you override default-result-action)
+      - `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
+        before they are placed on the network layer.
       - `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
       - `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
         a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
@@ -235,10 +242,11 @@
     "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
-            global-query-transform
+            global-eql-transform
             default-result-action
-            mutation-pre-action
-            mutation-post-action
+            result-pre-action
+            result-post-action
+            global-error-action
             optimized-render!
             render-middleware
             initial-db
@@ -249,22 +257,24 @@
    {::id              (util/uuid)
     ::state-atom      (atom (or initial-db {}))
     :client-did-mount client-did-mount
-    ::algorithms      {:algorithm/tx!                    default-tx!
-                       :algorithm/optimized-render!      (or optimized-render! ident-optimized/render!)
-                       :algorithm/shared-fn              (or shared-fn (constantly {}))
-                       :algorithm/render!                render!
-                       :algorithm/load-error?            default-load-error?
-                       :algorithm/merge*                 merge/merge*
+    ::algorithms      {:algorithm/tx!                   default-tx!
+                       :algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
+                       :algorithm/shared-fn             (or shared-fn (constantly {}))
+                       :algorithm/render!               render!
+                       :algorithm/load-error?           default-load-error?
+                       :algorithm/merge*                merge/merge*
+
                        :algorithm/default-result-action (or default-result-action mut/default-result-action)
-                       :algorithm/mutation-pre-action    mutation-pre-action
-                       :algorithm/mutation-post-action   mutation-post-action
-                       :algorithm/global-query-transform (or global-query-transform default-global-query-transform)
-                       :algorithm/index-root!            indexing/index-root!
-                       :algorithm/index-component!       indexing/index-component!
-                       :algorithm/drop-component!        indexing/drop-component!
-                       :algorithm/props-middleware       props-middleware
-                       :algorithm/render-middleware      render-middleware
-                       :algorithm/schedule-render!       schedule-render!}
+                       :algorithm/result-pre-action     result-pre-action
+                       :algorithm/result-post-action    result-post-action
+                       :algorithm/global-error-action   global-error-action
+                       :algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
+                       :algorithm/index-root!           indexing/index-root!
+                       :algorithm/index-component!      indexing/index-component!
+                       :algorithm/drop-component!       indexing/drop-component!
+                       :algorithm/props-middleware      props-middleware
+                       :algorithm/render-middleware     render-middleware
+                       :algorithm/schedule-render!      schedule-render!}
     ::runtime-atom    (atom
                         {::app-root                        nil
                          ::mount-node                      nil

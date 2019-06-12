@@ -27,8 +27,13 @@
                                                                      :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/progress]))
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/elements (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element :kind vector?))
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node
-  (s/keys :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id :com.fulcrologic.fulcro.algorithms.tx-processing/created :com.fulcrologic.fulcro.algorithms.tx-processing/options :com.fulcrologic.fulcro.algorithms.tx-processing/tx :com.fulcrologic.fulcro.algorithms.tx-processing/elements]
-    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/started :com.fulcrologic.fulcro.algorithms.tx-processing/finished]))
+  (s/keys :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
+                :com.fulcrologic.fulcro.algorithms.tx-processing/created
+                :com.fulcrologic.fulcro.algorithms.tx-processing/options
+                :com.fulcrologic.fulcro.algorithms.tx-processing/tx
+                :com.fulcrologic.fulcro.algorithms.tx-processing/elements]
+    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/started
+          :com.fulcrologic.fulcro.algorithms.tx-processing/finished]))
 
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler fn?)
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler fn?)
@@ -36,7 +41,12 @@
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/parallel? boolean?)
 
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/send-node (s/keys
-                                                                    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id :com.fulcrologic.fulcro.algorithms.tx-processing/idx :com.fulcrologic.fulcro.algorithms.tx-processing/ast :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
+                                                                    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
+                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/idx
+                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/ast
+                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
+                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
+                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
                                                                     :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/parallel?]))
 
 (s/def :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
@@ -82,13 +92,13 @@
 (s/def :algorithm/index-component! fn?)
 (s/def :algorithm/drop-component! fn?)
 (s/def :algorithm/schedule-render! fn?)
-(s/def :algorithm/global-query-transform fn?)
+(s/def :algorithm/global-eql-transform fn?)
 (s/def :com.fulcrologic.fulcro.application/algorithms (s/keys :req [:algorithm/tx!
                                                                     :algorithm/optimized-render!
                                                                     :algorithm/render!
                                                                     :algorithm/merge*
                                                                     :algorithm/load-error?
-                                                                    :algorithm/global-query-transform
+                                                                    :algorithm/global-eql-transform
                                                                     :algorithm/index-component!
                                                                     :algorithm/drop-component!
                                                                     :algorithm/schedule-render!]))

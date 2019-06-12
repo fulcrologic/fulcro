@@ -27,24 +27,13 @@
                          sym
                          (symbol (name (ns-name *ns*)) (name sym)))
         handlers       (reduce (fn [acc [_ {:keys [handler-name handler-args handler-body]}]]
-                                 (let [non-action?        (not (str/ends-with? (str handler-name) "action"))
-                                       optimistic-action? (= "action" (str handler-name))]
+                                 (let [action? (str/ends-with? (str handler-name) "action")
+                                       ]
                                    (into acc
                                      [(keyword (name handler-name))
-                                      (cond
-                                        non-action? `(fn ~handler-name ~handler-args ~@handler-body)
-                                        optimistic-action? `(fn ~handler-name [env#]
-                                                              (let [~(first handler-args) env#
-                                                                    app# (:app env#)
-                                                                    mutation-pre-action# (ah/app-algorithm app# :mutation-pre-action)
-                                                                    mutation-post-action# (ah/app-algorithm app# :mutation-post-action)]
-                                                                (when mutation-pre-action#
-                                                                  (mutation-pre-action# env#))
-                                                                ~@handler-body
-                                                                (when mutation-post-action#
-                                                                  (mutation-post-action# env#)))
-                                                              nil)
-                                        :otherwise `(fn ~handler-name ~handler-args ~@handler-body nil))])))
+                                      (if action?
+                                        `(fn ~handler-name ~handler-args ~@handler-body nil)
+                                        `(fn ~handler-name ~handler-args ~@handler-body))])))
                          []
                          sections)
         ks             (into #{} (filter keyword?) handlers)

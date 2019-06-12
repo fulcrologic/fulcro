@@ -6,7 +6,8 @@
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge])
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
   #?(:clj
      (:import (clojure.lang IFn))))
 
@@ -25,17 +26,38 @@
      (-invoke [this args]
        (list sym args))))
 
-(defn default-result-action [env]
-  (let [{:keys [state result handlers]} env
+
+
+
+(defn default-result-action
+  "Build a function for handling result actions.  Returns a function that is the default scheme for handling
+  remote mutation return values.  It is pluggable with hooks that can do additional work at well-defined
+  points in the result processing.
+
+  The options map can contain:
+
+   "
+  [env]
+  (let [{:keys [app state result handlers]} env
         {:keys [ok-action error-action]} handlers
-        {:keys [status-code body transaction]} result]
+        {:keys [status-code body transaction]} result
+        result-pre-action   (ah/app-algorithm app :result-pre-action)
+        result-post-action  (ah/app-algorithm app :result-post-action)
+        global-error-action (ah/app-algorithm app :global-error-action)]
     (if (= 200 status-code)
       (do
+        (when result-pre-action
+          (result-pre-action env))
         (swap! state merge/merge-mutation-joins transaction body)
         (when ok-action
-          (ok-action env)))
-      (when error-action
-        (error-action env)))))
+          (ok-action env))
+        (when result-post-action
+          (result-post-action env)))
+      (do
+        (when global-error-action
+          (global-error-action env))
+        (when error-action
+          (error-action env))))))
 
 (defn mutation-declaration? [expr] (= Mutation (type expr)))
 
@@ -250,3 +272,17 @@
    Returns an updated `env`, which can be used as the return value from a remote section of a mutation."
   [env params]
   (assoc-in env [:ast :params] params))
+
+"Build a function for handling result actions.  Returns a function that is the default scheme for handling
+  remote mutation return values.  It is pluggable with hooks that can do additional work at well-defined
+  points in the result processing.
+
+  The options map can contain:
+
+  - `:result-pre-action` - A `(fn [env])` that will be run (if present) before any user-supplied `ok-action` body when
+    using `defmutation` with the default result action.
+  - `:result-post-action` - A `(fn [env])` that will be run (if present) after the user-supplied `ok-action` body when
+    using `defmutation` with the default result action.
+  - `:global-error-action` a `(fn [env])` that is called on status codes other than 200 on *mutations* if the default
+    result-action is in use.
+   "

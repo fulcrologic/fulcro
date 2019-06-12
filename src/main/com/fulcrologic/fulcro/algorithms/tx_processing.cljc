@@ -129,8 +129,12 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote    (get (app->remotes app) remote-name)
-               transmit! (get remote :transmit!)]
+  (enc/if-let [remote          (get (app->remotes app) remote-name)
+               transmit!       (get remote :transmit!)
+               query-transform (ah/app-algorithm app :global-eql-transform)
+               send-node       (if query-transform
+                                 (update send-node ::ast query-transform)
+                                 send-node)]
     (try
       (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
