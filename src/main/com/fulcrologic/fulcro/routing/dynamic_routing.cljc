@@ -52,7 +52,7 @@
   the current component and props. If it returns `true` then the routing operation will continue.  If it returns `false`
   then whatever new route was requested will be completely abandoned.  It is the responsibility of this method to give
   UI feedback as to why the route change was aborted."
-  (comp/component-options this :will-leave))
+  (or (comp/component-options this :will-leave) (constantly true)))
 
 (defn will-leave [c props]
   (when-let [f (get-will-leave c)]
