@@ -556,8 +556,8 @@
                                   ;; GC state machine if it exited
                                   (cond->
                                     (= ::exit next-state) (update ::asm-id dissoc asm-id)))]
-      (reset! state-atom new-fulcro-state)))
-  nil)
+      (reset! state-atom new-fulcro-state))
+    nil))
 
 (>defn set-timeout
   "Add a timeout named `timer-id` to the `env` that will send `event-id` with `event-data` event
