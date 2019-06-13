@@ -134,7 +134,12 @@
   [this]
   (let [state-map (comp/component->state-map this)
         class     (some->> (comp/get-query this state-map) eql/query->ast :children
-                    (filter #(= ::current-route (:key %))) first :component)]
+                    (filter #(= ::current-route (:key %))) first :component)
+        ;; Hot code reload support to avoid getting the cached class from old metadata
+        class     (if #?(:cljs goog.DEBUG :clj false)
+                    (-> class comp/class->classname comp/classname->class)
+                    class)]
+
     class))
 
 (defn route-target
