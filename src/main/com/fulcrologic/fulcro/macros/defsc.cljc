@@ -137,7 +137,7 @@
         render-fn         (symbol (str "render-" (name classsym)))]
     `(~'fn ~render-fn [~thissym]
        (com.fulcrologic.fulcro.components/wrapped-render ~thissym
-         (fn ~'real-render-wrapper* []
+         (fn []
            (let [~propsym (com.fulcrologic.fulcro.components/props ~thissym)
                  ~@computed-bindings
                  ~@extended-bindings]
