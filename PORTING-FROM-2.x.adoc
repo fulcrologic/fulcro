@@ -123,4 +123,9 @@ are in the `com.fulcrologic.fulcro.server` package. Fulcro 3 no longer supplies
 server-side macros for mutations and reads, as `pathom` is a much better choice for
 EQL service.
 
+UI State Machines:: The names of a few parameters on API for
+doing loads and mutations were named. The load `::uism/post-event` was
+renamed to `::uism/ok-event`, fallbacks to error, etc.  The targeting
+namespace on the target for mutations was change to data-targeting, and
+the namespace for returning was change to normal mutations ns.
 

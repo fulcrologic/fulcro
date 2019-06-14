@@ -12,8 +12,6 @@
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
 
-(declare load load-action load-field load-field-action)
-
 (defn data-state? [state] (contains? state :status))
 (defn ready? [state] (= :loading (:status state)))
 (defn loading? [state] (= :loading (:status state)))

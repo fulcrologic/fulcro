@@ -52,7 +52,7 @@
   the current component and props. If it returns `true` then the routing operation will continue.  If it returns `false`
   then whatever new route was requested will be completely abandoned.  It is the responsibility of this method to give
   UI feedback as to why the route change was aborted."
-  (comp/component-options this :will-leave))
+  (or (comp/component-options this :will-leave) (constantly true)))
 
 (defn will-leave [c props]
   (when-let [f (get-will-leave c)]
@@ -134,7 +134,12 @@
   [this]
   (let [state-map (comp/component->state-map this)
         class     (some->> (comp/get-query this state-map) eql/query->ast :children
-                    (filter #(= ::current-route (:key %))) first :component)]
+                    (filter #(= ::current-route (:key %))) first :component)
+        ;; Hot code reload support to avoid getting the cached class from old metadata
+        class     (if #?(:cljs goog.DEBUG :clj false)
+                    (-> class comp/class->classname comp/classname->class)
+                    class)]
+
     class))
 
 (defn route-target
@@ -507,43 +512,43 @@
      :args (s/cat :sym symbol? :arglist vector? :options map? :body (s/* any?))))
 
 #_(defn ssr-initial-state
-  "(ALPHA) A helper to get initial state database for SSR.
+    "(ALPHA) A helper to get initial state database for SSR.
 
-  Returns:
+    Returns:
 
-  ```
-  {:db normalized-db
-   :props props-to-render}
-  ```
+    ```
+    {:db normalized-db
+     :props props-to-render}
+    ```
 
-  IMPORTANT NOTES:
+    IMPORTANT NOTES:
 
-  - `will-enter` for the routes will *not* get a reconciler (since there
-  isn't one).  Be sure your routers will tolerate a nil reconciler.
-  - This has not been well-tested.  It is known to render correct HTML in simple cases, but the initial state
-  may not actually be correct for the starting app with respect to the routers.
-  "
-  [app-root-class root-router-class route-path]
-  (let [initial-tree (comp/get-initial-state app-root-class {})
-        initial-db   (ssr/build-initial-state initial-tree app-root-class)
-        router-ident (comp/get-ident root-router-class {})
-        instance-id  (second router-ident)
-        {:keys [target matching-prefix]} (route-target root-router-class route-path)
-        target-ident (will-enter target nil nil)            ; Target in this example needs neither
-        params       {::uism/asm-id                instance-id
-                      ::uism/state-machine-id      (::state-machine-id RouterStateMachine)
-                      ::uism/event-data            (merge
-                                                     {:path-segment matching-prefix
-                                                      :router       (vary-meta router-ident assoc
-                                                                      :component root-router-class)
-                                                      :target       (vary-meta target-ident assoc
-                                                                      :component target)})
-                      ::uism/actor->component-name {:router (uism/any->actor-component-registry-key root-router-class)}
-                      ::uism/actor->ident          {:router router-ident}}
-        initial-db   (assoc-in initial-db [::uism/asm-id instance-id] (uism/new-asm params))]
-    {:db    initial-db
-     :props (fdn/db->tree (comp/get-query app-root-class initial-db)
-              initial-db initial-db)}))
+    - `will-enter` for the routes will *not* get a reconciler (since there
+    isn't one).  Be sure your routers will tolerate a nil reconciler.
+    - This has not been well-tested.  It is known to render correct HTML in simple cases, but the initial state
+    may not actually be correct for the starting app with respect to the routers.
+    "
+    [app-root-class root-router-class route-path]
+    (let [initial-tree (comp/get-initial-state app-root-class {})
+          initial-db   (ssr/build-initial-state initial-tree app-root-class)
+          router-ident (comp/get-ident root-router-class {})
+          instance-id  (second router-ident)
+          {:keys [target matching-prefix]} (route-target root-router-class route-path)
+          target-ident (will-enter target nil nil)          ; Target in this example needs neither
+          params       {::uism/asm-id                instance-id
+                        ::uism/state-machine-id      (::state-machine-id RouterStateMachine)
+                        ::uism/event-data            (merge
+                                                       {:path-segment matching-prefix
+                                                        :router       (vary-meta router-ident assoc
+                                                                        :component root-router-class)
+                                                        :target       (vary-meta target-ident assoc
+                                                                        :component target)})
+                        ::uism/actor->component-name {:router (uism/any->actor-component-registry-key root-router-class)}
+                        ::uism/actor->ident          {:router router-ident}}
+          initial-db   (assoc-in initial-db [::uism/asm-id instance-id] (uism/new-asm params))]
+      {:db    initial-db
+       :props (fdn/db->tree (comp/get-query app-root-class initial-db)
+                initial-db initial-db)}))
 
 (defn all-reachable-routers
   "Returns a sequence of all of the routers reachable in the query of the app."

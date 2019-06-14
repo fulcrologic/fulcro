@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.ui-state-machines-spec
   (:require
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as dft]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
@@ -10,8 +10,7 @@
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
     [com.fulcrologic.fulcro.specs]
     [edn-query-language.core :as eql]
-    [fulcro-spec.core :refer [specification provided provided! when-mocking when-mocking! behavior assertions component]]
-    [taoensso.timbre :as log]))
+    [fulcro-spec.core :refer [specification provided provided! when-mocking when-mocking! behavior assertions component]]))
 
 (declare => =1x=>)
 
@@ -447,22 +446,22 @@
           (uism/queue-mutations! mock-app menv)))))
 
   (specification "convert-load-options"
-    (let [load-options (uism/convert-load-options env {::comp/component-class AClass ::uism/post-event :blah})]
+    (let [load-options (uism/convert-load-options env {::comp/component-class AClass ::uism/ok-event :blah})]
       (assertions
         "always sets a fallback function (that will send a default load-error event)"
         (:fallback load-options) => `uism/handle-load-error
         "removes any of the UISM-specific options from the map"
         (contains? load-options ::comp/component-class) => false
-        (contains? load-options ::uism/post-event) => false
+        (contains? load-options ::uism/ok-event) => false
         "defaults load markers to an explicit false"
         (false? (:marker load-options)) => true))
-    (let [load-options (uism/convert-load-options env {::uism/post-event :blah})]
+    (let [load-options (uism/convert-load-options env {::uism/ok-event :blah})]
       (assertions
         "Sets the post event handler and post event if there is a post-event"
         (-> load-options :post-mutation-params ::uism/event-id) => :blah
         (:post-mutation load-options) => `uism/trigger-state-machine-event))
-    (let [load-options (uism/convert-load-options env {::uism/fallback-event        :foo
-                                                       ::uism/fallback-event-params {:y 1}})]
+    (let [load-options (uism/convert-load-options env {::uism/error-event :foo
+                                                       ::uism/error-data  {:y 1}})]
       (assertions
         "Sets fallback event and params if present"
         (-> load-options :post-mutation-params ::uism/error-event) => :foo
@@ -497,7 +496,7 @@
           load-called? (atom false)]
       (when-mocking!
         (uism/actor->ident e actor) =1x=> [:actor 1]
-        (df/load r ident class params) =1x=> (do
+        (df/load! r ident class params) =1x=> (do
                                                (reset! load-called? true)
                                                (assertions
                                                  "Sends a real load to fulcro containing: the proper actor ident"
@@ -638,35 +637,35 @@
          (uism/set-string! {} :fake :username #js {:target #js {:value "hi"}}))))
 
   (specification "derive-actor-components"
-      (let [actual (uism/derive-actor-components {:a [:x 1]
-                                                  :b AClass
-                                                  :d (uism/with-actor-class [:A 1] AClass)})]
-        (assertions
-          "allows a bare ident (no mapping)"
-          (:a actual) => nil
-          "accepts a singleton classes"
-          (:b actual) => ::AClass
-          ;; Need enzyme configured consistently for this test
-          ;"accepts a react instance"
-          ;(:c actual) => ::AClass
-          "finds class on metadata"
-          (:d actual) => ::AClass)))
+    (let [actual (uism/derive-actor-components {:a [:x 1]
+                                                :b AClass
+                                                :d (uism/with-actor-class [:A 1] AClass)})]
+      (assertions
+        "allows a bare ident (no mapping)"
+        (:a actual) => nil
+        "accepts a singleton classes"
+        (:b actual) => ::AClass
+        ;; Need enzyme configured consistently for this test
+        ;"accepts a react instance"
+        ;(:c actual) => ::AClass
+        "finds class on metadata"
+        (:d actual) => ::AClass)))
   (specification "derive-actor-idents"
-      (let [actual (uism/derive-actor-idents {:a [:x 1]
-                                              :b AClass
-                                              :d (uism/with-actor-class [:A 1] AClass)})]
-        (assertions
-          "allows a bare ident"
-          (:a actual) => [:x 1]
-          "finds the ident on singleton classes"
-          (:b actual) => [:A 1]
-          "remembers the singleton class as metadata"
-          (:b actual) => [:A 1]
-          ;; Need enzyme configured consistently for this test
-          ;"remembers the class of a react instance"
-          ;(:c actual) => [:A 1]
-          "records explicit idents that use with-actor-class"
-          (:d actual) => [:A 1])))
+    (let [actual (uism/derive-actor-idents {:a [:x 1]
+                                            :b AClass
+                                            :d (uism/with-actor-class [:A 1] AClass)})]
+      (assertions
+        "allows a bare ident"
+        (:a actual) => [:x 1]
+        "finds the ident on singleton classes"
+        (:b actual) => [:A 1]
+        "remembers the singleton class as metadata"
+        (:b actual) => [:A 1]
+        ;; Need enzyme configured consistently for this test
+        ;"remembers the class of a react instance"
+        ;(:c actual) => [:A 1]
+        "records explicit idents that use with-actor-class"
+        (:d actual) => [:A 1])))
   (specification "set-timeout"
     (let [new-env    (uism/set-timeout env :timer/my-timer :event/bam! {} 100)
           descriptor (some-> new-env ::uism/queued-timeouts first)]
@@ -785,33 +784,33 @@
     (behavior "accepts (and returns) any kind of raw fulcro target"
       (assertions
         "(normal target)"
-        (uism/compute-target test-env {::m/target [:a 1]}) => [:a 1]
+        (uism/compute-target test-env {::targeting/target [:a 1]}) => [:a 1]
         "(special target)"
-        (uism/compute-target test-env {::m/target (df/append-to [:a 1])}) => [:a 1]
-        (dft/special-target? (uism/compute-target test-env {::m/target (df/append-to [:a 1])})) => true))
+        (uism/compute-target test-env {::targeting/target (df/append-to [:a 1])}) => [:a 1]
+        (targeting/special-target? (uism/compute-target test-env {::targeting/target (df/append-to [:a 1])})) => true))
     (behavior "Resolves actors"
       (assertions
         (uism/compute-target test-env {::uism/target-actor :dialog}) => [:dialog 1]
         "can combine plain targets with actor targets"
-        (uism/compute-target test-env {::m/target [:a 1] ::uism/target-actor :dialog}) => [[:a 1] [:dialog 1]]
-        (dft/multiple-targets? (uism/compute-target test-env {::m/target          [:a 1]
-                                                              ::uism/target-actor :dialog}))
+        (uism/compute-target test-env {::targeting/target [:a 1] ::uism/target-actor :dialog}) => [[:a 1] [:dialog 1]]
+        (targeting/multiple-targets? (uism/compute-target test-env {::targeting/target [:a 1]
+                                                              ::uism/target-actor      :dialog}))
         => true
 
         "can combine actor targets with a multiple-target"
-        (uism/compute-target test-env {::m/target          (df/multiple-targets [:a 1] [:b 2])
+        (uism/compute-target test-env {::targeting/target          (df/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-actor :dialog})
         => [[:a 1] [:b 2] [:dialog 1]]))
     (behavior "Resolves aliases"
       (assertions
         (uism/compute-target test-env {::uism/target-alias :x}) => [:dialog 1 :foo]
         "can combine plain targets with alias targets"
-        (uism/compute-target test-env {::m/target [:a 1] ::uism/target-alias :x}) => [[:a 1] [:dialog 1 :foo]]
-        (dft/multiple-targets? (uism/compute-target test-env {::m/target          [:a 1]
-                                                              ::uism/target-alias :x}))
+        (uism/compute-target test-env {::targeting/target [:a 1] ::uism/target-alias :x}) => [[:a 1] [:dialog 1 :foo]]
+        (targeting/multiple-targets? (uism/compute-target test-env {::targeting/target [:a 1]
+                                                              ::uism/target-alias      :x}))
         => true
 
         "can combine alias targets with a multiple-target"
-        (uism/compute-target test-env {::m/target          (df/multiple-targets [:a 1] [:b 2])
+        (uism/compute-target test-env {::targeting/target          (df/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-alias :x})
         => [[:a 1] [:b 2] [:dialog 1 :foo]]))))

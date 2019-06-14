@@ -63,6 +63,18 @@
 
 (s/def ::component-class component-class?)
 
+(defn component-name
+  "Returns a string version of the given react component's name."
+  [class]
+  (util/isoget class :displayName))
+
+(defn class->classname
+  "Given a class, returns the fully-qualified keyword name of that class."
+  [class]
+  (let [nm (component-name class)
+        [ns nm] (str/split nm #"/")]
+    (keyword ns nm)))
+
 (defn classname->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
   been (transitively) required by your application.
@@ -428,10 +440,7 @@
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
        nil))))
 
-(defn component-name
-  "Returns a string version of the given react component's name."
-  [class]
-  (util/isoget class :displayName))
+
 
 (defn is-factory?
   [class-or-factory]
@@ -480,6 +489,10 @@
                        (is-factory? class-or-factory) (-> class-or-factory meta :class)
                        (component? class-or-factory) (react-type class-or-factory)
                        :else class-or-factory)
+           ;; Hot code reload. Avoid classes that were caches on metadata using the registry.
+           class     (if #?(:cljs goog.DEBUG :clj false)
+                       (-> class class->classname classname->class)
+                       class)
            qualifier (if (is-factory? class-or-factory)
                        (-> class-or-factory meta :qualifier)
                        nil)

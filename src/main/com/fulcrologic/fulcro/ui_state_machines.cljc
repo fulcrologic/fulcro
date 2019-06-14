@@ -10,7 +10,7 @@
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as dft]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.algorithms.misc :as util :refer [atom?]]))
@@ -505,18 +505,18 @@
     (log/debug "Starting actor load" actor-name "on" (::asm-id env))
     (if (nil? cls)
       (log/error "Cannot run load. Counld not derive Fulcro class (and none was configured) for " actor-name)
-      (df/load app actor-ident cls load-options))
+      (df/load! app actor-ident cls load-options))
     nil))
 
 (>defn queue-normal-load!
   "Internal implementation. Queue a load."
   [app query-key component-class load-options]
-  [::fulcro-app ::query-key (s/nilable comp/component-class?) ::load-options => nil?]
+  [::fulcro-app ::query-key (s/nilable comp/component-class?) ::load-options => any?]
   (if (nil? query-key)
     (log/error "Cannot run load. query-key cannot be nil.")
     (do
       (log/debug "Starting load of" query-key)
-      (df/load app query-key component-class load-options)))
+      (df/load! app query-key component-class load-options)))
   nil)
 
 (>defn handle-load-error* [app load-request]
@@ -544,8 +544,8 @@
              ::keys      [actor-name query-key load-options] :as load-params} queued-loads]
       (if actor-name                                        ; actor-centric load
         (queue-actor-load! app env actor-name component-class load-options)
-        (queue-normal-load! app query-key component-class load-options))))
-  nil)
+        (queue-normal-load! app query-key component-class load-options)))
+    nil))
 
 (>defn update-fulcro-state!
   "Put the evolved state-map from an env into a (Fulcro) state-atom"
@@ -556,8 +556,8 @@
                                   ;; GC state machine if it exited
                                   (cond->
                                     (= ::exit next-state) (update ::asm-id dissoc asm-id)))]
-      (reset! state-atom new-fulcro-state)))
-  nil)
+      (reset! state-atom new-fulcro-state))
+    nil))
 
 (>defn set-timeout
   "Add a timeout named `timer-id` to the `env` that will send `event-id` with `event-data` event
@@ -866,7 +866,7 @@
 (s/def ::mutation-decl (s/with-gen m/mutation-declaration? #(s/gen #{spec-mutation})))
 (s/def ::mutation-context ::actor-name)
 (s/def ::mutation-descriptor (s/keys :req [::mutation-context ::mutation]
-                               :opt [::m/target ::ok-event ::ok-data ::error-event ::error-data
+                               :opt [::targeting/target ::ok-event ::ok-data ::error-event ::error-data
                                      ::m/returning ::mutation-remote]))
 (s/def ::mutation-remote keyword?)
 (s/def ::queued-mutations (s/coll-of ::mutation-descriptor))
@@ -878,57 +878,54 @@
 
   targeting options:
 
-  `::m/target explicit-target` - A raw Fulcro data fetch target.
+  `:com.fulcrologic.fulcro.algorithms.data-targeting/target explicit-target` - A raw Fulcro data fetch target.
   `::uism/target-actor actor-alias` - Helper that can translate an actor alias to a target
   `::uism/target-alias field-alias` - Helper that can translate a data alias to a target (ident + field)
 
   If more than one option is used, then `df/mutliple-targets` will be used to encode them all.
   "
-  [env {::m/keys [target]
-        ::keys   [target-actor target-alias]}]
-  [::env (s/keys :opt [::m/target ::target-actor ::target-alias]) => (s/nilable vector?)]
+  [env {::targeting/keys [target]
+        ::keys           [target-actor target-alias]}]
+  [::env (s/keys :opt [::targeting/target ::target-actor ::target-alias]) => (s/nilable vector?)]
   (let [noptions (count (keep identity [target target-actor target-alias]))
         actor    (when target-actor (actor->ident env target-actor))
         field    (when target-alias (resolve-alias env target-alias))]
     (if (> noptions 1)
-      (if (and target (dft/multiple-targets? target))
+      (if (and target (targeting/multiple-targets? target))
         (into target (keep identity [actor field]))
         (apply df/multiple-targets (keep identity [target actor field])))
       (or target actor field))))
 
-(let [mtrigger! (fn mutation-trigger* [{:keys [app state]} actor-ident asm-id event data]
-                  (let [response   (get-in @state (conj actor-ident ::m/mutation-response))
-                        event-data (merge {} data response)]
-                    (comp/transact! app actor-ident [(trigger-state-machine-event {::asm-id     asm-id
-                                                                                   ::event-id   event
-                                                                                   ::event-data event-data})])))]
+(let [mtrigger! (fn mutation-trigger* [{:keys [app state result]} actor-ident asm-id event data]
+                  (let [event-data (merge {} data result)]
+                    (comp/transact! app [(trigger-state-machine-event {::asm-id     asm-id
+                                                                       ::event-id   event
+                                                                       ::event-data event-data})] {:ref actor-ident})))]
   (defmethod m/mutate `mutation-delegate [{:keys [state ast] :as env}]
     ;; mutation can be run for figuring out remote
-    (let [{::keys [asm-id ok-event error-event mutation
-                   mutation-context ok-data error-data mutation-remote] :as mp} (:params ast)]
-      (if (or (empty? @state) (empty? mp))
-        {(or mutation-remote :remote) true}
-        (let [sm-env      (state-machine-env @state nil asm-id ok-event ok-data)
-              actor-ident (actor->ident sm-env mutation-context)
-              to-refresh  (ui-refresh-list sm-env)
-              abort-id    (:abort-id mp)
-              fixed-env   (-> env
-                            (assoc :ref actor-ident)
-                            ;(cond-> abort-id (update :ast m/with-abort-id abort-id))
-                            (update :ast assoc
-                              :key mutation
-                              :dispatch-key mutation
-                              :params (dissoc mp ::ok-event ::error-event ::mutation
-                                        ::mutation-context ::ok-data ::error-data
-                                        ::mutation-remote ::asm-id)))]
-          (cond-> {:refresh                     to-refresh
-                   (or mutation-remote :remote) true}
-            ok-event (assoc :ok-action (fn []
-                                         (log/debug "Remote mutation " mutation "success")
-                                         (mtrigger! fixed-env actor-ident asm-id ok-event ok-data)))
-            error-event (assoc :error-action (fn []
-                                               (log/debug "Remote mutation " mutation "error")
-                                               (mtrigger! fixed-env actor-ident asm-id error-event error-data)))))))))
+    (let [{::m/keys [returning]
+           ::targeting/keys [target]
+           ::keys [asm-id ok-event error-event mutation
+                   mutation-context ok-data error-data mutation-remote] :as mp} (:params ast)
+          params      (dissoc mp ::ok-event ::error-event ::mutation
+                        ::mutation-context ::ok-data ::error-data
+                        ::mutation-remote ::asm-id
+                        ::m/returning ::targeting/target)
+          sm-env      (state-machine-env @state nil asm-id ok-event ok-data)
+          actor-ident (actor->ident sm-env mutation-context)
+          ast         (eql/query->ast1 [(list mutation params)])]
+      {(or mutation-remote :remote) (fn [env]
+                                      (let [env (assoc env :ast ast)]
+                                        (cond-> env
+                                          returning (m/returning returning)
+                                          target (m/with-target target))))
+       :result-action               m/default-result-action
+       :ok-action                   (fn [env]
+                                      (log/debug "Remote mutation " mutation "success")
+                                      (mtrigger! env actor-ident asm-id ok-event ok-data))
+       :error-action                (fn [env]
+                                      (log/debug "Remote mutation " mutation "error")
+                                      (mtrigger! env actor-ident asm-id error-event error-data))})))
 
 (>defn trigger-remote-mutation
   "Run the given REMOTE mutation (a symbol or mutation declaration) in the context of the state machine.
@@ -940,10 +937,10 @@
   `options-and-params` - The parameters to pass to your mutation. This map can also include these additional
   state-machine options:
 
-  `::m/returning Class` - Class to use for normalizing result.
-  `::m/target explicit-target` - Target for result
-  `::uism/target-actor actor` - Helper that can translate an actor name to a target, if returning a result.
-  `::uism/target-alias field-alias` - Helper that can translate a data alias to a target (ident + field).
+  `::uism/target-actor actor` - If you use this it will set JUST the `target` (not necessary for loading an actor). Use `::m/returning` to override the type if necessary.
+  `::uism/target-alias field-alias` - Helper that can translate a data alias to a target (ident + field). You must also use `returning` to specify the normalization type.
+  `:com.fulcrologic.fulcro.mutations/returning Class` - Class to use for normalizing the result.
+  `:com.fulcrologic.fulcro.algorithms.data-targeting/target explicit-target` - Target for result
   `::uism/ok-event event-id` - The SM event to trigger when the pessimistic mutation succeeds (no default).
   `::uism/error-event event-id` - The SM event to trigger when the pessimistic mutation fails (no default).
   `::uism/ok-data map-of-data` - Data to include in the event-data on an ok event
@@ -953,20 +950,21 @@
   NOTE: The mutation response *will be merged* into the event data that is sent to the SM handler.
 
   This function does *not* side effect.  It queues the mutation to run after the handler exits."
-  [env actor mutation options-and-params]
+  [env actor mutation {
+                       :as options-and-params}]
   [::env ::actor-name
    (s/or :sym ::mutation :decl ::mutation-decl)
-   (s/keys :opt [::m/returning ::m/target ::target-actor
+   (s/keys :opt [::m/returning ::targeting/target ::target-actor
                  ::target-alias ::ok-event ::error-event ::ok-data ::error-data ::mutation-remote])
    => ::env]
   (let [target              (compute-target env options-and-params)
         asm-id              (::asm-id env)
         mutation-sym        (m/mutation-symbol mutation)
         mutation-descriptor (-> options-and-params
-                              (dissoc ::target-actor ::target-alias ::m/target)
+                              (dissoc ::target-actor ::target-alias ::targeting/target)
                               (assoc ::asm-id asm-id ::mutation mutation-sym ::mutation-context actor)
                               (cond->
-                                (seq target) (assoc ::m/target target)))]
+                                (seq target) (assoc ::targeting/target target)))]
     (update env ::queued-mutations (fnil conj []) mutation-descriptor)))
 
 ;; ================================================================================
@@ -977,30 +975,27 @@
 (s/def ::query-key (s/or :key keyword? :ident eql/ident?))
 (s/def ::load (s/keys :opt [::query-key ::comp/component-class ::load-options]))
 (s/def ::queued-loads (s/coll-of ::load))
-(s/def ::post-event ::event-id)
-(s/def ::post-event-params map?)
-(s/def ::fallback-event-params map?)
 
 (>defn convert-load-options
   "INTERNAL: Convert SM load options into Fulcro load options."
   [env options]
-  [::env (s/keys :opt [::post-event ::post-event-params ::fallback-event ::fallback-event-params]) => map?]
-  (let [{::keys [post-event post-event-params fallback-event fallback-event-params target-actor target-alias]} options
+  [::env (s/keys :opt [::ok-event ::ok-data ::error-event ::error-data]) => map?]
+  (let [{::keys [ok-event ok-data error-event error-data target-actor target-alias]} options
         {:keys [marker]} options
         marker  (if (nil? marker) false marker)             ; force marker to false if it isn't set
         {::keys [asm-id]} env
-        options (-> (dissoc options ::post-event ::post-event-params ::fallback-event ::fallback-event-params ::comp/component-class
+        options (-> (dissoc options ::ok-event ::ok-data ::error-event ::error-data ::comp/component-class
                       ::target-alias ::target-actor)
-                  (assoc :marker marker :abort-id asm-id :fallback `handle-load-error :post-mutation-params (merge post-event-params {::asm-id asm-id}))
+                  (assoc :marker marker :abort-id asm-id :fallback `handle-load-error :post-mutation-params (merge ok-data {::asm-id asm-id}))
                   (cond->
                     (or target-actor target-alias) (assoc :target (compute-target env options))
-                    post-event (->
-                                 (assoc :post-mutation `trigger-state-machine-event)
-                                 (update :post-mutation-params assoc ::event-id post-event))
-                    post-event-params (update :post-mutation-params assoc ::event-data post-event-params)
+                    ok-event (->
+                               (assoc :post-mutation `trigger-state-machine-event)
+                               (update :post-mutation-params assoc ::event-id ok-event))
+                    ok-data (update :post-mutation-params assoc ::event-data ok-data)
                     ;; piggieback the fallback params and event on post mutation data, since it is the only thing we can see
-                    fallback-event (update :post-mutation-params assoc ::error-event fallback-event)
-                    fallback-event-params (update :post-mutation-params assoc ::error-data fallback-event-params)))]
+                    error-event (update :post-mutation-params assoc ::error-event error-event)
+                    error-data (update :post-mutation-params assoc ::error-data error-data)))]
     options))
 
 (>defn load
@@ -1009,13 +1004,14 @@
 
    The 3rd argument can be a Fulcro class or a UISM actor name that was registered with `begin!`.
 
-  The `options` are as in Fulcro's load, with the following additional keys for convenience:
+  The `options` can include anything from data fetch's load, but the following additional keys are
+  more supported for better integration with UISM:
 
-  `::uism/post-event`:: An event to send when the load is done (instead of calling a mutation)
-  `::uism/post-event-params`:: Extra parameters to send as event-data on the post-event.
-  `::uism/fallback-event`:: The event to send if the load triggers a fallback.
-  `::uism/fallback-event-params`:: Extra parameters to send as event-data on a fallback.
-  `::uism/target-actor`:: Set target to a given actor's ident.
+  `::uism/ok-event`:: An event to send when the load is done (instead of calling a mutation)
+  `::uism/ok-data`:: To send as event-data on the ok-event.
+  `::uism/error-event`:: The event to send if the load has a network error.
+  `::uism/error-data`:: To send as event-data on error.
+  `::uism/target-actor`:: Set target to a given actor's ident. See also `load-actor`.
   `::uism/target-alias`:: Set load target to the path defined by the given alias.
 
    NOTE: In general a state machine should declare an actor for items in the machine and use `load-actor` instead of
@@ -1026,7 +1022,7 @@
   ([env key-or-ident component-class-or-actor-name options]
    [::env ::query-key (s/or :a ::actor-name :c comp/component-class?) ::load-options => ::env]
    (let [options (convert-load-options env options)
-         class   (if (s/valid? ::actor-name component-class-or-actor-name)
+         class   (if (keyword? component-class-or-actor-name)
                    (actor-class env component-class-or-actor-name)
                    component-class-or-actor-name)]
      (update env ::queued-loads (fnil conj []) (cond-> {}
