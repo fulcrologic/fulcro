@@ -496,7 +496,7 @@
           load-called? (atom false)]
       (when-mocking!
         (uism/actor->ident e actor) =1x=> [:actor 1]
-        (df/load r ident class params) =1x=> (do
+        (df/load! r ident class params) =1x=> (do
                                                (reset! load-called? true)
                                                (assertions
                                                  "Sends a real load to fulcro containing: the proper actor ident"
