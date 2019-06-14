@@ -4,6 +4,8 @@
 - Workaround gw bug
 - Made will-leave and route-cancelled optional on dr route targets
 - Did some minor renames in UI state machines.
+- A number of issues fixed in UI state machines that were caused by some
+renames.
 
 3.0.0-alpha-6
 -------------
