@@ -14,6 +14,7 @@
      (:import (clojure.lang IFn))))
 
 (s/def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
+(s/def ::returning comp/component-class?)
 
 #?(:clj
    (deftype Mutation [sym]
@@ -250,7 +251,7 @@
                 (comp/classname->class class)
                 class)]
     (let [{:keys [state ast]} env
-          {:keys [key params query]} (log/spy :info ast)]
+          {:keys [key params query]} ast]
       (let [updated-query (cond-> (comp/get-query class @state)
                             query (vary-meta #(merge (meta query) %)))]
         (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}]))))))

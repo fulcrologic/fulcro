@@ -1,3 +1,10 @@
+3.0.0-alpha-7
+-------------
+- Improved hot code reload (app root and dyn router)
+- Workaround gw bug
+- Made will-leave and route-cancelled optional on dr route targets
+- Did some minor renames in UI state machines.
+
 3.0.0-alpha-6
 -------------
 - Added official hooks to a number of places, and added a bit to docs

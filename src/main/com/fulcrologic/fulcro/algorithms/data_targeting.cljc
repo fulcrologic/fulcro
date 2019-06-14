@@ -7,28 +7,24 @@
     [edn-query-language.core :as eql]))
 
 (when (misc/ghostwheel-enabled?)
-  (s/def ::path vector?)
-  (s/def ::target (s/and vector?
-                    (fn [t] (boolean (seq (set/intersection
-                                            #{::prepend-target ::multiple-targets ::append-target ::replace-target}
-                                            (some-> t meta keys))))))))
+  (s/def ::target vector?))
 
 (>defn multiple-targets
   [& targets]
-  [(s/* ::path) => ::target]
+  [(s/* ::target) => ::target]
   (with-meta (vec targets) {::multiple-targets true}))
 
 (>defn prepend-to [target]
-  [::path => ::target]
+  [::target => ::target]
   (with-meta target {::prepend-target true}))
 
 (>defn append-to [target]
-  [::path => ::target]
+  [::target => ::target]
   (with-meta target {::append-target true}))
 
 (>defn replace-at
   [target]
-  [::path => ::target]
+  [::target => ::target]
   (with-meta target {::replace-target true}))
 
 (>defn replacement-target? [t] [any? => boolean?] (-> t meta ::replace-target boolean))
@@ -57,7 +53,7 @@
 
   Returns the updated state map."
   [state ident & named-parameters]
-  [map? any? (s/* (s/or :path ::path :command #{:append :prepend :replace})) => map?]
+  [map? any? (s/* (s/or :path ::target :command #{:append :prepend :replace})) => map?]
   (let [actions (partition 2 named-parameters)]
     (reduce (fn [state [command data-path]]
               (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
@@ -95,10 +91,10 @@
    `target` - The target(s)
    `remove-source?` - When true the source will be removed from app state once it has been written to the new location."
   ([state-map source-path target]
-   [map? (s/or :key keyword? :ident eql/ident? :path vector?) ::path => map?]
+   [map? (s/or :key keyword? :ident eql/ident? :path vector?) ::target => map?]
    (process-target state-map source-path target true))
   ([state-map source-path target remove-source?]
-   [map? (s/or :key keyword? :ident eql/ident? :path vector?) ::path boolean? => map?]
+   [map? (s/or :key keyword? :ident eql/ident? :path vector?) ::target boolean? => map?]
    (let [item-to-place (cond (eql/ident? source-path) source-path
                              (keyword? source-path) (get state-map source-path)
                              :else (get-in state-map source-path))

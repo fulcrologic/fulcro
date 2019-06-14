@@ -145,16 +145,14 @@
   Takes an AST and returns the modified AST.
   "
   [ast]
-  (log/info "Rewriting network AST" ast)
-  (log/spy :info
-    (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
-      (util/elide-ast-nodes ast (fn [k]
-                                  (when-let [ns (some-> k kw-namespace)]
-                                    (or
-                                      (= k ::fs/config)
-                                      (and
-                                        (string? ns)
-                                        (= "ui" ns)))))))))
+  (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
+    (util/elide-ast-nodes ast (fn [k]
+                                (when-let [ns (some-> k kw-namespace)]
+                                  (or
+                                    (= k ::fs/config)
+                                    (and
+                                      (string? ns)
+                                      (= "ui" ns))))))))
 
 (defonce fulcro-tools (atom {}))
 
@@ -351,3 +349,4 @@
   (when-let [app (comp/any->app app-ish)]
     (binding [comp/*blindly-render* true]
       (render! app {:force-root? true}))))
+
