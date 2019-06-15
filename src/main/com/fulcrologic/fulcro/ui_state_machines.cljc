@@ -129,6 +129,8 @@
                                                        ::event-data extra-data})])))
 
 
+(>defn asm-ident "Returns the ident of the active state machine with the given ID" [asm-id] [::asm-id asm-id])
+
 (>defn new-asm
   "Create the runtime state for the given state machine in it's initial state.
 
@@ -263,6 +265,7 @@
       nil)))
 
 (>defn set-aliased-value
+  "Deprecated. Use assoc-aliased."
   ([env alias new-value alias-2 value-2 & kv-pairs]
    [::env ::alias any? ::alias any? (s/* any?) => ::env]
    (let [kvs (into [[alias new-value] [alias-2 value-2]] (partition 2 kv-pairs))]
@@ -896,8 +899,8 @@
         (apply df/multiple-targets (keep identity [target actor field])))
       (or target actor field))))
 
-(let [mtrigger! (fn mutation-trigger* [{:keys [app state result]} actor-ident asm-id event data]
-                  (let [event-data (merge {} data result)]
+(let [mtrigger! (fn mutation-trigger* [{:keys [app result]} actor-ident asm-id event data]
+                  (let [event-data (assoc data ::mutation-result result)]
                     (comp/transact! app [(trigger-state-machine-event {::asm-id     asm-id
                                                                        ::event-id   event
                                                                        ::event-data event-data})] {:ref actor-ident})))]
@@ -1063,7 +1066,18 @@
 
 
 (>defn get-active-state
-  "Get the name of the active state for an active state machine using a component."
+  "Get the name of the active state for an active state machine using a component. If you use this to represent UI changes then you should
+  include the ident of your state machine instance in the query of the component that uses it so that `shouldComponentUpdate` will
+  see props change:
+  
+  ```
+  (defsc Component [this props]
+    {:query (fn [] [ [::uism/asm-id ::my-machine] ...]) 
+     ...}
+    ...
+    (let [s (get-active-state this ::my-machine)] ...))
+  ```
+  "
   [this asm-id]
   [(s/or :c comp/component? :r ::fulcro-app) ::asm-id => (? keyword?)]
   (let [state-map (-> this (comp/any->app) (app/current-state))]
