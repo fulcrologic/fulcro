@@ -129,7 +129,10 @@
                                                        ::event-data extra-data})])))
 
 
-(>defn asm-ident "Returns the ident of the active state machine with the given ID" [asm-id] [::asm-id asm-id])
+(>defn asm-ident "Returns the ident of the active state machine with the given ID"
+  [asm-id]
+  [::asm-id => eql/ident?]
+  [::asm-id asm-id])
 
 (>defn new-asm
   "Create the runtime state for the given state machine in it's initial state.
