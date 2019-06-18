@@ -29,7 +29,6 @@
 (defn start-send-message-loop []
   (async/go-loop []
     (when-let [[type data] (async/<! send-ch)]
-      (log/info "Posting message" type)
       (.postMessage js/window (clj->js {:fulcro-inspect-remote-message (encode/write {:type type :data data :timestamp (js/Date.)})}) "*")
       (recur))))
 
@@ -161,17 +160,14 @@
                    (let [query                  (eql/ast->query ast)
                          wrapped-result-handler (fn [{:keys [status-code body] :as result}]
                                                   (try
-                                                    (log/info "Telling tool send fininshed")
                                                     (if (= 200 status-code)
                                                       (finished id body)
                                                       (failed id body))
                                                     (catch :default e
                                                       (js/console.error e)))
                                                   (result-handler result))]
-                     (log/info "Running real transmit")
                      (real-transmit! real-remote (assoc send-node ::txn/result-handler wrapped-result-handler))
                      (try
-                       (log/info "Telling tool send started")
                        (start id query)
                        (catch :default e
                          (js/console.error e))))))))

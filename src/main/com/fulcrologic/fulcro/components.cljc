@@ -650,16 +650,13 @@
   ([class {:keys [keyfn qualifier] :as opts}]
    (with-meta
      (fn element-factory [props & children]
-       (let [key              (if-not (nil? keyfn)
-                                (keyfn props)
-                                (hash (registry-key class)))
+       (let [key              (when-not (nil? keyfn) (keyfn props))
              ref              (:ref props)
              ref              (cond-> ref (keyword? ref) str)
              app              *app*
              props-middleware (:algorithm/props-middleware (ah/app-algorithm app))
              ;; Our data-readers.clj makes #js == identity in CLJ
-             props            #js {:key             key
-                                   :ref             ref
+             props            #js {:ref             ref
                                    :fulcro$reactKey key
                                    :fulcro$value    props
                                    :fulcro$queryid  (query-id class qualifier)
@@ -670,6 +667,9 @@
              props            (if props-middleware
                                 (props-middleware class props)
                                 props)]
+         #?(:cljs
+            (when key
+              (gobj/set props "key" key)))
          (create-element class props children)))
      {:class     class
       :queryid   (query-id class qualifier)
