@@ -1,3 +1,9 @@
+3.0.0-alpha-8
+-------------
+- Improved logging helpers
+- Some UISM touch-ups
+- Minor fixes around mount error checks and debug logging
+
 3.0.0-alpha-7
 -------------
 - Improved hot code reload (app root and dyn router)
