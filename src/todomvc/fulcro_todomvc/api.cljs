@@ -40,12 +40,16 @@
                     (clear-list-input-field* list-id))))
   (remote [_] true))
 
-(defmutation todo-check [{:keys [id]}]
+(defmutation todo-check
+  "Check the given item, by id."
+  [{:keys [id]}]
   (action [{:keys [state]}]
     (swap! state set-item-checked* id true))
   (remote [_] true))
 
-(defmutation todo-uncheck [{:keys [id]}]
+(defmutation todo-uncheck
+  "Uncheck the given item, by id."
+  [{:keys [id]}]
   (action [{:keys [state]}]
     (swap! state set-item-checked* id false))
   (remote [_] true))

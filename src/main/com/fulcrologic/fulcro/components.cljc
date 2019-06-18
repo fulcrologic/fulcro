@@ -68,14 +68,12 @@
   [class]
   (util/isoget class :displayName))
 
-(defn class->classname
-  "Given a class, returns the fully-qualified keyword name of that class."
+(defn class->registry-key
+  "Returns the registry key for the given component class."
   [class]
-  (let [nm (component-name class)
-        [ns nm] (str/split nm #"/")]
-    (keyword ns nm)))
+  (util/isoget class :fulcro$registryKey))
 
-(defn classname->class
+(defn registry-key->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
   been (transitively) required by your application.
 
@@ -308,16 +306,17 @@
     [cls fqkw options]
     #?(:clj
        (let [name   (str/join "/" [(namespace fqkw) (name fqkw)])
-             result {::component-class? true
-                     :fulcro$options    options
-                     :componentDidMount (fn [this]
-                                          (let [{:keys [componentDidMount]} (component-options this)
-                                                app              (any->app this)
-                                                index-component! (ah/app-algorithm app :index-component!)]
-                                            (index-component! this)
-                                            (when componentDidMount
-                                              (componentDidMount this))))
-                     :displayName       name}]
+             result {::component-class?  true
+                     :fulcro$options     options
+                     :fulcro$registryKey fqkw
+                     :componentDidMount  (fn [this]
+                                           (let [{:keys [componentDidMount]} (component-options this)
+                                                 app              (any->app this)
+                                                 index-component! (ah/app-algorithm app :index-component!)]
+                                             (index-component! this)
+                                             (when componentDidMount
+                                               (componentDidMount this))))
+                     :displayName        name}]
          (-register-component! fqkw result)
          result)
        :cljs
@@ -360,12 +359,6 @@
          (gobj/extend cls (clj->js statics) #js {"fulcro$options" options})
          (gobj/set cls "fulcro$registryKey" fqkw)           ; done here instead of in extend (clj->js screws it up)
          (-register-component! fqkw cls)))))
-
-(defn registry-key
-  "Returns the registry key (the fully-qualified class name as a keyword) of the given component class."
-  [component-class]
-  #?(:cljs (gobj/get component-class "fulcro$registryKey")
-     :clj  :NOT-IMPLEMENTED))
 
 (defn mounted? [this]
   #?(:clj  false
@@ -491,7 +484,7 @@
                        :else class-or-factory)
            ;; Hot code reload. Avoid classes that were caches on metadata using the registry.
            class     (if #?(:cljs goog.DEBUG :clj false)
-                       (-> class class->classname classname->class)
+                       (-> class class->registry-key registry-key->class)
                        class)
            qualifier (if (is-factory? class-or-factory)
                        (-> class-or-factory meta :qualifier)
@@ -690,7 +683,26 @@
         (apply real-factory (computed props computed-props) children))))))
 
 (defn transact!
-  "Submit a transaction for processing."
+  "Submit a transaction for processing.
+
+  The underlying transaction system is pluggable, but the default supported options are:
+
+  - `:optimistic?` - boolean. Should the transaction be processed optimistically?
+  - `:ref` - ident. The ident of the component used to submit this transaction. This is set automatically if you use a component to call this function.
+  - `:component` - React element. Set automatically if you call this function using a component.
+  - `:refresh` - Vector containing idents (of components) and keywords (of props). Things that have changed and should be re-rendered
+    on screen. Only necessary when the underlying rendering algorithm won't auto-detect, such as when UI is derived from the
+    state of other components or outside of the directly queried props. Interpretation depends on the renderer selected:
+    The ident-optimized render treats these as \"extras\".
+  - `:only-refresh` - Vector of idents/keywords.  If the underlying rendering configured algorithm supports it: The
+    components using these are the *only* things that will be refreshed in the UI.
+    This can be used to avoid the overhead of looking for stale data when you know exactly what
+    you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
+  - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
+    the network portion of the transaction (assuming it has not already completed).
+
+  Returns the transaction ID of the submitted transaction.
+  "
   ([app-or-component tx options]
    (when-let [app (any->app app-or-component)]
      (let [tx!     (ah/app-algorithm app :tx!)
@@ -796,7 +808,7 @@
       (log/error "Unable to set query. Invalid arguments."))))
 
 (defn get-indexes
-  "Get the component indexes from a component instance or app. See also `ref->any`, `class->any`, etc."
+  "Get the component indexes from a component instance or app. See also `ident->any`, `class->any`, etc."
   [x]
   (let [app (any->app x)]
     (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/indexes)))
@@ -810,6 +822,14 @@
   "Return a components that uses the given ident. `x` is anything any->app accepts."
   [x ident]
   (first (ident->components x ident)))
+
+(defn prop->classes
+  "Get all component classes that query for the given prop.
+  `x` can be anything `any->app` is ok with.
+
+  Returns all classes that query for that prop (or ident)"
+  [x prop]
+  (some-> (get-indexes x) :prop->classes (get prop)))
 
 (defn class->all
   "Get all components from the indexes that are instances of the component class.

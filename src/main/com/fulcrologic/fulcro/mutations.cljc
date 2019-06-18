@@ -248,7 +248,7 @@
   Returns an update `env`, and is a valid return value from mutation remote sections."
   [env class]
   (let [class (if (or (keyword? class) (symbol? class))
-                (comp/classname->class class)
+                (comp/registry-key->class class)
                 class)]
     (let [{:keys [state ast]} env
           {:keys [key params query]} ast]

@@ -25,27 +25,76 @@
            new-props (get data-tree ident)]
        (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
        (when (comp/mounted? c)
+         (log/info "Rendering component with ident" ident)
          (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))))
+
+(defn render-components-with-ident!
+  "Renders *only* components that *have* the given ident."
+  [app ident]
+  (doseq [c (comp/ident->components app ident)]
+    (render-component! app ident c)))
+
+(defn render-dependents-of-ident!
+  "Renders components that have or query for the given ident."
+  [app ident]
+  (render-components-with-ident! app ident)
+  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
+        {:com.fulcrologic.fulcro.application/keys [indexes]} @runtime-atom
+        {:keys [prop->classes idents-in-joins]} indexes
+        idents-in-joins (or idents-in-joins #{})]
+    (when (contains? idents-in-joins ident)
+      (let [components (prop->classes app ident)]
+        (when (seq components)
+          (doseq [c components]
+            (render-component! app ident c)))))))
+
+(defn props->components
+  "Given an app and set of props: returns the components that query for those props."
+  [app props]
+  (when (seq props)
+    (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
+          {:com.fulcrologic.fulcro.application/keys [indexes]} @runtime-atom
+          {:keys [prop->classes class->components]} indexes]
+      (reduce
+        (fn [result prop]
+          (let [classes    (prop->classes prop)
+                components (reduce #(into %1 (class->components %2)) #{} classes)]
+            (into result components)))
+        #{}
+        props))))
 
 (defn render-stale-components! [app]
   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
-        {:com.fulcrologic.fulcro.application/keys [indexes last-rendered-state]} @runtime-atom
-        {:keys [ident->components prop->classes idents-in-joins]} indexes
-        state-map       @state-atom
-        idents-in-joins (or idents-in-joins #{})
-        mounted-idents  (concat (keys ident->components) idents-in-joins)
-        stale-idents    (dirty-table-entries last-rendered-state state-map mounted-idents)]
-    (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/components-to-refresh [])
-    (doseq [ident stale-idents]
-      ;; Components that are querying for the ident directly
-      (when (contains? idents-in-joins ident)
-        (let [components (prop->classes ident)]
-          (when (seq components)
-            (doseq [c components]
-              (render-component! app ident c)))))
-      ;; Components that HAVE the ident
-      (doseq [c (ident->components ident)]
-        (render-component! app ident c)))))
+        {:com.fulcrologic.fulcro.application/keys [indexes last-rendered-state
+                                                   to-refresh only-refresh]} @runtime-atom
+        {:keys [ident->components idents-in-joins]} indexes
+        limited-refresh? (seq only-refresh)]
+    (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/only-refresh [] :com.fulcrologic.fulcro.application/to-refresh [])
+    (if limited-refresh?
+      (let [{limited-idents true
+             limited-props  false} (group-by eql/ident? only-refresh)
+            limited-to-render (props->components app limited-props)]
+        (log/debug "Limiting refresh to:" limited-props limited-idents)
+        (doseq [c limited-to-render]
+          (log/debug "Render" (comp/component-name c))
+          (render-component! app (comp/get-ident c) c))
+        (doseq [i limited-idents]
+          (render-components-with-ident! app i)))
+      (let [state-map       @state-atom
+            idents-in-joins (or idents-in-joins #{})
+            {idents-to-force true
+             props-to-force  false} (group-by eql/ident? to-refresh)
+            mounted-idents  (concat (keys ident->components) idents-in-joins)
+            stale-idents    (dirty-table-entries last-rendered-state state-map mounted-idents)
+            extra-to-force  (props->components app props-to-force)]
+        (log/debug "Extra refresh on: " idents-to-force extra-to-force)
+        (doseq [i idents-to-force]
+          (render-dependents-of-ident! app i))
+        (doseq [c extra-to-force]
+          (render-component! app (comp/get-ident c) c))
+        (log/debug "Doing stale refresh on" stale-idents)
+        (doseq [ident stale-idents]
+          (render-dependents-of-ident! app ident))))))
 
 (defn render!
   ([app]

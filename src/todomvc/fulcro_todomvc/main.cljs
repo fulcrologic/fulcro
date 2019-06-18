@@ -6,10 +6,14 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.algorithms.timbre-support :as ts]
     [fulcro-todomvc.ui :as ui]
     [fulcro-todomvc.server :as sapi]
     [taoensso.timbre :as log]))
 
+(log/set-level! :debug)
+(log/merge-config! {:output-fn ts/prefix-output-fn
+                    :appenders {:console (ts/console-appender)}})
 (goog-define MOCK false)
 ; (goog-define WEBSOCKETS false)
 
@@ -34,10 +38,10 @@
 
 (defn ^:dev/after-load refresh []
   (js/console.log "refresh UI")
-  (app/force-root-render! app))
+  (app/mount! app ui/Root "app"))
 
 (comment
-  (comp/registry-key ui/Root)
+  (comp/class->registry-key ui/Root)
   (comp/get-query ui/Root {})
   (-> app ::app/runtime-atom deref)
   (-> app ::app/state-atom deref)

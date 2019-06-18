@@ -1,3 +1,9 @@
+3.0.0-alpha-9
+-------------
+- Improved ident-optimized render, added support for :only-refresh
+- Added specs and docs strings
+- Fixed some naming where registry key should have been used
+
 3.0.0-alpha-8
 -------------
 - Improved logging helpers

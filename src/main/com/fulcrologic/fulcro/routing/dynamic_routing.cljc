@@ -137,7 +137,7 @@
                     (filter #(= ::current-route (:key %))) first :component)
         ;; Hot code reload support to avoid getting the cached class from old metadata
         class     (if #?(:cljs goog.DEBUG :clj false)
-                    (-> class comp/class->classname comp/classname->class)
+                    (-> class comp/class->registry-key comp/registry-key->class)
                     class)]
 
     class))

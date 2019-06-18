@@ -384,7 +384,7 @@
   [env actor-name]
   [::env ::actor-name => (s/nilable comp/component-class?)]
   (let [actor->component-name (asm-value env ::actor->component-name)
-        cls                   (some-> actor-name actor->component-name comp/classname->class)]
+        cls                   (some-> actor-name actor->component-name comp/registry-key->class)]
     cls))
 
 (>defn reset-actor-ident

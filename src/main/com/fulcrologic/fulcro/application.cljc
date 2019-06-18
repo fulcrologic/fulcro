@@ -15,32 +15,37 @@
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
     [edn-query-language.core :as eql]
     [ghostwheel.core :refer [>defn => |]]
+    [clojure.spec.alpha :as s]
     #?@(:cljs [[goog.object :as gobj]
                [goog.dom :as gdom]])
     [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
 
-(defn basis-t
+(>defn basis-t
   "Return the current basis time of the app."
   [app]
+  [::app => pos-int?]
   (-> app ::runtime-atom deref ::basis-t))
 
-(defn current-state
+(>defn current-state
   "Get the value of the application state database at the current time."
   [app-or-component]
+  [any? => map?]
   (let [app (comp/any->app app-or-component)]
     (-> app ::state-atom deref)))
 
-(defn tick!
+(>defn tick!
   "Move the basis-t forward one tick. For internal use and internal algorithms."
   [app]
+  [::app => any?]
   (swap! (::runtime-atom app) update ::basis-t inc))
 
-(defn update-shared!
+(>defn update-shared!
   "Force shared props to be recalculated. This updates the shared props on the app, and future renders will see the
    updated values. This is a no-op if no shared-fn is defined on the app. If you're using React 16+ consider using
    Context instead of shared."
   [{::keys [runtime-atom] :as app}]
+  [::app => any?]
   (try
     (when-let [shared-fn (ah/app-algorithm app :shared-fn)]
       (let [shared     (-> app ::runtime-atom deref ::static-shared-props)
@@ -52,7 +57,9 @@
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 
-(defn props-only-query [query]
+(>defn props-only-query
+  [query]
+  [vector? => vector?]
   (let [{:keys [children]} (eql/query->shallow-ast query)]
     (into []
       (comp
@@ -60,7 +67,7 @@
         (filter keyword?))
       children)))
 
-(defn root-props-changed?
+(>defn root-props-changed?
   "Returns true if the props queries directly by the root component of the app (if mounted) have changed since the last
   render.  This is a shallow analysis such that, for example, a join from root (in a normalized db) will be checked as a difference
   of idents that the root prop points to.  This can be used for determining if things like shared-fn need to be re-run,
@@ -69,19 +76,19 @@
   This is a naivé algorithm that is essentially `select-keys` on the root props. It does not interpret the query in
   any way."
   [app]
+  [::app => boolean?]
   (let [{::keys [runtime-atom state-atom]} app
         {::keys [root-class]} @runtime-atom]
     (if-not (comp/get-query root-class)
       true
-      (let [
-            state-map       @state-atom
+      (let [state-map       @state-atom
             prior-state-map (-> runtime-atom deref ::last-rendered-state)
             props-query     (props-only-query (comp/get-query root-class state-map))
             root-old        (select-keys prior-state-map props-query)
             root-new        (select-keys state-map props-query)]
         (not= root-old root-new)))))
 
-(defn render!
+(>defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
 
   Options include:
@@ -91,8 +98,10 @@
   only on `force-root?` and when (shallow) root props change.
   "
   ([app]
+   [::app => any?]
    (render! app {:force-root? false}))
   ([app {:keys [force-root?] :as options}]
+   [::app map? => any?]
    (tick! app)
    (let [{:keys [::runtime-atom ::state-atom]} app
          render!             (ah/app-algorithm app :optimized-render!)
@@ -119,23 +128,53 @@
                 (js/requestAnimationFrame r))))))
 
 (defn default-tx!
-  "Default (Fulcro-2 compatible) transaction submission."
+  "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options
+  that might be used by the transaction processing (or UI refresh).
+
+  Some that may be supported (depending on application settings):
+
+  - `:optimistic?` - boolean. Should the transaction be processed optimistically?
+  - `:ref` - ident. The component ident to include in the transaction env.
+  - `:component` - React element. The instance of the component that should appear in the transaction env.
+  - `:refresh` - Vector containing idents (of components) and keywords (of props). Things that have changed and should be re-rendered
+    on screen. Only necessary when the underlying rendering algorithm won't auto-detect, such as when UI is derived from the
+    state of other components or outside of the directly queried props. Interpretation depends on the renderer selected:
+    The ident-optimized render treats these as \"extras\".
+  - `:only-refresh` - Vector of idents/keywords.  If the underlying rendering configured algorithm supports it: The
+    components using these are the *only* things that will be refreshed in the UI.
+    This can be used to avoid the overhead of looking for stale data when you know exactly what
+    you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
+
+  If the `options` include `:ref` (which comp/transact! sets), then it will be auto-included on the `:refresh` list.
+
+  NOTE: Fulcro 2 'follow-on reads' are ignored in Fulcro 3 transactions. You must use one of the described options
+  if you want to influence rendering.
+
+  Returns the transaction ID of the submitted transaction.
+  "
   ([app tx]
    [::app ::txn/tx => ::txn/id]
    (default-tx! app tx {:optimistic? true}))
   ([{:keys [::runtime-atom] :as app} tx options]
    [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
    (txn/schedule-activation! app)
-   (let [options (merge {:optimistic? true} options)
+   (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
          node    (txn/tx-node tx options)
-         ref     (get options :ref)]
+         refresh (cond-> (or refresh #{})
+                   ref (conj ref))]
      (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
-                                   ref (update ::components-to-refresh (fnil conj []) ref))))
+                                   (seq refresh) (assoc ::to-refresh refresh)
+                                   (seq only-refresh) (assoc ::only-refresh only-refresh))))
      (::txn/id node))))
 
-(defn- default-load-error? [{:keys [status-code body] :as result}] (not= 200 status-code))
+(>defn default-load-error?
+  "Default detection of network errors. Returns true if the status-code of the given result
+  map is not 200."
+  [{:keys [status-code body] :as result}]
+  [map? => boolean?]
+  (not= 200 status-code))
 
-(defn- default-global-eql-transform
+(defn default-global-eql-transform
   "The default query transform function.  It makes sure the following items on a component query
   are never sent to the server:
 
@@ -284,9 +323,17 @@
                          ::txn/active-queue                []
                          ::txn/send-queues                 {}})}))
 
-(defn fulcro-app? [x] (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom)))
+(>defn fulcro-app?
+  "Returns true if the given `x` is a Fulcro application."
+  [x]
+  [any? => boolean?]
+  (boolean
+    (and (map? x) (contains? x ::state-atom) (contains? x ::runtime-atom))))
 
-(defn mounted? [{:keys [::runtime-atom]}]
+(>defn mounted?
+  "Is the given app currently mounted on the DOM?"
+  [{:keys [::runtime-atom]}]
+  [::app => boolean?]
   (-> runtime-atom deref ::app-root boolean))
 
 (defn mount!
@@ -314,7 +361,7 @@
                                 (let [dom-node     (if (string? node) (gdom/getElement node) node)
                                       root-factory (comp/factory root)]
                                   (if (nil? dom-node)
-                                    (log/error "Mount cannot find DOM node" node "to mount" (comp/class->classname root))
+                                    (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
                                     (do
                                       (swap! (::runtime-atom app) assoc
                                         ::mount-node dom-node
@@ -340,7 +387,10 @@
             (when-let [cdm (:client-did-mount app)]
               (cdm app))))))))
 
-(defn app-root [app] (-> app ::runtime-atom deref ::app-root))
+(defn app-root
+  "Returns the current app root, if mounted."
+  [app]
+  (-> app ::runtime-atom deref ::app-root))
 
 (defn force-root-render!
   "Force a re-render of the root. Runs a root query, disables shouldComponentUpdate, and renders the root component.

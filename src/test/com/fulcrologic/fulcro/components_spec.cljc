@@ -52,9 +52,9 @@
 (specification "classname->class"
   (assertions
     "Returns from registry under fq keyword"
-    (nil? (comp/classname->class ::A)) => false
+    (nil? (comp/registry-key->class ::A)) => false
     "Returns from registry under fq symbol"
-    (nil? (comp/classname->class `A)) => false))
+    (nil? (comp/registry-key->class `A)) => false))
 
 (specification "react-type"
   (assertions

@@ -8,7 +8,8 @@
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [fulcro-todomvc.api :as api]
     [goog.object :as gobj]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.mutations :as m]))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))
@@ -22,8 +23,8 @@
 (defsc TodoItem [this
                  {:ui/keys   [ui/editing ui/edit-text]
                   :item/keys [id label complete] :or {complete false} :as props}
-                 {:keys [delete-item check uncheck] :as computed}]
-  {:query              (fn [] [:item/id :item/label :item/complete :ui/editing :ui/edit-text])
+                 {:keys [delete-item]}]
+  {:query              [:item/id :item/label :item/complete :ui/editing :ui/edit-text]
    :ident              :item/id
    :initLocalState     (fn [this] {:save-ref (fn [r] (gobj/set this "input-ref" r))})
    :componentDidUpdate (fn [this prev-props _]
@@ -48,7 +49,11 @@
                     :ref       (comp/get-state this :save-ref)
                     :className "toggle"
                     :checked   (boolean complete)
-                    :onChange  #(if complete (uncheck id) (check id))})
+                    :onChange  (fn []
+                                 ;; The only-refresh is used to make sure the list re-renders, as
+                                 ;; it does a calculated rendering of the "all checked" checkbox.
+                                 (let [tx (if complete [(api/todo-uncheck {:id id})] [(api/todo-check {:id id})])]
+                                   (comp/transact! this tx {:only-refresh [:list/items]})))})
         (dom/label {:onDoubleClick (fn []
                                      (mut/toggle! this :ui/editing)
                                      (mut/set-string! this :ui/edit-text :value label))} label)
@@ -63,7 +68,7 @@
                                                    (mut/toggle! this :ui/editing)))
                   :onBlur    #(when editing (submit-edit %))}))))
 
-(def ui-todo-item (comp/factory TodoItem {:keyfn :item/id}))
+(def ui-todo-item (comp/computed-factory TodoItem {:keyfn :item/id}))
 
 (defn header [component title]
   (let [{:keys [list/id ui/new-item-text]} (comp/props component)]
@@ -92,18 +97,19 @@
         (dom/li {}
           (dom/a {:className (when (or (nil? filter) (= :list.filter/none filter)) "selected")
                   :href      "#"
-                  :onClick #(comp/transact! component `[(api/todo-filter {:filter :list.filter/none})])} "All"))
+                  :onClick   #(comp/transact! component `[(api/todo-filter {:filter :list.filter/none})])} "All"))
         (dom/li {}
           (dom/a {:className (when (= :list.filter/active filter) "selected")
                   :href      "#/active"
-                  :onClick #(comp/transact! component `[(api/todo-filter {:filter :list.filter/active})])} "Active"))
+                  :onClick   #(comp/transact! component `[(api/todo-filter {:filter :list.filter/active})])} "Active"))
         (dom/li {}
           (dom/a {:className (when (= :list.filter/completed filter) "selected")
                   :href      "#/completed"
-                  :onClick #(comp/transact! component `[(api/todo-filter {:filter :list.filter/completed})])} "Completed")))
+                  :onClick   #(comp/transact! component `[(api/todo-filter {:filter :list.filter/completed})])} "Completed")))
       (when (pos? num-completed)
         (dom/button {:className "clear-completed"
                      :onClick   #(comp/transact! component `[(api/todo-clear-complete {:list-id ~id})])} "Clear Completed")))))
+
 
 (defn footer-info []
   (dom/footer :.info {}
@@ -122,15 +128,13 @@
   (let [num-todos       (count items)
         completed-todos (filterv :item/complete items)
         num-completed   (count completed-todos)
-        all-completed?  (= num-completed num-todos)
+        all-completed?  (every? :item/complete items)
         filtered-todos  (case filter
                           :list.filter/active (filterv (comp not :item/complete) items)
                           :list.filter/completed completed-todos
                           items)
-        delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
-        check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
-        uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
-    (log/info "Shared" (comp/shared this))
+        delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))]
+    (log/info "Rendering TodoList with shared props: " (comp/shared this))
     (dom/div {}
       (dom/section :.todoapp {}
         (header this title)
@@ -145,10 +149,7 @@
                                               (comp/transact! this `[(api/todo-check-all {:list-id ~id})])))})
               (dom/label {:htmlFor "toggle-all"} "Mark all as complete")
               (dom/ul :.todo-list {}
-                (map #(ui-todo-item (comp/computed %
-                                      {:delete-item delete-item
-                                       :check       check
-                                       :uncheck     uncheck})) filtered-todos)))
+                (map #(ui-todo-item % {:delete-item delete-item}) filtered-todos)))
             (filter-footer this num-todos num-completed))))
       (footer-info))))
 
