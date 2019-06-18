@@ -9,7 +9,8 @@
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid])
   #?(:clj
      (:import (clojure.lang IFn))))
 
@@ -53,10 +54,9 @@
   ([{:keys [is-error? global-error-action]
      :or   {is-error? (fn [env] (not= 200 (-> env :result :status-code)))}} env]
    [map? ::env => any?]
-   (let [{:keys [state result dispatch]} env
+   (let [{:keys [app state result dispatch]} env
          {:keys [ok-action error-action]} dispatch
          {:keys [body transaction]} result]
-     (log/info "Default result action" (keys env))
      (if (is-error? env)
        (do
          (when global-error-action
@@ -65,6 +65,7 @@
            (error-action env)))
        (do
          (swap! state merge/merge-mutation-joins transaction body)
+         (tempid/resolve-tempids! app body)
          (when ok-action
            (ok-action env)))))
    nil))

@@ -236,8 +236,8 @@
      #?(:cljs
         (this-as this
           (let [{:keys [ident componentDidUpdate]} (component-options this)
-                prev-props (gobj/get raw-prev-props "fulcro$value")
-                prev-state (gobj/get raw-prev-state "fulcro$state")]
+                prev-state (gobj/get raw-prev-state "fulcro$state")
+                prev-props (raw->newest-props raw-prev-props raw-prev-state)]
             (when componentDidUpdate
               (componentDidUpdate this prev-props prev-state snapshot))
             (when ident

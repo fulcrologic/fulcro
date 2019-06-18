@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.tempid
   (:require
+    [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk-replace]])
   #?(:clj (:import [java.io Writer])))
 
@@ -58,7 +59,6 @@
   [x]
   (instance? TempId x))
 
-
 (defn result->tempid->realid
   "Find and combine all of the tempid remappings from a standard fulcro transaction response."
   [tx-result]
@@ -84,15 +84,14 @@
   "Resolve all of the mutation tempid remappings in the `tx-result` against the given `app`.
 
   app - The fulcro app
-  tx - The transaction (query) that was used to obtain the result
-  tx-result - The transaction result.
+  tx-result - The transaction result (the body map, not the internal tx node).
 
   This function rewrites all tempids in the app state and runtime transaction queues.
 
   NOTE: This function assumes that tempids are distinctly recognizable (e.g. are TempIds or
   guids).  It is unsafe to use this function if you're using something else for temporary IDs
   as this function might rewrite things that are not IDs."
-  [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} tx tx-result]
+  [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} tx-result]
   (let [tid->rid (result->tempid->realid tx-result)]
     (swap! state-atom resolve-tempids tid->rid)
     (swap! runtime-atom

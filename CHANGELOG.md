@@ -3,6 +3,8 @@
 - Improved ident-optimized render, added support for :only-refresh
 - Added specs and docs strings
 - Fixed some naming where registry key should have been used
+- Fixed componentDidMount prev-props (failing to update)
+- Fixed tempid rewrites on mutation return from server
 
 3.0.0-alpha-8
 -------------

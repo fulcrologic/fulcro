@@ -50,7 +50,7 @@
   ([in opts] (transit/reader in opts)))
 
 (defn writer
-  "Create a transit reader. This writer can handler the tempid type.
+  "Create a transit writer. This writer can handler the tempid type.
    Can pass transit writer customization opts map."
   ([out] (transit/writer out))
   ([out opts] (transit/writer out opts)))
@@ -144,17 +144,14 @@
   "Wrap Fulcro API request processing. Required options are:
 
    `:uri` - The URI on the server that handles the API requests.
-   `:parser` - A function `(fn [eql-query] eql-response)` that can process the query."
+   `:parser` - A function `(fn [eql-query] eql-response)` that can process the query.
+
+   You must install `wrap-transit-response` and `wrap-transit-params` to your middleware below this."
   [handler {:keys [uri parser]}]
   (when-not (and (string? uri) (fn? parser))
     (throw (ex-info "Invalid parameters to `wrap-api`. :uri and :parser are required. See docstring." {})))
-  (let [real-handler (->
-                       (fn [request]
-                         (handle-api-request (:transit-params request) parser))
-                       (wrap-transit-params)
-                       (wrap-transit-response))]
-    (fn [request]
-      ;; eliminates overhead of wrap-transit
-      (if (= uri (:uri request))
-        (real-handler request)
-        (handler request)))))
+  (fn [request]
+    ;; eliminates overhead of wrap-transit
+    (if (= uri (:uri request))
+      (handle-api-request (:transit-params request) parser)
+      (handler request))))

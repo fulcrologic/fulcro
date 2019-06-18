@@ -235,23 +235,6 @@
       (component-pre-merge class query state data)
       data)))
 
-(defn merge-handler
-  "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
-  if available."
-  [mutation-merge target source]
-  (let [source-to-merge (->> source
-                          (filter (fn [[k _]] (not (symbol? k))))
-                          (into {}))
-        merged-state    (sweep-merge target source-to-merge)]
-    (reduce (fn [acc [k v]]
-              (if (and mutation-merge (symbol? k))
-                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids ::tempids))]
-                  updated-state
-                  (do
-                    (log/info "Return value handler for" k "returned nil. Ignored.")
-                    acc))
-                acc)) merged-state source)))
-
 (defn merge-mutation-joins
   "Merge all of the mutations that were joined with a query"
   [state query data-tree]
@@ -345,7 +328,7 @@
         base-query    (component-merge-query state-map component object-data)
         ;; :fulcro/merge is way to make unions merge properly when joined by idents
         merge-query   [{:fulcro/merge base-query}]
-        existing-data (get (fdn/db->tree (log/spy :warn base-query) (log/spy :warn state-map) state-map) ident {})
+        existing-data (get (fdn/db->tree base-query state-map state-map) ident {})
         marked-data   (mark-missing object-data object-query)
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query

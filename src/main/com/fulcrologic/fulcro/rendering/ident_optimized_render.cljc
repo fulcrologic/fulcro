@@ -25,7 +25,6 @@
            new-props (get data-tree ident)]
        (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
        (when (comp/mounted? c)
-         (log/info "Rendering component with ident" ident)
          (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))))
 
 (defn render-components-with-ident!

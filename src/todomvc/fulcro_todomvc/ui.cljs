@@ -28,13 +28,13 @@
    :ident              :item/id
    :initLocalState     (fn [this] {:save-ref (fn [r] (gobj/set this "input-ref" r))})
    :componentDidUpdate (fn [this prev-props _]
-                         ;; Code adapted from React TodoMVC implementation
-                         (when (and (not (:editing prev-props)) (:editing (comp/props this)))
+                         (when (and (not (:ui/editing prev-props))
+                                 (:ui/editing (comp/props this)))
                            (let [input-field        (gobj/get this "input-ref")
                                  input-field-length (when input-field (.. input-field -value -length))]
                              (when input-field
                                (.focus input-field)
-                               (.setSelectionRange input-field input-field-length input-field-length)))))}
+                               (.setSelectionRange input-field 0 input-field-length)))))}
   (let [submit-edit (fn [evt]
                       (if-let [trimmed-text (trim-text (.. evt -target -value))]
                         (do
@@ -46,7 +46,6 @@
     (dom/li {:classes [(when complete (str "completed")) (when editing (str " editing"))]}
       (dom/div :.view {}
         (dom/input {:type      "checkbox"
-                    :ref       (comp/get-state this :save-ref)
                     :className "toggle"
                     :checked   (boolean complete)
                     :onChange  (fn []
@@ -58,7 +57,7 @@
                                      (mut/toggle! this :ui/editing)
                                      (mut/set-string! this :ui/edit-text :value label))} label)
         (dom/button :.destroy {:onClick #(delete-item id)}))
-      (dom/input {:ref       "edit_field"
+      (dom/input {:ref       (comp/get-state this :save-ref)
                   :className "edit"
                   :value     (or edit-text "")
                   :onChange  #(mut/set-string! this :ui/edit-text :event %)
@@ -134,7 +133,6 @@
                           :list.filter/completed completed-todos
                           items)
         delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))]
-    (log/info "Rendering TodoList with shared props: " (comp/shared this))
     (dom/div {}
       (dom/section :.todoapp {}
         (header this title)
