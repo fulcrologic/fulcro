@@ -117,5 +117,4 @@
 (defn ghostwheel-enabled?
   #?(:cljs {:tag boolean})
   []
-  true
-)
+  true)

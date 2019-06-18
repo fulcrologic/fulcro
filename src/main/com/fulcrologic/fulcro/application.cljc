@@ -167,7 +167,7 @@
   ::instrument-wrapper is a (fn [instrument] instrument') that allows you to wrap your own instrumentation (for rendering) around any existing (which may be nil)
   ::app-started (fn [app] ...) that will be called once the app is mounted, just like started-callback/client-did-mount. Return value is ignored."
   [{:keys [::tool-id] :as tool-registry}]
-  (log/info "Installing tool" tool-id)
+  (log/debug "Installing tool" tool-id)
   (swap! fulcro-tools assoc tool-id tool-registry))
 
 (defn- add-tools [{::keys [runtime-atom]
@@ -179,10 +179,10 @@
           new-tx! (fn wrapped-tx*
                     ([app tx] (wrapped-tx* app tx {}))
                     ([app tx options]
-                     (log/info "Running normal tx" tx)
+                     (log/debug "Running normal tx" tx)
                      (let [txid (tx! app tx options)]
                        (try
-                         (log/info "Sending tool mesg about tx" tx)
+                         (log/debug "Sending tool mesg about tx" tx)
                          (doseq [tool (vals @fulcro-tools)]
                            (when-let [tx-listen (get tool ::tx-listen)]
                              (tx-listen app tx (assoc options ::txn/id txid))))
@@ -313,13 +313,16 @@
             reset-mountpoint! (fn []
                                 (let [dom-node     (if (string? node) (gdom/getElement node) node)
                                       root-factory (comp/factory root)]
-                                  (swap! (::runtime-atom app) assoc
-                                    ::mount-node dom-node
-                                    ::root-factory root-factory
-                                    ::root-class root)
-                                  (update-shared! app)
-                                  (indexing/index-root! app)
-                                  (schedule-render! app {:force-root? true})))]
+                                  (if (nil? dom-node)
+                                    (log/error "Mount cannot find DOM node" node "to mount" (comp/class->classname root))
+                                    (do
+                                      (swap! (::runtime-atom app) assoc
+                                        ::mount-node dom-node
+                                        ::root-factory root-factory
+                                        ::root-class root)
+                                      (update-shared! app)
+                                      (indexing/index-root! app)
+                                      (schedule-render! app {:force-root? true})))))]
         (if (mounted? app)
           (reset-mountpoint!)
           (let [app (add-tools app)]
