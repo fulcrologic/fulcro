@@ -143,10 +143,10 @@
 (defn wrap-api
   "Wrap Fulcro API request processing. Required options are:
 
-   `:uri` - The URI on the server that handles the API requests.
-   `:parser` - A function `(fn [eql-query] eql-response)` that can process the query.
+   - `:uri` - The URI on the server that handles the API requests.
+   - `:parser` - A function `(fn [eql-query] eql-response)` that can process the query.
 
-   You must install `wrap-transit-response` and `wrap-transit-params` to your middleware below this."
+   IMPORTANT: You must install `wrap-transit-response` and `wrap-transit-params` to your middleware below this."
   [handler {:keys [uri parser]}]
   (when-not (and (string? uri) (fn? parser))
     (throw (ex-info "Invalid parameters to `wrap-api`. :uri and :parser are required. See docstring." {})))

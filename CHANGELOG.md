@@ -5,6 +5,7 @@
 - Fixed some naming where registry key should have been used
 - Fixed componentDidMount prev-props (failing to update)
 - Fixed tempid rewrites on mutation return from server
+- Changed transit stack. Updated dev guide for it.
 
 3.0.0-alpha-8
 -------------
