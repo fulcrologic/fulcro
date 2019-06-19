@@ -371,7 +371,7 @@
   [any? => (s/nilable keyword?)]
   (when-let [cls (cond
                    (and (eql/ident? v) (comp/component-class? (some-> v meta ::class))) (some-> v meta ::class)
-                   (and (comp/component? v) (-> (comp/get-ident v) second)) (comp/react-type v)
+                   (and (comp/component-instance? v) (-> (comp/get-ident v) second)) (comp/react-type v)
                    (and (comp/component-class? v) (-> (comp/get-ident v {}) second)) v
                    :otherwise nil)]
     (let [str-name (comp/component-name cls)
@@ -795,13 +795,13 @@
   [actors]
   [(s/map-of ::actor-name (s/or
                             :ident eql/ident?
-                            :component comp/component?
+                            :component comp/component-instance?
                             :class comp/component-class?)) => ::actor->ident]
   (into {}
     ;; v can be an ident, component, or component class
     (keep (fn [[actor-id v]]
             (cond
-              (and (comp/component? v) (-> (comp/get-ident v) second))
+              (and (comp/component-instance? v) (-> (comp/get-ident v) second))
               [actor-id (comp/get-ident v)]
 
               (and (comp/component-class? v) (-> (comp/get-ident v {}) second))
@@ -818,7 +818,7 @@
   [actors]
   [(s/map-of ::actor-name (s/or
                             :ident eql/ident?
-                            :component comp/component?
+                            :component comp/component-instance?
                             :class comp/component-class?)) => ::actor->component-name]
   (into {}
     ;; v can be an ident, component, or component class
@@ -836,10 +836,10 @@
   actors - A map of actor-names -> The ident, class, or react instance that represent them in the UI. Raw idents do not support SM loads.
   started-event-data - Data that will be sent with the ::uism/started event as ::uism/event-data"
   ([this machine instance-id actors]
-   [(s/or :c comp/component? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
+   [(s/or :c comp/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
    (begin! this machine instance-id actors {}))
   ([this machine instance-id actors started-event-data]
-   [(s/or :c comp/component? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
+   [(s/or :c comp/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
    (let [actors->idents          (derive-actor-idents actors)
          actors->component-names (derive-actor-components actors)]
      (log/debug "begin!" instance-id)
@@ -1082,7 +1082,7 @@
   ```
   "
   [this asm-id]
-  [(s/or :c comp/component? :r ::fulcro-app) ::asm-id => (? keyword?)]
+  [(s/or :c comp/component-instance? :r ::fulcro-app) ::asm-id => (? keyword?)]
   (let [state-map (-> this (comp/any->app) (app/current-state))]
     (some-> state-map
       ::asm-id

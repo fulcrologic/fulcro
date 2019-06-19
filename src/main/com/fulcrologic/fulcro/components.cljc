@@ -17,7 +17,8 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
   #?(:clj
-     (:import (clojure.lang Associative IDeref))))
+     (:import
+       [clojure.lang Associative IDeref APersistentMap])))
 
 (defonce ^:private component-registry (atom {}))
 (def ^:dynamic *query-state* nil)
@@ -27,16 +28,16 @@
 (def ^:dynamic *shared* nil)
 (def ^:dynamic *blindly-render* false)
 
-(defn -register-component!
-  "Add a component to Fulcro's component registry.  This is used by defsc and defui to ensure that all Fulcro classes
-  that have been compiled (transitively required) will be accessible for lookup by name.  Not meant for public use,
-  unless you're creating your own component macro that doesn't directly leverage defsc/defui."
+(defn register-component!
+  "Add a component to Fulcro's component registry.  This is used by defsc to ensure that all Fulcro classes
+  that have been compiled (transitively required) will be accessible for lookup by fully-qualified symbol/keyword.
+  Not meant for public use, unless you're creating your own component macro that doesn't directly leverage defsc."
   [k component-class]
   (swap! component-registry assoc k component-class)
   component-class)
 
 (defn newer-props
-  "Returns whichever of the given Fulcro props were most recently generated."
+  "Returns whichever of the given Fulcro props were most recently generated according to `denormalization-time`."
   [props-a props-b]
   (cond
     (nil? props-a) props-b
@@ -44,7 +45,7 @@
     (> (or (fdn/denormalization-time props-a) 2) (or (fdn/denormalization-time props-b) 1)) props-a
     :else props-b))
 
-(defn component?
+(defn component-instance?
   "Returns true if the argument is a component. A component is defined as a *mounted component*.
    This function returns false for component classes, and also returns false for the output of a Fulcro component factory."
   #?(:cljs {:tag boolean})
@@ -54,17 +55,23 @@
        :cljs (true? (gobj/get x "fulcro$isComponent")))
     false))
 
+(def component?
+  "Returns true if the argument is a component instance.
+
+   DEPRECATED for terminology clarity. Use `component-instance?` instead."
+  component-instance?)
+
 (defn component-class?
   "Returns true if the argument is a component class."
   #?(:cljs {:tag boolean})
   [x]
-  #?(:clj  (boolean (and x (::component-class? x)))
+  #?(:clj  (boolean (and (map? x) (::component-class? x)))
      :cljs (boolean (gobj/containsKey x "fulcro$class"))))
 
 (s/def ::component-class component-class?)
 
 (defn component-name
-  "Returns a string version of the given react component's name."
+  "Returns a string version of the given react component's name. Works on component instances and classes."
   [class]
   (util/isoget class :displayName))
 
@@ -317,7 +324,7 @@
                                              (when componentDidMount
                                                (componentDidMount this))))
                      :displayName        name}]
-         (-register-component! fqkw result)
+         (register-component! fqkw result)
          result)
        :cljs
        ;; This user-supplied versions will expect `this` as first arg
@@ -358,7 +365,7 @@
            #js {"fulcro$options" options})
          (gobj/extend cls (clj->js statics) #js {"fulcro$options" options})
          (gobj/set cls "fulcro$registryKey" fqkw)           ; done here instead of in extend (clj->js screws it up)
-         (-register-component! fqkw cls)))))
+         (register-component! fqkw cls)))))
 
 (defn mounted? [this]
   #?(:clj  false
@@ -629,10 +636,12 @@
   element (which has yet to instantiate an instance)."
   [class props children]
   #?(:clj
-     {:props        props
-      :children     children
-      :state        {}
-      :fulcro$class class}
+     {::element?          true
+      :fulcro$isComponent true
+      :props              props
+      :children           children
+      :state              {}
+      :fulcro$class       class}
      :cljs
      (apply js/React.createElement class props children)))
 
@@ -879,9 +888,13 @@
   "Wraps children in a React.Fragment. Props are optional, like normal DOM elements."
   [& args]
   #?(:clj
-     (let [[props children] (if (map? (first args))
+     (let [optional-props (first args)
+           props?         (and (instance? APersistentMap optional-props) (not (component-instance? optional-props)))
+           [props children] (if props?
                               [(first args) (rest args)]
                               [{} args])]
+       (log/spy :info (type (first args)))
+       (log/spy :info (map? (first args)))
        (vec children))
      :cljs
      (let [[props children] (if (map? (first args))

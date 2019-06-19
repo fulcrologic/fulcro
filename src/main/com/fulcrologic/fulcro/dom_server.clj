@@ -9,49 +9,28 @@
   (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [com.fulcrologic.fulcro.dom-common :as cdom]
+    [com.fulcrologic.fulcro.components :refer [component-instance?]]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [clojure.spec.alpha :as s]
-    [clojure.core.reducers :as r]))
+    [clojure.core.reducers :as r]
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.components :as comp]))
 
-(defprotocol IReactDOMElement
-  (^String -render-to-string [this react-id ^StringBuilder sb] "renders a DOM node to string."))
-
-(defprotocol IReactComponent
-  (-render [this] "must return a valid ReactDOMElement."))
-
-(defprotocol IReactLifecycle
-  (shouldComponentUpdate [this next-props next-state])
-  (initLocalState [this])
-  (componentWillReceiveProps [this next-props])
-  (componentWillUpdate [this next-props next-state])
-  (componentDidUpdate [this prev-props prev-state])
-  (componentWillMount [this])
-  (componentDidMount [this])
-  (componentWillUnmount [this])
-  (getSnapshotBeforeUpdate [this pp ps])
-  (componentDidCatch [this err info])
-  (UNSAFE_componentWillMount [this])
-  (UNSAFE_componentWillReceiveProps [this next-props])
-  (UNSAFE_componentWillUpdate [this next-props next-state])
-  (render [this]))
+(definterface IReactDOMElement
+  (^StringBuilder renderToString [react-id ^StringBuilder sb]))
 
 (declare render-element!)
 
 (defrecord Element [tag attrs react-key children]
   IReactDOMElement
-  (-render-to-string [this react-id sb]
+  (renderToString [this react-id sb]
     (render-element! this react-id sb)))
 
 (defn element?
   "Returns true if the given arg is a server-side react element."
   [x]
-  (or (satisfies? IReactDOMElement x)))
-
-(defn component?
-  "Returns true if the given arg is a server-side react component."
-  [x]
-  (satisfies? IReactComponent x))
+  (instance? IReactDOMElement x))
 
 (s/def ::dom-element-args
   (s/cat
@@ -59,14 +38,14 @@
     :attrs (s/? (s/or
                   :nil nil?
                   :map #(and (map? %)
-                          (not (satisfies? IReactComponent %))
+                          (not (component-instance? %))
                           (not (element? %)))))
     :children (s/* (s/or
                      :nil nil?
                      :string string?
                      :number number?
                      :collection #(or (vector? %) (seq? %))
-                     :component component?
+                     :component component-instance?
                      :element element?))))
 
 (declare a abbr address altGlyph altGlyphDef altGlyphItem animate animateColor animateMotion animateTransform area
@@ -189,20 +168,18 @@
 
 (defrecord Text [s]
   IReactDOMElement
-  (-render-to-string [this react-id sb]
-    (assert (string? s))
+  (renderToString [this react-id sb]
     (append! sb (escape-html s))))
 
 (defrecord ReactText [text]
   IReactDOMElement
-  (-render-to-string [this react-id sb]
-    (assert (string? text))
+  (renderToString [this react-id sb]
     (append! sb "<!-- react-text: " @react-id " -->" (escape-html text) "<!-- /react-text -->")
     (vswap! react-id inc)))
 
 (defrecord ReactEmpty []
   IReactDOMElement
-  (-render-to-string [this react-id sb]
+  (renderToString [this react-id sb]
     (append! sb "<!-- react-empty: " @react-id " -->")
     (vswap! react-id inc)))
 
@@ -220,11 +197,10 @@
   (map->ReactEmpty {}))
 
 (defn- render-component [c]
-  (if (or (nil? c)
-        (instance? IReactDOMElement c)
-        (satisfies? IReactDOMElement c))
+  (if (or (nil? c) (element? c))
     c
-    (recur (-render c))))
+    (when-let [render (comp/component-options c :render)]
+      (recur (render c)))))
 
 (defn element
   "Creates a dom node."
@@ -239,17 +215,13 @@
         children         (reduce-fn
                            (fn [res c]
                              (let [c' (cond
-                                        (or (instance? IReactDOMElement c)
-                                          (satisfies? IReactDOMElement c))
-                                        c
+                                        (element? c) c
 
-                                        (or (instance? IReactComponent c)
-                                          (satisfies? IReactComponent c))
-                                        (let [rendered (if-let [element (render-component c)]
-                                                         element
-                                                         (react-empty-node))]
-                                          (assoc rendered :react-key
-                                                          (some-> (:props c) :fulcro$reactKey)))
+                                        (component-instance? c) (let [rendered (if-let [element (render-component c)]
+                                                                                 element
+                                                                                 (react-empty-node))]
+                                                                  (assoc rendered :react-key
+                                                                                  (some-> (:props c) :fulcro$reactKey)))
 
                                         (or (string? c) (number? c))
                                         (let [c (cond-> c (number? c) str)]
@@ -381,7 +353,7 @@
       (append! sb ">")
       (if-let [html-map (:dangerouslySetInnerHTML attrs)]
         (render-unescaped-html! sb html-map)
-        (run! #(-render-to-string % react-id sb) children))
+        (run! #(.renderToString % react-id sb) children))
       (append! sb "</" tag ">"))
     (append! sb "/>")))
 
@@ -391,42 +363,76 @@
 
 (defn- is-element? [e]
   (or
-    (instance? IReactComponent e)
-    (instance? IReactDOMElement e)
-    (satisfies? IReactComponent e)
-    (satisfies? IReactDOMElement e)))
+    (comp/component-instance? e)
+    (instance? com.fulcrologic.fulcro.dom_server.IReactDOMElement e)))
 
-;; preserves testability without having to compute checksums
 (defn- render-to-str* ^StringBuilder [x]
   {:pre [(or
            (vector? x)
            (is-element? x))]}
   (if (vector? x)
     (StringBuilder. (str/join " " (map render-to-str* x)))
-    (let [element (if-let [element (cond-> x
-                                     (or (instance? IReactComponent x)
-                                       (satisfies? IReactComponent x))
-                                     render-component)]
-                    element
-                    (react-empty-node))
+    (let [element ^com.fulcrologic.fulcro.dom_server.IReactDOMElement (if-let [element (cond-> x
+                                                                                         (component-instance? x) render-component)]
+                                                                        element
+                                                                        (react-empty-node))
           sb      (StringBuilder.)]
-      (-render-to-string element (volatile! 1) sb)
+      (.renderToString element (volatile! 1) sb)
       sb)))
+
+;; ===================================================================
+;; Checksums (data-react-checksum)
+
+(def MOD 65521)
+
+;; Adapted from https://github.com/tonsky/rum
+(defn adler32 [^StringBuilder sb]
+  (let [l (.length sb)
+        m (bit-and l -4)]
+    (loop [a (int 1)
+           b (int 0)
+           i 0
+           n (min (+ i 4096) m)]
+      (cond
+        (< i n)
+        (let [c0 (int (.charAt sb i))
+              c1 (int (.charAt sb (+ i 1)))
+              c2 (int (.charAt sb (+ i 2)))
+              c3 (int (.charAt sb (+ i 3)))
+              b  (+ b a c0
+                   a c0 c1
+                   a c0 c1 c2
+                   a c0 c1 c2 c3)
+              a  (+ a c0 c1 c2 c3)]
+          (recur (rem a MOD) (rem b MOD) (+ i 4) n))
+
+        (< i m)
+        (recur a b i (min (+ i 4096) m))
+
+        (< i l)
+        (let [c0 (int (.charAt sb i))]
+          (recur (+ a c0) (+ b a c0) (+ i 1) n))
+
+        :else
+        (let [a (rem a MOD)
+              b (rem b MOD)]
+          (bit-or (int a) (unchecked-int (bit-shift-left b 16))))))))
+
+(defn assign-react-checksum [^StringBuilder sb]
+  (.insert sb (.indexOf sb ">") (str " data-react-checksum=\"" (adler32 sb) "\"")))
 
 (defn render-to-str ^String [x]
   (let [sb (render-to-str* x)]
-    (str sb)))
+    (assign-react-checksum sb)
+    (.toString sb)))
 
-(defn node
+#_(defn node
   "Returns the dom node associated with a component's React ref."
   ([component]
-   {:pre [(or (instance? IReactComponent component)
-            (satisfies? IReactComponent component))]}
-   (-render component))
+   (.render component))
   ([component name]
-   {:pre [(or (instance? IReactComponent component)
-            (satisfies? IReactComponent component))]}
-   (some-> @(:refs component) (get name) -render)))
+   (when-let [c (some-> @(:refs component) (get name))]
+     (.render ^IReactComponent c))))
 
 (defn create-element
   "Create a DOM element for which there exists no corresponding function.

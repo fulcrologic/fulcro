@@ -6,7 +6,7 @@
            com.cognitect/transit-clj  {:mvn/version "0.8.313"}
            com.cognitect/transit-cljs {:mvn/version "0.8.256"}
            com.wsscode/pathom         {:mvn/version "2.2.14"}
-           gnl/ghostwheel             {:mvn/version "0.3.9"}
+           gnl/ghostwheel             {:mvn/version "0.4.0-SNAPSHOT"}
            org.clojure/clojure        {:mvn/version "1.10.0"}
            org.clojure/clojurescript  {:mvn/version "1.10.520"}
            org.clojure/core.async     {:mvn/version "0.4.474"}}
