@@ -37,12 +37,6 @@
       (comp/registry-key->class ::A) => A
       (comp/registry-key->class `A) => A)))
 
-(specification "Component Instance"
-  (let [instance #?(:cljs (A.)
-                    :clj (ui-a)
-                    )])
-  )
-
 (specification "computed props"
   (assertions
     "Can be added and extracted on map-based props"

@@ -111,7 +111,7 @@
    (get-computed x []))
   ([x k-or-ks]
    (when-not (nil? x)
-     (let [props (cond-> x (component? x) props)
+     (let [props (cond-> x (component-instance? x) props)
            ks    (into [:fulcro.client.primitives/computed]
                    (cond-> k-or-ks
                      (not (sequential? k-or-ks)) vector))]
@@ -135,7 +135,8 @@
 (defn children
   "Get the sequence of react children of the given component."
   [component]
-  (util/isoget-in component "props" "children"))
+  #?(:clj  (get-in component [:children])
+     :cljs (gobj/getValueByKeys component "props" "children")))
 
 (defn react-type
   "Returns the component type, regardless of whether the component has been
@@ -175,7 +176,7 @@
   map with a :reconciler key, or an atom holding any of the above."
   [x]
   (cond
-    (component? x) (get-raw-react-prop x :fulcro$app)
+    (component-instance? x) (get-raw-react-prop x :fulcro$app)
     (fulcro-app? x) x
     #?(:clj  (instance? IDeref x)
        :cljs (satisfies? IDeref x)) (any->app (deref x))))
@@ -194,7 +195,7 @@
   ([component]
    (shared component []))
   ([component k-or-ks]
-   {:pre [(component? component)]}
+   {:pre [(component-instance? component)]}
    (let [shared (util/isoget-in component [:props :fulcro$shared])
          ks     (cond-> k-or-ks
                   (not (sequential? k-or-ks)) vector)]
@@ -316,13 +317,6 @@
              result {::component-class?  true
                      :fulcro$options     options
                      :fulcro$registryKey fqkw
-                     :componentDidMount  (fn [this]
-                                           (let [{:keys [componentDidMount]} (component-options this)
-                                                 app              (any->app this)
-                                                 index-component! (ah/app-algorithm app :index-component!)]
-                                             (index-component! this)
-                                             (when componentDidMount
-                                               (componentDidMount this))))
                      :displayName        name}]
          (register-component! fqkw result)
          result)
@@ -373,7 +367,11 @@
 
 (defn set-state!
   ([component new-state callback]
-   #?(:cljs
+   #?(:clj
+      (when-let [state-atom (:state component)]
+        (swap! state-atom update merge new-state)
+        (callback))
+      :cljs
       (if (mounted? component)
         (.setState ^js component
           (fn [prev-state props]
@@ -388,7 +386,7 @@
   ([component]
    (get-state component []))
   ([component k-or-ks]
-   (let [cst #?(:clj @(:state component)
+   (let [cst #?(:clj (some-> component :state deref)
                 :cljs (gobj/getValueByKeys component "state" "fulcro$state"))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
@@ -426,7 +424,7 @@
   The single-arity version should only be used with a mounted component (e.g. `this` from `render`), and will derive the
   props that were sent to it most recently."
   ([x]
-   {:pre [(component? x)]}
+   {:pre [(component-instance? x)]}
    (if-let [m (props x)]
      (ident x m)
      (log/warn "get-ident was invoked on component with nil props (this could mean it wasn't yet mounted): " x)))
@@ -487,7 +485,7 @@
    (binding [*query-state* state-map]
      (let [class     (cond
                        (is-factory? class-or-factory) (-> class-or-factory meta :class)
-                       (component? class-or-factory) (react-type class-or-factory)
+                       (component-instance? class-or-factory) (react-type class-or-factory)
                        :else class-or-factory)
            ;; Hot code reload. Avoid classes that were caches on metadata using the registry.
            class     (if #?(:cljs goog.DEBUG :clj false)
@@ -496,7 +494,7 @@
            qualifier (if (is-factory? class-or-factory)
                        (-> class-or-factory meta :qualifier)
                        nil)
-           queryid   (if (component? class-or-factory)
+           queryid   (if (component-instance? class-or-factory)
                        (get-query-id class-or-factory)
                        (query-id class qualifier))]
        (when (and class (has-query? class))
@@ -636,12 +634,18 @@
   element (which has yet to instantiate an instance)."
   [class props children]
   #?(:clj
-     {::element?          true
-      :fulcro$isComponent true
-      :props              props
-      :children           children
-      :state              {}
-      :fulcro$class       class}
+     (let [init-state (component-options class :initLocalState)
+           state-atom (atom {})
+           this       {::element?          true
+                       :fulcro$isComponent true
+                       :props              props
+                       :children           children
+                       :state              state-atom
+                       :fulcro$class       class}
+           state      (when init-state (init-state this))]
+       (when (map? state)
+         (reset! state-atom state))
+       this)
      :cljs
      (apply js/React.createElement class props children)))
 
@@ -717,7 +721,7 @@
      (let [tx!     (ah/app-algorithm app :tx!)
            options (cond-> options
                      (has-ident? app-or-component) (assoc :ref (get-ident app-or-component))
-                     (component? app-or-component) (assoc :component app-or-component))]
+                     (component-instance? app-or-component) (assoc :component app-or-component))]
        (tx! app tx options))))
   ([app-or-comp tx]
    (transact! app-or-comp tx {})))
@@ -893,8 +897,6 @@
            [props children] (if props?
                               [(first args) (rest args)]
                               [{} args])]
-       (log/spy :info (type (first args)))
-       (log/spy :info (map? (first args)))
        (vec children))
      :cljs
      (let [[props children] (if (map? (first args))

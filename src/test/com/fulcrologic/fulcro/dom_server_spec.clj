@@ -59,3 +59,37 @@
     (dom/render-to-str (dom/div (comp/fragment (dom/p "a") (dom/p "b"))))
     =>
     "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"271326992\"><p data-reactid=\"2\">a</p><p data-reactid=\"3\">b</p></div>"))
+
+(defsc Child [this props]
+  (apply dom/div {}
+    (comp/children this)))
+
+(def ui-child (comp/factory Child))
+
+(defsc Root [this props]
+  (ui-child {}
+    (ui-sample {})
+    (ui-sample {})))
+
+(def ui-root (comp/factory Root))
+
+(specification "Children support"
+  (assertions
+    "Allow multiple children to be passed to a component"
+    (dom/render-to-str (ui-root {}))
+    =>
+    "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1582179713\"><div data-reactid=\"2\">Hello</div><div data-reactid=\"3\">Hello</div></div>"))
+
+(defsc LCC [this props]
+  {:initLocalState (fn [this] {:x 2})}
+  (let [x (comp/get-state this :x)]
+    (dom/div x)))
+
+(def ui-lcc (comp/factory LCC))
+
+(specification "Component-local state support"
+  (assertions
+    "Renders the correct result when local state is used"
+    (dom/render-to-str (ui-lcc {}))
+    =>
+    "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-2047864948\">2</div>"))
