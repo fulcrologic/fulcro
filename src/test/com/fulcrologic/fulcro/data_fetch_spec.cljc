@@ -47,23 +47,23 @@
   #?(:cljs
      (specification "Load parameters"
        (let [query-with-params       (:query (df/load-params* {} :prop Person {:params {:n 1}}))
-             ident-query-with-params (:query (df/load-params* {} [:person/by-id 1] Person {:params {:n 1}}))]
+             ident-query-with-params (:query (df/load-params* {} [:person/id 1] Person {:params {:n 1}}))]
          (assertions
            "Always include a vector for refresh"
            (df/load-params* {} :prop Person {}) =fn=> #(vector? (:refresh %))
-           (df/load-params* {} [:person/by-id 1] Person {}) =fn=> #(vector? (:refresh %))
+           (df/load-params* {} [:person/id 1] Person {}) =fn=> #(vector? (:refresh %))
            "Accepts nil for subquery and params"
-           (:query (df/load-params* {} [:person/by-id 1] nil {})) => [[:person/by-id 1]]
+           (:query (df/load-params* {} [:person/id 1] nil {})) => [[:person/id 1]]
            "Constructs query with parameters when subquery is nil"
-           (:query (df/load-params* {} [:person/by-id 1] nil {:params {:x 1}})) => '[([:person/by-id 1] {:x 1})]
+           (:query (df/load-params* {} [:person/id 1] nil {:params {:x 1}})) => '[([:person/id 1] {:x 1})]
            "Constructs a JOIN query (without params)"
            (:query (df/load-params* {} :prop Person {})) => [{:prop (comp/get-query Person)}]
-           (:query (df/load-params* {} [:person/by-id 1] Person {})) => [{[:person/by-id 1] (comp/get-query Person)}]
+           (:query (df/load-params* {} [:person/id 1] Person {})) => [{[:person/id 1] (comp/get-query Person)}]
            "Honors target for property-based join"
            (:target (df/load-params* {} :prop Person {:target [:a :b]})) => [:a :b]
            "Constructs a JOIN query (with params)"
            query-with-params =fn=> (fn [q] (= q `[({:prop ~(comp/get-query Person)} {:n 1})]))
-           ident-query-with-params =fn=> (fn [q] (= q `[({[:person/by-id 1] ~(comp/get-query Person)} {:n 1})])))
+           ident-query-with-params =fn=> (fn [q] (= q `[({[:person/id 1] ~(comp/get-query Person)} {:n 1})])))
          (provided "uses computed-refresh to augment the refresh list"
            (df/computed-refresh explicit k t) =1x=> :computed-refresh
 
