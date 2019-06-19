@@ -148,12 +148,12 @@
 (defn db->tree
   "Pull a tree of data from a fulcro normalized database as a tree corresponding to the given query.
 
-  query - EQL
+  query - EQL.
   starting-entity - A map of data or ident at which to start.
   state-map - The overall normalized database from which idents can be resolved.
 
   Returns a tree of data where each resolved data node is also marked with the current
-  *denormalize-time* (dynamically bound outside of this call).  Users of this function that
+  *denormalize-time* (dynamically bound outside of this call). Users of this function that
   are hydrating the UI should ensure that this time is bound to Fulcro's current internal
   basis-time using `binding`."
   [query starting-entity state-map]

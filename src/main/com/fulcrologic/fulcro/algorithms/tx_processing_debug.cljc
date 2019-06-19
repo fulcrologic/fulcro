@@ -1,5 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.tx-processing-debug
-  "helper(s) function for debugging tx processing.  Uses pprint, which adds
+  "Helper functions for debugging tx processing.  Uses pprint, which adds
   a lot to build size, so it is in a separate ns to keep it out of prod builds."
   (:require
     [clojure.string :as str]

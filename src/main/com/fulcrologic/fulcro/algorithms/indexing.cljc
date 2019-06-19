@@ -25,7 +25,7 @@
       prop->classes)))
 
 (defn index-query
-  "Create an index of the given component-annotated query.  Returns a map from query keyword to the component
+  "Create an index of the given component-annotated query. Returns a map from query keyword to the component
   class(es) that query for that keyword."
   [query]
   (let [ast (eql/query->ast query)]
@@ -89,7 +89,7 @@
             instance)))
 
 (defn drop-component!
-  "Remove the component from the index.  If ident is supplied it uses that, otherwise it gets the
+  "Remove the component from the index. If ident is supplied it uses that, otherwise it gets the
   ident from the component itself."
   ([this ident]
    (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)

@@ -42,7 +42,7 @@
 (defsc FormConfig
   "A component supporting normalization of form state configuration. Use Fulcro Inspect for viewing that data.
   Rendering isn't supported on this component so it will work with React Native.
-  can also render the form config, if that is useful to you."
+  Can also render the form config, if that is useful to you."
   [this {:keys [::id ::complete? ::fields ::subforms ::pristine-state]}]
   {:query [::id ::fields ::complete? ::subforms ::pristine-state]
    :ident (fn []
@@ -50,7 +50,7 @@
                                :row   (second id)}])})
 
 (def ui-form-config
-  "Render form config"
+  "Render form config."
   (comp/factory FormConfig {:keyfn ::id}))
 
 (def form-config-join "A query join to ::form-config." {::config (comp/get-query FormConfig)})
@@ -106,7 +106,7 @@
   that already has form config but will recurse the entire form set. It can therefore be
   invoked on the top-level of the form set when adding, for example, an instance of a sub-form.
 
-  class - The component class
+  class - The component class.
   entity - A denormalized (tree) of data that matches the given component class.
 
   Returns the (possibly updated) denormalized entity, ready to merge."
@@ -489,7 +489,7 @@
   :ret map?)
 
 (defn clear-complete*
-  "Mark the fields incomplete so that validation checks will no longer return values. This function works on a app state database
+  "Mark the fields incomplete so that validation checks will no longer return values. This function works on an app state database
   map (not atom) and is meant to be composed into mutations. See the `mark-incomplete!` mutation if you do not need to combine
   this with other operations.
 
@@ -557,7 +557,7 @@
   mutation. Recursively follows subforms in app state. Returns the new app state map.
 
   state-map - The normalized state database (map, not atom)
-  entity-ident - The ident of the entity that you wish to restore to its original pristine state
+  entity-ident - The ident of the entity that you wish to restore to its original pristine state.
 
   Only affects declared fields and sub-forms."
   [state-map entity-ident]

@@ -71,7 +71,7 @@
   "Replaces all tempids in `data-structure` using the `tid->rid` map.  This is just a deep
    walk that replaces every possible match of `tid` with `rid`.
 
-   `tid->rid` must be a map, as this function optimizes away resolution by checking of
+   `tid->rid` must be a map, as this function optimizes away resolution by checking if
    the map is empty.
 
    Returns the data structure with everything replaced."
