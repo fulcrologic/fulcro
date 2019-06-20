@@ -6,6 +6,9 @@
 - Fixed componentDidMount prev-props (failing to update)
 - Fixed tempid rewrites on mutation return from server
 - Changed transit stack. Updated dev guide for it.
+- Deprecated some names
+- Added SSR render-to-string support
+- Switched to ghostwheel 0.4 for better spec elision in production builds
 
 3.0.0-alpha-8
 -------------
