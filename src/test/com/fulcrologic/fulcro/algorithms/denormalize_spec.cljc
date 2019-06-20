@@ -39,8 +39,8 @@
     (p/transduce-children
       (map (fn [{:keys [key type query] :as node}]
              (if (and (= :join type)
-                      (or (map? query)
-                          (not (ptest/hash-mod? key 10))))
+                   (or (map? query)
+                     (not (ptest/hash-mod? key 10))))
                (assoc node :component (fake-ident first-ident))
                node)))
       (eql/query->ast query))))
@@ -172,6 +172,21 @@
                3 {:id 3 :message "foo" :parent [:entry 1]}}})
     => {:entry {:id 1, :message "foo", :parent {:id 2, :message "foo"}}}
 
+    "link queries as props"
+    (denorm/db->tree
+      [{[:point 123] [:bar]} [:root/value '_]]
+      {}
+      {:root/value 42
+       :point      {123 {:bar "baz" :extra "data"}}})
+    => {[:point 123] {:bar "baz"} :root/value 42}
+
+    "link queries on joins"
+    (denorm/db->tree
+      [{[:root/value '_] [:a]}]
+      {:x 22}
+      {:root/value {:a 1 :b 2}})
+    => {:root/value {:a 1}}
+
     "wildcard"
     (verify-db->tree
       ['*]
@@ -251,8 +266,7 @@
 (comment
   (tc/quick-check 50 (db->tree-consistency-property-without-db (gen-tree-props))))
 
-#_
-(test/defspec generator-makes-valid-db-props {} (valid-db-tree-props))
+#_(test/defspec generator-makes-valid-db-props {} (valid-db-tree-props))
 
 (defn gen-join-no-links []
   (eql/make-gen {::eql/gen-query-expr
@@ -381,5 +395,6 @@
 
 (comment
   ; breaks old db->tree impl
+  (debug-query-case [#:A{:a [#:A{:A [{[:A/A 0] []}]}]}])
   (debug-query-case [{[:A/A 0] {:A/A []}}])
   (debug-query-case [{:A/A [{[:a/A 0] []}]}]))

@@ -1,3 +1,11 @@
+3.0.0-alpha-10
+--------------
+- Added missing augment-response helper to mware
+- Fixed bug in optimized render
+- Fixed bug in new db->tree
+- Added missing link query tsts for db->tree
+
+
 3.0.0-alpha-9
 -------------
 - Improved ident-optimized render, added support for :only-refresh
