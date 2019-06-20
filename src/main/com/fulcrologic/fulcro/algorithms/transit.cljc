@@ -3,7 +3,8 @@
      (:refer-clojure :exclude [ref]))
   (:require [cognitect.transit :as t]
             #?(:cljs [com.cognitect.transit :as ct])
-            [com.fulcrologic.fulcro.algorithms.tempid :as tempid #?@(:cljs [:refer [TempId]])])
+            [com.fulcrologic.fulcro.algorithms.tempid :as tempid #?@(:cljs [:refer [TempId]])]
+            [taoensso.timbre :as log])
   #?(:clj
      (:import [com.cognitect.transit
                TransitFactory WriteHandler ReadHandler]
@@ -20,8 +21,8 @@
    (deftype TempIdHandler []
      WriteHandler
      (tag [_ _] com.fulcrologic.fulcro.algorithms.tempid/tag)
-     (rep [_ r] (. ^TempId r -id))
-     (stringRep [_ r] (. ^TempId r -id))
+     (rep [_ r] (.-id ^TempId r))
+     (stringRep [_ r] (str com.fulcrologic.fulcro.algorithms.tempid/tag "#" r))
      (getVerboseHandler [_] nil)))
 
 #?(:cljs

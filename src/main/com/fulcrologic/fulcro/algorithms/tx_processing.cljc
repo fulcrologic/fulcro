@@ -15,13 +15,13 @@
 (declare schedule-activation! process-queue! remove-send!)
 
 (>defn app->remotes
-  "returns the remotes map from an app"
+  "Returns the remotes map from an app"
   [app]
   [:com.fulcrologic.fulcro.application/app => :com.fulcrologic.fulcro.application/remotes]
   (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/remotes))
 
 (>defn app->remote-names
-  "returns a set of the names of the remotes from an app"
+  "Returns a set of the names of the remotes from an app"
   [app]
   [:com.fulcrologic.fulcro.application/app => :com.fulcrologic.fulcro.application/remote-names]
   (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/remotes keys set))
@@ -38,7 +38,7 @@
     [(vec parallel) (vec sequential)]))
 
 (>defn every-ast?
-  "Check if the given `test` predicate is true for an AST node or all the immediate children of an AST tree."
+  "Check if the given `test` predicate is true for an AST node or for all the immediate children of an AST tree."
   [ast-node-or-tree test]
   [::ast fn? => boolean?]
   (if (= :root (:type ast-node-or-tree))
@@ -58,7 +58,7 @@
   (every-ast? ast-node-or-tree #(not= :call (:type %))))
 
 (>defn sort-queue-writes-before-reads
-  "Sort function on a send queue.  Leaves any active nodes in front, and sorts the remainder of the queue so that writes
+  "Sort function on a send queue. Leaves any active nodes in front, and sorts the remainder of the queue so that writes
   appear before reads, without changing the relative order in blocks of reads/writes."
   [send-queue]
   [::send-queue => ::send-queue]
@@ -220,7 +220,7 @@
    (build-env app tx-node {})))
 
 (>defn dispatch-elements
-  "Run through the elements on the given tx-node and do the side-effect-free dispatch.  This generates the dispatch map
+  "Run through the elements on the given tx-node and do the side-effect-free dispatch. This generates the dispatch map
   of things to do on that node."
   [tx-node env dispatch-fn]
   [::tx-node map? any? => ::tx-node]
@@ -271,7 +271,7 @@
    (schedule-queue-processing! app 10)))
 
 (>defn schedule-sends!
-  "Schedule actual network activity.  If `tm` is not supplied (in ms) it defaults to 0ms."
+  "Schedule actual network activity. If `tm` is not supplied (in ms) it defaults to 0ms."
   ([app tm]
    [:com.fulcrologic.fulcro.application/app int? => any?]
    (schedule! app ::sends-scheduled? process-send-queues! tm))

@@ -16,7 +16,7 @@
   When the timeout arrives it runs the given action and sets the given flag back to false.
 
   - `scheduled-key` - The runtime flag that tracks scheduling for the processing.
-  - `action` - The function to run when the scheduled time comes
+  - `action` - The function to run when the scheduled time comes.
   - `tm` - Number of ms to delay (default 0)."
   ([app scheduled-key action tm]
    [:com.fulcrologic.fulcro.application/app keyword? fn? int? => any?]

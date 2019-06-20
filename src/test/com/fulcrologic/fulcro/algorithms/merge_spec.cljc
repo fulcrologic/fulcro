@@ -297,14 +297,14 @@
 
 (defsc MPhone [_ props]
   {:query (fn [] [:id :number])
-   :ident (fn [] [:phone/by-id (:id props)])})
+   :ident (fn [] [:phone/id (:id props)])})
 
 (defsc MPerson [_ props]
   {:query (fn [] [:id :name {:numbers (comp/get-query MPhone)}])
-   :ident (fn [] [:person/by-id (:id props)])})
+   :ident (fn [] [:person/id (:id props)])})
 
 (defsc MPhonePM [_ _]
-  {:ident     [:phone/by-id :id]
+  {:ident     [:phone/id :id]
    :query     [:id :number]
    :pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (merge
@@ -313,7 +313,7 @@
                   data-tree))})
 
 (defsc MPersonPM [_ props]
-  {:ident [:person/by-id :id]
+  {:ident [:person/id :id]
    :query [:id :name {:numbers (comp/get-query MPhonePM)}]})
 
 (defsc Score
@@ -372,32 +372,32 @@
 
 (specification "merge-component"
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
-        sally            {:id :sally :name "Sally" :numbers [[:phone/by-id 3]]}
+        sally            {:id :sally :name "Sally" :numbers [[:phone/id 3]]}
         phone-3          {:id 3 :number "111-2222"}
-        state-map        {:people       [[:person/by-id :sally]]
-                          :phone/by-id  {3 phone-3}
-                          :person/by-id {:sally sally}}
+        state-map        {:people    [[:person/id :sally]]
+                          :phone/id  {3 phone-3}
+                          :person/id {:sally sally}}
         new-state-map    (merge/merge-component state-map MPerson component-tree)
-        expected-person  {:id :tony :name "Tony" :numbers [[:phone/by-id 1] [:phone/by-id 2]]}
+        expected-person  {:id :tony :name "Tony" :numbers [[:phone/id 1] [:phone/id 2]]}
         expected-phone-1 {:id 1 :number "555-1212"}
         expected-phone-2 {:id 2 :number "123-4555"}]
     (assertions
       "merges the top-level component with normalized links to children"
-      (get-in new-state-map [:person/by-id :tony]) => expected-person
+      (get-in new-state-map [:person/id :tony]) => expected-person
       "merges the normalized children"
-      (get-in new-state-map [:phone/by-id 1]) => expected-phone-1
-      (get-in new-state-map [:phone/by-id 2]) => expected-phone-2
+      (get-in new-state-map [:phone/id 1]) => expected-phone-1
+      (get-in new-state-map [:phone/id 2]) => expected-phone-2
       "leaves the original state untouched"
       (contains? new-state-map :people) => true
-      (get-in new-state-map [:person/by-id :sally]) => sally
-      (get-in new-state-map [:phone/by-id 3]) => phone-3))
+      (get-in new-state-map [:person/id :sally]) => sally
+      (get-in new-state-map [:phone/id 3]) => phone-3))
 
   (assertions
     (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
-    => {:person/by-id {:mary {:id      :mary
+    => {:person/id {:mary {:id         :mary
                               :name    "Mary"
-                              :numbers [[:phone/by-id 55]]}}
-        :phone/by-id  {55 {:id              55
+                              :numbers [[:phone/id 55]]}}
+        :phone/id  {55 {:id              55
                            :number          "98765-4321"
                            :ui/initial-flag :start}}}
 
@@ -423,13 +423,13 @@
                             :ui/expanded? false}}}
 
     (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]) :replace [:main-person])
-    => {:person/by-id {:mary {:id      :mary
+    => {:person/id   {:mary {:id       :mary
                               :name    "Mary"
-                              :numbers [[:phone/by-id 55]]}}
-        :phone/by-id  {55 {:id              55
+                              :numbers [[:phone/id 55]]}}
+        :phone/id    {55 {:id              55
                            :number          "98765-4321"
                            :ui/initial-flag :start}}
-        :main-person  [:person/by-id :mary]}
+        :main-person [:person/id :mary]}
 
     (do
       (reset! id-counter 0)

@@ -3,11 +3,10 @@
     [clojure.spec.alpha :as s]
     [clojure.set :as set]
     [com.fulcrologic.fulcro.algorithms.misc :as misc]
-    [ghostwheel.core :refer [>defn =>]]
+    [ghostwheel.core :as gw :refer [>defn =>]]
     [edn-query-language.core :as eql]))
 
-(when (misc/ghostwheel-enabled?)
-  (s/def ::target vector?))
+(gw/>def ::target vector?)
 
 (>defn multiple-targets
   [& targets]

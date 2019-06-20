@@ -2,7 +2,7 @@
   (:require
     [clojure.core.async :as async]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
-    [com.fulcrologic.fulcro.server.api-middleware :refer [not-found-handler wrap-api]]
+    [com.fulcrologic.fulcro.server.api-middleware :as fmw :refer [not-found-handler wrap-api]]
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
     [immutant.web :as web]
@@ -33,7 +33,7 @@
      :item/id new-id}))
 
 (pc/defmutation todo-check [env {:keys [id list-id]}]
-  {::pc/sym `fulcro-todomvc.api/todo-check
+  {::pc/sym    `fulcro-todomvc.api/todo-check
    ::pc/params [:list-id :id]
    ::pc/output []}
   (log/info "Checked item" id)
@@ -41,7 +41,7 @@
   {})
 
 (pc/defmutation todo-uncheck [env {:keys [id list-id]}]
-  {::pc/sym `fulcro-todomvc.api/todo-uncheck
+  {::pc/sym    `fulcro-todomvc.api/todo-uncheck
    ::pc/params [:list-id :id]
    ::pc/output []}
   (log/info "Unchecked item" id)
@@ -49,7 +49,7 @@
   {})
 
 (pc/defmutation commit-label-change [env {:keys [id list-id text]}]
-  {::pc/sym `fulcro-todomvc.api/commit-label-change
+  {::pc/sym    `fulcro-todomvc.api/commit-label-change
    ::pc/params [:list-id :id :text]
    ::pc/output []}
   (log/info "Set item label text of" id "to" text)
@@ -57,7 +57,7 @@
   {})
 
 (pc/defmutation todo-delete-item [env {:keys [id list-id]}]
-  {::pc/sym `fulcro-todomvc.api/todo-delete-item
+  {::pc/sym    `fulcro-todomvc.api/todo-delete-item
    ::pc/params [:list-id :id]
    ::pc/output []}
   (log/info "Deleted item" id)
@@ -66,12 +66,12 @@
 
 (defn- to-all-todos [db f]
   (into {}
-        (map (fn [[id todo]]
-               [id (f todo)]))
-        db))
+    (map (fn [[id todo]]
+           [id (f todo)]))
+    db))
 
 (pc/defmutation todo-check-all [env {:keys [list-id]}]
-  {::pc/sym `fulcro-todomvc.api/todo-check-all
+  {::pc/sym    `fulcro-todomvc.api/todo-check-all
    ::pc/params [:list-id]
    ::pc/output []}
   (log/info "Checked all items")
@@ -79,7 +79,7 @@
   {})
 
 (pc/defmutation todo-uncheck-all [env {:keys [list-id]}]
-  {::pc/sym `fulcro-todomvc.api/todo-uncheck-all
+  {::pc/sym    `fulcro-todomvc.api/todo-uncheck-all
    ::pc/params [:list-id]
    ::pc/output []}
   (log/info "Unchecked all items")
@@ -87,7 +87,7 @@
   {})
 
 (pc/defmutation todo-clear-complete [env {:keys [list-id]}]
-  {::pc/sym `fulcro-todomvc.api/todo-clear-complete
+  {::pc/sym    `fulcro-todomvc.api/todo-clear-complete
    ::pc/params [:list-id]
    ::pc/output []}
   (log/info "Cleared completed items")
@@ -120,18 +120,21 @@
 ;; setup for a given connect system
 (def parser
   (p/parallel-parser
-    {::p/env     {::p/reader [p/map-reader
-                              pc/parallel-reader
-                              pc/open-ident-reader]}
+    {::p/env     {::p/reader                 [p/map-reader
+                                              pc/parallel-reader
+                                              pc/open-ident-reader]
+                  ::pc/mutation-join-globals [:tempids]}
      ::p/mutate  pc/mutate-async
      ::p/plugins [(pc/connect-plugin {::pc/register my-resolvers})
                   (p/post-process-parser-plugin p/elide-not-found)
                   p/error-handler-plugin]}))
 
 (def middleware (-> not-found-handler
-                  (wrap-resource "public")
                   (wrap-api {:uri    "/api"
                              :parser (fn [query] (async/<!! (parser {} query)))})
+                  (fmw/wrap-transit-params)
+                  (fmw/wrap-transit-response)
+                  (wrap-resource "public")
                   wrap-content-type
                   wrap-not-modified))
 

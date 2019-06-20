@@ -331,51 +331,6 @@
 
        (apply div {} ["Hello"]))))
 
-#?(:cljs
-   (do
-
-     (defn- update-state
-       [component next-props value]
-       (let [on-change  (gobj/getValueByKeys component "state" "onChange")
-             next-state #js {}]
-         (gobj/extend next-state next-props #js {:onChange on-change})
-         (gobj/set next-state "value" value)
-         (.setState component next-state)))
-
-     (def fancy-nested-input-element
-       (let [ctor (fn [props]
-                    (this-as this
-                      (set! (.-state this)
-                        (let [state #js {}]
-                          (gobj/extend state props #js {:onChange (goog/bind (gobj/get this "onChange") this)})
-                          state))
-                      (.apply js/React.Component this (js-arguments))))]
-         (set! (.-displayName ctor) (str "double-wrapped-input"))
-         (goog.inherits ctor js/React.Component)
-         (specify! (.-prototype ctor)
-           Object
-           (onChange [this event]
-             (when-let [handler (.-onChange (.-props this))]
-               (handler event)
-               (update-state this (.-props this) (gobj/getValueByKeys event "target" "value"))))
-
-           (componentWillReceiveProps [this new-props]
-             (let [state-value   (gobj/getValueByKeys this "state" "value")
-                   input-node    (gdom/findNode (js/ReactDOM.findDOMNode this) #(= "input" (str/lower-case (.-tagName %))))
-                   element-value (gobj/get input-node "value")]
-               (if (not= state-value element-value)
-                 (update-state this new-props element-value)
-                 (update-state this new-props (gobj/get new-props "value")))))
-
-           (render [this]
-             (let [input-props (gobj/filter (.-state this)
-                                 (fn [v k _] (#{"type" "onChange" "value"} k)))]
-               (js/React.createElement "div" #js {:className "fancy"}
-                 (js/React.createElement "input" input-props)))))
-         (let [real-factory (js/React.createFactory ctor)]
-           (fn [props & children]
-             (apply real-factory props (clj->js children))))))))
-
 (specification "Interpretaion of :classes"
   (assertions
     "Converts keywords to strings"

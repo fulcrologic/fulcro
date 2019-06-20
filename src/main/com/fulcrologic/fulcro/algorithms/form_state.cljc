@@ -4,38 +4,32 @@
     [clojure.set :as set]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
-    [ghostwheel.core :refer [>defn =>]]
+    [ghostwheel.core :as gw :refer [>defn =>]]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
-(when (util/ghostwheel-enabled?)
-  (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
+(def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 
-  (s/def ::id (s/with-gen eql/ident? ident-generator))      ; form config uses the entity's ident as an ID
-  (s/def ::fields (s/every keyword? :kind set?))            ; a set of kws that are fields to track
-  (s/def ::subforms (s/map-of keyword? any?))               ; a map of subform field to component class
-  (s/def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
-  (s/def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
-  (s/def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
-  (s/def ::field-tester (s/fspec
-                          :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
-                          :ret boolean?))
-  (s/def ::form-operation (s/fspec
-                            :args (s/cat :entity map? :config ::config)
-                            :ret (s/cat :entity map? :config ::config)))
-  (s/def ::validity #{:valid :invalid :unchecked})
-  (s/def ::denormalized-form (s/keys :req [::config])))
+(gw/>def ::id (s/with-gen eql/ident? ident-generator))        ; form config uses the entity's ident as an ID
+(gw/>def ::fields (s/every keyword? :kind set?))              ; a set of kws that are fields to track
+(gw/>def ::subforms (s/map-of keyword? any?))                 ; a map of subform field to component class
+(gw/>def ::pristine-state (s/map-of keyword? any?))           ; the saved state of the form
+(gw/>def ::complete? (s/every keyword? :kind set?))           ; the fields that have been interacted with
+(gw/>def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
+(gw/>def ::field-tester (s/fspec
+                        :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
+                        :ret boolean?))
+(gw/>def ::form-operation (s/fspec
+                          :args (s/cat :entity map? :config ::config)
+                          :ret (s/cat :entity map? :config ::config)))
+(gw/>def ::validity #{:valid :invalid :unchecked})
+(gw/>def ::denormalized-form (s/keys :req [::config]))
 
 (>defn get-form-fields [class]
   [comp/component-class? => (s/nilable ::fields)]
   (comp/component-options class :form-fields))
-
-(defn- assume-field [props field]
-  (when-not (and (seq props) (contains? (some-> props ::config ::fields) field))
-    (log/error (str "It appears you're using " field " as a form field, but it is *not* declared as a form field "
-                 "on the component. It will fail to function properly (perhaps you forgot to initialize via `add-form-config`)."))))
 
 (>defn form-id
   "Returns the form database table ID for the given entity ident."
@@ -47,7 +41,7 @@
 (defsc FormConfig
   "A component supporting normalization of form state configuration. Use Fulcro Inspect for viewing that data.
   Rendering isn't supported on this component so it will work with React Native.
-  can also render the form config, if that is useful to you."
+  Can also render the form config, if that is useful to you."
   [this {:keys [::id ::complete? ::fields ::subforms ::pristine-state]}]
   {:query [::id ::fields ::complete? ::subforms ::pristine-state]
    :ident (fn []
@@ -55,7 +49,7 @@
                                :row   (second id)}])})
 
 (def ui-form-config
-  "Render form config"
+  "Render form config."
   (comp/factory FormConfig {:keyfn ::id}))
 
 (def form-config-join "A query join to ::form-config." {::config (comp/get-query FormConfig)})
@@ -111,7 +105,7 @@
   that already has form config but will recurse the entire form set. It can therefore be
   invoked on the top-level of the form set when adding, for example, an instance of a sub-form.
 
-  class - The component class
+  class - The component class.
   entity - A denormalized (tree) of data that matches the given component class.
 
   Returns the (possibly updated) denormalized entity, ready to merge."
@@ -232,7 +226,6 @@
    (let [{{pristine-state ::pristine-state} ::config} ui-entity-props
          current  (get ui-entity-props field)
          original (get pristine-state field)]
-     (assume-field ui-entity-props field)
      (not= current original)))
   ([ui-entity-props]
    (let [{:keys [::subforms ::fields]} (::config ui-entity-props)
@@ -243,7 +236,7 @@
          (some dirty-field? fields)
          (some dirty? subform-entities))))))
 
-(s/def dirty? ::field-tester)
+(gw/>def dirty? ::field-tester)
 
 (defn no-spec-or-valid?
   "Returns false if and only if the given key has a spec, and the spec is not valid for the value found in the given
@@ -313,7 +306,6 @@
     ([ui-entity-props field]
      (let [{{complete? ::complete?} ::config} ui-entity-props
            complete? (or complete? #{})]
-       (assume-field ui-entity-props field)
        (cond
          (not (complete? field)) :unchecked
          (not (field-valid? ui-entity-props field)) :invalid
@@ -344,7 +336,7 @@
     ([form] (spec-validator form))
     ([form field] (spec-validator form field))))
 
-(s/def get-spec-validity ::field-tester)
+(gw/>def get-spec-validity ::field-tester)
 
 (defn valid-spec?
   "Returns true if the given field (or the entire denormalized (UI) form recursively) is :valid
@@ -367,7 +359,6 @@
     Until this returns true validators will simply return :unchecked for a form/field."
     ([ui-form] (not= :unchecked (carefree-validator ui-form)))
     ([ui-form field]
-     (assume-field ui-form field)
      (not= :unchecked (carefree-validator ui-form field)))))
 
 (defn- immediate-subform-idents
@@ -497,7 +488,7 @@
   :ret map?)
 
 (defn clear-complete*
-  "Mark the fields incomplete so that validation checks will no longer return values. This function works on a app state database
+  "Mark the fields incomplete so that validation checks will no longer return values. This function works on an app state database
   map (not atom) and is meant to be composed into mutations. See the `mark-incomplete!` mutation if you do not need to combine
   this with other operations.
 
@@ -565,7 +556,7 @@
   mutation. Recursively follows subforms in app state. Returns the new app state map.
 
   state-map - The normalized state database (map, not atom)
-  entity-ident - The ident of the entity that you wish to restore to its original pristine state
+  entity-ident - The ident of the entity that you wish to restore to its original pristine state.
 
   Only affects declared fields and sub-forms."
   [state-map entity-ident]

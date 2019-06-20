@@ -66,7 +66,7 @@
 
   This is useful when you wanna do a nil check but you are in a position where the value
   could be ::prim/not-found (and you want to consider it as nil). A common pattern
-  looks like: `(or (prim/nilify-not-found x) 10)"
+  looks like: `(or (prim/nilify-not-found x) 10)`"
   [x]
   (if (= x ::not-found) nil x))
 
@@ -87,7 +87,7 @@
       (-> data meta :fulcro/leaf boolean))))
 
 (defn union->query
-  "Turn a union query into a query that attempts to encompass all possible things that might be queried"
+  "Turn a union query into a query that attempts to encompass all possible things that might be queried."
   [union-query]
   (->> union-query vals flatten set vec))
 
@@ -203,7 +203,7 @@
   missing marker is generated in the source when something has been asked for in the query, but had no value in the
   response. This allows us to correctly remove 'empty' data from the database without accidentally removing something
   that may still exist on the server (in truth we don't know its status, since it wasn't asked for, but we leave
-  it as our 'best guess')"
+  it as our 'best guess')."
   [target source]
   (reduce
     (fn [acc [key new-value]]
@@ -235,25 +235,8 @@
       (component-pre-merge class query state data)
       data)))
 
-(defn merge-handler
-  "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
-  if available."
-  [mutation-merge target source]
-  (let [source-to-merge (->> source
-                          (filter (fn [[k _]] (not (symbol? k))))
-                          (into {}))
-        merged-state    (sweep-merge target source-to-merge)]
-    (reduce (fn [acc [k v]]
-              (if (and mutation-merge (symbol? k))
-                (if-let [updated-state (mutation-merge acc k (dissoc v :tempids ::tempids))]
-                  updated-state
-                  (do
-                    (log/info "Return value handler for" k "returned nil. Ignored.")
-                    acc))
-                acc)) merged-state source)))
-
 (defn merge-mutation-joins
-  "Merge all of the mutations that were joined with a query"
+  "Merge all of the mutations that were joined with a query."
   [state query data-tree]
   (if (map? data-tree)
     (reduce (fn [updated-state query-element]
@@ -345,7 +328,7 @@
         base-query    (component-merge-query state-map component object-data)
         ;; :fulcro/merge is way to make unions merge properly when joined by idents
         merge-query   [{:fulcro/merge base-query}]
-        existing-data (get (fdn/db->tree (log/spy :warn base-query) (log/spy :warn state-map) state-map) ident {})
+        existing-data (get (fdn/db->tree base-query state-map state-map) ident {})
         marked-data   (mark-missing object-data object-query)
         merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
     {:merge-query merge-query
@@ -414,7 +397,7 @@
   standard merge and normalization logic.
 
   query - A query, derived from defui components, that can be used to normalized a tree of data.
-  data-tree - A tree of data that matches the nested shape of query
+  data-tree - A tree of data that matches the nested shape of query.
   remote - No longer used. May be passed, but is ignored.
 
   See also `merge*`."
@@ -427,8 +410,8 @@
   "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
 
   This utility function obtains the ident of the incoming object-data using the UI component's ident function. Once obtained,
-  it uses the component's query and ident to normalize the data and place the resulting objects in the correct tables.
-  It is also quite common to want those new objects to be linked into lists in other spot in app state, so this function
+  it uses the component's query and ident to normalize the data and places the resulting objects in the correct tables.
+  It is also quite common to want those new objects to be linked into lists in other spots in app state, so this function
   supports optional named parameters for doing this. These named parameters can be repeated as many times as you like in order
   to place the ident of the new object into other data structures of app state.
 
@@ -442,7 +425,7 @@
   This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
   of the normal mutation story. Do not use this function within abstract mutations.
 
-  - reconciler: A reconciler
+  - reconciler: A reconciler.
   - component: The class of the component that corresponds to the data. Must have an ident.
   - object-data: A map (tree) of data to merge. Will be normalized for you.
   - named-parameter: Post-processing ident integration steps. see integrate-ident!

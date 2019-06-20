@@ -25,10 +25,17 @@
       "Component class can be detected"
       (comp/component-class? A) => true
       (comp/component-class? (ui-a {})) => false
+      "The component name is available from the class"
+      (comp/component-name A) => (str `A)
+      "The registry key is available from the class"
+      (comp/class->registry-key A) => ::A
       "Can be used to obtain the ident"
       (comp/get-ident A {:person/id 4}) => [:person/id 4]
       "Can be used to obtain the query"
-      (comp/get-query A) => [:person/id :person/name])))
+      (comp/get-query A) => [:person/id :person/name]
+      "The class is available in the registry using a symbol or keyword"
+      (comp/registry-key->class ::A) => A
+      (comp/registry-key->class `A) => A)))
 
 (specification "computed props"
   (assertions
@@ -52,9 +59,9 @@
 (specification "classname->class"
   (assertions
     "Returns from registry under fq keyword"
-    (nil? (comp/classname->class ::A)) => false
+    (nil? (comp/registry-key->class ::A)) => false
     "Returns from registry under fq symbol"
-    (nil? (comp/classname->class `A)) => false))
+    (nil? (comp/registry-key->class `A)) => false))
 
 (specification "react-type"
   (assertions

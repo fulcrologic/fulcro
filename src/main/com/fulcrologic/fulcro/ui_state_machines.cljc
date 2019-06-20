@@ -5,7 +5,7 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [ghostwheel.core :refer [>defn => | ? <-]]
+    [ghostwheel.core :as gw :refer [>defn => | ? <-]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.application :as app]
@@ -25,63 +25,63 @@
 (defn clear-js-timeout! [timer]
   #?(:cljs (js/clearTimeout timer)))
 
-(s/def ::atom (s/with-gen atom? #(s/gen #{(atom {}) (atom #{}) (atom nil)})))
+(gw/>def ::atom (s/with-gen atom? #(s/gen #{(atom {}) (atom #{}) (atom nil)})))
 
 ;; Active State Machine and ENV specs
-(s/def ::state-map map?)
-(s/def ::refresh-vector (s/with-gen (s/coll-of eql/ident? :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
-(s/def ::fulcro-app comp/fulcro-app?)
-(s/def ::source-actor-ident eql/ident?)
-(s/def ::actor-name keyword?)
-(s/def ::actor->component-name (s/map-of ::actor-name keyword?))
-(s/def ::actor->ident (s/map-of ::actor-name eql/ident?))
-(s/def ::ident->actor (s/map-of eql/ident? ::actor-name))
-(s/def ::active-state keyword?)                             ; The state the active instance is currently in
-(s/def ::state-machine-id (s/with-gen symbol? #(s/gen #{'the-state-machine}))) ; The symbol of the state machine's definition
-(s/def ::asm-id any?)                                       ; The ID of the active instance in fulcro state
-(s/def ::local-storage (s/map-of keyword? any?))
-(s/def ::timeout pos-int?)
-(s/def ::timer-id (s/with-gen any? #(s/gen #{:timer-1 42})))
-(s/def ::cancel-fn (s/with-gen (s/or :f fn? :s set?) #(s/gen #{#{:event! :other!}})))
-(s/def ::cancel-on (s/with-gen (fn fn-or-set* [i] (let [f (-> i meta :cancel-on)]
+(gw/>def ::state-map map?)
+(gw/>def ::refresh-vector (s/with-gen (s/coll-of eql/ident? :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
+(gw/>def ::fulcro-app comp/fulcro-app?)
+(gw/>def ::source-actor-ident eql/ident?)
+(gw/>def ::actor-name keyword?)
+(gw/>def ::actor->component-name (s/map-of ::actor-name keyword?))
+(gw/>def ::actor->ident (s/map-of ::actor-name eql/ident?))
+(gw/>def ::ident->actor (s/map-of eql/ident? ::actor-name))
+(gw/>def ::active-state keyword?)                             ; The state the active instance is currently in
+(gw/>def ::state-machine-id (s/with-gen symbol? #(s/gen #{'the-state-machine}))) ; The symbol of the state machine's definition
+(gw/>def ::asm-id any?)                                       ; The ID of the active instance in fulcro state
+(gw/>def ::local-storage (s/map-of keyword? any?))
+(gw/>def ::timeout pos-int?)
+(gw/>def ::timer-id (s/with-gen any? #(s/gen #{:timer-1 42})))
+(gw/>def ::cancel-fn (s/with-gen (s/or :f fn? :s set?) #(s/gen #{#{:event! :other!}})))
+(gw/>def ::cancel-on (s/with-gen (fn fn-or-set* [i] (let [f (-> i meta :cancel-on)]
                                                     (or (fn? f) (set? f)))) #(s/gen #{(with-meta {} {:cancel-on (fn [e] true)})})))
-(s/def ::js-timer (s/with-gen #(-> % meta :timer boolean) #(s/gen #{(with-meta {} {:timer {}})})))
-(s/def ::timeout-descriptor (s/keys :req [::js-timer ::timeout ::event-id ::timer-id ::cancel-on] :opt [::event-data]))
-(s/def ::queued-timeouts (s/coll-of ::timeout-descriptor))
-(s/def ::active-timers (s/map-of ::timer-id ::timeout-descriptor))
-(s/def ::asm (s/keys :req [::asm-id ::state-machine-id ::active-state ::actor->ident ::actor->component-name
+(gw/>def ::js-timer (s/with-gen #(-> % meta :timer boolean) #(s/gen #{(with-meta {} {:timer {}})})))
+(gw/>def ::timeout-descriptor (s/keys :req [::js-timer ::timeout ::event-id ::timer-id ::cancel-on] :opt [::event-data]))
+(gw/>def ::queued-timeouts (s/coll-of ::timeout-descriptor))
+(gw/>def ::active-timers (s/map-of ::timer-id ::timeout-descriptor))
+(gw/>def ::asm (s/keys :req [::asm-id ::state-machine-id ::active-state ::actor->ident ::actor->component-name
                            ::ident->actor ::active-timers ::local-storage]))
-(s/def ::state-id keyword?)
-(s/def ::event-data map?)
-(s/def ::event-id keyword?)
-(s/def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
-(s/def ::queued-triggers (s/coll-of ::trigger-descriptor))
-(s/def ::env (s/keys :req [::state-map ::asm-id]
+(gw/>def ::state-id keyword?)
+(gw/>def ::event-data map?)
+(gw/>def ::event-id keyword?)
+(gw/>def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
+(gw/>def ::queued-triggers (s/coll-of ::trigger-descriptor))
+(gw/>def ::env (s/keys :req [::state-map ::asm-id]
                :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
                      ::queued-mutations ::queued-loads ::queued-timeouts]))
 
 (>defn fake-handler [env] [::env => ::env] env)
 
 ;; State Machine Definition Specs
-(s/def ::actor-names (s/coll-of ::actor-name :kind set?))
-(s/def ::event-predicate (s/with-gen fn? #(s/gen #{(fn [_] false) (fn [_] true)})))
-(s/def ::handler (s/with-gen fn? #(s/gen #{fake-handler})))
-(s/def ::target-state ::state-id)
-(s/def ::event-processing (s/keys :opt [::handler ::event-predicate ::target-state]))
-(s/def ::events (s/map-of ::event-id ::event-processing))
-(s/def ::state (s/with-gen
+(gw/>def ::actor-names (s/coll-of ::actor-name :kind set?))
+(gw/>def ::event-predicate (s/with-gen fn? #(s/gen #{(fn [_] false) (fn [_] true)})))
+(gw/>def ::handler (s/with-gen fn? #(s/gen #{fake-handler})))
+(gw/>def ::target-state ::state-id)
+(gw/>def ::event-processing (s/keys :opt [::handler ::event-predicate ::target-state]))
+(gw/>def ::events (s/map-of ::event-id ::event-processing))
+(gw/>def ::state (s/with-gen
                  (s/or
                    :handler (s/keys :req [::handler])
                    :events (s/keys :req [::events]))
                  #(s/gen #{{::handler fake-handler}})))
-(s/def ::states (s/with-gen (s/map-of ::state-id ::state) #(s/gen #{{:initial {::handler fake-handler}}})))
-(s/def ::alias keyword?)
-(s/def ::aliases (s/map-of ::alias (s/tuple ::actor-name keyword?)))
-(s/def ::plugin (s/with-gen any? #(s/gen #{(fn [aliases] nil)})))
-(s/def ::plugins (s/map-of keyword? ::plugin))
-(s/def ::event-names (s/coll-of keyword? :kind set?))
-(s/def ::target-state keyword?)
-(s/def ::state-machine-definition (s/with-gen
+(gw/>def ::states (s/with-gen (s/map-of ::state-id ::state) #(s/gen #{{:initial {::handler fake-handler}}})))
+(gw/>def ::alias keyword?)
+(gw/>def ::aliases (s/map-of ::alias (s/tuple ::actor-name keyword?)))
+(gw/>def ::plugin (s/with-gen any? #(s/gen #{(fn [aliases] nil)})))
+(gw/>def ::plugins (s/map-of keyword? ::plugin))
+(gw/>def ::event-names (s/coll-of keyword? :kind set?))
+(gw/>def ::target-state keyword?)
+(gw/>def ::state-machine-definition (s/with-gen
                                     (s/keys :req [::states] :opt [::actor-names ::aliases ::plugins ::event-names])
                                     #(s/gen #{{::actor-names #{:a}
                                                ::states      {:initial {::handler (fn [env] env)}}}})))
@@ -371,7 +371,7 @@
   [any? => (s/nilable keyword?)]
   (when-let [cls (cond
                    (and (eql/ident? v) (comp/component-class? (some-> v meta ::class))) (some-> v meta ::class)
-                   (and (comp/component? v) (-> (comp/get-ident v) second)) (comp/react-type v)
+                   (and (comp/component-instance? v) (-> (comp/get-ident v) second)) (comp/react-type v)
                    (and (comp/component-class? v) (-> (comp/get-ident v {}) second)) v
                    :otherwise nil)]
     (let [str-name (comp/component-name cls)
@@ -384,7 +384,7 @@
   [env actor-name]
   [::env ::actor-name => (s/nilable comp/component-class?)]
   (let [actor->component-name (asm-value env ::actor->component-name)
-        cls                   (some-> actor-name actor->component-name comp/classname->class)]
+        cls                   (some-> actor-name actor->component-name comp/registry-key->class)]
     cls))
 
 (>defn reset-actor-ident
@@ -689,9 +689,9 @@
       env
       (keys active-timers))))
 
-(s/def :fulcro/app ::fulcro-app)
-(s/def :fulcro/state ::atom)
-(s/def ::mutation-env (s/keys :req-un [:fulcro/state :fulcro/app]))
+(gw/>def :fulcro/app ::fulcro-app)
+(gw/>def :fulcro/state ::atom)
+(gw/>def ::mutation-env (s/keys :req-un [:fulcro/state :fulcro/app]))
 
 (>defn trigger-queued-events!
   [mutation-env queued-triggers refresh-list]
@@ -795,13 +795,13 @@
   [actors]
   [(s/map-of ::actor-name (s/or
                             :ident eql/ident?
-                            :component comp/component?
+                            :component comp/component-instance?
                             :class comp/component-class?)) => ::actor->ident]
   (into {}
     ;; v can be an ident, component, or component class
     (keep (fn [[actor-id v]]
             (cond
-              (and (comp/component? v) (-> (comp/get-ident v) second))
+              (and (comp/component-instance? v) (-> (comp/get-ident v) second))
               [actor-id (comp/get-ident v)]
 
               (and (comp/component-class? v) (-> (comp/get-ident v {}) second))
@@ -818,7 +818,7 @@
   [actors]
   [(s/map-of ::actor-name (s/or
                             :ident eql/ident?
-                            :component comp/component?
+                            :component comp/component-instance?
                             :class comp/component-class?)) => ::actor->component-name]
   (into {}
     ;; v can be an ident, component, or component class
@@ -836,10 +836,10 @@
   actors - A map of actor-names -> The ident, class, or react instance that represent them in the UI. Raw idents do not support SM loads.
   started-event-data - Data that will be sent with the ::uism/started event as ::uism/event-data"
   ([this machine instance-id actors]
-   [(s/or :c comp/component? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
+   [(s/or :c comp/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
    (begin! this machine instance-id actors {}))
   ([this machine instance-id actors started-event-data]
-   [(s/or :c comp/component? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
+   [(s/or :c comp/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
    (let [actors->idents          (derive-actor-idents actors)
          actors->component-names (derive-actor-components actors)]
      (log/debug "begin!" instance-id)
@@ -861,21 +861,21 @@
 ;; I/O Integration: remote mutations
 ;; ================================================================================
 
-(s/def ::target-actor ::actor-name)
-(s/def ::target-alias ::alias)
-(s/def ::ok-event ::event-id)
-(s/def ::error-event ::event-id)
-(s/def ::ok-data map?)
-(s/def ::error-data map?)
-(s/def ::mutation (s/with-gen symbol? #(s/gen #{`do-something})))
+(gw/>def ::target-actor ::actor-name)
+(gw/>def ::target-alias ::alias)
+(gw/>def ::ok-event ::event-id)
+(gw/>def ::error-event ::event-id)
+(gw/>def ::ok-data map?)
+(gw/>def ::error-data map?)
+(gw/>def ::mutation (s/with-gen symbol? #(s/gen #{`do-something})))
 (def spec-mutation (m/->Mutation `spec-mutation))
-(s/def ::mutation-decl (s/with-gen m/mutation-declaration? #(s/gen #{spec-mutation})))
-(s/def ::mutation-context ::actor-name)
-(s/def ::mutation-descriptor (s/keys :req [::mutation-context ::mutation]
+(gw/>def ::mutation-decl (s/with-gen m/mutation-declaration? #(s/gen #{spec-mutation})))
+(gw/>def ::mutation-context ::actor-name)
+(gw/>def ::mutation-descriptor (s/keys :req [::mutation-context ::mutation]
                                :opt [::targeting/target ::ok-event ::ok-data ::error-event ::error-data
                                      ::m/returning ::mutation-remote]))
-(s/def ::mutation-remote keyword?)
-(s/def ::queued-mutations (s/coll-of ::mutation-descriptor))
+(gw/>def ::mutation-remote keyword?)
+(gw/>def ::queued-mutations (s/coll-of ::mutation-descriptor))
 
 (>defn compute-target
   "Compute a raw Fulcro target based on the possible options.
@@ -977,10 +977,10 @@
 ;; I/O: Load integration
 ;; ================================================================================
 
-(s/def ::load-options map?)
-(s/def ::query-key (s/or :key keyword? :ident eql/ident?))
-(s/def ::load (s/keys :opt [::query-key ::comp/component-class ::load-options]))
-(s/def ::queued-loads (s/coll-of ::load))
+(gw/>def ::load-options map?)
+(gw/>def ::query-key (s/or :key keyword? :ident eql/ident?))
+(gw/>def ::load (s/keys :opt [::query-key ::comp/component-class ::load-options]))
+(gw/>def ::queued-loads (s/coll-of ::load))
 
 (>defn convert-load-options
   "INTERNAL: Convert SM load options into Fulcro load options."
@@ -1082,7 +1082,7 @@
   ```
   "
   [this asm-id]
-  [(s/or :c comp/component? :r ::fulcro-app) ::asm-id => (? keyword?)]
+  [(s/or :c comp/component-instance? :r ::fulcro-app) ::asm-id => (? keyword?)]
   (let [state-map (-> this (comp/any->app) (app/current-state))]
     (some-> state-map
       ::asm-id

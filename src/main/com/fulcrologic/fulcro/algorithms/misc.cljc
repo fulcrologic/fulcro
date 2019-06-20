@@ -1,5 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.misc
-  "Random functions that were ported from Fulcro.  Do not use except internally, as I plan to
+  "Random functions that were ported from Fulcro. Do not use except internally, as I plan to
   move them around still."
   (:refer-clojure :exclude [ident? uuid])
   (:require
@@ -113,8 +113,3 @@
   ([obj k default]
    #?(:clj  (get obj k default)
       :cljs (or (gobj/get obj (some-> k (name))) default))))
-
-(defn ghostwheel-enabled?
-  #?(:cljs {:tag boolean})
-  []
-  true)

@@ -2,9 +2,7 @@
   (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [clojure.string :as str]
-    #?@(:cljs ([cljsjs.react]
-                [cljsjs.react.dom]
-                [goog.object :as gobj]))))
+    #?@(:cljs ([goog.object :as gobj]))))
 
 (defn- remove-separators [s]
   (when s
@@ -75,21 +73,21 @@
   macros."
   [tag client-side?]
   (str "Returns a " (if client-side? "React" "server side")
-       " DOM element. Can be invoked in several ways\n\n"
+    " DOM element. Can be invoked in several ways\n\n"
 
-       "These two are made equivalent at compile time\n"
-       "(" tag " \"hello\")\n"
-       (str "(" tag " nil \"hello\")\n")
-       "\n"
+    "These two are made equivalent at compile time\n"
+    "(" tag " \"hello\")\n"
+    (str "(" tag " nil \"hello\")\n")
+    "\n"
 
-       "These two are made equivalent at compile time\n"
-       "(" tag " {:onClick f} \"hello\")\n"
-       "(" tag " #js {:onClick f} \"hello\")\n"
-       "\n"
+    "These two are made equivalent at compile time\n"
+    "(" tag " {:onClick f} \"hello\")\n"
+    "(" tag " #js {:onClick f} \"hello\")\n"
+    "\n"
 
-       "There is also a shorthand for CSS id and class names\n"
-       "(" tag " :#the-id.klass.other-klass \"hello\")\n"
-       "(" tag " :#the-id.klass.other-klass {:onClick f} \"hello\")"))
+    "There is also a shorthand for CSS id and class names\n"
+    "(" tag " :#the-id.klass.other-klass \"hello\")\n"
+    "(" tag " :#the-id.klass.other-klass {:onClick f} \"hello\")"))
 
 (defn classes->str
   [classes]

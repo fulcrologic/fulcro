@@ -7,7 +7,7 @@
          [cljs.analyzer :as ana]]
         :cljs
         [[goog.object :as gobj]
-         [cljsjs.react]])
+         ["react" :as react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -17,7 +17,8 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah])
   #?(:clj
-     (:import (clojure.lang Associative IDeref))))
+     (:import
+       [clojure.lang Associative IDeref APersistentMap])))
 
 (defonce ^:private component-registry (atom {}))
 (def ^:dynamic *query-state* nil)
@@ -27,16 +28,16 @@
 (def ^:dynamic *shared* nil)
 (def ^:dynamic *blindly-render* false)
 
-(defn -register-component!
-  "Add a component to Fulcro's component registry.  This is used by defsc and defui to ensure that all Fulcro classes
-  that have been compiled (transitively required) will be accessible for lookup by name.  Not meant for public use,
-  unless you're creating your own component macro that doesn't directly leverage defsc/defui."
+(defn register-component!
+  "Add a component to Fulcro's component registry.  This is used by defsc to ensure that all Fulcro classes
+  that have been compiled (transitively required) will be accessible for lookup by fully-qualified symbol/keyword.
+  Not meant for public use, unless you're creating your own component macro that doesn't directly leverage defsc."
   [k component-class]
   (swap! component-registry assoc k component-class)
   component-class)
 
 (defn newer-props
-  "Returns whichever of the given Fulcro props were most recently generated."
+  "Returns whichever of the given Fulcro props were most recently generated according to `denormalization-time`."
   [props-a props-b]
   (cond
     (nil? props-a) props-b
@@ -44,7 +45,7 @@
     (> (or (fdn/denormalization-time props-a) 2) (or (fdn/denormalization-time props-b) 1)) props-a
     :else props-b))
 
-(defn component?
+(defn component-instance?
   "Returns true if the argument is a component. A component is defined as a *mounted component*.
    This function returns false for component classes, and also returns false for the output of a Fulcro component factory."
   #?(:cljs {:tag boolean})
@@ -54,28 +55,32 @@
        :cljs (true? (gobj/get x "fulcro$isComponent")))
     false))
 
+(def component?
+  "Returns true if the argument is a component instance.
+
+   DEPRECATED for terminology clarity. Use `component-instance?` instead."
+  component-instance?)
+
 (defn component-class?
   "Returns true if the argument is a component class."
   #?(:cljs {:tag boolean})
   [x]
-  #?(:clj  (boolean (and x (::component-class? x)))
+  #?(:clj  (boolean (and (map? x) (::component-class? x)))
      :cljs (boolean (gobj/containsKey x "fulcro$class"))))
 
 (s/def ::component-class component-class?)
 
 (defn component-name
-  "Returns a string version of the given react component's name."
+  "Returns a string version of the given react component's name. Works on component instances and classes."
   [class]
   (util/isoget class :displayName))
 
-(defn class->classname
-  "Given a class, returns the fully-qualified keyword name of that class."
+(defn class->registry-key
+  "Returns the registry key for the given component class."
   [class]
-  (let [nm (component-name class)
-        [ns nm] (str/split nm #"/")]
-    (keyword ns nm)))
+  (util/isoget class :fulcro$registryKey))
 
-(defn classname->class
+(defn registry-key->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
   been (transitively) required by your application.
 
@@ -106,7 +111,7 @@
    (get-computed x []))
   ([x k-or-ks]
    (when-not (nil? x)
-     (let [props (cond-> x (component? x) props)
+     (let [props (cond-> x (component-instance? x) props)
            ks    (into [:fulcro.client.primitives/computed]
                    (cond-> k-or-ks
                      (not (sequential? k-or-ks)) vector))]
@@ -130,7 +135,8 @@
 (defn children
   "Get the sequence of react children of the given component."
   [component]
-  (util/isoget-in component "props" "children"))
+  #?(:clj  (get-in component [:children])
+     :cljs (gobj/getValueByKeys component "props" "children")))
 
 (defn react-type
   "Returns the component type, regardless of whether the component has been
@@ -170,7 +176,7 @@
   map with a :reconciler key, or an atom holding any of the above."
   [x]
   (cond
-    (component? x) (get-raw-react-prop x :fulcro$app)
+    (component-instance? x) (get-raw-react-prop x :fulcro$app)
     (fulcro-app? x) x
     #?(:clj  (instance? IDeref x)
        :cljs (satisfies? IDeref x)) (any->app (deref x))))
@@ -189,7 +195,7 @@
   ([component]
    (shared component []))
   ([component k-or-ks]
-   {:pre [(component? component)]}
+   {:pre [(component-instance? component)]}
    (let [shared (util/isoget-in component [:props :fulcro$shared])
          ks     (cond-> k-or-ks
                   (not (sequential? k-or-ks)) vector)]
@@ -238,8 +244,8 @@
      #?(:cljs
         (this-as this
           (let [{:keys [ident componentDidUpdate]} (component-options this)
-                prev-props (gobj/get raw-prev-props "fulcro$value")
-                prev-state (gobj/get raw-prev-state "fulcro$state")]
+                prev-state (gobj/get raw-prev-state "fulcro$state")
+                prev-props (raw->newest-props raw-prev-props raw-prev-state)]
             (when componentDidUpdate
               (componentDidUpdate this prev-props prev-state snapshot))
             (when ident
@@ -308,17 +314,11 @@
     [cls fqkw options]
     #?(:clj
        (let [name   (str/join "/" [(namespace fqkw) (name fqkw)])
-             result {::component-class? true
-                     :fulcro$options    options
-                     :componentDidMount (fn [this]
-                                          (let [{:keys [componentDidMount]} (component-options this)
-                                                app              (any->app this)
-                                                index-component! (ah/app-algorithm app :index-component!)]
-                                            (index-component! this)
-                                            (when componentDidMount
-                                              (componentDidMount this))))
-                     :displayName       name}]
-         (-register-component! fqkw result)
+             result {::component-class?  true
+                     :fulcro$options     options
+                     :fulcro$registryKey fqkw
+                     :displayName        name}]
+         (register-component! fqkw result)
          result)
        :cljs
        ;; This user-supplied versions will expect `this` as first arg
@@ -355,17 +355,11 @@
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
                                  getDerivedStateFromError (assoc :getDerivedStateFromError getDerivedStateFromError)
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
-         (gobj/extend (.-prototype cls) js/React.Component.prototype js-instance-props
+         (gobj/extend (.-prototype cls) react/Component.prototype js-instance-props
            #js {"fulcro$options" options})
          (gobj/extend cls (clj->js statics) #js {"fulcro$options" options})
          (gobj/set cls "fulcro$registryKey" fqkw)           ; done here instead of in extend (clj->js screws it up)
-         (-register-component! fqkw cls)))))
-
-(defn registry-key
-  "Returns the registry key (the fully-qualified class name as a keyword) of the given component class."
-  [component-class]
-  #?(:cljs (gobj/get component-class "fulcro$registryKey")
-     :clj  :NOT-IMPLEMENTED))
+         (register-component! fqkw cls)))))
 
 (defn mounted? [this]
   #?(:clj  false
@@ -373,7 +367,11 @@
 
 (defn set-state!
   ([component new-state callback]
-   #?(:cljs
+   #?(:clj
+      (when-let [state-atom (:state component)]
+        (swap! state-atom update merge new-state)
+        (callback))
+      :cljs
       (if (mounted? component)
         (.setState ^js component
           (fn [prev-state props]
@@ -388,7 +386,7 @@
   ([component]
    (get-state component []))
   ([component k-or-ks]
-   (let [cst #?(:clj @(:state component)
+   (let [cst #?(:clj (some-> component :state deref)
                 :cljs (gobj/getValueByKeys component "state" "fulcro$state"))]
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
@@ -426,7 +424,7 @@
   The single-arity version should only be used with a mounted component (e.g. `this` from `render`), and will derive the
   props that were sent to it most recently."
   ([x]
-   {:pre [(component? x)]}
+   {:pre [(component-instance? x)]}
    (if-let [m (props x)]
      (ident x m)
      (log/warn "get-ident was invoked on component with nil props (this could mean it wasn't yet mounted): " x)))
@@ -487,16 +485,16 @@
    (binding [*query-state* state-map]
      (let [class     (cond
                        (is-factory? class-or-factory) (-> class-or-factory meta :class)
-                       (component? class-or-factory) (react-type class-or-factory)
+                       (component-instance? class-or-factory) (react-type class-or-factory)
                        :else class-or-factory)
            ;; Hot code reload. Avoid classes that were caches on metadata using the registry.
            class     (if #?(:cljs goog.DEBUG :clj false)
-                       (-> class class->classname classname->class)
+                       (-> class class->registry-key registry-key->class)
                        class)
            qualifier (if (is-factory? class-or-factory)
                        (-> class-or-factory meta :qualifier)
                        nil)
-           queryid   (if (component? class-or-factory)
+           queryid   (if (component-instance? class-or-factory)
                        (get-query-id class-or-factory)
                        (query-id class qualifier))]
        (when (and class (has-query? class))
@@ -636,12 +634,20 @@
   element (which has yet to instantiate an instance)."
   [class props children]
   #?(:clj
-     {:props        props
-      :children     children
-      :state        {}
-      :fulcro$class class}
+     (let [init-state (component-options class :initLocalState)
+           state-atom (atom {})
+           this       {::element?          true
+                       :fulcro$isComponent true
+                       :props              props
+                       :children           children
+                       :state              state-atom
+                       :fulcro$class       class}
+           state      (when init-state (init-state this))]
+       (when (map? state)
+         (reset! state-atom state))
+       this)
      :cljs
-     (apply js/React.createElement class props children)))
+     (apply react/createElement class props children)))
 
 (defn factory
   "Create a factory constructor from a component class created with
@@ -690,13 +696,32 @@
         (apply real-factory (computed props computed-props) children))))))
 
 (defn transact!
-  "Submit a transaction for processing."
+  "Submit a transaction for processing.
+
+  The underlying transaction system is pluggable, but the default supported options are:
+
+  - `:optimistic?` - boolean. Should the transaction be processed optimistically?
+  - `:ref` - ident. The ident of the component used to submit this transaction. This is set automatically if you use a component to call this function.
+  - `:component` - React element. Set automatically if you call this function using a component.
+  - `:refresh` - Vector containing idents (of components) and keywords (of props). Things that have changed and should be re-rendered
+    on screen. Only necessary when the underlying rendering algorithm won't auto-detect, such as when UI is derived from the
+    state of other components or outside of the directly queried props. Interpretation depends on the renderer selected:
+    The ident-optimized render treats these as \"extras\".
+  - `:only-refresh` - Vector of idents/keywords.  If the underlying rendering configured algorithm supports it: The
+    components using these are the *only* things that will be refreshed in the UI.
+    This can be used to avoid the overhead of looking for stale data when you know exactly what
+    you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
+  - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
+    the network portion of the transaction (assuming it has not already completed).
+
+  Returns the transaction ID of the submitted transaction.
+  "
   ([app-or-component tx options]
    (when-let [app (any->app app-or-component)]
      (let [tx!     (ah/app-algorithm app :tx!)
            options (cond-> options
                      (has-ident? app-or-component) (assoc :ref (get-ident app-or-component))
-                     (component? app-or-component) (assoc :component app-or-component))]
+                     (component-instance? app-or-component) (assoc :component app-or-component))]
        (tx! app tx options))))
   ([app-or-comp tx]
    (transact! app-or-comp tx {})))
@@ -796,7 +821,7 @@
       (log/error "Unable to set query. Invalid arguments."))))
 
 (defn get-indexes
-  "Get the component indexes from a component instance or app. See also `ref->any`, `class->any`, etc."
+  "Get the component indexes from a component instance or app. See also `ident->any`, `class->any`, etc."
   [x]
   (let [app (any->app x)]
     (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/indexes)))
@@ -810,6 +835,14 @@
   "Return a components that uses the given ident. `x` is anything any->app accepts."
   [x ident]
   (first (ident->components x ident)))
+
+(defn prop->classes
+  "Get all component classes that query for the given prop.
+  `x` can be anything `any->app` is ok with.
+
+  Returns all classes that query for that prop (or ident)"
+  [x prop]
+  (some-> (get-indexes x) :prop->classes (get prop)))
 
 (defn class->all
   "Get all components from the indexes that are instances of the component class.
@@ -859,7 +892,9 @@
   "Wraps children in a React.Fragment. Props are optional, like normal DOM elements."
   [& args]
   #?(:clj
-     (let [[props children] (if (map? (first args))
+     (let [optional-props (first args)
+           props?         (and (instance? APersistentMap optional-props) (not (component-instance? optional-props)))
+           [props children] (if props?
                               [(first args) (rest args)]
                               [{} args])]
        (vec children))
@@ -867,7 +902,7 @@
      (let [[props children] (if (map? (first args))
                               [(first args) (rest args)]
                               [#js {} args])]
-       (apply js/React.createElement js/React.Fragment (clj->js props) children))))
+       (apply react/createElement react/Fragment (clj->js props) children))))
 
 #?(:clj
    (defmacro with-parent-context
