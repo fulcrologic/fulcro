@@ -7,7 +7,7 @@
          [cljs.analyzer :as ana]]
         :cljs
         [[goog.object :as gobj]
-         [cljsjs.react]])
+         ["react" :as react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -355,7 +355,7 @@
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
                                  getDerivedStateFromError (assoc :getDerivedStateFromError getDerivedStateFromError)
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
-         (gobj/extend (.-prototype cls) js/React.Component.prototype js-instance-props
+         (gobj/extend (.-prototype cls) react/Component.prototype js-instance-props
            #js {"fulcro$options" options})
          (gobj/extend cls (clj->js statics) #js {"fulcro$options" options})
          (gobj/set cls "fulcro$registryKey" fqkw)           ; done here instead of in extend (clj->js screws it up)
@@ -647,7 +647,7 @@
          (reset! state-atom state))
        this)
      :cljs
-     (apply js/React.createElement class props children)))
+     (apply react/createElement class props children)))
 
 (defn factory
   "Create a factory constructor from a component class created with
@@ -902,7 +902,7 @@
      (let [[props children] (if (map? (first args))
                               [(first args) (rest args)]
                               [#js {} args])]
-       (apply js/React.createElement js/React.Fragment (clj->js props) children))))
+       (apply react/createElement react/Fragment (clj->js props) children))))
 
 #?(:clj
    (defmacro with-parent-context

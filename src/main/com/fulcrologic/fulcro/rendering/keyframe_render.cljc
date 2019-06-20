@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.rendering.keyframe-render
   (:require
+    #?(:cljs ["react-dom" :as react-dom])
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.components :as comp]))
 
@@ -14,6 +15,6 @@
                            (fdn/db->tree query state-map state-map)
                            state-map)
         app-root #?(:clj {}                                 ; TODO
-                    :cljs (js/ReactDOM.render (root-factory data-tree) mount-node))]
+                    :cljs (react-dom/render (root-factory data-tree) mount-node))]
     (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/app-root app-root)
     #?(:cljs app-root)))

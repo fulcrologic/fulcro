@@ -88,7 +88,6 @@
 (defn filter-footer [component num-todos num-completed]
   (let [{:keys [list/id list/filter]} (comp/props component)
         num-remaining (- num-todos num-completed)]
-
     (dom/footer :.footer {}
       (dom/span :.todo-count {}
         (dom/strong (str num-remaining " left")))

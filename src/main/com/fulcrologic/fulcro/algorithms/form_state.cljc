@@ -4,29 +4,28 @@
     [clojure.set :as set]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
-    [ghostwheel.core :refer [>defn =>]]
+    [ghostwheel.core :as gw :refer [>defn =>]]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
-(when (util/ghostwheel-enabled?)
-  (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
+(def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 
-  (s/def ::id (s/with-gen eql/ident? ident-generator))      ; form config uses the entity's ident as an ID
-  (s/def ::fields (s/every keyword? :kind set?))            ; a set of kws that are fields to track
-  (s/def ::subforms (s/map-of keyword? any?))               ; a map of subform field to component class
-  (s/def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
-  (s/def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
-  (s/def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
-  (s/def ::field-tester (s/fspec
-                          :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
-                          :ret boolean?))
-  (s/def ::form-operation (s/fspec
-                            :args (s/cat :entity map? :config ::config)
-                            :ret (s/cat :entity map? :config ::config)))
-  (s/def ::validity #{:valid :invalid :unchecked})
-  (s/def ::denormalized-form (s/keys :req [::config])))
+(gw/>def ::id (s/with-gen eql/ident? ident-generator))        ; form config uses the entity's ident as an ID
+(gw/>def ::fields (s/every keyword? :kind set?))              ; a set of kws that are fields to track
+(gw/>def ::subforms (s/map-of keyword? any?))                 ; a map of subform field to component class
+(gw/>def ::pristine-state (s/map-of keyword? any?))           ; the saved state of the form
+(gw/>def ::complete? (s/every keyword? :kind set?))           ; the fields that have been interacted with
+(gw/>def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
+(gw/>def ::field-tester (s/fspec
+                        :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
+                        :ret boolean?))
+(gw/>def ::form-operation (s/fspec
+                          :args (s/cat :entity map? :config ::config)
+                          :ret (s/cat :entity map? :config ::config)))
+(gw/>def ::validity #{:valid :invalid :unchecked})
+(gw/>def ::denormalized-form (s/keys :req [::config]))
 
 (>defn get-form-fields [class]
   [comp/component-class? => (s/nilable ::fields)]
@@ -151,7 +150,7 @@
       local-entity
       subform-keys)))
 
-(s/fdef add-form-config
+(gw/>fdef add-form-config
   :args (s/cat :class any? :entity map?)
   :ret (s/keys :req [::config]))
 
@@ -197,7 +196,7 @@
       updated-state-map
       subform-keys)))
 
-(s/fdef add-form-config*
+(gw/>fdef add-form-config*
   :args (s/cat :state map? :class any? :ident ::id)
   :ret map?)
 
@@ -214,7 +213,7 @@
     (mapcat #(let [v (get entity %)]
                (if (sequential? v) v [v])) subform-join-keys)))
 
-(s/fdef immediate-subforms
+(gw/>fdef immediate-subforms
   :args (s/cat :entity map? :subform-join-keys set?)
   :ret (s/coll-of map?))
 
@@ -237,7 +236,7 @@
          (some dirty-field? fields)
          (some dirty? subform-entities))))))
 
-(s/def dirty? ::field-tester)
+(gw/>def dirty? ::field-tester)
 
 (defn no-spec-or-valid?
   "Returns false if and only if the given key has a spec, and the spec is not valid for the value found in the given
@@ -248,7 +247,7 @@
   (or (not (s/get-spec key))
     (s/valid? key (get entity-props key))))
 
-(s/fdef no-spec-or-valid?
+(gw/>fdef no-spec-or-valid?
   :args (s/cat :entity map? :k keyword?)
   :ret boolean?)
 
@@ -271,7 +270,7 @@
     (and (= :valid a) (= :valid b)) :valid
     :otherwise :invalid))
 
-(s/fdef merge-validity
+(gw/>fdef merge-validity
   :args (s/cat :a ::validity :b ::validity)
   :ret ::validity)
 
@@ -337,7 +336,7 @@
     ([form] (spec-validator form))
     ([form field] (spec-validator form field))))
 
-(s/def get-spec-validity ::field-tester)
+(gw/>def get-spec-validity ::field-tester)
 
 (defn valid-spec?
   "Returns true if the given field (or the entire denormalized (UI) form recursively) is :valid
@@ -377,7 +376,7 @@
                              :else [])]
                 result)) subform-join-keys)))
 
-(s/fdef immediate-subform-idents
+(gw/>fdef immediate-subform-idents
   :args (s/cat :entity map? :ks (s/coll-of keyword :kind set?))
   :ret (s/coll-of eql/ident?))
 
@@ -403,7 +402,7 @@
       (reduce (fn [s id]
                 (update-forms s xform id)) sm subform-idents))))
 
-(s/fdef update-forms
+(gw/>fdef update-forms
   :args (s/cat :state map? :xform ::form-operation :ident eql/ident?)
   :ret map?)
 
@@ -484,7 +483,7 @@
                              subform-keys)]
     complete-delta))
 
-(s/fdef dirty-fields
+(gw/>fdef dirty-fields
   :args (s/cat :entity ::denormalized-form :delta boolean?)
   :ret map?)
 
@@ -528,7 +527,7 @@
      (fn mark*-step [e form-config]
        [e (assoc form-config ::complete? (::fields form-config))]) entity-ident)))
 
-(s/fdef mark-complete*
+(gw/>fdef mark-complete*
   :args (s/cat :state map? :entity-ident eql/ident? :field (s/? keyword?))
   :ret map?)
 
@@ -546,7 +545,7 @@
       (fn [s]
         (apply dissoc s ks)))))
 
-(s/fdef delete-form-state*
+(gw/>fdef delete-form-state*
   :args (s/cat :state-map map?
           :entity-ident-or-idents (s/or :entity-ident eql/ident?
                                     :entity-idents (s/coll-of eql/ident?)))
@@ -564,7 +563,7 @@
   (update-forms state-map (fn reset-form-step [e {:keys [::pristine-state] :as config}]
                             [(merge e pristine-state) config]) entity-ident))
 
-(s/fdef pristine->entity*
+(gw/>fdef pristine->entity*
   :args (s/cat :state map? :entity-ident eql/ident?)
   :ret map?)
 
@@ -584,7 +583,7 @@
                                   new-pristine-state (select-keys e (set/union subform-keys fields))]
                               [e (assoc config ::pristine-state new-pristine-state)])) entity-ident))
 
-(s/fdef entity->pristine*
+(gw/>fdef entity->pristine*
   :args (s/cat :state map? :entity-ident eql/ident?)
   :ret map?)
 

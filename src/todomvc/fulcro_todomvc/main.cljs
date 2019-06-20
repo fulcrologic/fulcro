@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.networking.http-remote :as fhr]
     [com.fulcrologic.fulcro.networking.mock-server-remote :as mock-remote]
+    [com.fulcrologic.fulcro.rendering.keyframe-render :as keyframe]
     ;[com.fulcrologic.fulcro.networking.websockets :as fws]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
@@ -17,18 +18,19 @@
 (goog-define MOCK false)
 ; (goog-define WEBSOCKETS false)
 
-(defonce app (app/fulcro-app {:shared    {:STATIC 1}
-                              :shared-fn (fn [root-props]
-                                           (log/info "Calc shared" root-props)
-                                           {:derived 1})
-                              :remotes   {:remote
-                                          (if MOCK
-                                            (mock-remote/mock-http-server {:parser (fn [req]
-                                                                                     (sapi/parser {} req))})
-                                            (fhr/fulcro-http-remote {:url "/api"})
-                                            #_(if WEBSOCKETS
-                                                (fws/fulcro-websocket-remote {})
-                                                (fhr/fulcro-http-remote {:url "/api"})))}}))
+(defonce app (app/fulcro-app {:shared            {:STATIC 1}
+                              :shared-fn         (fn [root-props]
+                                                   (log/info "Calc shared" root-props)
+                                                   {:derived 1})
+                              ;:optimized-render! keyframe/render!
+                              :remotes           {:remote
+                                                  (if MOCK
+                                                    (mock-remote/mock-http-server {:parser (fn [req]
+                                                                                             (sapi/parser {} req))})
+                                                    (fhr/fulcro-http-remote {:url "/api"})
+                                                    #_(if WEBSOCKETS
+                                                        (fws/fulcro-websocket-remote {})
+                                                        (fhr/fulcro-http-remote {:url "/api"})))}}))
 
 (defn ^:export start []
   (log/info "mount")

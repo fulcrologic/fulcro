@@ -119,7 +119,7 @@
 (defn schedule-render!
   "Schedule a render on the next animation frame."
   ([app]
-   (schedule-render! app false))
+   (schedule-render! app {:force-root? false}))
   ([app options]
    #?(:clj  (render! app options)
       :cljs (let [r #(render! app options)]

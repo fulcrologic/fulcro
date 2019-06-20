@@ -113,8 +113,3 @@
   ([obj k default]
    #?(:clj  (get obj k default)
       :cljs (or (gobj/get obj (some-> k (name))) default))))
-
-(defn ghostwheel-enabled?
-  #?(:cljs {:tag boolean})
-  []
-  true)

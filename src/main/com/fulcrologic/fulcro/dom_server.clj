@@ -426,13 +426,12 @@
     (assign-react-checksum sb)
     (.toString sb)))
 
-#_(defn node
-  "Returns the dom node associated with a component's React ref."
-  ([component]
-   (.render component))
-  ([component name]
-   (when-let [c (some-> @(:refs component) (get name))]
-     (.render ^IReactComponent c))))
+(defn node
+  "Returns the dom node associated with a component's React ref.
+
+  This is a NO-OP function for completion, and is not supported for SSR"
+  ([component])
+  ([component name]))
 
 (defn create-element
   "Create a DOM element for which there exists no corresponding function.
