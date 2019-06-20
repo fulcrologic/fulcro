@@ -150,7 +150,7 @@
       local-entity
       subform-keys)))
 
-(gw/>fdef add-form-config
+(s/fdef add-form-config
   :args (s/cat :class any? :entity map?)
   :ret (s/keys :req [::config]))
 
@@ -196,7 +196,7 @@
       updated-state-map
       subform-keys)))
 
-(gw/>fdef add-form-config*
+(s/fdef add-form-config*
   :args (s/cat :state map? :class any? :ident ::id)
   :ret map?)
 
@@ -213,7 +213,7 @@
     (mapcat #(let [v (get entity %)]
                (if (sequential? v) v [v])) subform-join-keys)))
 
-(gw/>fdef immediate-subforms
+(s/fdef immediate-subforms
   :args (s/cat :entity map? :subform-join-keys set?)
   :ret (s/coll-of map?))
 
@@ -247,7 +247,7 @@
   (or (not (s/get-spec key))
     (s/valid? key (get entity-props key))))
 
-(gw/>fdef no-spec-or-valid?
+(s/fdef no-spec-or-valid?
   :args (s/cat :entity map? :k keyword?)
   :ret boolean?)
 
@@ -270,7 +270,7 @@
     (and (= :valid a) (= :valid b)) :valid
     :otherwise :invalid))
 
-(gw/>fdef merge-validity
+(s/fdef merge-validity
   :args (s/cat :a ::validity :b ::validity)
   :ret ::validity)
 
@@ -376,7 +376,7 @@
                              :else [])]
                 result)) subform-join-keys)))
 
-(gw/>fdef immediate-subform-idents
+(s/fdef immediate-subform-idents
   :args (s/cat :entity map? :ks (s/coll-of keyword :kind set?))
   :ret (s/coll-of eql/ident?))
 
@@ -402,7 +402,7 @@
       (reduce (fn [s id]
                 (update-forms s xform id)) sm subform-idents))))
 
-(gw/>fdef update-forms
+(s/fdef update-forms
   :args (s/cat :state map? :xform ::form-operation :ident eql/ident?)
   :ret map?)
 
@@ -483,7 +483,7 @@
                              subform-keys)]
     complete-delta))
 
-(gw/>fdef dirty-fields
+(s/fdef dirty-fields
   :args (s/cat :entity ::denormalized-form :delta boolean?)
   :ret map?)
 
@@ -527,7 +527,7 @@
      (fn mark*-step [e form-config]
        [e (assoc form-config ::complete? (::fields form-config))]) entity-ident)))
 
-(gw/>fdef mark-complete*
+(s/fdef mark-complete*
   :args (s/cat :state map? :entity-ident eql/ident? :field (s/? keyword?))
   :ret map?)
 
@@ -545,7 +545,7 @@
       (fn [s]
         (apply dissoc s ks)))))
 
-(gw/>fdef delete-form-state*
+(s/fdef delete-form-state*
   :args (s/cat :state-map map?
           :entity-ident-or-idents (s/or :entity-ident eql/ident?
                                     :entity-idents (s/coll-of eql/ident?)))
@@ -563,7 +563,7 @@
   (update-forms state-map (fn reset-form-step [e {:keys [::pristine-state] :as config}]
                             [(merge e pristine-state) config]) entity-ident))
 
-(gw/>fdef pristine->entity*
+(s/fdef pristine->entity*
   :args (s/cat :state map? :entity-ident eql/ident?)
   :ret map?)
 
@@ -583,7 +583,7 @@
                                   new-pristine-state (select-keys e (set/union subform-keys fields))]
                               [e (assoc config ::pristine-state new-pristine-state)])) entity-ident))
 
-(gw/>fdef entity->pristine*
+(s/fdef entity->pristine*
   :args (s/cat :state map? :entity-ident eql/ident?)
   :ret map?)
 
