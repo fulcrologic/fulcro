@@ -297,7 +297,9 @@
                     (handler this props)))))))
 
    (wrap-base-render [render]
-     #?(:clj (fn [& args])
+     #?(:clj (fn [& args]
+               (binding [*parent* (first args)]
+                 (apply render args)))
         :cljs
         (fn [& args]
           (this-as this
@@ -314,8 +316,9 @@
     [cls fqkw options]
     #?(:clj
        (let [name   (str/join "/" [(namespace fqkw) (name fqkw)])
+             {:keys [render]} options
              result {::component-class?  true
-                     :fulcro$options     options
+                     :fulcro$options     (assoc options :render (wrap-base-render render))
                      :fulcro$registryKey fqkw
                      :displayName        name}]
          (register-component! fqkw result)
