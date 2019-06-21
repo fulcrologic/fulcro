@@ -13,6 +13,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
     [ghostwheel.core :refer [>defn => |]]
     [clojure.spec.alpha :as s]
@@ -373,6 +374,7 @@
         (if (mounted? app)
           (reset-mountpoint!)
           (let [app (add-tools app)]
+            (inspect/app-started! app)
             (when initialize-state?
               (let [initial-db   (-> app ::state-atom deref)
                     root-query   (comp/get-query root)

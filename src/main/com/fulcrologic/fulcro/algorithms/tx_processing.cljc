@@ -7,6 +7,7 @@
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.specs]
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
     [ghostwheel.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
@@ -281,14 +282,14 @@
 
 (>defn advance-actions!
   "Runs any incomplete and non-blocked optimistic operations on a node."
-  [app {:keys [::elements] :as node}]
+  [app {::keys [id elements] :as node}]
   [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
   (let [remotes      (app->remote-names app)
         reduction    (reduce
                        (fn [{:keys [done? new-elements] :as acc} element]
                          (if done?
                            (update acc :new-elements conj element)
-                           (let [{:keys [::complete? ::dispatch]} element
+                           (let [{::keys [complete? dispatch original-ast-node idx]} element
                                  {:keys [action]} dispatch
                                  remote-set      (set/intersection remotes (set (keys dispatch)))
                                  exec?           (and action (not (or done? (complete? :action))))
@@ -306,7 +307,11 @@
                                  (when action
                                    (action env))
                                  (catch #?(:cljs :default :clj Exception) e
-                                   (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node))))
+                                   (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
+                               (ilet [tx (eql/ast->query original-ast-node)]
+                                 (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
+                                                                               :state-before state-before
+                                                                               :tx           tx})))
                              new-acc)))
                        {:done? false :new-elements []}
                        elements)
@@ -314,11 +319,11 @@
     (assoc node ::elements new-elements)))
 
 (>defn run-actions!
-  [app {:keys [::elements] :as node}]
+  [app {::keys [id elements] :as node}]
   [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
   (let [new-elements (reduce
                        (fn [new-elements element]
-                         (let [{:keys [::complete? ::dispatch]} element
+                         (let [{::keys [idx complete? dispatch original-ast-node]} element
                                {:keys [action]} dispatch
                                exec?        (and action (not (complete? :action)))
                                state-before (-> app :com.fulcrologic.fulcro.application/state-atom deref)
@@ -331,7 +336,11 @@
                              (try
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
-                                 (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node))))
+                                 (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
+                             (ilet [tx (eql/ast->query original-ast-node)]
+                               (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
+                                                                             :state-before state-before
+                                                                             :tx           tx})))
                            new-acc))
                        []
                        elements)]
