@@ -1,3 +1,8 @@
+3.0.0-alpha-11
+--------------
+- Fixed clj render to work well with css lib
+- Switched react back to cljsjs...no need for that break
+
 3.0.0-alpha-10
 --------------
 - Added missing augment-response helper to mware
