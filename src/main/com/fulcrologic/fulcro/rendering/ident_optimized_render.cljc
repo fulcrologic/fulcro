@@ -45,8 +45,9 @@
       (let [classes (prop->classes ident)]
         (when (seq classes)
           (doseq [class classes]
-            (doseq [component (class->components class)]
-              (render-component! app ident component))))))))
+            (doseq [component (class->components class)
+                    :let [component-ident (comp/get-ident component)]]
+              (render-component! app component-ident component))))))))
 
 (defn props->components
   "Given an app and set of props: returns the components that query for those props."

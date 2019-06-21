@@ -12,18 +12,18 @@
 
 (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 
-(gw/>def ::id (s/with-gen eql/ident? ident-generator))        ; form config uses the entity's ident as an ID
-(gw/>def ::fields (s/every keyword? :kind set?))              ; a set of kws that are fields to track
-(gw/>def ::subforms (s/map-of keyword? any?))                 ; a map of subform field to component class
-(gw/>def ::pristine-state (s/map-of keyword? any?))           ; the saved state of the form
-(gw/>def ::complete? (s/every keyword? :kind set?))           ; the fields that have been interacted with
+(gw/>def ::id (s/with-gen eql/ident? ident-generator))      ; form config uses the entity's ident as an ID
+(gw/>def ::fields (s/every keyword? :kind set?))            ; a set of kws that are fields to track
+(gw/>def ::subforms (s/map-of keyword? any?))               ; a map of subform field to component class
+(gw/>def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
+(gw/>def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
 (gw/>def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
 (gw/>def ::field-tester (s/fspec
-                        :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
-                        :ret boolean?))
+                          :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
+                          :ret boolean?))
 (gw/>def ::form-operation (s/fspec
-                          :args (s/cat :entity map? :config ::config)
-                          :ret (s/cat :entity map? :config ::config)))
+                            :args (s/cat :entity map? :config ::config)
+                            :ret (s/cat :entity map? :config ::config)))
 (gw/>def ::validity #{:valid :invalid :unchecked})
 (gw/>def ::denormalized-form (s/keys :req [::config]))
 

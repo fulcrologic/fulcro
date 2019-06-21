@@ -1,6 +1,19 @@
 (ns com.fulcrologic.fulcro.dom.events
   "Utility functions for working with low-level synthetic js events on the DOM")
 
+(defn stop-propagation!
+  "Calls .stopPropagation on the given event. Safe to use in CLJC files."
+  [evt] #?(:cljs (.stopPropagation ^js evt)))
+
+(defn prevent-default!
+  "Calls .preventDefault on the given event. Safe to use in CLJC files."
+  [evt] #?(:cljs (.preventDefault ^js evt)))
+
+(defn target-value
+  "Returns the event #js evt.target.value. Safe to use in CLJC."
+  [evt]
+  #?(:cljs (.. evt -target -value)))
+
 (defn is-key?
   "Is the given key code on the given event?"
   #?(:cljs {:tag boolean})
