@@ -7,7 +7,7 @@
  :num-tests-ext   0
  :extensive-tests false
  :defn-macro      nil
- :instrument      false
+ :instrument      true
  :outstrument     false
  :extrument       nil
  :expound         {:show-valid-values? true

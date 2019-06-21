@@ -6,6 +6,7 @@
 - Added missing link query tsts for db->tree
 - Fixed bug in tx processing for remote false
 - Added more to html events ns
+- Updated specs for form-state
 
 3.0.0-alpha-9
 -------------

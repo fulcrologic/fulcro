@@ -4,7 +4,7 @@
     [clojure.set :as set]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
-    [ghostwheel.core :as gw :refer [>defn =>]]
+    [ghostwheel.core :as gw :refer [>defn >defn- =>]]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
@@ -18,12 +18,6 @@
 (gw/>def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
 (gw/>def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
 (gw/>def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
-(gw/>def ::field-tester (s/fspec
-                          :args (s/cat :ui-entity (s/keys :req [::config]) :field (s/? keyword?))
-                          :ret boolean?))
-(gw/>def ::form-operation (s/fspec
-                            :args (s/cat :entity map? :config ::config)
-                            :ret (s/cat :entity map? :config ::config)))
 (gw/>def ::validity #{:valid :invalid :unchecked})
 (gw/>def ::denormalized-form (s/keys :req [::config]))
 
@@ -99,7 +93,7 @@
                {:offending-component class})))
     [fields subforms subform-keys]))
 
-(defn add-form-config
+(>defn add-form-config
   "Add form configuration data to a *denormalized* entity (e.g. pre-merge). This is useful in
   initial state or when using `merge-component!`. This function *will not* touch an entity
   that already has form config but will recurse the entire form set. It can therefore be
@@ -110,7 +104,7 @@
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   [class entity]
-  [comp/component-class? map? => map?]
+  [comp/component-class? map? => (s/keys :req [::config])]
   (let [[fields subform-classmap subform-keys] (derive-form-info class)
         local-entity (if (contains? entity ::config)
                        entity
@@ -150,11 +144,9 @@
       local-entity
       subform-keys)))
 
-(s/fdef add-form-config
-  :args (s/cat :class any? :entity map?)
-  :ret (s/keys :req [::config]))
 
-(defn add-form-config*
+
+(>defn add-form-config*
   "Identical to `add-form-config`, but works against normalized entities in the
   app state. This makes it ideal for composition within mutations.
 
@@ -164,6 +156,7 @@
 
   Returns an updated state map with normalized form configuration in place for the entity."
   [state-map class entity-ident]
+  [map? comp/component-class? eql/ident? => map?]
   (let [[fields subform-classmap subform-keys] (derive-form-info class)
         entity            (get-in state-map entity-ident)
         updated-state-map (if (contains? entity ::config)
@@ -196,11 +189,9 @@
       updated-state-map
       subform-keys)))
 
-(s/fdef add-form-config*
-  :args (s/cat :state map? :class any? :ident ::id)
-  :ret map?)
 
-(defn immediate-subforms
+
+(>defn immediate-subforms
   "Get the instances of the immediate subforms that are joined into the given entity by
    subform-join-keys (works with to-one and to-many).
 
@@ -209,25 +200,26 @@
 
    Returns a sequence of those entities (all denormalized)."
   [entity subform-join-keys]
+  [map? set? => (s/coll-of map?)]
   (remove nil?
     (mapcat #(let [v (get entity %)]
                (if (sequential? v) v [v])) subform-join-keys)))
 
-(s/fdef immediate-subforms
-  :args (s/cat :entity map? :subform-join-keys set?)
-  :ret (s/coll-of map?))
 
-(defn dirty?
+
+(>defn dirty?
   "Returns true if the given ui-entity-props that are configured as a form differ from the pristine version.
   Recursively follows subforms if given no field. Returns true if anything doesn't match up.
 
   If given a field, it only checks that field."
   ([ui-entity-props field]
+   [map? keyword? => boolean?]
    (let [{{pristine-state ::pristine-state} ::config} ui-entity-props
          current  (get ui-entity-props field)
          original (get pristine-state field)]
      (not= current original)))
   ([ui-entity-props]
+   [map? => boolean?]
    (let [{:keys [::subforms ::fields]} (::config ui-entity-props)
          dirty-field?     (fn [k] (dirty? ui-entity-props k))
          subform-entities (immediate-subforms ui-entity-props (-> subforms (keys) (set)))]
@@ -236,20 +228,15 @@
          (some dirty-field? fields)
          (some dirty? subform-entities))))))
 
-(gw/>def dirty? ::field-tester)
-
-(defn no-spec-or-valid?
+(>defn no-spec-or-valid?
   "Returns false if and only if the given key has a spec, and the spec is not valid for the value found in the given
   map of entity props (e.g. `(s/valid? key (get entity-props key))`).
 
   Returns true otherwise."
   [entity-props key]
+  [map? keyword? => boolean?]
   (or (not (s/get-spec key))
     (s/valid? key (get entity-props key))))
-
-(s/fdef no-spec-or-valid?
-  :args (s/cat :entity map? :k keyword?)
-  :ret boolean?)
 
 (defn- merge-validity
   "Returns a new validity based on the combination of two.
@@ -265,14 +252,11 @@
   * :unchecked :unchecked = :unchecked
   "
   [a b]
+  [::validity ::validity => ::validity]
   (cond
     (or (= :unchecked a) (= :unchecked b)) :unchecked
     (and (= :valid a) (= :valid b)) :valid
     :otherwise :invalid))
-
-(s/fdef merge-validity
-  :args (s/cat :a ::validity :b ::validity)
-  :ret ::validity)
 
 (defn make-validator
   "Create a form/field validation function using a supplied field checker. The field checker will be given
@@ -336,8 +320,6 @@
     ([form] (spec-validator form))
     ([form field] (spec-validator form field))))
 
-(gw/>def get-spec-validity ::field-tester)
-
 (defn valid-spec?
   "Returns true if the given field (or the entire denormalized (UI) form recursively) is :valid
   according to clojure specs. Returns false if unchecked or invalid. Use `checked-spec?` or `get-spec-validity`
@@ -361,12 +343,13 @@
     ([ui-form field]
      (not= :unchecked (carefree-validator ui-form field)))))
 
-(defn- immediate-subform-idents
+(>defn- immediate-subform-idents
   "Get the idents of the immediate subforms that are joined into entity by
    subform-join-keys (works with to-one and to-many). Entity is a NORMALIZED entity from the state map.
 
    Returns a sequence of those idents."
   [entity subform-join-keys]
+  [map? (s/coll-of keyword? :kind set?) => (s/coll-of eql/ident?)]
   (remove nil?
     (mapcat (fn immediate-subform-idents-step [k]
               (let [v      (get entity k)
@@ -376,11 +359,7 @@
                              :else [])]
                 result)) subform-join-keys)))
 
-(s/fdef immediate-subform-idents
-  :args (s/cat :entity map? :ks (s/coll-of keyword :kind set?))
-  :ret (s/coll-of eql/ident?))
-
-(defn update-forms
+(>defn update-forms
   "Recursively update a form and its subforms. This function works against the state database (normalized state).
 
   state-map : The application state map
@@ -390,6 +369,7 @@
 
   Returns the updated state map."
   [state-map xform starting-entity-ident]
+  [map? fn? eql/ident? => map?]
   (let [entity         (get-in state-map starting-entity-ident)
         config-ident   (get entity ::config)
         config         (get-in state-map config-ident)
@@ -402,11 +382,7 @@
       (reduce (fn [s id]
                 (update-forms s xform id)) sm subform-idents))))
 
-(s/fdef update-forms
-  :args (s/cat :state map? :xform ::form-operation :ident eql/ident?)
-  :ret map?)
-
-(defn dirty-fields
+(>defn dirty-fields
   "Obtains all of the dirty fields for the given (denormalized) ui-entity, recursively. This works against UI props
   because submission mutations should close over the data as parameters to a mutation. In other words, your form
   submission to a server should be triggered from UI with the output of this function as parameters:
@@ -437,6 +413,7 @@
   ```
   "
   [ui-entity as-delta?]
+  [::denormalized-form boolean? => map?]
   (let [{:keys [::id ::fields ::pristine-state ::subforms] :as config} (get ui-entity ::config)
         subform-keys       (-> subforms keys set)
         subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (comp/get-ident entity)))
@@ -483,10 +460,6 @@
                              subform-keys)]
     complete-delta))
 
-(s/fdef dirty-fields
-  :args (s/cat :entity ::denormalized-form :delta boolean?)
-  :ret map?)
-
 (defn clear-complete*
   "Mark the fields incomplete so that validation checks will no longer return values. This function works on an app state database
   map (not atom) and is meant to be composed into mutations. See the `mark-incomplete!` mutation if you do not need to combine
@@ -507,13 +480,14 @@
      (fn mark*-step [e form-config]
        [e (assoc form-config ::complete? #{})]) entity-ident)))
 
-(defn mark-complete*
+(>defn mark-complete*
   "Mark the fields complete so that validation checks will return values. This function works on a app state database
   map (not atom) and is meant to be composed into mutations. See the `mark-complete!` mutation if you do not need to combine
   this with other operations.
 
   Follows the subforms recursively through state, unless a specific field is given."
   ([state-map entity-ident field]
+   [map? eql/ident? keyword? => map?]
    (let [form-config-path (conj entity-ident ::config)
          form-config-path (if (eql/ident? (get-in state-map form-config-path))
                             (get-in state-map form-config-path)
@@ -523,17 +497,15 @@
          complete-path    (conj form-config-path ::complete?)]
      (update-in state-map complete-path (fnil conj #{}) field)))
   ([state-map entity-ident]
+   [map? eql/ident? => map?]
    (update-forms state-map
      (fn mark*-step [e form-config]
        [e (assoc form-config ::complete? (::fields form-config))]) entity-ident)))
 
-(s/fdef mark-complete*
-  :args (s/cat :state map? :entity-ident eql/ident? :field (s/? keyword?))
-  :ret map?)
-
-(defn delete-form-state*
+(>defn delete-form-state*
   "Removes copies of entities used by form-state logic."
   [state-map entity-ident-or-idents]
+  [map? (s/or :i eql/ident? :is (s/coll-of eql/ident?)) => map?]
   (let [entity-idents (if (eql/ident? entity-ident-or-idents)
                         [entity-ident-or-idents]
                         entity-ident-or-idents)
@@ -545,13 +517,7 @@
       (fn [s]
         (apply dissoc s ks)))))
 
-(s/fdef delete-form-state*
-  :args (s/cat :state-map map?
-          :entity-ident-or-idents (s/or :entity-ident eql/ident?
-                                    :entity-idents (s/coll-of eql/ident?)))
-  :ret map?)
-
-(defn pristine->entity*
+(>defn pristine->entity*
   "Copy the pristine state over top of the originating entity of the given form. Meant to be used inside of a
   mutation. Recursively follows subforms in app state. Returns the new app state map.
 
@@ -560,14 +526,11 @@
 
   Only affects declared fields and sub-forms."
   [state-map entity-ident]
+  [map? eql/ident? => map?]
   (update-forms state-map (fn reset-form-step [e {:keys [::pristine-state] :as config}]
                             [(merge e pristine-state) config]) entity-ident))
 
-(s/fdef pristine->entity*
-  :args (s/cat :state map? :entity-ident eql/ident?)
-  :ret map?)
-
-(defn entity->pristine*
+(>defn entity->pristine*
   "Overwrite the pristine state (form state's copy) of the entity. This is meant to be used from a mutation
   to update the form state tracking recursively to make the form as 'unmodified'. That is to say, as if you
   committed the values to the server, and the current entity state is now the pristine state.
@@ -578,14 +541,11 @@
 
   Returns the updated state-map (database)."
   [state-map entity-ident]
+  [map? eql/ident? => map?]
   (update-forms state-map (fn commit-form-step [e {:keys [::fields ::subforms] :as config}]
                             (let [subform-keys       (-> subforms keys set)
                                   new-pristine-state (select-keys e (set/union subform-keys fields))]
                               [e (assoc config ::pristine-state new-pristine-state)])) entity-ident))
-
-(s/fdef entity->pristine*
-  :args (s/cat :state map? :entity-ident eql/ident?)
-  :ret map?)
 
 (defmutation reset-form!
   "Mutation: Reset the form (recursively) to its (last recorded) pristine state. If form ident is not supplied it uses the ident
