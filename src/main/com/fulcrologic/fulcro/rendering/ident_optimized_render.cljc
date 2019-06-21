@@ -39,13 +39,15 @@
   (render-components-with-ident! app ident)
   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
         {:com.fulcrologic.fulcro.application/keys [indexes]} @runtime-atom
-        {:keys [prop->classes idents-in-joins]} indexes
+        {:keys [prop->classes idents-in-joins class->components]} indexes
         idents-in-joins (or idents-in-joins #{})]
     (when (contains? idents-in-joins ident)
-      (let [components (prop->classes app ident)]
-        (when (seq components)
-          (doseq [c components]
-            (render-component! app ident c)))))))
+      (let [classes (prop->classes ident)]
+        (when (seq classes)
+          (doseq [class classes]
+            (doseq [component (class->components class)
+                    :let [component-ident (comp/get-ident component)]]
+              (render-component! app component-ident component))))))))
 
 (defn props->components
   "Given an app and set of props: returns the components that query for those props."
@@ -73,9 +75,7 @@
       (let [{limited-idents true
              limited-props  false} (group-by eql/ident? only-refresh)
             limited-to-render (props->components app limited-props)]
-        (log/debug "Limiting refresh to:" limited-props limited-idents)
         (doseq [c limited-to-render]
-          (log/debug "Render" (comp/component-name c))
           (render-component! app (comp/get-ident c) c))
         (doseq [i limited-idents]
           (render-components-with-ident! app i)))
@@ -86,12 +86,10 @@
             mounted-idents  (concat (keys ident->components) idents-in-joins)
             stale-idents    (dirty-table-entries last-rendered-state state-map mounted-idents)
             extra-to-force  (props->components app props-to-force)]
-        (log/debug "Extra refresh on: " idents-to-force extra-to-force)
         (doseq [i idents-to-force]
           (render-dependents-of-ident! app i))
         (doseq [c extra-to-force]
           (render-component! app (comp/get-ident c) c))
-        (log/debug "Doing stale refresh on" stale-idents)
         (doseq [ident stale-idents]
           (render-dependents-of-ident! app ident))))))
 

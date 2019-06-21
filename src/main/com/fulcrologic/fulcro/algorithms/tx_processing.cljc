@@ -397,7 +397,7 @@
         remote-fn      (get dispatch remote)
         remote-desire  (when remote-fn (remote-fn env))
         ast            (cond
-                         (nil? remote-desire) nil
+                         (or (false? remote-desire) (nil? remote-desire)) nil
                          (true? remote-desire) original-ast-node
                          (and (map? remote-desire) (contains? remote-desire :ast)) (:ast remote-desire)
                          (and (map? remote-desire) (contains? remote-desire :type)) remote-desire

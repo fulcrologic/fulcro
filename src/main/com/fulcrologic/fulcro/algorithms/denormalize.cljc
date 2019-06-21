@@ -4,8 +4,25 @@
 
 (def ^:dynamic *denormalize-time* 0)
 
+(defn link-ref? [v]
+  (and
+    (vector? v)
+    (= 2 (count v))
+    (keyword? (first v))
+    (= '_ (second v))))
+
 (defn lookup-ref? [v]
   (and (vector? v) (= 2 (count v)) (keyword? (first v))))
+
+(defn follow-ref [state-map [table id :as ref]]
+  (if (= '_ id)
+    (get state-map table)
+    (get-in state-map ref)))
+
+(defn ref-key [[table id :as ref]]
+  (if (= '_ id)
+    table
+    ref))
 
 (declare denormalize)
 
@@ -19,11 +36,11 @@
   (reduce
     (fn [n {:keys [key]}]
       (if (lookup-ref? key)
-        (if-let [x (get-in state-map key)]
-          (assoc! n key x)
+        (if-let [x (follow-ref state-map key)]
+          (assoc! n (ref-key key) x)
           n)
-        (if-let [[_ v] (find entity key)]
-          (assoc! n key v)
+        (if-let [entry (and (coll? entity) (find entity key))]
+          (assoc! n key (second entry))
           n)))
     transient-node
     ast-prop-children))
@@ -41,9 +58,10 @@
 
 (defn- add-join! [n {:keys [query key] :as join-node} entity state-map parent-node idents-seen]
   (let [link-join?      (lookup-ref? key)
-        v               (if link-join? (get-in state-map key) (get entity key))
+        v               (if link-join? (follow-ref state-map key) (get entity key))
+        key             (if (link-ref? key) (first key) key)
         is-ref?         (lookup-ref? v)
-        join-entity     (if is-ref? (get-in state-map v) v)
+        join-entity     (if is-ref? (follow-ref state-map v) v)
         to-many?        (and (not is-ref?) (vector? join-entity))
         depth-based?    (int? query)
         recursive?      (or depth-based? (= '... query))
@@ -66,7 +84,7 @@
                  (into []
                    (keep (fn [x]
                            (let [e (if (lookup-ref? x)
-                                     (get-in state-map x)
+                                     (follow-ref state-map x)
                                      x)]
                              (denormalize target-node e state-map idents-seen))))
                    join-entity))
@@ -82,8 +100,8 @@
                                      (assoc! n key (denormalize parent-node join-entity state-map idents-seen)))
       (map? join-entity) (assoc! n key (denormalize target-node join-entity state-map idents-seen))
       (and (contains? entity key)
-           (not recursive?)
-           (not link-join?)) (assoc! n key v)
+        (not recursive?)
+        (not link-join?)) (assoc! n key v)
       :otherwise n)))
 
 (defn- add-union! [n {:keys [key] :as join-node} entity state-map idents-seen]
@@ -100,22 +118,22 @@
     (cond
       to-many? (assoc! n key
                  (into []
-                       (keep (fn [lookup-ref]
-                               (if-let [e (and (lookup-ref? lookup-ref)
-                                               (get-in state-map lookup-ref))]
-                                 (let [[table] lookup-ref]
-                                   (if-let [target-ast-node (union-key->query table)]
-                                     (denormalize target-ast-node e state-map idents-seen)
-                                     {}))
-                                 {})))
-                       v))
-      is-ref? (if-let [e (get-in state-map v)]
-                    (if-let [target-ast-node (union-key->query (first v))]
-                      (assoc! n key (denormalize target-ast-node e state-map idents-seen))
-                      (assoc! n key {}))
-                    n)
+                   (keep (fn [lookup-ref]
+                           (if-let [e (and (lookup-ref? lookup-ref)
+                                        (follow-ref state-map lookup-ref))]
+                             (let [[table] lookup-ref]
+                               (if-let [target-ast-node (union-key->query table)]
+                                 (denormalize target-ast-node e state-map idents-seen)
+                                 {}))
+                             {})))
+                   v))
+      is-ref? (if-let [e (follow-ref state-map v)]
+                (if-let [target-ast-node (union-key->query (first v))]
+                  (assoc! n key (denormalize target-ast-node e state-map idents-seen))
+                  (assoc! n key {}))
+                n)
       (and (contains? entity key)
-           (not link-join?)) (assoc! n key v)
+        (not link-join?)) (assoc! n key v)
       :otherwise n)))
 
 (defn- add-joins! [transient-node entity state-map parent-node ast-join-nodes idents-seen]
@@ -132,7 +150,7 @@
   [{:keys [type children] :as top-node} current-entity state-map idents-seen]
   (assert (not= type :prop))
   (let [current-entity   (if (lookup-ref? current-entity)
-                           (get-in state-map current-entity)
+                           (follow-ref state-map current-entity)
                            current-entity)
         grouped-children (group-by :type children)
         nil-nodes        (get grouped-children nil false)

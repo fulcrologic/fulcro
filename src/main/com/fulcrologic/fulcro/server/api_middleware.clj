@@ -22,11 +22,30 @@
   (-> (assoc input-response :status status :body body)
     (update :headers assoc "Content-Type" "application/transit+json")))
 
+(defn augment-response
+  "Augments the Ring response that's returned from the handler.
+
+  Use this function when you need to add information into the handler response, for
+  example when you need to add cookies or session data. Example:
+
+      (defmutation my-mutate
+        ...
+        (augment-response
+          {:uid 42} ; your regular response
+          #(assoc-in % [:session :user-id] 42))) ; a function resp -> resp
+
+  If the parser has multiple responses with `augment-response` they will be applied
+  in order, the first one will receive an empty map as input. Only top level values
+  of your response will be checked for augmented response (i.e. primarily mutation responses)."
+  [core-response ring-response-fn]
+  (assert (instance? clojure.lang.IObj core-response) "Scalar values can't be augmented.")
+  (with-meta core-response {::augment-response ring-response-fn}))
+
 (defn augment-map
   "Fulcro queries and mutations can wrap their responses with `augment-response` to indicate they need access to
    the raw Ring response. This function processes those into the response."
   [response]
-  (->> (keep #(some-> (second %) meta :fulcro.server/augment-response) response)
+  (->> (keep #(some-> (second %) meta ::augment-response) response)
     (reduce (fn [response f] (f response)) {})))
 
 (defn handle-api-request
