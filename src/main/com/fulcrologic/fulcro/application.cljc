@@ -13,6 +13,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
     [ghostwheel.core :refer [>defn => |]]
     [clojure.spec.alpha :as s]
@@ -193,52 +194,6 @@
                                       (string? ns)
                                       (= "ui" ns))))))))
 
-(defonce fulcro-tools (atom {}))
-
-(defn register-tool!
-  "Register a debug tool. When an app starts, the debug tool can have several hooks that are notified:
-
-  ::tool-id some identifier to place the tool into the tool map
-  ::tx-listen is a (fn [tx info] ...) that will be called on every `transact!` of the app. Return value is ignored.
-  ::network-wrapper is (fn [network-map] network-map') that will be given the networking config BEFORE it is initialized. You can wrap
-  them, but you MUST return a compatible map out or you'll disable networking.
-  ::component-lifecycle is (fn [component evt]) that is called with evt of :mounted and :unmounted to tell you when the given component mounts/unmounts.
-  ::instrument-wrapper is a (fn [instrument] instrument') that allows you to wrap your own instrumentation (for rendering) around any existing (which may be nil)
-  ::app-started (fn [app] ...) that will be called once the app is mounted, just like started-callback/client-did-mount. Return value is ignored."
-  [{:keys [::tool-id] :as tool-registry}]
-  (log/debug "Installing tool" tool-id)
-  (swap! fulcro-tools assoc tool-id tool-registry))
-
-(defn- add-tools [{::keys [runtime-atom]
-                   :keys  [client-did-mount] :as app}]
-  (if (seq (vals @fulcro-tools))
-    (let [remotes (some-> runtime-atom deref ::remotes)
-          tx!     (-> app ::algorithms :algorithm/tx!)
-          started (or client-did-mount (constantly nil))
-          new-tx! (fn wrapped-tx*
-                    ([app tx] (wrapped-tx* app tx {}))
-                    ([app tx options]
-                     (log/debug "Running normal tx" tx)
-                     (let [txid (tx! app tx options)]
-                       (try
-                         (log/debug "Sending tool mesg about tx" tx)
-                         (doseq [tool (vals @fulcro-tools)]
-                           (when-let [tx-listen (get tool ::tx-listen)]
-                             (tx-listen app tx (assoc options ::txn/id txid))))
-                         (catch #?(:cljs :default :clj Exception) e)))))
-          [started remotes] (reduce
-                              (fn [[start net] {:keys [::network-wrapper ::app-started]}]
-                                (let [start (if app-started (fn [app] (app-started app) (start app)) start)
-                                      net   (if network-wrapper (network-wrapper app net) net)]
-                                  [start net]))
-                              [started remotes]
-                              (vals @fulcro-tools))]
-      (swap! runtime-atom assoc ::remotes remotes)
-      (-> app
-        (assoc-in [::algorithms :algorithm/tx!] new-tx!)
-        (assoc :client-did-mount started)))
-    app))
-
 (defn fulcro-app
   "Create a new Fulcro application.
 
@@ -372,7 +327,8 @@
                                       (schedule-render! app {:force-root? true})))))]
         (if (mounted? app)
           (reset-mountpoint!)
-          (let [app (add-tools app)]
+          (do
+            (inspect/app-started! app)
             (when initialize-state?
               (let [initial-db   (-> app ::state-atom deref)
                     root-query   (comp/get-query root)
