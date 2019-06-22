@@ -117,6 +117,10 @@
                                               (doseq [{:keys [::ast ::result-handler]} to-send]
                                                 (let [new-body (select-keys body (top-keys ast))
                                                       result   (assoc combined-result :body new-body)]
+                                                  (inspect/ilet [{:keys [status-code body]} result]
+                                                    (if (= 200 status-code)
+                                                      (inspect/send-finished! app remote-name combined-node-id body)
+                                                      (inspect/send-failed! app remote-name (str status-code))))
                                                   (result-handler result)))
                                               (remove-send! app remote-name combined-node-id combined-node-idx))
                            ::active?        true}]
@@ -137,10 +141,14 @@
                                  (update send-node ::ast query-transform)
                                  send-node)]
     (try
+      (inspect/ilet [tx (eql/ast->query (::ast send-node))]
+        (inspect/send-started! app remote-name (::id send-node) tx))
       (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
         (log/error e "Send threw an exception!")
         (try
+          (inspect/ido
+            (inspect/send-failed! app (::id send-node) "Transmit Exception"))
           ((::result-handler send-node) {:status-code      500
                                          :client-exception e})
           (catch #?(:cljs :default :clj Exception) e
@@ -573,9 +581,10 @@
 
 (>defn process-queue!
   "Run through the active queue and do a processing step."
-  [{:keys [com.fulcrologic.fulcro.application/runtime-atom] :as app}]
+  [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom] :as app}]
   [:com.fulcrologic.fulcro.application/app => any?]
-  (let [new-queue (reduce
+  (let [old-state @state-atom
+        new-queue (reduce
                     (fn *pstep [new-queue n]
                       (if-let [new-node (process-tx-node! app n)]
                         (conj new-queue new-node)

@@ -12,17 +12,74 @@
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.misc :as util]))
 
+#?(:cljs (goog-define INSPECT false))
+
 (declare handle-devtool-message)
 (defonce started?* (atom false))
 (defonce tools-app* (atom nil))
 (defonce apps* (atom {}))
-
 (def app-uuid-key :fulcro.inspect.core/app-uuid)
 
 (defonce send-ch #?(:clj nil :cljs (async/chan (async/dropping-buffer 1024))))
 (defn post-message [type data]
-  (log/info "posting message" type)
   #?(:cljs (async/put! send-ch [type data])))
+
+(defn cljs?
+  "Returns true when env is a cljs macro &env"
+  [env]
+  (boolean (:ns env)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Helpers so we don't have to include other nses
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn app-state [app] (some-> app :com.fulcrologic.fulcro.application/state-atom deref))
+(defn runtime-atom [app] (some-> app :com.fulcrologic.fulcro.application/runtime-atom))
+(defn state-atom [app] (some-> app :com.fulcrologic.fulcro.application/state-atom))
+(defn app-uuid [app] (some-> app :com.fulcrologic.fulcro.application/state-atom deref (get app-uuid-key)))
+(defn remotes [app] (some-> (runtime-atom app) :com.fulcrologic.fulcro.application/remotes))
+(defn app-id [app] (some-> (app-state app) :fulcro.inspect.core/app-id))
+(defn get-component-name [component] (when component (some-> (util/isoget component :fulcro$options) :displayName)))
+(defn comp-transact! [app tx options]
+  (let [tx! (ah/app-algorithm app :tx!)]
+    (tx! app tx options)))
+
+
+(def MAX_HISTORY_SIZE 100)
+
+(defn- fixed-size-assoc [size db key value]
+  (let [{:fulcro.inspect.client/keys [history] :as db'}
+        (-> db
+          (assoc key value)
+          (update :fulcro.inspect.client/history (fnil conj []) key))]
+    (if (> (count history) size)
+      (-> db'
+        (dissoc (first history))
+        (update :fulcro.inspect.client/history #(vec (next %))))
+      db')))
+
+(defn- update-state-history
+  "Record a snapshot of history on the app itself for inspect to reference via events to do things like preview
+   history."
+  [app state]
+  (swap! (runtime-atom app) update :fulcro.inspect.client/state-history
+    #(fixed-size-assoc MAX_HISTORY_SIZE % (hash state) state)))
+
+(defn db-from-history [app state-hash]
+  (some-> (runtime-atom app) deref :fulcro.inspect.client/state-history (get state-hash)))
+
+(defn db-changed!
+  "Notify Inspect that the database changed"
+  [app old-state new-state]
+  #?(:cljs
+     (let [app-uuid (app-uuid app)]
+       (update-state-history app new-state)
+       (let [diff (diff/diff old-state new-state)]
+         (post-message :fulcro.inspect.client/db-update {app-uuid-key                           app-uuid
+                                                         :fulcro.inspect.client/prev-state-hash (hash old-state)
+                                                         :fulcro.inspect.client/state-hash      (hash new-state)
+                                                         :fulcro.inspect.client/state-delta     diff})))))
+
+
 
 (defn event-data [event]
   #?(:cljs (some-> event (gobj/getValueByKeys "data" "fulcro-inspect-devtool-message") encode/read)))
@@ -47,16 +104,6 @@
              (gobj/getValueByKeys event "data" "fulcro-inspect-start-consume"))
            (start-send-message-loop)))
        false)))
-
-(defn app-state [app] (some-> app :com.fulcrologic.fulcro.application/state-atom deref))
-(defn runtime-atom [app] (some-> app :com.fulcrologic.fulcro.application/runtime-atom))
-(defn state-atom [app] (some-> app :com.fulcrologic.fulcro.application/state-atom))
-(defn app-uuid [app] (some-> app :com.fulcrologic.fulcro.application/state-atom deref (get app-uuid-key)))
-(defn remotes [app] (some-> (runtime-atom app) :com.fulcrologic.fulcro.application/remotes))
-(defn app-id [app] (some-> (app-state app) :fulcro.inspect.core/app-id))
-(defn comp-transact! [app tx options]
-  (let [tx! (ah/app-algorithm app :tx!)]
-    (tx! app tx options)))
 
 (defn transact-inspector!
   ([tx]
@@ -92,7 +139,7 @@
 
          app)))
 
-(defn tx-started! [app remote tx-id txn]
+(defn send-started! [app remote tx-id txn]
   #?(:cljs
      (let [start    (js/Date.)
            app-uuid (app-uuid app)]
@@ -102,7 +149,7 @@
                                                       :fulcro.inspect.ui.network/request-started-at start
                                                       :fulcro.inspect.ui.network/request-edn        txn})]))))
 
-(defn tx-finished! [app remote tx-id response]
+(defn send-finished! [app remote tx-id response]
   #?(:cljs
      (let [finished (js/Date.)
            app-uuid (app-uuid app)]
@@ -111,7 +158,7 @@
                                                        :fulcro.inspect.ui.network/request-finished-at finished
                                                        :fulcro.inspect.ui.network/response-edn        response})]))))
 
-(defn tx-failed! [app tx-id error]
+(defn send-failed! [app tx-id error]
   #?(:cljs
      (let [finished (js/Date.)
            app-uuid (app-uuid app)]
@@ -120,32 +167,37 @@
                                                        :fulcro.inspect.ui.network/request-finished-at finished
                                                        :fulcro.inspect.ui.network/error               error})]))))
 (defn handle-devtool-message [{:keys [type data]}]
+  (log/info "Incoming message from devtools" type data)
   #?(:cljs
      (case type
        :fulcro.inspect.client/request-page-apps
-       (doseq [app (vals @apps*)]
-         (let [state        (app-state app)
-               remote-names (remotes app)]
-           (post-message :fulcro.inspect.client/init-app {app-uuid-key                         (app-uuid app)
-                                                          :fulcro.inspect.core/app-id          (app-id app)
-                                                          :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) remote-names)
-                                                          :fulcro.inspect.client/initial-state state
-                                                          :fulcro.inspect.client/state-hash    (hash state)})))
+       (do
+         (log/info "Inspect requested state of apps")
+         (doseq [app (vals @apps*)]
+           (let [state        (app-state app)
+                 remote-names (remotes app)]
+             (post-message :fulcro.inspect.client/init-app {app-uuid-key                         (app-uuid app)
+                                                            :fulcro.inspect.core/app-id          (app-id app)
+                                                            :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) remote-names)
+                                                            :fulcro.inspect.client/initial-state state
+                                                            :fulcro.inspect.client/state-hash    (hash state)}))))
 
        :fulcro.inspect.client/reset-app-state
        (let [{:keys                     [target-state]
               :fulcro.inspect.core/keys [app-uuid]} data]
+         (log/info "Inspect is pusing a new app state")
          (if-let [app (get @apps* app-uuid)]
-           (do
+           (let [render! (ah/app-algorithm app :schedule-render!)]
              (if target-state
                (let [target-state (assoc target-state app-uuid-key app-uuid)]
                  (reset! (state-atom app) target-state)))
-             #_(app/force-root-render! app))
+             (render! app {:force-root? true}))
            (js/console.log "Reset app on invalid uuid" app-uuid)))
 
        :fulcro.inspect.client/transact
        (let [{:keys                     [tx tx-ref]
               :fulcro.inspect.core/keys [app-uuid]} data]
+         (log/info "Inspect wants to run an app tx: " tx)
          (if-let [app (get @apps* app-uuid)]
            (if tx-ref
              (comp-transact! app tx {:ref tx-ref})
@@ -156,16 +208,28 @@
        (js/console.error "Pick Element Not implemented for Inspect v3")
 
        :fulcro.inspect.client/show-dom-preview
-       (js/console.error "DOM Preview not implemented")
+       (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
+                       app              (some-> @apps* (get app-uuid))
+                       historical-state (db-from-history app (:fulcro.inspect.client/state-hash data))
+                       historical-app   (assoc app :com.fulcrologic.fulcro.application/state-atom (atom historical-state))
+                       render!          (ah/app-algorithm app :render!)]
+         (do
+           (render! historical-app {:force-root? true}))
+         (log/error "Unable to find app/state for preview."))
 
        :fulcro.inspect.client/hide-dom-preview
-       (js/console.log "")
+       (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
+                         app     (some-> @apps* (get app-uuid))
+                         render! (ah/app-algorithm app :render!)]
+         (log/info "Showing regular app")
+         (render! app {:force-root? true}))
 
        :fulcro.inspect.client/network-request
        (let [{:keys                          [query]
               :fulcro.inspect.client/keys    [remote]
               :fulcro.inspect.ui-parser/keys [msg-id]
               :fulcro.inspect.core/keys      [app-uuid]} data]
+         (log/info "Inspect wants to run this network request: " query)
          (encore/when-let [app       (get @apps* app-uuid)
                            remote    (get (remotes app) remote)
                            transmit! (-> remote :transmit!)
@@ -214,45 +278,6 @@
          (listen-local-messages)))))
 
 
-#?(:cljs (goog-define INSPECT false))
-
-(defn cljs?
-  "Returns true when env is a cljs macro &env"
-  [env]
-  (boolean (:ns env)))
-
-(def MAX_HISTORY_SIZE 100)
-
-(defn- fixed-size-assoc [size db key value]
-  (let [{:fulcro.inspect.client/keys [history] :as db'}
-        (-> db
-          (assoc key value)
-          (update :fulcro.inspect.client/history (fnil conj []) key))]
-    (if (> (count history) size)
-      (-> db'
-        (dissoc (first history))
-        (update :fulcro.inspect.client/history #(vec (next %))))
-      db')))
-
-(defn- update-state-history
-  "Record a snapshot of history on the app itself for inspect to reference via events to do things like preview
-   history."
-  [app state]
-  (swap! (runtime-atom app) update :fulcro.inspect.client/state-history
-    #(fixed-size-assoc MAX_HISTORY_SIZE % (hash state) state)))
-
-(defn db-changed!
-  "Notify Inspect that the database changed"
-  [app old-state new-state]
-  #?(:cljs
-     (let [app-uuid (app-uuid app)]
-       (update-state-history app new-state)
-       (let [diff (diff/diff old-state new-state)]
-         (post-message :fulcro.inspect.client/db-update {app-uuid-key                           app-uuid
-                                                         :fulcro.inspect.client/prev-state-hash (hash old-state)
-                                                         :fulcro.inspect.client/state-hash      (hash new-state)
-                                                         :fulcro.inspect.client/state-delta     diff})))))
-
 (defn app-started!
   "Register the application with Inspect, if it is available."
   [app]
@@ -277,7 +302,7 @@
    env - The mutation env that completed."
   [app {:keys [component ref state] :as env} {:keys [tx-id tx component-name state-before]}]
   #?(:cljs
-     (let [component-name (when component (some-> (util/isoget component :fulcro$options) :displayName))
+     (let [component-name (get-component-name component)
            tx             (cond-> {:fulcro.inspect.ui.transactions/tx-id tx-id
                                    :fulcro.history/client-time           (js/Date.)
                                    :fulcro.history/tx                    tx
