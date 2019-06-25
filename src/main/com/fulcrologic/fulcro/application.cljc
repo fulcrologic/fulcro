@@ -168,7 +168,7 @@
                                    (seq only-refresh) (assoc ::only-refresh only-refresh))))
      (::txn/id node))))
 
-(>defn default-load-error?
+(>defn default-remote-error?
   "Default detection of network errors. Returns true if the status-code of the given result
   map is not 200."
   [{:keys [status-code body] :as result}]
@@ -244,7 +244,7 @@
                        :algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
                        :algorithm/shared-fn             (or shared-fn (constantly {}))
                        :algorithm/render!               render!
-                       :algorithm/load-error?           default-load-error?
+                       :algorithm/remote-error?         default-remote-error?
                        :algorithm/merge*                merge/merge*
 
                        :algorithm/default-result-action (or default-result-action mut/default-result-action)

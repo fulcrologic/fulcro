@@ -36,7 +36,7 @@
 (defn runtime-atom [app] (some-> app :com.fulcrologic.fulcro.application/runtime-atom))
 (defn state-atom [app] (some-> app :com.fulcrologic.fulcro.application/state-atom))
 (defn app-uuid [app] (some-> app :com.fulcrologic.fulcro.application/state-atom deref (get app-uuid-key)))
-(defn remotes [app] (some-> (runtime-atom app) :com.fulcrologic.fulcro.application/remotes))
+(defn remotes [app] (some-> (runtime-atom app) deref :com.fulcrologic.fulcro.application/remotes))
 (defn app-id [app] (some-> (app-state app) :fulcro.inspect.core/app-id))
 (defn get-component-name [component] (when component (some-> (util/isoget component :fulcro$options) :displayName)))
 (defn comp-transact! [app tx options]
@@ -167,12 +167,10 @@
                                                        :fulcro.inspect.ui.network/request-finished-at finished
                                                        :fulcro.inspect.ui.network/error               error})]))))
 (defn handle-devtool-message [{:keys [type data]}]
-  (log/info "Incoming message from devtools" type data)
   #?(:cljs
      (case type
        :fulcro.inspect.client/request-page-apps
        (do
-         (log/info "Inspect requested state of apps")
          (doseq [app (vals @apps*)]
            (let [state        (app-state app)
                  remote-names (remotes app)]
@@ -185,27 +183,25 @@
        :fulcro.inspect.client/reset-app-state
        (let [{:keys                     [target-state]
               :fulcro.inspect.core/keys [app-uuid]} data]
-         (log/info "Inspect is pusing a new app state")
          (if-let [app (get @apps* app-uuid)]
            (let [render! (ah/app-algorithm app :schedule-render!)]
              (if target-state
                (let [target-state (assoc target-state app-uuid-key app-uuid)]
                  (reset! (state-atom app) target-state)))
              (render! app {:force-root? true}))
-           (js/console.log "Reset app on invalid uuid" app-uuid)))
+           (log/info "Reset app on invalid uuid" app-uuid)))
 
        :fulcro.inspect.client/transact
        (let [{:keys                     [tx tx-ref]
               :fulcro.inspect.core/keys [app-uuid]} data]
-         (log/info "Inspect wants to run an app tx: " tx)
          (if-let [app (get @apps* app-uuid)]
            (if tx-ref
              (comp-transact! app tx {:ref tx-ref})
              (comp-transact! app tx {}))
-           (js/console.log "Transact on invalid uuid" app-uuid)))
+           (log/error "Transact on invalid uuid" app-uuid)))
 
        :fulcro.inspect.client/pick-element
-       (js/console.error "Pick Element Not implemented for Inspect v3")
+       (log/error "Pick Element Not implemented for Inspect v3")
 
        :fulcro.inspect.client/show-dom-preview
        (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
@@ -221,25 +217,29 @@
        (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
                          app     (some-> @apps* (get app-uuid))
                          render! (ah/app-algorithm app :render!)]
-         (log/info "Showing regular app")
          (render! app {:force-root? true}))
 
        :fulcro.inspect.client/network-request
        (let [{:keys                          [query]
-              :fulcro.inspect.client/keys    [remote]
+              remote-name                    :fulcro.inspect.client/remote
               :fulcro.inspect.ui-parser/keys [msg-id]
               :fulcro.inspect.core/keys      [app-uuid]} data]
-         (log/info "Inspect wants to run this network request: " query)
          (encore/when-let [app       (get @apps* app-uuid)
-                           remote    (get (remotes app) remote)
+                           remote    (get (remotes app) remote-name)
                            transmit! (-> remote :transmit!)
-                           ast       (eql/query->ast query)]
-           (transmit! remote {:com.fulcrologic.fulcro.algorithms.tx-processing/id             (random-uuid)
+                           ast       (eql/query->ast query)
+                           tx-id     (random-uuid)]
+           (send-started! app remote-name tx-id query)
+           (transmit! remote {:com.fulcrologic.fulcro.algorithms.tx-processing/id             tx-id
                               :com.fulcrologic.fulcro.algorithms.tx-processing/ast            ast
                               :com.fulcrologic.fulcro.algorithms.tx-processing/idx            0
                               :com.fulcrologic.fulcro.algorithms.tx-processing/options        {}
                               :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler identity
-                              :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler (fn [{:keys [status-code body]}]
+                              :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler (fn [{:keys [body] :as result}]
+                                                                                                (let [error? (ah/app-algorithm app :remote-error?)]
+                                                                                                  (if (error? result)
+                                                                                                    (send-failed! app remote-name result)
+                                                                                                    (send-finished! app remote-name tx-id body)))
                                                                                                 (post-message :fulcro.inspect.client/message-response
                                                                                                   {:fulcro.inspect.ui-parser/msg-id       msg-id
                                                                                                    :fulcro.inspect.ui-parser/msg-response body}))})))
@@ -262,7 +262,7 @@
        :fulcro.inspect.client/check-client-version
        (post-message :fulcro.inspect.client/client-version {:version "2.2.5"})
 
-       (js/console.log "Unknown message" type))))
+       (log/error "Unknown message" type))))
 
 
 (defn install [_]
@@ -271,7 +271,7 @@
        (js/document.documentElement.setAttribute "__fulcro-inspect-remote-installed__" true)
 
        (when-not @started?*
-         (js/console.log "Installing Fulcro 3.x Inspect" {})
+         (log/info "Installing Fulcro 3.x Inspect" {})
 
          (reset! started?* true)
 

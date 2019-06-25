@@ -125,8 +125,8 @@
     (log/debug "Loading " remote " query:" query)
     (cond-> {:action        (fn [{:keys [app]}] (set-load-marker! app marker :loading))
              :result-action (fn [{:keys [result app] :as env}]
-                              (let [load-error? (ah/app-algorithm app :load-error?)]
-                                (if (load-error? result)
+                              (let [remote-error? (ah/app-algorithm app :remote-error?)]
+                                (if (remote-error? result)
                                   (load-failed! env params)
                                   (finish-load! env params))))
              remote-key     (fn [_]
