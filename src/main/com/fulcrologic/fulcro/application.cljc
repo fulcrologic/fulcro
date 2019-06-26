@@ -334,7 +334,7 @@
                     root-query   (comp/get-query root)
                     initial-tree (comp/get-initial-state root)
                     db-from-ui   (if root-query
-                                   (-> (fnorm/tree->db root-query initial-tree true)
+                                   (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
                                      (merge/merge-alternate-union-elements root))
                                    initial-tree)
                     db           (util/deep-merge initial-db db-from-ui)]
