@@ -7,6 +7,7 @@
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.specs]
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
     [ghostwheel.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
@@ -116,6 +117,10 @@
                                               (doseq [{:keys [::ast ::result-handler]} to-send]
                                                 (let [new-body (select-keys body (top-keys ast))
                                                       result   (assoc combined-result :body new-body)]
+                                                  (inspect/ilet [{:keys [status-code body]} result]
+                                                    (if (= 200 status-code)
+                                                      (inspect/send-finished! app remote-name combined-node-id body)
+                                                      (inspect/send-failed! app remote-name (str status-code))))
                                                   (result-handler result)))
                                               (remove-send! app remote-name combined-node-id combined-node-idx))
                            ::active?        true}]
@@ -136,10 +141,14 @@
                                  (update send-node ::ast query-transform)
                                  send-node)]
     (try
+      (inspect/ilet [tx (eql/ast->query (::ast send-node))]
+        (inspect/send-started! app remote-name (::id send-node) tx))
       (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
         (log/error e "Send threw an exception!")
         (try
+          (inspect/ido
+            (inspect/send-failed! app (::id send-node) "Transmit Exception"))
           ((::result-handler send-node) {:status-code      500
                                          :client-exception e})
           (catch #?(:cljs :default :clj Exception) e
@@ -281,14 +290,14 @@
 
 (>defn advance-actions!
   "Runs any incomplete and non-blocked optimistic operations on a node."
-  [app {:keys [::elements] :as node}]
+  [app {::keys [id elements] :as node}]
   [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
   (let [remotes      (app->remote-names app)
         reduction    (reduce
                        (fn [{:keys [done? new-elements] :as acc} element]
                          (if done?
                            (update acc :new-elements conj element)
-                           (let [{:keys [::complete? ::dispatch]} element
+                           (let [{::keys [complete? dispatch original-ast-node idx]} element
                                  {:keys [action]} dispatch
                                  remote-set      (set/intersection remotes (set (keys dispatch)))
                                  exec?           (and action (not (or done? (complete? :action))))
@@ -306,7 +315,11 @@
                                  (when action
                                    (action env))
                                  (catch #?(:cljs :default :clj Exception) e
-                                   (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node))))
+                                   (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
+                               (ilet [tx (eql/ast->query original-ast-node)]
+                                 (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
+                                                                               :state-before state-before
+                                                                               :tx           tx})))
                              new-acc)))
                        {:done? false :new-elements []}
                        elements)
@@ -314,11 +327,11 @@
     (assoc node ::elements new-elements)))
 
 (>defn run-actions!
-  [app {:keys [::elements] :as node}]
+  [app {::keys [id elements] :as node}]
   [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
   (let [new-elements (reduce
                        (fn [new-elements element]
-                         (let [{:keys [::complete? ::dispatch]} element
+                         (let [{::keys [idx complete? dispatch original-ast-node]} element
                                {:keys [action]} dispatch
                                exec?        (and action (not (complete? :action)))
                                state-before (-> app :com.fulcrologic.fulcro.application/state-atom deref)
@@ -331,7 +344,11 @@
                              (try
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
-                                 (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node))))
+                                 (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
+                             (ilet [tx (eql/ast->query original-ast-node)]
+                               (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
+                                                                             :state-before state-before
+                                                                             :tx           tx})))
                            new-acc))
                        []
                        elements)]
@@ -564,9 +581,10 @@
 
 (>defn process-queue!
   "Run through the active queue and do a processing step."
-  [{:keys [com.fulcrologic.fulcro.application/runtime-atom] :as app}]
+  [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom] :as app}]
   [:com.fulcrologic.fulcro.application/app => any?]
-  (let [new-queue (reduce
+  (let [old-state @state-atom
+        new-queue (reduce
                     (fn *pstep [new-queue n]
                       (if-let [new-node (process-tx-node! app n)]
                         (conj new-queue new-node)

@@ -94,7 +94,7 @@
 (gw/>def :algorithm/optimized-render! fn?)
 (gw/>def :algorithm/render! fn?)
 (gw/>def :algorithm/merge* fn?)
-(gw/>def :algorithm/load-error? fn?)
+(gw/>def :algorithm/remote-error? fn?)
 (gw/>def :algorithm/index-component! fn?)
 (gw/>def :algorithm/drop-component! fn?)
 (gw/>def :algorithm/schedule-render! fn?)
@@ -103,7 +103,7 @@
                                                                       :algorithm/optimized-render!
                                                                       :algorithm/render!
                                                                       :algorithm/merge*
-                                                                      :algorithm/load-error?
+                                                                      :algorithm/remote-error?
                                                                       :algorithm/global-eql-transform
                                                                       :algorithm/index-component!
                                                                       :algorithm/drop-component!

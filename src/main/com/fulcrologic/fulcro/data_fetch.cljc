@@ -77,22 +77,24 @@
 
 (defn set-load-marker! [app marker status]
   (when marker
-    (let [{:keys [::app/state-atom]} app]
-      (when marker
-        (log/debug "Setting load marker")
-        (swap! state-atom assoc-in [marker-table marker] {:status status})))))
+    (let [{::app/keys [state-atom]} app
+          render! (ah/app-algorithm app :schedule-render!)]
+      (log/debug "Setting load marker")
+      (swap! state-atom assoc-in [marker-table marker] {:status status})
+      (render! app {:force-root? true}))))
 
 (defn remove-load-marker! [app marker]
   (when marker
-    (let [{:keys [::app/state-atom]} app]
-      (when marker
-        (log/debug "Removing load marker")
-        (swap! state-atom update marker-table dissoc marker)))))
+    (let [{::app/keys [state-atom]} app]
+      (log/debug "Removing load marker")
+      (swap! state-atom update marker-table dissoc marker))))
 
 (defn finish-load! [{:keys [app result] :as env} {:keys [query ok-action post-mutation post-mutation-params
                                                          post-action target marker source-key]}]
   (when (or (nil? app) (nil? result))
     (throw (ex-info "Load is missing app or result" {})))
+
+  (remove-load-marker! app marker)
 
   (if (fn? ok-action)
     (do
@@ -103,7 +105,6 @@
       (log/debug "Doing merge and targeting steps: " body query)
       (swap! state-atom (fn [s] (cond-> (merge/merge* s query body)
                                   target (targeting/process-target source-key target))))
-      (remove-load-marker! app marker)
       (when (symbol? post-mutation)
         (log/debug "Doing post mutation " post-mutation)
         (comp/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
@@ -125,8 +126,8 @@
     (log/debug "Loading " remote " query:" query)
     (cond-> {:action        (fn [{:keys [app]}] (set-load-marker! app marker :loading))
              :result-action (fn [{:keys [result app] :as env}]
-                              (let [load-error? (ah/app-algorithm app :load-error?)]
-                                (if (load-error? result)
+                              (let [remote-error? (ah/app-algorithm app :remote-error?)]
+                                (if (remote-error? result)
                                   (load-failed! env params)
                                   (finish-load! env params))))
              remote-key     (fn [_]
@@ -162,7 +163,7 @@
   - `params` - Optional parameters to add to the generated query
   - `marker` - ID of marker. Normalizes a load marker into app state so you can see progress.
   - `refresh` - REMOVED. Not needed.
-  - `parallel` - REMOVED. Implemented as automatic network combining.
+  - `parallel` - Send the load out-of-order (immediately) without waiting for other loads in progress.
   - `post-mutation` - DEPRECATED. use post-action. A mutation (symbol) to run after the data is merged. Note, if target is supplied be sure your post mutation
   should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
   - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
@@ -189,12 +190,12 @@
   ([app-or-comp server-property-or-ident class-or-factory config]
    (let [app           (comp/any->app app-or-comp)
          {:keys [load-marker-default query-transform-default]} (-> app :config)
-         config        (merge
-                         (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
-                           query-transform-default (assoc :update-query query-transform-default))
-                         config)
+         {:keys [parallel] :as config} (merge
+                                         (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
+                                           query-transform-default (assoc :update-query query-transform-default))
+                                         config)
          mutation-args (load-params* app server-property-or-ident class-or-factory config)]
-     (comp/transact! app `[(internal-load! ~mutation-args)]))))
+     (comp/transact! app `[(internal-load! ~mutation-args)] {:parallel? parallel}))))
 
 (defn load-field!
   "Load a field of the current component. Runs `prim/transact!`.
@@ -202,24 +203,23 @@
   Parameters
   - `component`: The component (**instance**, not class). This component MUST have an Ident.
   - `field`: A field on the component's query that you wish to load.
-  - `parameters` : A map of parameters. See `load`.
+  - `options` : A map of load options. See `load`.
 
   WARNING: If you're using dynamic queries, you won't really know what factory your parent is using,
   nor can you pass it as a parameter to this function. Therefore, it is not recommended to use load-field from within
   a component that has a dynamic query unless you can base it on the original static query.
   "
-  [component field params]
-  (let [params       (if (map? (first params)) (first params) params)
-        app          (comp/any->app component)
-        {:keys [params update-query]} params
+  [component field options]
+  (let [app          (comp/any->app component)
+        {:keys [parallel update-query]} options
         ident        (comp/get-ident component)
         update-query (fn [q]
                        (cond-> (eql/focus-subquery q [field])
                          update-query (update-query)))
-        params       (load-params* app ident component (assoc params
+        params       (load-params* app ident component (assoc options
                                                          :update-query update-query
                                                          :source-key (comp/get-ident component)))]
-    (comp/transact! app [(list `internal-load! params)])))
+    (comp/transact! app [(list `internal-load! params)] {:parallel? parallel})))
 
 (defn refresh!
   ([component load-options]
