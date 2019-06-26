@@ -1,3 +1,9 @@
+3.0.0-alpha-12
+--------------
+- Fixed issues with parallel load option
+- Fixed issue with pre-merge and initial app state
+- Added additional missing inspect support (dom preview, network, etc.)
+
 3.0.0-alpha-11
 --------------
 - Fixed clj render to work well with css lib
