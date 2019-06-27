@@ -1,5 +1,5 @@
 (ns com.fulcrologic.fulcro.inspect.inspect-client
-  "Functions used by Fulcro to talk to Fulcro Inspect"
+  "Functions used by Fulcro to talk to Fulcro Inspect."
   #?(:cljs (:require-macros com.fulcrologic.fulcro.inspect.inspect-client))
   (:require
     [edn-query-language.core :as eql]

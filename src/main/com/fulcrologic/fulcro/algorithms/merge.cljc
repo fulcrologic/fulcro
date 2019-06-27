@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.merge
+  "Various algorithms that are used for merging trees of data into a normalized Fulcro database."
   (:require
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.components :as comp]
@@ -55,29 +56,29 @@
                   (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
       state actions)))
 
-(defn- is-ui-query-fragment?
+(defn is-ui-query-fragment?
   "Check the given keyword to see if it is in the :ui namespace."
   [kw]
   (let [kw (if (map? kw) (-> kw keys first) kw)]
     (when (keyword? kw) (some->> kw namespace (re-find #"^ui(?:\.|$)")))))
 
 (defn nilify-not-found
-  "Given x, return x value unless it's ::prim/not-found, in which case it returns nil.
+  "Given x, return x value unless it's ::not-found (the mark/sweep missing marker), in which case it returns nil.
 
-  This is useful when you wanna do a nil check but you are in a position where the value
-  could be ::prim/not-found (and you want to consider it as nil). A common pattern
-  looks like: `(or (prim/nilify-not-found x) 10)`"
+  This is useful when you are pre-processing a tree that has been marked for missing data sweep (see `mark-missing`),
+  but has not yet been swept. This is basically the same as a `nil?` check in this circumstance since the given
+  value will be removed after the final sweep."
   [x]
   (if (= x ::not-found) nil x))
 
-(defn as-leaf
-  "Returns data with meta-data marking it as a leaf in the result."
+(defn- as-leaf
+  "Returns `data` with meta-data that marks it as a leaf in the result."
   [data]
   (if (coll? data)
     (with-meta data {:fulcro/leaf true})
     data))
 
-(defn leaf?
+(defn- leaf?
   "Returns true iff the given data is marked as a leaf in the result (according to the query). Requires pre-marking."
   [data]
   (or
@@ -86,19 +87,21 @@
     (and (coll? data)
       (-> data meta :fulcro/leaf boolean))))
 
-(defn union->query
+(defn- union->query
   "Turn a union query into a query that attempts to encompass all possible things that might be queried."
   [union-query]
   (->> union-query vals flatten set vec))
 
 (defn mark-missing
   "Recursively walk the query and response marking anything that was *asked for* in the query but is *not* in the response as missing.
-  The merge process (which happens later in the plumbing) looks for these markers as indicators to remove any existing
-  data in the database (which has provably disappeared).
+  The sweep-merge process (which happens later in the plumbing) uses these markers as indicators to remove any existing
+  data in the target of the merge (i.e. your state database).
 
   The naive approach to data merging (even recursive) would fail to remove such data.
 
-  Returns the result with missing markers in place (which are then used/removed in a later stage)."
+  Returns the result with missing markers in place (which are then used/removed in a later stage).
+
+  See the Developer Guide section on Fulcro's merge process for more information."
   [result query]
   (let [missing-entity {:ui/fetch-state {:fulcro.client.impl.data-fetch/type :not-found}}]
     (reduce (fn [result element]
@@ -174,23 +177,27 @@
 
                   :else result))) result query)))
 
-(defn sweep-one "Remove not-found keys from m (non-recursive)" [m]
+(defn- sweep-one
+  "Remove not-found keys from m (non-recursive). `m` can be a map (sweep the values) or vector (run sweep-one on each entry)."
+  [m]
   (cond
     (map? m) (reduce (fn [acc [k v]]
-                       (if (or (= ::not-found k) (= ::not-found v) (= ::tempids k) (= :tempids k))
+                       (if (or (= ::not-found k) (= ::not-found v) (= :tempids k))
                          acc
                          (assoc acc k v)))
                (with-meta {} (meta m)) m)
     (vector? m) (with-meta (mapv sweep-one m) (meta m))
     :else m))
 
-(defn sweep "Remove all of the not-found keys (recursively) from v, stopping at marked leaves (if present)"
+(defn sweep
+  "Remove all of the not-found keys (recursively) from m, stopping at marked leaves (if present). Requires `m`
+  to have been pre-marked via `mark-missing`."
   [m]
   (cond
     (leaf? m) (sweep-one m)
     (map? m) (reduce (fn [acc [k v]]
                        (cond
-                         (or (= ::not-found k) (= ::not-found v) (= ::tempids k) (= :tempids k)) acc
+                         (or (= ::not-found k) (= ::not-found v) (= :tempids k)) acc
                          (and (eql/ident? v) (= ::not-found (second v))) acc
                          :otherwise (assoc acc k (sweep v))))
                (with-meta {} (meta m))
@@ -199,8 +206,11 @@
     :else m))
 
 (defn sweep-merge
-  "Do a recursive merge of source into target, but remove any target data that is marked as missing in the response. The
-  missing marker is generated in the source when something has been asked for in the query, but had no value in the
+  "Do a recursive merge of source into target (both maps), but remove any target data that is marked as missing in the response.
+
+  Requires that the `source` has been marked via `mark-missing`.
+
+  The missing marker is generated in the source when something has been asked for in the query, but had no value in the
   response. This allows us to correctly remove 'empty' data from the database without accidentally removing something
   that may still exist on the server (in truth we don't know its status, since it wasn't asked for, but we leave
   it as our 'best guess')."
@@ -209,7 +219,7 @@
     (fn [acc [key new-value]]
       (let [existing-value (get acc key)]
         (cond
-          (or (= key ::tempids) (= key :tempids) (= key ::not-found)) acc
+          (or (= key :tempids) (= key ::not-found)) acc
           (= new-value ::not-found) (dissoc acc key)
           (and (eql/ident? new-value) (= ::not-found (second new-value))) acc
           (leaf? new-value) (assoc acc key (sweep-one new-value))
@@ -264,15 +274,19 @@
     [(into {} idents) (into {} rest)]))
 
 (defn merge-tree
-  "Handle merging incoming data, but be sure to sweep it of values that are marked missing. Also triggers the given mutation-merge
-  if available."
+  "Handle merging incoming data and sweep it of values that are marked missing. This function also ensures that raw
+   mutation join results are ignored (they must be merged via `merge-mutation-joins`)."
   [target source]
   (let [source-to-merge (into {}
                           (filter (fn [[k _]] (not (symbol? k))))
                           source)]
     (sweep-merge target source-to-merge)))
 
-(defn- merge-idents [tree query refs]
+(defn- merge-idents
+  "Merge the given `refs` (a map from ident to props), query (a query that contains ident-joins), and tree:
+
+  returns a new tree with the data merged into the proper ident-based tables."
+  [tree query refs]
   (let [ident-joins (into {} (comp
                                (map #(cond-> % (seq? %) first))
                                (filter #(and (util/join? %)
@@ -280,9 +294,11 @@
                       query)]
     (letfn [(step [result-tree [ident props]]
               (let [component-query (get ident-joins ident '[*])
-                    props'          (fnorm/tree->db component-query props false (pre-merge-transform tree))
-                    refs            (meta props')]
-                (merge-tree (merge-ident result-tree ident props') refs)))]
+                    ;; TODO: Test mark missing in this situation is working right
+                    marked-props    (mark-missing props component-query)
+                    normalized-data (fnorm/tree->db component-query marked-props false (pre-merge-transform tree))
+                    refs            (meta normalized-data)]
+                (merge-tree (merge-ident result-tree ident normalized-data) refs)))]
       (reduce step tree refs))))
 
 (defn merge*
@@ -294,11 +310,11 @@
   (swap! state merge* query-result query)
   ```
 
-  state-map - The state map of the current application.
-  query - The query that was used to obtain the query-result.
-  query-result - The query-result to merge (a map).
+  - `state-map` - The normalized database.
+  - `query` - The query that was used to obtain the query-result.
+  - `query-result` - The query-result to merge (a map).
 
-  Returns the new state."
+  Returns the new normalized database."
   [state-map query result-tree]
   (let [[idts result-tree] (sift-idents result-tree)
         normalized-result (fnorm/tree->db query result-tree true (pre-merge-transform state-map))]
@@ -368,7 +384,7 @@
    Therefore, this function is just for dropping normalized things into tables
    when they themselves have a recursive nature. This function is useful when you want to create a new component instance
    and put it in the database, but the component instance has recursive normalized state. This is a basically a
-   thin wrapper around `prim/tree->db`.
+   thin wrapper around `merge/tree->db`.
 
    See also integrate-ident, integrate-ident!, and merge-component!"
   [state-map component component-data & named-parameters]
@@ -396,9 +412,9 @@
   "Merge an arbitrary data-tree that conforms to the shape of the given query using Fulcro's
   standard merge and normalization logic.
 
+  app - A fulcro application to merge into.
   query - A query, derived from defui components, that can be used to normalized a tree of data.
   data-tree - A tree of data that matches the nested shape of query.
-  remote - No longer used. May be passed, but is ignored.
 
   See also `merge*`."
   [app data-tree query]
@@ -425,10 +441,10 @@
   This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
   of the normal mutation story. Do not use this function within abstract mutations.
 
-  - reconciler: A reconciler.
+  - app: Your application.
   - component: The class of the component that corresponds to the data. Must have an ident.
   - object-data: A map (tree) of data to merge. Will be normalized for you.
-  - named-parameter: Post-processing ident integration steps. see integrate-ident!
+  - named-parameter: Post-processing ident integration steps. see `integrate-ident!`
 
   Any keywords that appear in ident integration steps will be added to the re-render queue.
 

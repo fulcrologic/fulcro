@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.tempid
+  "Functions for making and consuming Fulcro temporary IDs."
   (:require
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk-replace]])
@@ -29,6 +30,7 @@
 
 #?(:cljs
    (defn tempid
+     "Create a new tempid."
      ([]
       (tempid (random-uuid)))
      ([id]
@@ -49,12 +51,14 @@
 
 #?(:clj
    (defn tempid
+     "Create a new tempid."
      ([]
       (tempid (java.util.UUID/randomUUID)))
      ([uuid]
       (TempId. uuid))))
 
 (defn tempid?
+  "Returns true if the given `x` is a tempid."
   #?(:cljs {:tag boolean})
   [x]
   (instance? TempId x))
@@ -62,7 +66,7 @@
 (defn result->tempid->realid
   "Find and combine all of the tempid remappings from a standard fulcro transaction response."
   [tx-result]
-  (let [get-tempids (fn [m] (or (get m :tempids) (get m ::tempids)))]
+  (let [get-tempids (fn [m] (or (get m :tempids)))]
     (->> (filter (comp symbol? first) tx-result)
       (map (comp get-tempids second))
       (reduce merge {}))))

@@ -1,8 +1,17 @@
 (ns com.fulcrologic.fulcro.dom.html-entities
-  "Defs of the proper unicode characters so you can use html entities in your DOM functions. E.g.
+  "Defs of the proper unicode characters so you can use html entities in your DOM functions without having to
+  look them up (or type out silly things like \"\\u00C6\"
+
+  For example:
 
   ```
-  (dom/div ent/nbsp ent/copy)
+  (ns my.ui
+    (:require
+      [com.fulcrologic.fulcro.dom.html-entities :as ent]))
+      
+  ...
+     (dom/div ent/nbsp ent/copy)
+  ...
   ```
   "
   (:refer-clojure :exclude [quot divide and or not empty int]))
