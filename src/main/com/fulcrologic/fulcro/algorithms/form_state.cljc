@@ -1,11 +1,24 @@
 (ns com.fulcrologic.fulcro.algorithms.form-state
+  "Functions that assist with supporting form editing/checking/diffing in Fulcro UI.  These functions work
+  by making a pristine copy of your entity, and tracking what fields have been touched.  You are responsible
+  for triggering these various states by marking fields as complete (`mark-complete!`), telling it to
+  copy the data to/from pristine (e.g. `entity->pristine`), and by asking for out-of-date data for the current
+  vs. pristine copy (`dirty-fields`).
+
+  There is also support for detecting which fields have been marked complete and are dirty.
+
+  Validation can be done via Clojure spec, or by defining your own field validation functions via
+  `make-validator`. This general-purpose validation factor function can easily be used to create more
+  automated validation factories that can be more configuration-driven, but this is left as an exercise for the community.
+
+  See the Developer's Guide for more information.
+  "
   (:require
     [clojure.spec.alpha :as s]
     [clojure.set :as set]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
     [ghostwheel.core :as gw :refer [>defn >defn- =>]]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
@@ -21,7 +34,9 @@
 (gw/>def ::validity #{:valid :invalid :unchecked})
 (gw/>def ::denormalized-form (s/keys :req [::config]))
 
-(>defn get-form-fields [class]
+(>defn get-form-fields
+  "Returns the set of defined form fields for the given component class (or instance)."
+  [class]
   [comp/component-class? => (s/nilable ::fields)]
   (comp/component-options class :form-fields))
 
@@ -42,11 +57,10 @@
             [::forms-by-ident {:table (first id)
                                :row   (second id)}])})
 
-(def ui-form-config
-  "Render form config."
-  (comp/factory FormConfig {:keyfn ::id}))
-
-(def form-config-join "A query join to ::form-config." {::config (comp/get-query FormConfig)})
+(def form-config-join
+  "A query join to ::form-config. This should be added to the query of a component that is
+  using form state support."
+  {::config (comp/get-query FormConfig)})
 
 (>defn form-config
   "Generate a form config given:
@@ -189,14 +203,12 @@
       updated-state-map
       subform-keys)))
 
-
-
 (>defn immediate-subforms
   "Get the instances of the immediate subforms that are joined into the given entity by
    subform-join-keys (works with to-one and to-many).
 
-   entity - a denormalized (UI) entity.
-   subform-join-keys - The keys of the subforms of this entity, as a set.
+   - `entity` - a denormalized (UI) entity.
+   - `subform-join-keys` - The keys of the subforms of this entity, as a set.
 
    Returns a sequence of those entities (all denormalized)."
   [entity subform-join-keys]
@@ -204,8 +216,6 @@
   (remove nil?
     (mapcat #(let [v (get entity %)]
                (if (sequential? v) v [v])) subform-join-keys)))
-
-
 
 (>defn dirty?
   "Returns true if the given ui-entity-props that are configured as a form differ from the pristine version.
@@ -268,8 +278,8 @@
 
   make-validator returns a dual arity function:
 
-  (fn [form] ...) - Calling this version will return :unchecked, :valid, or :invalid for the entire form.
-  (fn [form field] ...) - Calling this version will return :unchecked, :valid, or :invalid for the single field.
+  - `(fn [form] ...)` - Calling this version will return :unchecked, :valid, or :invalid for the entire form.
+  - `(fn [form field] ...)` - Calling this version will return :unchecked, :valid, or :invalid for the single field.
 
   Typical usage would be to show messages around the form fields:
 
@@ -307,10 +317,11 @@
   (defn get-spec-validity
     "Get the validity (:valid :invalid or :unchecked) for the given form/field using Clojure specs of the field keys.
 
-    ui-entity-props : A denormalized (UI) entity, which can have subforms.
-    field : Optional. Returns the validity of just the single field on the top-level form.
+    - `ui-entity-props` : A denormalized (UI) entity, which can have subforms.
+    - `field` : Optional. Returns the validity of just the single field on the top-level form.
 
     Returns `:invalid` if all of the fields have been interacted with, and *any* are invalid.
+
     Returns `:unchecked` if any field is not yet been interacted with.
 
     Fields are marked as having been interacted with by programmatic action on your part via
@@ -362,10 +373,10 @@
 (>defn update-forms
   "Recursively update a form and its subforms. This function works against the state database (normalized state).
 
-  state-map : The application state map
-  xform : A function (fn [entity form-config] [entity' form-config']) that is passed the normalized entity and form-config,
+  `state-map` : The application state map
+  `xform` : A function (fn [entity form-config] [entity' form-config']) that is passed the normalized entity and form-config,
     and must return an updated version of them.
-  starting-entity-ident : An ident in the state map of an entity that has been initialized as a form.
+  `starting-entity-ident` : An ident in the state map of an entity that has been initialized as a form.
 
   Returns the updated state map."
   [state-map xform starting-entity-ident]
@@ -391,8 +402,8 @@
   (dom/input { :onClick #(comp/transact! this `[(some-submit-function {:diff ~(f/dirty-fields props true)})]) })
   ```
 
-  ui-entity - The entity (denormalized) from the UI.
-  as-delta? - If false, each field's reported (new) value will just be the new value. When true, each value will be a map with :before and :after keys
+  - `ui-entity` - The entity (denormalized) from the UI.
+  - `as-delta?` - If false, each field's reported (new) value will just be the new value. When true, each value will be a map with :before and :after keys
   with the old and new values (useful for optimistic transaction semantics).
 
   Returns a map keyed by form ID (for each form/subform) whose values are maps of key/value pairs of

@@ -225,10 +225,12 @@
         render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
         function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
         `this` is the component being rendered.
+      - `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
     "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             global-eql-transform
+            global-error-action
             default-result-action
             optimized-render!
             render-middleware
@@ -245,8 +247,8 @@
                        :algorithm/shared-fn             (or shared-fn (constantly {}))
                        :algorithm/render!               render!
                        :algorithm/remote-error?         default-remote-error?
+                       :algorithm/global-error-action   global-error-action
                        :algorithm/merge*                merge/merge*
-
                        :algorithm/default-result-action (or default-result-action mut/default-result-action)
                        :algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
                        :algorithm/index-root!           indexing/index-root!

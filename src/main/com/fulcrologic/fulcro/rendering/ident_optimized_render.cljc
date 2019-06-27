@@ -1,4 +1,10 @@
 (ns com.fulcrologic.fulcro.rendering.ident-optimized-render
+  "A render optimization algorithm for refreshing the UI via props tunnelling (setting new props on a component's
+  state in a pre-agreed location). This algorithm analyzes database changes and on-screen components to update
+  components (by ident) whose props have changed.
+
+  Prop change detection is done by scanning the database in *only* the locations that on-screen components are querying
+  (derived by the mounted component idents, and any ident-joins in the queries)."
   (:require
     [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
@@ -6,7 +12,10 @@
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
-(defn dirty-table-entries [old-state new-state idents]
+(defn dirty-table-entries
+  "Checks the given `idents` and returns a subset of them where the data they refer to has changed
+   between `old-state` and `new-state`."
+  [old-state new-state idents]
   (reduce
     (fn [result ident]
       (if (identical? (get-in old-state ident) (get-in new-state ident))
@@ -15,7 +24,11 @@
     (list)
     idents))
 
-(defn render-component! [app ident c]
+(defn render-component!
+  "Uses the component's query and the current application state to query for the current value of that component's
+  props (subtree). It then sends those props to the component via \"props tunnelling\" (setting them on a well-known key in
+  component-local state)."
+  [app ident c]
   #?(:cljs
      (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
            state-map @state-atom
@@ -34,7 +47,7 @@
     (render-component! app ident c)))
 
 (defn render-dependents-of-ident!
-  "Renders components that have or query for the given ident."
+  "Renders components that have, or query for, the given ident."
   [app ident]
   (render-components-with-ident! app ident)
   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
@@ -50,9 +63,12 @@
               (render-component! app component-ident component))))))))
 
 (defn props->components
-  "Given an app and set of props: returns the components that query for those props."
-  [app props]
-  (when (seq props)
+  "Given an app and a `property-set`: returns the components that query for the items in property-set.
+
+  The `property-set` can be any sequence (ideally a set) of keywords and idents that can directly appear
+  in a component query as a property or join key."
+  [app property-set]
+  (when (seq property-set)
     (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
           {:com.fulcrologic.fulcro.application/keys [indexes]} @runtime-atom
           {:keys [prop->classes class->components]} indexes]
@@ -62,9 +78,13 @@
                 components (reduce #(into %1 (class->components %2)) #{} classes)]
             (into result components)))
         #{}
-        props))))
+        property-set))))
 
-(defn render-stale-components! [app]
+(defn render-stale-components!
+  "This function tracks the state of the app at the time of prior render in the app's runtime-atom. It
+   uses that to do a comparison of old vs. current application state (bounded by the needs of on-screen components).
+   When it finds data that has changed it renders all of the components that depend on that data."
+  [app]
   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
         {:com.fulcrologic.fulcro.application/keys [indexes last-rendered-state
                                                    to-refresh only-refresh]} @runtime-atom
@@ -94,6 +114,11 @@
           (render-dependents-of-ident! app ident))))))
 
 (defn render!
+  "The top-level call for using this optimized render in your application.
+
+  If `:force-root? true` is passed in options, then it just forces a keyframe root render; otherwise
+  it tries to minimize the work done for screen refresh to just the queries/refreshes needed by the
+  data that has changed."
   ([app]
    (render! app {}))
   ([app {:keys [force-root? root-props-changed?] :as options}]

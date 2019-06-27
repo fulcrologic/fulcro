@@ -1,4 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.tx-processing
+  "The transaction processing in Fulcro is pluggable. This namespace is the
+  implementation for the default transaction processing ."
   (:require
     [clojure.set :as set]
     [clojure.spec.alpha :as s]

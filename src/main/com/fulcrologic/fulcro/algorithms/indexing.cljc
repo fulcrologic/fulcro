@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.indexing
+  "Functions that implement the query and component indexing."
   (:require
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
@@ -6,7 +7,7 @@
     [taoensso.encore :as encore]
     [taoensso.timbre :as log]))
 
-(defn index-query*
+(defn- index-query*
   [prop->classes {parent-component :component
                   parent-children  :children
                   :as              ast}]
@@ -31,7 +32,7 @@
   (let [ast (eql/query->ast query)]
     (index-query* {} ast)))
 
-(defn index-root*
+(defn- index-root*
   [runtime-state root-query]
   (encore/when-let [prop->classes   (index-query root-query)
                     idents-in-joins (into #{}
@@ -42,6 +43,8 @@
       (assoc-in [:com.fulcrologic.fulcro.application/indexes :prop->classes] prop->classes))))
 
 (defn index-root!
+  "Index the root query (see index-query) and side-effect the result (`prop->classes`) into the given app.
+  This function assumes the `root-class` has already been supplied to the app (i.e. is has been mounted)."
   [app]
   (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} app
         {:com.fulcrologic.fulcro.application/keys [root-class]} @runtime-atom]
@@ -49,7 +52,7 @@
       (log/debug "(Re)indexing application query for prop->classes")
       (swap! runtime-atom index-root* root-query))))
 
-(defn index-component* [runtime-state instance ident cls]
+(defn- index-component* [runtime-state instance ident cls]
   (-> runtime-state
     (update-in
       [:com.fulcrologic.fulcro.application/indexes :class->components cls]
@@ -61,7 +64,8 @@
       instance)))
 
 (defn index-component!
-  "Add a component to the app index."
+  "Add a component instance to the app index. This adds the component to the `class->components` and
+   `ident->components` indexes."
   [this]
   (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
         get-ident (comp/component-options this :ident)]
@@ -79,7 +83,7 @@
           (log/debug "Adding" (comp/component-name this) "with ident" ident "to ident index"))
         (swap! runtime-atom index-component* this ident cls)))))
 
-(defn drop-component*
+(defn- drop-component*
   [runtime-state instance ident cls]
   (cond-> (update-in runtime-state [:com.fulcrologic.fulcro.application/indexes :class->components cls]
             disj instance)
@@ -89,7 +93,7 @@
             instance)))
 
 (defn drop-component!
-  "Remove the component from the index. If ident is supplied it uses that, otherwise it gets the
+  "Remove the component instance from the indexes. If ident is supplied it uses that, otherwise it gets the
   ident from the component itself."
   ([this ident]
    (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)

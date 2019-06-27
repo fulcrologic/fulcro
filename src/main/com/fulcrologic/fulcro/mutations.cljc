@@ -37,38 +37,26 @@
   200 it will do merge/targeting of mutation joins, and  call `ok-action` (if defined on the mutation),
   and otherwise will call `error-action`.
 
-  You can optionally pass options to this function to augment the behavior:
-
-  `:is-error?` - A `(fn [env] boolean)` that should return true on errors. Defaults to a status (not 200) code check.
-  `:global-error-action` - A `(fn [env])` that will be called on any remote errors, independent of the mutation.
-
-  Set this when you create a new application. If you want to set the options, just use partial:
-
-  ```
-  (app/fulcro-app {:default-result-action (partial m/default-result-action {:global-error-action ...})})
-  ```
-   "
-  ([env]
-   [::env => any?]
-   (default-result-action {} env))
-  ([{:keys [is-error? global-error-action]
-     :or   {is-error? (fn [env] (not= 200 (-> env :result :status-code)))}} env]
-   [map? ::env => any?]
-   (let [{:keys [app state result dispatch]} env
-         {:keys [ok-action error-action]} dispatch
-         {:keys [body transaction]} result]
-     (if (is-error? env)
-       (do
-         (when global-error-action
-           (global-error-action env))
-         (when error-action
-           (error-action env)))
-       (do
-         (swap! state merge/merge-mutation-joins transaction body)
-         (tempid/resolve-tempids! app body)
-         (when ok-action
-           (ok-action env)))))
-   nil))
+  This function uses the application's `remote-error?` and `global-error-action` algorithms.
+  "
+  [env]
+  [::env => any?]
+  (let [{:keys [app state result dispatch]} env
+        {:keys [ok-action error-action]} dispatch
+        {:keys [body transaction]} result
+        remote-error? (ah/app-algorithm app :remote-error?)]
+    (if (remote-error? env)
+      (do
+        (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
+          (global-error-action env))
+        (when error-action
+          (error-action env)))
+      (do
+        (swap! state merge/merge-mutation-joins transaction body)
+        (tempid/resolve-tempids! app body)
+        (when ok-action
+          (ok-action env)))))
+  nil)
 
 (defn mutation-declaration? [expr] (= Mutation (type expr)))
 

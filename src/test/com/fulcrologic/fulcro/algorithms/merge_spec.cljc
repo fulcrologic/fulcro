@@ -68,7 +68,7 @@
       (assertions
         "Uses the existing object in app state as base for merge when present"
         (get-in old-state-merge-data [id :ui/checked]) => true
-        "Marks fields that were queried but are not present as prim/not-found"
+        "Marks fields that were queried but are not present as not-found"
         old-state-merge-data => {[:parent/by-id 42] {:id         42
                                                      :ui/checked true
                                                      :title      ::merge/not-found

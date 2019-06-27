@@ -1,11 +1,11 @@
-(ns fulcro-todomvc.ui-with-union-router
+(ns fulcro-todomvc.ui-with-legacy-ui-routers
   (:require
     [com.fulcrologic.fulcro.algorithms.tempid :as tmp]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
-    [com.fulcrologic.fulcro.routing.union-router :as fr]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as fr]
     [fulcro-todomvc.api :as api]
     [goog.object :as gobj]
     [taoensso.timbre :as log]))

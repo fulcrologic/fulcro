@@ -12,27 +12,51 @@
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
 
-(defn data-state? [state] (contains? state :status))
-(defn ready? [state] (= :loading (:status state)))
-(defn loading? [state] (= :loading (:status state)))
-(defn failed? [state] (= :failed (:status state)))
+(defn data-state?
+  "Is the given parameter a load marker?"
+  [state]
+  (contains? state :status))
+
+(defn load-marker?
+  "Is the given parameter a load marker?"
+  [x]
+  (contains? x :status))
+
+(defn ready? "Is the given load marker ready for loading?" [marker] (= :loading (:status marker)))
+(defn loading? "Is the given load marker loading?" [marker] (= :loading (:status marker)))
+(defn failed?
+  "Is the given load marker indicate failed?
+
+  WARNING: This function is current unimplemented and will be removed.  The new way of dealing with failure is to
+  define an `error-action` for the load in question and modify your own state. You can also override"
+  [marker] (= :failed (:status marker)))
 
 (def marker-table
-  "The name of the table in which fulcro load markers are stored"
+  "The name of the table in which fulcro load markers are stored. You must query for this via a link query
+  `[df/marker-table '_]` in any component that needs to use them (and refresh) during loads."
   :ui.fulcro.client.data-fetch.load-markers/by-id)
 
-(defn multiple-targets [& targets]
+(defn multiple-targets
+  "Aggregate multiple targets together for use with load targeting. Each target can be a
+  vector (raw path) or another special target like `append-to`."
+  [& targets]
   (apply targeting/multiple-targets targets))
 
-(defn prepend-to [target]
+(defn prepend-to
+  "Place the loaded data as an edge at the beginning of the given to-many edges at the target path (in the normalized db)."
+  [target]
   (targeting/prepend-to target))
 
-(defn append-to [target]
+(defn append-to
+  "Place the loaded data as an edge at the end of the given to-many edges at the target path (in the normalized db)."
+  [target]
   (targeting/append-to target))
 
-(defn replace-at [target]
+(defn replace-at
+  "Place the loaded data at the given target, which may include numbers to target a to-many index
+  (in the normalized db)."
+  [target]
   (targeting/replace-at target))
-
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
@@ -75,22 +99,40 @@
      :marker               marker
      :abort-id             abort-id}))
 
-(defn set-load-marker! [app marker status]
+(defn set-load-marker!
+  "Adds a load marker at the given `marker` id to df/marker-table with the given status.
+
+  NOTE: You must query for the marker table in any component that wants to show activity."
+  [app marker status]
   (when marker
     (let [{::app/keys [state-atom]} app
           render! (ah/app-algorithm app :schedule-render!)]
       (log/debug "Setting load marker")
       (swap! state-atom assoc-in [marker-table marker] {:status status})
+      ;; FIXME: Test refresh for this without the force root...it should work if ppl properly query for the marker table.
       (render! app {:force-root? true}))))
 
-(defn remove-load-marker! [app marker]
+(defn remove-load-marker!
+  "Removes the load marker with the given `marker` id from the df/marker-table."
+  [app marker]
   (when marker
     (let [{::app/keys [state-atom]} app]
       (log/debug "Removing load marker")
       (swap! state-atom update marker-table dissoc marker))))
 
-(defn finish-load! [{:keys [app result] :as env} {:keys [query ok-action post-mutation post-mutation-params
-                                                         post-action target marker source-key]}]
+(defn finish-load!
+  "Default processing when a load finishes successfully (called internally).
+
+  Removes any load marker, then either:
+
+  - Runs the `ok-action` (if defined).
+  - Does normal post-processing (if the was no ok-action):
+       - Merges the load result
+       - Processes desired targets
+       - Runs the post-mutation (if defined)
+       - Runs the post-action (if defined)"
+  [{:keys [app result] :as env} {:keys [query ok-action post-mutation post-mutation-params
+                                        post-action target marker source-key]}]
   (when (or (nil? app) (nil? result))
     (throw (ex-info "Load is missing app or result" {})))
 
@@ -112,8 +154,13 @@
         (log/debug "Doing post action ")
         (post-action env)))))
 
-(defn load-failed! [{:keys [app] :as env} {:keys [error-action fallback] :as params}]
+(defn load-failed!
+  "The normal internal processng of a load that has failed (error returned true). Triggers the `error-action` and
+  `fallback` if defined for the load.  If there is a `global-error-action` defined for the app it is also invoked."
+  [{:keys [app] :as env} {:keys [error-action fallback] :as params}]
   (log/debug "Running load failure logic.")
+  (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
+    (global-error-action env))
   (when (fn? error-action)
     (error-action env))
   (when (symbol? fallback)

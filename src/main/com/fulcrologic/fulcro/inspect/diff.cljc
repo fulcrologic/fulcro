@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.inspect.diff
+  "Internal algorithms for sending db diffs to Inspect tool."
   (:require [clojure.spec.alpha :as s]))
 
 (defn updates [a b]

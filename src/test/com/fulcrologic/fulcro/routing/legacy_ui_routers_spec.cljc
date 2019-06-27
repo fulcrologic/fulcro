@@ -1,7 +1,7 @@
-(ns com.fulcrologic.fulcro.routing.union-router-spec
+(ns com.fulcrologic.fulcro.routing.legacy-ui-routers-spec
   (:require
     [fulcro-spec.core :refer [specification assertions component]]
-    [com.fulcrologic.fulcro.routing.union-router :as fr]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as fr]
     [com.fulcrologic.fulcro.components :as comp]))
 
 (comp/defsc SimpleTarget [_ {:PAGE/keys [ident id]}]
