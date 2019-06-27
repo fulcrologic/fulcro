@@ -6,7 +6,7 @@
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.0-alpha-12</version>
+    <version>3.0.0-alpha-13</version>
 
     <name>fulcro</name>
     <description>A library for building full-stack SPA webapps in Clojure and Clojurescript</description>
