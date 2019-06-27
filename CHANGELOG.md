@@ -1,3 +1,9 @@
+3.0.0-alpha-13
+--------------
+- Lots of doc string improvements
+- More conversions to ghostwheel
+- BREAKING: Changed ns name of union-router to legacy-ui-routers.
+
 3.0.0-alpha-12
 --------------
 - Fixed issues with parallel load option
