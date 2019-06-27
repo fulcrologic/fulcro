@@ -109,7 +109,7 @@
           render! (ah/app-algorithm app :schedule-render!)]
       (log/debug "Setting load marker")
       (swap! state-atom assoc-in [marker-table marker] {:status status})
-      ;; FIXME: Test refresh for this without the force root...it should work if ppl properly query for the marker table.
+      ;; FIXME: Test refresh for this without the force root...it should work without it if ppl properly query for the marker table.
       (render! app {:force-root? true}))))
 
 (defn remove-load-marker!
@@ -273,3 +273,6 @@
    (load! component (comp/get-ident component) component load-options))
   ([component]
    (load! component (comp/get-ident component) component)))
+
+(def load "DEPRECATED. Use `load!`" load!)
+(def load-field "DEPRECATED. Use `load-field!`" load-field!)
