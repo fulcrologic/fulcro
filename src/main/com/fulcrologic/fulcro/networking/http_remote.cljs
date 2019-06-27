@@ -1,15 +1,47 @@
 (ns com.fulcrologic.fulcro.networking.http-remote
   (:refer-clojure :exclude [send])
   (:require
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [taoensso.timbre :as log]
     [clojure.spec.alpha :as s]
-    [cognitect.transit :as ct]
-    [goog.events :as events]
-    [com.fulcrologic.fulcro.algorithms.transit :as t]
     [clojure.string :as str]
-    [edn-query-language.core :as eql])
+    [cognitect.transit :as ct]
+    [com.fulcrologic.fulcro.algorithms.transit :as t]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [edn-query-language.core :as eql]
+    [ghostwheel.core :as gw :refer [>defn >def =>]]
+    [goog.events :as events]
+    [taoensso.timbre :as log])
   (:import [goog.net XhrIo EventType ErrorCode]))
+
+(gw/>def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
+(gw/>def ::url string?)
+(gw/>def ::abort-id any?)
+(gw/>def ::headers (s/map-of string? string?))
+(gw/>def ::body any?)
+(gw/>def ::request (s/keys :req-un [::method ::body ::url ::headers]))
+(gw/>def ::error #{:none :exception :http-error :network-error :abort
+                   :middleware-failure :access-denied :not-found :silent :custom :offline
+                   :timeout})
+(gw/>def ::error-text string?)
+(gw/>def ::status-code pos-int?)
+(gw/>def ::status-text string?)
+(gw/>def ::outgoing-request ::request)
+(gw/>def ::transaction vector?)
+(gw/>def ::progress-phase #{:sending :receiving :complete :failed})
+(gw/>def ::progress-event any?)
+(gw/>def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
+                      :opt-un [::progress-phase ::progress-event]))
+(gw/>def ::xhrio-event any?)
+(gw/>def ::xhrio any?)
+
+(gw/>def ::response-middleware fn?)
+(gw/>def ::request-middleware fn?)
+(gw/>def ::active-requests (s/and
+                             #(map? (deref %))
+                             #(every? set? (vals (deref %)))))
+
+(gw/>def ::transmit! fn?)
+(gw/>def ::abort! fn?)
+(gw/>def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
 
 (def xhrio-error-states {(.-NO_ERROR ErrorCode)        :none
                          (.-EXCEPTION ErrorCode)       :exception
@@ -73,29 +105,6 @@
        100
        (js/Math.floor (+ base (* x slope)))))))
 
-(defn extract-response
-  "Generate a response map from the status of the given xhrio object, which could be in a complete or error state."
-  [tx request xhrio]
-  (try
-    {:transaction      tx
-     :outgoing-request request
-     :headers          (xhrio-response-headers xhrio)
-     :body             (xhrio-response-text xhrio)
-     :status-code      (xhrio-status-code xhrio)
-     :status-text      (xhrio-status-text xhrio)
-     :error            (xhrio-error-code xhrio)
-     :error-text       (xhrio-error-text xhrio)}
-    (catch :default e
-      (log/error "Unable to extract response from XhrIO Object" e)
-      {:transaction      tx
-       :outgoing-request request
-       :body             ""
-       :headers          {}
-       :status-code      0
-       :status-text      "Internal Exception"
-       :error            :exception
-       :error-text       "Internal Exception from XHRIO"})))
-
 (defn wrap-fulcro-request
   "Client Remote Middleware to add transit encoding for normal Fulcro requests. Sets the content type and transforms an EDN
   body to a transit+json encoded body. addl-transit-handlers is a map from data type to transit handler (like
@@ -149,58 +158,46 @@
              (log/error "Transit decode failed!" e)
              response)))))))
 
-(s/def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
-(s/def ::url string?)
-(s/def ::abort-id any?)
-(s/def ::headers (s/map-of string? string?))
-(s/def ::body any?)
-(s/def ::request (s/keys :req-un [::method ::body ::url ::headers]))
-(s/def ::error #{:none :exception :http-error :network-error :abort
-                 :middleware-failure :access-denied :not-found :silent :custom :offline
-                 :timeout})
-(s/def ::error-text string?)
-(s/def ::status-code pos-int?)
-(s/def ::status-text string?)
-(s/def ::outgoing-request ::request)
-(s/def ::transaction vector?)
-(s/def ::progress-phase #{:sending :receiving :complete :failed})
-(s/def ::progress-event any?)
-(s/def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
-                    :opt-un [::progress-phase ::progress-event]))
-(s/def ::xhrio-event any?)
-(s/def ::xhrio any?)
+(defn extract-response
+  "Generate a response map from the status of the given xhrio object, which could be in a complete or error state."
+  [tx request xhrio]
+  [any? ::request ::xhrio => ::response]
+  (try
+    {:transaction      tx
+     :outgoing-request request
+     :headers          (xhrio-response-headers xhrio)
+     :body             (xhrio-response-text xhrio)
+     :status-code      (xhrio-status-code xhrio)
+     :status-text      (xhrio-status-text xhrio)
+     :error            (xhrio-error-code xhrio)
+     :error-text       (xhrio-error-text xhrio)}
+    (catch :default e
+      (log/error "Unable to extract response from XhrIO Object" e)
+      {:transaction      tx
+       :outgoing-request request
+       :body             ""
+       :headers          {}
+       :status-code      0
+       :status-text      "Internal Exception"
+       :error            :exception
+       :error-text       "Internal Exception from XHRIO"})))
 
-(s/def ::response-middleware fn?)
-(s/def ::request-middleware (s/fspec
-                              :args (s/cat :r ::request)
-                              :ret ::request))
-(s/def ::active-requests (s/and
-                           #(map? (deref %))
-                           #(every? set? (vals (deref %)))))
-
-(s/fdef extract-response
-  :args (s/cat :tx any? :req ::request :xhrio ::xhrio)
-  :ret ::response)
-
-(defn was-network-error?
+(>defn was-network-error?
   "Returns true if the given response looks like a low-level network error."
-  [{:keys [status-code error]}] (and (= 0 status-code) (= :http-error error)))
+  [{:keys [status-code error]}]
+  [::response => boolean?]
+  (boolean (and (= 0 status-code) (= :http-error error))))
 
-(s/fdef was-network-error?
-  :args (s/cat :r ::response)
-  :ret boolean?)
-
-(defn clear-request* [active-requests id xhrio]
+(>defn clear-request*
+  [active-requests id xhrio]
+  [::active-requests any? ::xhrio => (s/map-of any? set?)]
   (if (every? #(= xhrio %) (get active-requests id))
     (dissoc active-requests id)
     (update active-requests id disj xhrio)))
 
-(s/fdef clear-request*
-  :args (s/cat :active-requests ::active-requests :id any? :xhrio ::xhrio)
-  :ret (s/map-of any? set?))
-
-(defn response-extractor*
+(>defn response-extractor*
   [response-middleware edn real-request xhrio]
+  [::response-middleware any? ::request ::xhrio => ::response]
   (fn []
     (let [r (extract-response edn real-request xhrio)]
       (try
@@ -210,34 +207,20 @@
           (merge r {:error                (if (contains? #{nil :none} (:error r)) :middleware-failure (:error r))
                     :middleware-exception e}))))))
 
-(s/fdef response-extractor*
-  :args (s/cat :mw ::response-middleware :tx any? :req ::request :xhrio ::xhrio)
-  :ret (s/fspec :ret ::response))
-
-(defn active?
-  "Returns true if any of networks (obtained by querying `[::net/status '_]`) are active.  If passed a remote
-  as a second argument if returns whether or not that particular remote is active."
-  ([network-markers]
-   (->> network-markers vals (some #{:active}) boolean))
-  ([network-markers remote]
-   (= :active (get network-markers remote))))
-
-(defn cleanup-routine*
+(>defn cleanup-routine*
   [abort-id active-requests xhrio]
+  [any? ::active-requests ::xhrio => fn?]
   (fn []
     (when abort-id
       (swap! active-requests clear-request* abort-id xhrio))
     (xhrio-dispose xhrio)))
 
-(s/fdef cleanup-routine*
-  :args (s/cat :id any? :active-requests ::active-requests :xhrio ::xhrio)
-  :ret fn?)
-
-(defn ok-routine*
+(>defn ok-routine*
   "Returns a (fn [evt] ) that pulls the response, runs it through middleware, and reports
    the appropriate results to the raw-ok-handler, and progress-routine. If the middleware fails,
    it will instaed report to the error-routine (which in turn will report to the raw error handler)"
   [progress-routine get-response-fn raw-ok-handler error-routine]
+  [fn? fn? fn? fn? => any?]
   (fn [evt]
     (let [{:keys [error middleware-exception] :as r} (get-response-fn)]
       (if (= error :middleware-failure)
@@ -249,24 +232,22 @@
           (progress-routine :complete evt)
           (raw-ok-handler r))))))
 
-(s/fdef ok-routine* :args (s/cat :progress fn? :get-response fn? :complete-fn fn? :error-fn fn?))
-
-(defn progress-routine*
+(>defn progress-routine*
   "Return a (fn [phase progress-event]) that calls the raw update function with progress and response data merged
   together as a response."
   [get-response-fn raw-update-fn]
+  [fn? fn? => fn?]
   (fn progress-fn
     [phase evt]
     (when raw-update-fn
       (raw-update-fn (merge {:progress-phase phase
                              :progress-event evt} (get-response-fn))))))
 
-(s/fdef progress-routine* :args (s/cat :response-fn fn? :update (s/or :none nil? :func fn?)))
-
-(defn error-routine*
+(>defn error-routine*
   "Returns a (fn [xhrio-evt]) that pulls the progress and reports it to the progress routine and the raw
   error handler."
   [get-response ok-routine progress-routine raw-error-handler]
+  [fn? fn? fn? fn? => fn?]
   (fn [evt]
     (let [r (get-response)]                                 ; middleware can rewrite to be ok...
       (progress-routine :failed evt)
@@ -274,10 +255,8 @@
         (ok-routine evt)
         (raw-error-handler r)))))
 
-(s/fdef error-routine* :args (s/cat :get fn? :ok fn? :progress fn? :error fn?))
-
-(defn fulcro-http-remote
-  "Create a remote that (by default) communicates with the given url.
+(>defn fulcro-http-remote
+  "Create a remote that (by default) communicates with the given url (which defaults to `/api`).
 
   The request middleware is a `(fn [request] modified-request)`. The `request` will have `:url`, `:body`, `:method`, and `:headers`. The
   request middleware defaults to `wrap-fulcro-request` (which encodes the request in transit+json). The result of this
@@ -294,19 +273,15 @@
   details of the result: `:status-code`, `:status-text`, `:error-code` (one of :none, :exception, :http-error, :abort, or :timeout),
   and `:error-text`.  Middleware is allowed to morph any of this to suit its needs.
 
-  `serial?` - A boolean (default true). Should requests to this remote be queued sequentially (false means they will hit the network
-  as submitted, true means the prior one has to complete (by default) before the next starts).  Loads can be made parallel
-  with a load option, so you should typically not override this option.
-
   A result with a 200 status code will result in a merge using the resulting response's `:transaction` as the query,
   and the `:body` as the EDN to merge. If the status code is anything else then the details of the response will be
   used when triggering the built-in error handling (e.g. fallbacks, global error handler, etc.)."
-  [{:keys [url request-middleware response-middleware serial?] :or {url                 "/api"
-                                                                    response-middleware (wrap-fulcro-response)
-                                                                    request-middleware  (wrap-fulcro-request)} :as options}]
+  [{:keys [url request-middleware response-middleware] :or {url                 "/api"
+                                                            response-middleware (wrap-fulcro-response)
+                                                            request-middleware  (wrap-fulcro-request)} :as options}]
+  [(s/keys :opt-un [::url ::request-middleware ::response-middleware]) => ::fulcro-remote]
   (merge options
     {:active-requests (atom {})
-     :serial?         serial?
      :transmit!       (fn transmit! [{:keys [active-requests]} {:keys [::txn/ast ::txn/result-handler ::txn/update-handler] :as send-node}]
                         (let [edn              (eql/ast->query ast)
                               ok-handler       (fn [result]
