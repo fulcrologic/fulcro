@@ -618,6 +618,11 @@
       (dom/div #js {:onClick onSelect} x))
    ```
 
+   NOTE: The options map is \"open\". That is: you can add whatever extra stuff you want to in order
+   to co-locate data for component-related concerns. This is exactly what component-local css, the
+   dynamic router, and form-state do.  The data that you add is available from `comp/component-options`
+   on the component class and instances (i.e. `this`).
+
    See the Developer's Guide at book.fulcrologic.com for more details.
    "
                :arglists '([this dbprops computedprops]

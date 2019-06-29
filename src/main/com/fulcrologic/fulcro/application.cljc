@@ -225,6 +225,9 @@
         render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
         function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
         `this` is the component being rendered.
+      - `:remote-error?` - A `(fn [result] boolean)`. It can examine the network result and should only return
+        true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
+        the normal remotes.  The default version of this returns true if the status code isn't 200.
     "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
@@ -234,6 +237,7 @@
             render-middleware
             initial-db
             client-did-mount
+            remote-error?
             remotes
             shared
             shared-fn] :as options}]
@@ -244,7 +248,7 @@
                        :algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
                        :algorithm/shared-fn             (or shared-fn (constantly {}))
                        :algorithm/render!               render!
-                       :algorithm/remote-error?         default-remote-error?
+                       :algorithm/remote-error?         (or remote-error? default-remote-error?)
                        :algorithm/merge*                merge/merge*
 
                        :algorithm/default-result-action (or default-result-action mut/default-result-action)
