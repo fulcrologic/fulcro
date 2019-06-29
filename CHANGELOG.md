@@ -1,3 +1,8 @@
+3.0.0-alpha-14
+--------------
+- Added missing (deprecated) load/load-field
+- Added ability to override remote-error?
+
 3.0.0-alpha-13
 --------------
 - Lots of doc string improvements
