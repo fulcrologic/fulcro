@@ -228,10 +228,12 @@
       - `:remote-error?` - A `(fn [result] boolean)`. It can examine the network result and should only return
         true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
         the normal remotes.  The default version of this returns true if the status code isn't 200.
+      - `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
     "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             global-eql-transform
+            global-error-action
             default-result-action
             optimized-render!
             render-middleware
@@ -249,8 +251,8 @@
                        :algorithm/shared-fn             (or shared-fn (constantly {}))
                        :algorithm/render!               render!
                        :algorithm/remote-error?         (or remote-error? default-remote-error?)
+                       :algorithm/global-error-action   global-error-action
                        :algorithm/merge*                merge/merge*
-
                        :algorithm/default-result-action (or default-result-action mut/default-result-action)
                        :algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
                        :algorithm/index-root!           indexing/index-root!

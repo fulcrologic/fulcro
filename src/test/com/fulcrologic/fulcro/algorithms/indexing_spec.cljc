@@ -85,7 +85,7 @@
 (specification "index-root*"
   (let [runtime-state {::app/indexes {}}
         root-query    (comp/get-query RootLinks)
-        rs2           (idx/index-root* runtime-state root-query)]
+        rs2           (#'idx/index-root* runtime-state root-query)]
     (assertions
       "Adds a list of all ident join keys to the indexes"
       (-> rs2 ::app/indexes :idents-in-joins) => #{[:table 1]}
@@ -94,7 +94,7 @@
 
 (specification "index-component*"
   (let [runtime-state {::app/indexes {}}
-        ra2           (idx/index-component* runtime-state :instance1 [:x 1] LinkChild)]
+        ra2           (#'idx/index-component* runtime-state :instance1 [:x 1] LinkChild)]
     (assertions
       "adds the component instance to the ident index"
       (-> ra2 ::app/indexes :ident->components (get [:x 1])) => #{:instance1}
@@ -104,7 +104,7 @@
 (specification "drop-component*"
   (let [runtime-state {::app/indexes {:ident->components {[:x 1] #{:instance1}}
                                       :class->components {LinkChild #{:instance1}}}}
-        ra2           (idx/drop-component* runtime-state :instance1 [:x 1] LinkChild)]
+        ra2           (#'idx/drop-component* runtime-state :instance1 [:x 1] LinkChild)]
     (assertions
       "removes the component instance to the ident index"
       (-> ra2 ::app/indexes :ident->components (get [:x 1])) => #{}

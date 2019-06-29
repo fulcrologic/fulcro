@@ -1,32 +1,46 @@
 (ns com.fulcrologic.fulcro.algorithms.denormalize
+  "The algorithm and support functions for converting a normalized Fulcro database to a tree of denormalized props."
   (:require
     [edn-query-language.core :as eql]))
 
 (def ^:dynamic *denormalize-time* 0)
 
-(defn link-ref? [v]
+(defn link-ref?
+  "Is the given `v` a link ref query (e.g. `[:table '_]) element."
+  [v]
   (and
     (vector? v)
     (= 2 (count v))
     (keyword? (first v))
     (= '_ (second v))))
 
-(defn lookup-ref? [v]
+(defn lookup-ref?
+  "Is the given `v` a lookup ref query (i.e. ident)?"
+  [v]
   (and (vector? v) (= 2 (count v)) (keyword? (first v))))
 
-(defn follow-ref [state-map [table id :as ref]]
+(defn follow-ref
+  "Returns the value defined by the `ref` from `state-map`.  Works for link refs and
+  lookup refs."
+  [state-map [table id :as ref]]
   (if (= '_ id)
     (get state-map table)
     (get-in state-map ref)))
 
-(defn ref-key [[table id :as ref]]
+(defn ref-key
+  "Returns the key to use in results for the given ref (ident of lookup ref). For link refs this is just
+  the first element, and for idents it is the ident."
+  [[table id :as ref]]
   (if (= '_ id)
     table
     ref))
 
 (declare denormalize)
 
-(defn with-time [props t]
+(defn with-time
+  "Associates time metadata with the given props. This time can be used by rendering optimizations to decide when
+  stale props are passed to it from a parent in cases where props tunnelling was used for localized refresh."
+  [props t]
   (vary-meta props assoc ::time t))
 
 (defn- add-props!
@@ -147,6 +161,12 @@
     ast-join-nodes))
 
 (defn denormalize
+  "Internal implementation of `db->tree`.  You should normally use `db->tree` instead of this function.
+
+  - `top-node`: an AST for the query.
+  - `current-entity`: The entity to start denormalization from.
+  - `state-map`: a normalized database.
+  - `idents-seen`: a map of the idents seen so far (for recursion loop tracking)."
   [{:keys [type children] :as top-node} current-entity state-map idents-seen]
   (assert (not= type :prop))
   (let [current-entity   (if (lookup-ref? current-entity)
@@ -179,4 +199,7 @@
     (some-> (denormalize ast starting-entity state-map {})
       (with-time *denormalize-time*))))
 
-(defn denormalization-time [props] (some-> props meta ::time))
+(defn denormalization-time
+  "Gets the time at which the given props were processed by `db->tree`, if known."
+  [props]
+  (some-> props meta ::time))

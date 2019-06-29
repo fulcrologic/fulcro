@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.scheduling
+  "Algorithms for delaying some action by a particular amount of time."
   (:require
     [ghostwheel.core :refer [>fdef =>]]
     [clojure.core.async :as async]))

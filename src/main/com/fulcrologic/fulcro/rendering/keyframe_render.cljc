@@ -1,11 +1,15 @@
 (ns com.fulcrologic.fulcro.rendering.keyframe-render
+  "The keyframe optimized render."
   (:require
     #?(:cljs [cljsjs.react.dom])
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.components :as comp]))
 
 (defn render!
-  "Render the root of the Fulcro app.  Full query/refresh optimized only by shouldComponentUpdate."
+  "Render the UI. The keyframe render runs a full UI query and then asks React to render the root component.
+  The optimizations for this kind of render are purely those provided by `defsc`'s default
+  shouldComponentUpdate, which causes component to act like React PureComponent (though the props compare in cljs
+  is often faster)."
   [app options]
   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
         {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom

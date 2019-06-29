@@ -1,6 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.misc
-  "Random functions that were ported from Fulcro. Do not use except internally, as I plan to
-  move them around still."
+  "Some misc. utility functions. These are primarily meant for internal use, and are subject to relocation in the
+  future."
   (:refer-clojure :exclude [ident? uuid])
   (:require
     [taoensso.timbre :as log]

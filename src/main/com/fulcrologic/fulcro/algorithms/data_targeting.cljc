@@ -1,4 +1,5 @@
 (ns com.fulcrologic.fulcro.algorithms.data-targeting
+  "The implementation of processing load/mutation result graph targeting."
   (:require
     [clojure.spec.alpha :as s]
     [clojure.set :as set]
@@ -9,19 +10,38 @@
 (gw/>def ::target vector?)
 
 (>defn multiple-targets
+  "Specifies a target that should place edges in the graph at multiple locations.
+
+  `targets` - Any number of targets.  A target can be a simple path (as a vector), or other
+  special targets like `append-to` and `prepend-to`."
   [& targets]
   [(s/* ::target) => ::target]
   (with-meta (vec targets) {::multiple-targets true}))
 
-(>defn prepend-to [target]
+(>defn prepend-to
+  "Specifies a to-many target that will preprend an edge to some to-many edge. NOTE: this kind of target will not
+  create duplicates in the target list.
+
+  `target` - A vector (path) in the normalized database of the to-many list of idents.
+  "
+  [target]
   [::target => ::target]
   (with-meta target {::prepend-target true}))
 
-(>defn append-to [target]
+(>defn append-to
+  "Specifies a to-many target that will append an edge to some to-many edge. NOTE: this kind of target will not
+  create duplicates in the target list.
+
+  `target` - A vector (path) in the normalized database of the to-many list of idents."
+  [target]
   [::target => ::target]
   (with-meta target {::append-target true}))
 
 (>defn replace-at
+  "Specifies a target that will replace an edge at some normalized location.
+
+  `target` - A vector (path) in the normalized database. This path can include numbers to target some element
+  of an existing to-many list of idents."
   [target]
   [::target => ::target]
   (with-meta target {::replace-target true}))
@@ -31,7 +51,10 @@
 (>defn append-target? [t] [any? => boolean?] (-> t meta ::append-target boolean))
 (>defn multiple-targets? [t] [any? => boolean?] (-> t meta ::multiple-targets boolean))
 
-(>defn special-target? [target]
+(>defn special-target?
+  "Is the given target special? This means it is not just a plain vector path, but is instead something like
+  an append."
+  [target]
   [any? => boolean?]
   (boolean (seq (set/intersection (-> target meta keys set) #{::replace-target ::append-target ::prepend-target ::multiple-targets}))))
 
@@ -43,7 +66,7 @@
 
   - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
   the ident if that ident is already in the list.
-  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
+  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not place
   the ident if that ident is already in the list.
   - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
    If the target is a vector element then that element must already exist in the vector.
@@ -85,10 +108,13 @@
   "Process a load target (which can be a multiple-target).
 
   `state-map` - the state-map
-  `source-path` - A keyword, ident, or app-state path.  If not an ident, then the thing at the path is pulled from app
-   state and is written at the given location(s).
-   `target` - The target(s)
-   `remove-source?` - When true the source will be removed from app state once it has been written to the new location."
+  `source-path` - A keyword, ident, or app-state path.  If the source path is an ident, then that is what is placed
+     in app state.  If it is a keyword or longer path then the thing at that location in app state is pulled from app state
+     and copied to the target location(s).
+  `target` - The target(s)
+  `remove-source?` - When true the source will be removed from app state once it has been written to the new location.
+
+  Returns an updated state-map with the given changes."
   ([state-map source-path target]
    [map? (s/or :key keyword? :ident eql/ident? :path vector?) ::target => map?]
    (process-target state-map source-path target true))

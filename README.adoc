@@ -11,6 +11,17 @@ image:docs/logo.png[]
 Fulcro is a library for building data-driven full-stack applications for the web. It uses React and is written in
 Clojure and Clojurescript.
 
+Fulcro 3 is current in Alpha (June 2019). The road map is approximately:
+
+- Do regular (at least weekly) alpha releases until the APIs stabilize.
+** An alpha release is one that mostly works, but which may still undergo breaking (structural) API changes.
+- Move to Beta sometime in July or August 2019.
+** Beta will be API-stable releases that still could use rigorous testing.
+
+Official release candidates of version 3 will begin as soon as beta releases have been tested against enough code to give
+us high confidence that the library is usable in production. We hope to have an official release of 3.0 by the
+end of summer 2019, including updated documentation, videos, and sample application(s).
+
 *NOTE*: If you are using Java 9, you may need to include "--add-modules java.xml.bind" to your JVM.
 
 == Version Differences
@@ -31,7 +42,8 @@ transaction processing system.
 
 == Trying it Out
 
-The documentation is mostly correct in the Developer's Guide.
+The documentation is being update in the https://github.com/fulcrologic/fulcro-developer-guide[*new* revision of the Developer's Guide]. The
+docstrings in the namespaces have mostly been updated as well.
 
 `defsc`:: The new `defsc` *looks* like the old one, and even does
 some of the same error checking (NOTE: there is a known bug in the new props destructuring checks I have not had time
@@ -43,7 +55,7 @@ making them all lambdas at one point and may have screwed something up. Please r
 
 Namespaces::
 
-All of the namespaces changed:
+All of the namespaces changed (this may be outdated, as it is still in flux, but is approximately right):
 
 ```
 ├── com
@@ -90,8 +102,8 @@ All of the namespaces changed:
 │           │   ├── ident_optimized_render.cljc  ; Default rendering optimization.  Not perfect yet, but fast.
 │           │   └── keyframe_render.cljc         ; More like Fulcro 2.x rendering. Relies on shouldComponentUpdate for performance.
 │           ├── routing
-│           │   ├── dynamic_routing.cljc      ; Router from Incubator
-│           │   └── union_router.cljc         ; Fulcro 2.x routers (old dynamic router untested, possibly broken)
+│           │   ├── dynamic_routing.cljc      ; New UI Router promoted from Incubator
+│           │   └── legacy_ui_routers.cljc    ; Fulcro 2.x routers (old dynamic router untested, possibly broken)
 │           ├── specs.cljc
 │           └── ui_state_machines.cljc        ; From Incubator
 ```
@@ -124,6 +136,8 @@ At some point in your logic you will want to associate the root of your UI with 
 (app/mount! app ui/Root "app")
 ```
 
+Calling this function on a mounted app will simply refresh the mounted app's UI.
+
 === Significant Changes
 
 See also the porting guide in the main repo root at PORTING-FROM-2.3.adoc.
@@ -145,7 +159,7 @@ NOTE: Some things that *were* macros in Fulcro 2.x no longer need to be.  The in
 of this.  The old union router is still a custom macro because it actually emits more than one thing.  In most cases
 just changing the "missing macro" to plain `defsc` will make it work.
 
-==== Transact Changes
+==== Transaction Changes
 
 The most significant change is in the internal plumbing of `transact!`, which is now in the `component` namespace.  Transactions are now safe
 to submit from *anywhere* in the code base.
@@ -162,6 +176,10 @@ This simplifies a lot of things:
 - Timing issues in dynamic routing and ui state machines should be easier to avoid/solve.
 - You can submit transactions without using `setTimeout` and be sure they will activate in the order submitted.
 
+There is an `options` map that can be passed to the new `transact!`. The `optimistic?` flag can be turned to false to
+get the exact behavior of `ptransact!` if your application is written to use it.  A wrapper for this called `ptransact!`
+will probably be included in Fulcro 3 (undecided).
+
 ==== Mutation Generalizations
 
 Mutations have become an even more central notion in the library.  All versions of Fulcro have actually treated loads
@@ -173,13 +191,14 @@ Prior versions of Fulcro had Om Next structure in the middle.  Version 3 does no
 - A transaction is written as it always has been
 - Each element of the transaction (mutations) can choose local and remote behaviors
 - Optimistic actions run first
-- Network actions go on a queue and run in order
+- Remote actions go on a queue and run in order
 
 All of that should sound pretty much identical to what you've been doing all along.  The big difference is what
 happens next:
 
-- Network results are delivered to a new `result-action` of the mutation.  If the user does not supply a `result-action`,
-then the `defmutation` macro supplies a default that behaves like Fulcro 2.
+- Network results are delivered to a new `result-action` section of the mutation.  If the user does *not* supply a `result-action`,
+then the `defmutation` macro supplies a default that behaves a bit like Fulcro 2 with some Incubator features added in
+(there is now an `ok-action` and `error-action` section as well).
 
 As a result any full-stack operation is completely under your control, and you can even "invent" new sections of
 the mutation that will appear as `dispatch` in the `env`:
@@ -216,7 +235,7 @@ Loads are now implemented internally something like this (simplified for ease of
   (remote  [{:keys [ast]}] (eql/query->ast query)))
 ```
 
-NOTE: The `data-fecth` API (e.g. `load`) still exists, and is pretty much like it was. The primary change is boolean/in-place
+NOTE: The `data-fecth` API (e.g. `load`, renamed to `load!`) still exists, and is pretty much like it was. The primary change is boolean/in-place
 load markers are no longer supported.
 
 WARNING: The multimethod `mutate` is still at the center of this; however, the arguments have changed.  The multimethod
@@ -233,28 +252,21 @@ to the Chrome extension without pulling in all of inspect's dependencies. Just a
                    :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
 ```
 
-At the time of this writing the db, transactions, and network tabs all mostly work.  Expanding Inspect to include some cool
-new features is one of my top priorities.  I want to support better helpers for UI state machines, perhaps some UI
-performance monitoring, etc.
+At the time of this writing everything pretty much works, and even has some improved appearance.
 
-=== Known Issues
+=== Breakage
 
-- Some lifecycle signature arities might have changed. I'm on the fence about which things `defsc` should make "close over"
-`this` and `props`. I'm leaning towards "everything except query/ident/initial-state is raw".
-- Some Inspect features are not implemented.
-- Inspect transactions incorrectly report the before/after db as the same, even though it is changing (this has to do
-with changes in how transactions are processed internally...the inspect hook isn't hooked up in the right places).
-- Easy server and some related server stuff is gone.  I do not plan to add much, if any, of it back.
+The API has changed in some places in ways that will require you to do some work if porting. See PORTING-FROM-2.x.adoc.
 
 == Status
 
-Version 3 is now officially in Alpha.  Most APIs have been ported, and some have even been tested ;)
+Version 3 is now officially in Alpha.  Most APIs have been ported, and much of it has even been tested.
 
 Some code (CSS and websockets) were moved to external libraries to reduce dependencies.
 
 The general road map (with status) is:
 
-* Rewrite Transaction Internals (100% done, but needs more integration testing)
+* Rewrite Transaction Internals (100%)
 ** Write tx processing that is extensible, and can support all currently-known use-cases (100%)
 ** Make tx system pluggable (100%)
 ** Support for new tx-combining at network layer (designed, not implemented)
@@ -276,47 +288,47 @@ The general road map (with status) is:
 ** Factor logic out into clear namespaces (100%)
 ** Add better tests (100%)
 
-* Components
+* Components (100%)
 ** Support for React class-based components (100%)
 *** Rewrite of `defsc` (100%)
 **** Drop protocols (100%)
-**** Support extensibility  (90% complete)
+**** Support extensibility  (100% complete)
 ** Turn component-local CSS into a pure library concern (100%)
+
+* I18N (0%)
 ** Turn i18n into a pure library concern (0%)
 
-* Move UI State Machines into this library (90%, needs more testing)
+* Move UI State Machines into this library (100%)
 
-* Move Dynamic Router into this library (90%, needs more testing)
+* Move Dynamic Router into this library (100%)
 
 * Move to EQL as Source of AST logic (100%)
 
 * Minimize dependencies (100%)
 
 * Documentation
-** Rewrite Developer's Guide (0%)
-*** Port book examples
+** Rewrite Developer's Guide (65%)
+*** Port book examples (90%)
 ** Record new YouTube videos (0%)
 ** Write new README (50%)
-** Doll up docstrings (50%)
+** Doll up docstrings (80%)
 ** Ensure it all works with cljdocs (0%)
 
 * Tests
-** Port over tests from F2 (50%)
+** Port over tests from F2 (70%)
 
-* Inspect
+* Inspect (100%)
 ** Get basics working (100%)
-** Get full set of classic functionality (100%)
-** Add state machine tab (0%)
-** Other possible tabs (nice to have):
-*** UI Performance measurement (0%)
-*** Faster search (0%)
-*** Improved data folding UI (0%)
-*** Make transactions tab show more of tx (currently params always show as `...`)
+
+* Expand Inspect (50%)
+** Faster db search (0%)
+** Improved db data folding UI (80%: written, but not integrated yet)
+** Make transactions tab show more of tx (100%)
 
 * Specs
-** Add more specs to functions (20%)
-** Fix up spec definitions to prevent cljs code bloat (60%)
-** Fix up ghostwheel usage so it doesn't bloat adv compile builds (30%)
+** Add more specs to functions (40%)
+** Fix up spec definitions to prevent cljs code bloat (100%)
+** Fix up ghostwheel usage so it doesn't bloat adv compile builds (90%)
 
 * Nice to Haves (depends a bit on contributors)
 ** React Hooks-based `defsc` (designed and prototyped, but needs integration work)

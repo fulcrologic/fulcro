@@ -1,8 +1,13 @@
 (ns com.fulcrologic.fulcro.dom.icons
-  "SVG-encoded material icons. This namespace could use a little love in terms of usability, but the icons are present
-  at least."
+  "SVG-encoded material UI icons.
+
+  See https://material-ui.com/components/icons
+  "
   (:require
     [clojure.string :as str]
+    [clojure.spec.alpha :as s]
+    [ghostwheel.core :as gw :refer [>defn =>]]
+    [taoensso.timbre :as log]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
@@ -1016,7 +1021,10 @@ z"
 #?(:clj (def clj->js identity))
 
 (defn icon
-  "Gets an SVG representation of the given icon. See material-icon-paths.
+  "
+  DEPRECATED. Use `ui-icon` instead.
+
+  Gets an SVG representation of the given icon. Scan the source of this namespace for the defined icons.
 
   - `props`:
      - `width` and `height`: Size. defaults to 24.
@@ -1051,3 +1059,44 @@ z"
           (or title
             (str (title-case (str/replace (name icon-name) #"_" " ")))))
         (dom/path {:d path-check})))))
+
+(gw/>def ::icon keyword?)
+(gw/>def ::width int?)
+(gw/>def ::height int?)
+(gw/>def ::title string?)
+
+(>defn ui-icon
+  "
+  Gets an SVG representation of the given icon. Scan the source of this namespace for the defined icons.
+
+  Props can contain:
+
+  - `icon`: The SVG icon to use. The icon name can use the material UI underscored names, or clojure-style hyphenated
+    names instead. See the source of this ns for all icons, or the material UI icon docs.
+  - `title`: A string to use as the title element
+  - All other keys pass through (and will override predefined props such as :viewBox) on the SVG element itself.
+    I.e. you can pass :className, etc.
+
+  Returns an empty div if the icon is invalid.
+  "
+  [{:keys [icon width height title] :as props}]
+  [(s/keys :req-un [::icon] :opt-un [::width ::height ::title]) => any?]
+  (let [alt-name (keyword (str/replace (name icon) #"-" "_"))
+        w        (str (or width "24"))
+        h        (str (or height "24"))
+        props    (-> props
+                   (dissoc :icon :title)
+                   (assoc :width w :height h))
+        path     (get material-icon-paths icon (get material-icon-paths alt-name))]
+    (if path
+      (dom/svg (merge {:version         "1.1"
+                       :xmlns           "http://www.w3.org/2000/svg"
+                       :aria-labelledby "title"
+                       :role            "img"
+                       :viewBox         (str "0 0 " w " " h)}
+                 props)
+        (dom/title (or title ""))
+        (dom/path {:d path}))
+      (do
+        (log/error "ui-icon was given an icon name that cannot be found: " icon)
+        (dom/div)))))

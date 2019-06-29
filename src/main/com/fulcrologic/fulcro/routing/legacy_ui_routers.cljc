@@ -1,6 +1,7 @@
-(ns com.fulcrologic.fulcro.routing.union-router
-  "A router based on union queries. Fast and efficient, but not as flexible and feature rich."
-  #?(:cljs (:require-macros com.fulcrologic.fulcro.routing.union-router))
+(ns com.fulcrologic.fulcro.routing.legacy-ui-routers
+  "Routers from Fulcro 2. These are a bit harder to use than the new dynamic router, and should probably not be used
+   in new applications; however, they will be supported for the forseeable future."
+  #?(:cljs (:require-macros com.fulcrologic.fulcro.routing.legacy-ui-routers))
   (:require
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]

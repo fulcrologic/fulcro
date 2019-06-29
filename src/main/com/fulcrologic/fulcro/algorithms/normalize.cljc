@@ -1,11 +1,12 @@
 (ns com.fulcrologic.fulcro.algorithms.normalize
+  "Functions for dealing with normalizing Fulcro databases. In particular `tree->db`."
   (:require
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :refer [has-ident? ident get-ident get-query]]))
 
-(defn normalize* [query data refs union-seen transform]
+(defn- normalize* [query data refs union-seen transform]
   (let [data (if (and transform (not (vector? data)))
                (transform query data)
                data)]

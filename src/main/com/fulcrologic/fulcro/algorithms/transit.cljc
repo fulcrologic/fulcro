@@ -1,10 +1,11 @@
 (ns com.fulcrologic.fulcro.algorithms.transit
+  "Transit functions for the on-the-wire EDN communication to common remotes. Includes support for Fulcro tempids,
+   and can be extended to support additional application-specific data types."
   #?(:clj
      (:refer-clojure :exclude [ref]))
   (:require [cognitect.transit :as t]
             #?(:cljs [com.cognitect.transit :as ct])
-            [com.fulcrologic.fulcro.algorithms.tempid :as tempid #?@(:cljs [:refer [TempId]])]
-            [taoensso.timbre :as log])
+            [com.fulcrologic.fulcro.algorithms.tempid :as tempid #?@(:cljs [:refer [TempId]])])
   #?(:clj
      (:import [com.cognitect.transit
                TransitFactory WriteHandler ReadHandler]
@@ -27,6 +28,10 @@
 
 #?(:cljs
    (defn writer
+     "Create a transit writer.
+
+     - `out`: An acceptable output for transit writers.
+     - `opts`: (optional) options to pass to `cognitect.transit/writer` (such as handlers)."
      ([]
       (writer {}))
      ([opts]
@@ -35,6 +40,10 @@
 
 #?(:clj
    (defn writer
+     "Create a transit writer.
+
+     - `out`: An acceptable output for transit writers.
+     - `opts`: (optional) options to pass to `cognitect.transit/writer` (such as data type handlers)."
      ([out]
       (writer out {}))
      ([out opts]
@@ -43,6 +52,9 @@
 
 #?(:cljs
    (defn reader
+     "Create a transit reader.
+
+     - `opts`: (optional) options to pass to `cognitect.transit/reader` (such as data type handlers)."
      ([]
       (reader {}))
      ([opts]
@@ -53,6 +65,9 @@
 
 #?(:clj
    (defn reader
+     "Create a transit reader.
+
+     - `opts`: (optional) options to pass to `cognitect.transit/reader` (such as data type handlers)."
      ([in]
       (reader in {}))
      ([in opts]
@@ -64,7 +79,8 @@
             (fromRep [_ id] (TempId. id))))))))
 
 (defn serializable?
-  "Checks to see that the value in question can be serialized by the default fulcro writer."
+  "Checks to see that the value in question can be serialized by the default fulcro writer by actually attempting to
+  serialize it.  This is *not* an efficient check."
   [v]
   #?(:clj  (try
              (.write (writer (java.io.ByteArrayOutputStream.)) v)
@@ -76,13 +92,16 @@
              (catch :default e false))))
 
 (defn transit-clj->str
-  "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering."
-  ([coll] (transit-clj->str coll {}))
-  ([coll opts]
-   #?(:cljs (t/write (writer opts) coll)
+  "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering.
+
+  - `data`: Arbitrary data
+  - `opts`: (optional) Options to send when creating a `writer`."
+  ([data] (transit-clj->str data {}))
+  ([data opts]
+   #?(:cljs (t/write (writer opts) data)
       :clj
             (with-open [out (java.io.ByteArrayOutputStream.)]
-              (t/write (writer out opts) coll)
+              (t/write (writer out opts) data)
               (.toString out "UTF-8")))))
 
 (defn transit-str->clj

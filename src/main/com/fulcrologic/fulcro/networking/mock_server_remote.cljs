@@ -1,5 +1,5 @@
 (ns com.fulcrologic.fulcro.networking.mock-server-remote
-  "Simple adapter code that allows you to use a generic parser 'as if' it were a client remote."
+  "Simple adapter code that allows you to use a generic parser 'as if' it were a client remote in CLJS."
   (:require
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [taoensso.timbre :as log]
