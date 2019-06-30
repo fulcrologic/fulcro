@@ -182,20 +182,20 @@
        :error            :exception
        :error-text       "Internal Exception from XHRIO"})))
 
-(>defn was-network-error?
+(defn was-network-error?
   "Returns true if the given response looks like a low-level network error."
   [{:keys [status-code error]}]
   [::response => boolean?]
   (boolean (and (= 0 status-code) (= :http-error error))))
 
-(>defn clear-request*
+(defn clear-request*
   [active-requests id xhrio]
   [::active-requests any? ::xhrio => (s/map-of any? set?)]
   (if (every? #(= xhrio %) (get active-requests id))
     (dissoc active-requests id)
     (update active-requests id disj xhrio)))
 
-(>defn response-extractor*
+(defn response-extractor*
   [response-middleware edn real-request xhrio]
   [::response-middleware any? ::request ::xhrio => ::response]
   (fn []
@@ -207,7 +207,7 @@
           (merge r {:error                (if (contains? #{nil :none} (:error r)) :middleware-failure (:error r))
                     :middleware-exception e}))))))
 
-(>defn cleanup-routine*
+(defn cleanup-routine*
   [abort-id active-requests xhrio]
   [any? ::active-requests ::xhrio => fn?]
   (fn []
@@ -215,7 +215,7 @@
       (swap! active-requests clear-request* abort-id xhrio))
     (xhrio-dispose xhrio)))
 
-(>defn ok-routine*
+(defn ok-routine*
   "Returns a (fn [evt] ) that pulls the response, runs it through middleware, and reports
    the appropriate results to the raw-ok-handler, and progress-routine. If the middleware fails,
    it will instaed report to the error-routine (which in turn will report to the raw error handler)"
@@ -232,7 +232,7 @@
           (progress-routine :complete evt)
           (raw-ok-handler r))))))
 
-(>defn progress-routine*
+(defn progress-routine*
   "Return a (fn [phase progress-event]) that calls the raw update function with progress and response data merged
   together as a response."
   [get-response-fn raw-update-fn]
@@ -243,7 +243,7 @@
       (raw-update-fn (merge {:progress-phase phase
                              :progress-event evt} (get-response-fn))))))
 
-(>defn error-routine*
+(defn error-routine*
   "Returns a (fn [xhrio-evt]) that pulls the progress and reports it to the progress routine and the raw
   error handler."
   [get-response ok-routine progress-routine raw-error-handler]
@@ -255,7 +255,7 @@
         (ok-routine evt)
         (raw-error-handler r)))))
 
-(>defn fulcro-http-remote
+(defn fulcro-http-remote
   "Create a remote that (by default) communicates with the given url (which defaults to `/api`).
 
   The request middleware is a `(fn [request] modified-request)`. The `request` will have `:url`, `:body`, `:method`, and `:headers`. The
