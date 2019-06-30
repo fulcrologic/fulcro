@@ -2,6 +2,7 @@
 --------------
 - Added missing (deprecated) load/load-field
 - Added ability to override remote-error?
+- Removed busted specs in new remote
 
 3.0.0-alpha-13
 --------------
