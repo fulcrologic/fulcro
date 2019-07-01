@@ -1,3 +1,7 @@
+3.0.0-alpha-15
+--------------
+- Fixed issue with new remote-error? override
+
 3.0.0-alpha-14
 --------------
 - Added missing (deprecated) load/load-field
