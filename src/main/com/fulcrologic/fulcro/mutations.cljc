@@ -45,7 +45,7 @@
         {:keys [ok-action error-action]} dispatch
         {:keys [body transaction]} result
         remote-error? (ah/app-algorithm app :remote-error?)]
-    (if (remote-error? env)
+    (if (remote-error? (:result env))
       (do
         (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
           (global-error-action env))
