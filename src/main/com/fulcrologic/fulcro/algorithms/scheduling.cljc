@@ -30,3 +30,21 @@
   ([app scheduled-key action]
    [:com.fulcrologic.fulcro.application/app keyword? fn? => any?]
    (schedule! app scheduled-key action 0)))
+
+(defn schedule-animation!
+  "Schedule the processing of a specific action in the runtime atom on the next animation frame.
+
+  - `scheduled-key` - The runtime flag that tracks scheduling for the processing.
+  - `action` - The function to run when the scheduled time comes."
+  ([app scheduled-key action]
+   [:com.fulcrologic.fulcro.application/app keyword? fn? => any?]
+   #?(:clj  (action app)
+      :cljs (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app]
+              (when-not (get @runtime-atom scheduled-key)
+                (swap! runtime-atom assoc scheduled-key true)
+                (let [f (fn []
+                          (swap! runtime-atom assoc scheduled-key false)
+                          (action app))]
+                  (if-not (exists? js/requestAnimationFrame)
+                    (defer f 16)
+                    (js/requestAnimationFrame f))))))))

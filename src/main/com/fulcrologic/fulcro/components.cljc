@@ -722,6 +722,10 @@
   - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
     the network portion of the transaction (assuming it has not already completed).
 
+  NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
+  supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
+  influence their necessity.
+
   Returns the transaction ID of the submitted transaction.
   "
   ([app-or-component tx options]
@@ -823,9 +827,10 @@
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
-      (let [index-root! (ah/app-algorithm :index-root!)]
+      (let [{:algorithm/keys [schedule-render! index-root!]} (ah/app-algorithm :index-root!)]
         (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
-        (when index-root! (index-root! app)))
+        (when index-root! (index-root! app))
+        (when schedule-render! (schedule-render! app {:force-root? true})))
       (log/error "Unable to set query. Invalid arguments."))))
 
 (defn get-indexes

@@ -122,11 +122,7 @@
   ([app]
    (schedule-render! app {:force-root? false}))
   ([app options]
-   #?(:clj  (render! app options)
-      :cljs (let [r #(render! app options)]
-              (if (not (exists? js/requestAnimationFrame))
-                (sched/defer r 16)
-                (js/requestAnimationFrame r))))))
+   (sched/schedule-animation! app ::render-scheduled? #(render! app options))))
 
 (defn default-tx!
   "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options
@@ -148,8 +144,8 @@
 
   If the `options` include `:ref` (which comp/transact! sets), then it will be auto-included on the `:refresh` list.
 
-  NOTE: Fulcro 2 'follow-on reads' are ignored in Fulcro 3 transactions. You must use one of the described options
-  if you want to influence rendering.
+  NOTE: Fulcro 2 'follow-on reads' are supported and are added to the `:refresh` entries. Your choice of rendering
+  algorithm will influence their necessity.
 
   Returns the transaction ID of the submitted transaction.
   "
@@ -160,9 +156,11 @@
    [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
    (txn/schedule-activation! app)
    (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
-         node    (txn/tx-node tx options)
-         refresh (cond-> (or refresh #{})
-                   ref (conj ref))]
+         follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
+         node            (txn/tx-node tx options)
+         refresh         (cond-> (set refresh)
+                           (seq follow-on-reads) (into follow-on-reads)
+                           ref (conj ref))]
      (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
                                    (seq refresh) (assoc ::to-refresh refresh)
                                    (seq only-refresh) (assoc ::only-refresh only-refresh))))
@@ -359,7 +357,10 @@
    This effectively forces React to do a full VDOM diff. Useful for things like UI refresh on hot code reload and
    changing locales where there are no real data changes, but the UI still needs to refresh.
 
-   Argument can be anything that any->reconciler accepts."
+   Argument can be anything that any->reconciler accepts.
+
+   WARNING: This disables all Fulcro rendering optimizations, so it is much slower than other ways of refreshing the app.
+   Use `schedule-render!` to request a normal optimized render."
   [app-ish]
   (when-let [app (comp/any->app app-ish)]
     (binding [comp/*blindly-render* true]

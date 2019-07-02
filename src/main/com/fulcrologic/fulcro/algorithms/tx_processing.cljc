@@ -196,12 +196,7 @@
          ast-nodes (:children ast)
          elements  (into []
                      (comp
-                       (filter (fn txfilt* [n]
-                                 (if (= :call (:type n))
-                                   true
-                                   (do
-                                     (log/warn "tx no longer supports (or needs) follow-on reads. See tx" tx)
-                                     false))))
+                       (filter (fn txfilt* [n] (= :call (:type n))))
                        (map-indexed
                          (fn ->txnode* [idx ast-node]
                            {::idx               idx
