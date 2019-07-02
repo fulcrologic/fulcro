@@ -576,19 +576,36 @@
           (update-progress! app)
           (distribute-results! app))))))
 
+(>defn requested-refreshes [app queue]
+  [::app (s/coll-of ::tx-node) => set?]
+  "Returns a set of refreshes that have been requested by active mutations in the queue"
+  (reduce
+    (fn [acc tx-node]
+      (let [env     (build-env app tx-node)
+            {::keys [dispatch]} tx-node
+            refresh (:refresh dispatch)]
+        (if refresh
+          (into acc (set (refresh env)))
+          acc)))
+    #{}
+    queue))
+
 (>defn process-queue!
   "Run through the active queue and do a processing step."
-  [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom] :as app}]
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}]
   [:com.fulcrologic.fulcro.application/app => any?]
-  (let [old-state @state-atom
-        new-queue (reduce
-                    (fn *pstep [new-queue n]
-                      (if-let [new-node (process-tx-node! app n)]
-                        (conj new-queue new-node)
-                        new-queue))
-                    []
-                    (::active-queue @runtime-atom))
-        render!   (ah/app-algorithm app :schedule-render!)]
+  (let [new-queue        (reduce
+                           (fn *pstep [new-queue n]
+                             (if-let [new-node (process-tx-node! app n)]
+                               (conj new-queue new-node)
+                               new-queue))
+                           []
+                           (::active-queue @runtime-atom))
+        accumulate       (fn [r items] (into (set r) items))
+        schedule-render! (ah/app-algorithm app :schedule-render!)
+        explicit-refresh (requested-refreshes app new-queue)]
     (swap! runtime-atom assoc ::active-queue new-queue)
-    (render! app)
+    (when (seq explicit-refresh)
+      (swap! runtime-atom update :com.fulcrologic.fulcro.application/to-refresh accumulate explicit-refresh))
+    (schedule-render! app)
     nil))

@@ -1,10 +1,11 @@
 3.0.0-alpha-16
 --------------
-- Added failed load marker support
-- Fixed missed render on set-query!
-- Added follow-on read support
-- Updated render scheduling to be debounced instead of queued to avoid extra refreshes
-- Fixed tracking of `:refresh` and `:only-refresh` to accumulate and clear properly
+- Added failed load marker support.
+- Fixed missed render on `set-query!`.
+- Added follow-on read support.
+- Updated render scheduling to be debounced instead of queued to avoid extra refreshes.
+- Fixed tracking of `:refresh` and `:only-refresh` to accumulate and clear properly.
+- Added back support for `refresh` section of mutations.
 
 3.0.0-alpha-15
 --------------
