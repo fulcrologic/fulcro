@@ -92,10 +92,13 @@
 (>defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
 
-  Options include:
-  `force-root?` - boolean.  When true disables all optimizations and forces a full root re-render.
+  This is the central processing for render and cannot be overridden. `schedule-render!` will always invoke
+  this function.  The optimized render is called by this function, which does extra bookkeeping and
+  other supporting features common to all rendering.
 
-  and anything your selected rendering optization system allows.  Shared props are updated via `shared-fn`
+  Options include:
+  - `force-root?`: boolean.  When true disables all optimizations and forces a full root re-render.
+  - anything your selected rendering optization system allows.  Shared props are updated via `shared-fn`
   only on `force-root?` and when (shallow) root props change.
   "
   ([app]
@@ -115,7 +118,10 @@
        (when (or force-root? root-props-changed?)
          (update-shared! app))
        (render! app (merge options {:root-props-changed? root-props-changed?})))
-     (swap! runtime-atom assoc ::last-rendered-state @state-atom))))
+     (swap! runtime-atom assoc
+       ::to-refresh #{}
+       ::only-refresh #{}
+       ::last-rendered-state @state-atom))))
 
 (defn schedule-render!
   "Schedule a render on the next animation frame."
@@ -142,6 +148,10 @@
     This can be used to avoid the overhead of looking for stale data when you know exactly what
     you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
 
+  WARNING: `:only-refresh` can cause missed refreshes because rendering is debounced. If you are using this for
+           rapid-fire updates like drag-and-drop it is recommended that on the trailing edge (e.g. drop) of your sequence you
+           force a normal refresh via `app/render!`.
+
   If the `options` include `:ref` (which comp/transact! sets), then it will be auto-included on the `:refresh` list.
 
   NOTE: Fulcro 2 'follow-on reads' are supported and are added to the `:refresh` entries. Your choice of rendering
@@ -158,12 +168,14 @@
    (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
          follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
          node            (txn/tx-node tx options)
+         accumulate      (fn [r items] (into (set r) items))
          refresh         (cond-> (set refresh)
                            (seq follow-on-reads) (into follow-on-reads)
                            ref (conj ref))]
      (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
-                                   (seq refresh) (assoc ::to-refresh refresh)
-                                   (seq only-refresh) (assoc ::only-refresh only-refresh))))
+                                   ;; refresh sets are cumulative because rendering is debounced
+                                   (seq refresh) (update ::to-refresh accumulate refresh)
+                                   (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
      (::txn/id node))))
 
 (>defn default-remote-error?

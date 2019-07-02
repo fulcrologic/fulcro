@@ -90,7 +90,6 @@
                                                    to-refresh only-refresh]} @runtime-atom
         {:keys [ident->components idents-in-joins]} indexes
         limited-refresh? (seq only-refresh)]
-    (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/only-refresh [] :com.fulcrologic.fulcro.application/to-refresh [])
     (if limited-refresh?
       (let [{limited-idents true
              limited-props  false} (group-by eql/ident? only-refresh)
