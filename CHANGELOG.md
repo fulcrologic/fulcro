@@ -1,3 +1,10 @@
+3.0.0-alpha-16
+--------------
+- Added failed load marker support
+- Fixed missed render on set-query!
+- Added follow-on read support
+- Updated render scheduling to be debounced instead of queued to avoid extra refreshes
+
 3.0.0-alpha-15
 --------------
 - Fixed issue with new remote-error? override
