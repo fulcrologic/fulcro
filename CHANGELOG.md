@@ -6,6 +6,7 @@
 - Updated render scheduling to be debounced instead of queued to avoid extra refreshes.
 - Fixed tracking of `:refresh` and `:only-refresh` to accumulate and clear properly.
 - Added back support for `refresh` section of mutations.
+- Added lost-refresh avoidance when both refresh and only-refresh collide.
 
 3.0.0-alpha-15
 --------------

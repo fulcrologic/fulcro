@@ -89,6 +89,8 @@
             root-new        (select-keys state-map props-query)]
         (not= root-old root-new)))))
 
+(declare schedule-render!)
+
 (>defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
 
@@ -118,10 +120,21 @@
        (when (or force-root? root-props-changed?)
          (update-shared! app))
        (render! app (merge options {:root-props-changed? root-props-changed?})))
-     (swap! runtime-atom assoc
-       ::to-refresh #{}
-       ::only-refresh #{}
-       ::last-rendered-state @state-atom))))
+
+     (swap! runtime-atom assoc ::last-rendered-state @state-atom)
+
+     (let [limited-refresh? (seq (::only-refresh @runtime-atom))
+           refresh?         (seq (::to-refresh @runtime-atom))]
+       ;; limited refresh can cause missed refreshes. Clear only the limited ones, and schedule one more update.
+       ;; If more limited refreshes arrive before that scheduled update, then they will run and block the requested
+       ;; refreshes again, and cause this to try again.
+       (if (and refresh? limited-refresh?)
+         (do
+           (swap! runtime-atom assoc ::only-refresh #{})
+           (schedule-render! app))
+         (swap! runtime-atom assoc
+           ::to-refresh #{}
+           ::only-refresh #{}))))))
 
 (defn schedule-render!
   "Schedule a render on the next animation frame."
