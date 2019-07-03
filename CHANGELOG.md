@@ -1,3 +1,16 @@
+3.0.0-alpha-16
+--------------
+- Added failed load marker support.
+- Fixed missed render on `set-query!`.
+- Added follow-on read support.
+- Updated render scheduling to be debounced instead of queued to avoid extra refreshes.
+- Fixed tracking of `:refresh` and `:only-refresh` to accumulate and clear properly.
+- Added back support for `refresh` section of mutations.
+- Added lost-refresh avoidance when both refresh and only-refresh collide.
+- Added recovery from failures in ident-optimized refresh with console messaging
+- Changed indexes to use class registry keys instead of classes so hot reload works better.
+- Fixed load fallbacks
+
 3.0.0-alpha-15
 --------------
 - Fixed issue with new remote-error? override

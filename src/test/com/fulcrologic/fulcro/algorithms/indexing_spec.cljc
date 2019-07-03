@@ -62,25 +62,25 @@
   (let [prop->classes (idx/index-query (comp/get-query Root))]
     (assertions
       "Properly indexes components with props, joins, and unions"
-      (prop->classes :L) => #{UnionChildA}
-      (prop->classes :M) => #{UnionChildB}
-      (prop->classes :a) => #{Root}
-      (prop->classes :join) => #{Root}
-      (prop->classes :union) => #{Root}))
+      (prop->classes :L) => #{::UnionChildA}
+      (prop->classes :M) => #{::UnionChildB}
+      (prop->classes :a) => #{::Root}
+      (prop->classes :join) => #{::Root}
+      (prop->classes :union) => #{::Root}))
   (let [prop->classes (idx/index-query (comp/get-query RootP))]
     (assertions
       "Properly indexes components that have parameterized queries"
-      (prop->classes :L) => #{UnionChildAP}
-      (prop->classes :M) => #{UnionChildB}
-      (prop->classes :a) => #{RootP}
-      (prop->classes :join) => #{RootP}
-      (prop->classes :union) => #{RootP}))
+      (prop->classes :L) => #{::UnionChildAP}
+      (prop->classes :M) => #{::UnionChildB}
+      (prop->classes :a) => #{::RootP}
+      (prop->classes :join) => #{::RootP}
+      (prop->classes :union) => #{::RootP}))
   (let [prop->classes (idx/index-query (comp/get-query RootLinks))]
     (assertions
       "Properly indexes components that have link queries and ident joins"
-      (prop->classes :left) => #{RootLinks}
-      (prop->classes :root/prop) => #{RootLinks LinkChild}
-      (prop->classes [:table 1]) => #{LinkChild})))
+      (prop->classes :left) => #{::RootLinks}
+      (prop->classes :root/prop) => #{::RootLinks ::LinkChild}
+      (prop->classes [:table 1]) => #{::LinkChild})))
 
 (specification "index-root*"
   (let [runtime-state {::app/indexes {}}
@@ -99,14 +99,14 @@
       "adds the component instance to the ident index"
       (-> ra2 ::app/indexes :ident->components (get [:x 1])) => #{:instance1}
       "adds the component instance to the class index"
-      (-> ra2 ::app/indexes :class->components (get LinkChild)) => #{:instance1})))
+      (-> ra2 ::app/indexes :class->components (get ::LinkChild)) => #{:instance1})))
 
 (specification "drop-component*"
   (let [runtime-state {::app/indexes {:ident->components {[:x 1] #{:instance1}}
-                                      :class->components {LinkChild #{:instance1}}}}
+                                      :class->components {::LinkChild #{:instance1}}}}
         ra2           (#'idx/drop-component* runtime-state :instance1 [:x 1] LinkChild)]
     (assertions
-      "removes the component instance to the ident index"
+      "removes the component instance from the ident index"
       (-> ra2 ::app/indexes :ident->components (get [:x 1])) => #{}
-      "removes the component instance to the class index"
-      (-> ra2 ::app/indexes :class->components (get LinkChild)) => #{})))
+      "removes the component instance from the class index"
+      (-> ra2 ::app/indexes :class->components (get ::LinkChild)) => #{})))

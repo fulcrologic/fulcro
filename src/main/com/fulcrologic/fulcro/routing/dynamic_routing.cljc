@@ -191,12 +191,12 @@
 
   Returns an AST node or nil if none is found."
   [app {:keys [component children] :as ast-node}]
-  (letfn [(live-router? [c] (and (router? c)
-                              (boolean (comp/class->any app c))))]
+  (letfn [(live-router? [c] (and (router? c) (boolean (comp/class->any app c))))]
     (or
       (and (live-router? component) ast-node)
       (some #(and (live-router? (:component %)) %) children)
       (some #(ast-node-for-live-router app %) children))))
+
 
 (defmutation apply-route
   "Mutation: Indicate that a given route is ready and should show the result.
@@ -276,8 +276,8 @@
     :routed   {::uism/handler route-handler}}})
 
 ;; TODO: This algorithm is repeated in more than one place in slightly different forms...refactor it.
-(defn proposed-new-path [this-or-reconciler relative-class-or-instance new-route]
-  (let [app        (comp/any->app this-or-reconciler)
+(defn proposed-new-path [this-or-app relative-class-or-instance new-route]
+  (let [app        (comp/any->app this-or-app)
         state-map  (app/current-state app)
         router     relative-class-or-instance
         root-query (comp/get-query router state-map)
@@ -341,10 +341,10 @@
 (defn change-route-relative
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
   of string components to pass through to the nearest child router as the new path. The first argument is any live component
-  or the reconciler.  The `timeouts` are as in `change-route`.
+  or the app.  The `timeouts` are as in `change-route`.
   It is safe to call this from within a mutation."
-  ([this-or-reconciler relative-class-or-instance new-route]
-   (change-route-relative this-or-reconciler relative-class-or-instance new-route {}))
+  ([this-or-app relative-class-or-instance new-route]
+   (change-route-relative this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts]
    (if (signal-router-leaving app-or-comp relative-class-or-instance new-route)
      (let [app        (comp/any->app app-or-comp)
@@ -387,7 +387,7 @@
 (defn change-route
   "Trigger a route change.
 
-  this - The component (or reconciler) that is causing the route change.
+  this - The component (or app) that is causing the route change.
   new-route - A vector of URI components to pass to the router.
   timeouts - A map of timeouts that affect UI during deferred routes: {:error-timeout ms :deferred-timeout ms}
 
@@ -403,7 +403,18 @@
      (change-route-relative app root new-route timeouts))))
 
 (defn current-route
-  "Returns the current active route, starting from the relative Fulcro class or instance."
+  "Returns the current active route, starting from the relative Fulcro class or instance.
+
+  Any component using this as a basis for rendering will need to add the following to their query to
+  ensure the props of that component change on route changes:
+
+  ```
+  [::uism/asm-id fq-router-kw]
+  ```
+
+  where `fq-router-kw` is a keyword that has the exact namespace and name of the router you're interested in. If you want
+  to just over-render you can use a quoted `_` instead.
+  "
   [this-or-app relative-class-or-instance]
   (let [app        (comp/any->app this-or-app)
         state-map  (app/current-state app)
@@ -523,7 +534,7 @@
 
     IMPORTANT NOTES:
 
-    - `will-enter` for the routes will *not* get a reconciler (since there
+    - `will-enter` for the routes will *not* get a app (since there
     isn't one).  Be sure your routers will tolerate a nil reconciler.
     - This has not been well-tested.  It is known to render correct HTML in simple cases, but the initial state
     may not actually be correct for the starting app with respect to the routers.

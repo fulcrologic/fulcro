@@ -15,6 +15,7 @@
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
+    com.fulcrologic.fulcro.specs
     [ghostwheel.core :refer [>defn => |]]
     [clojure.spec.alpha :as s]
     #?@(:cljs [[goog.object :as gobj]
@@ -89,13 +90,18 @@
             root-new        (select-keys state-map props-query)]
         (not= root-old root-new)))))
 
+(declare schedule-render!)
+
 (>defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
 
-  Options include:
-  `force-root?` - boolean.  When true disables all optimizations and forces a full root re-render.
+  This is the central processing for render and cannot be overridden. `schedule-render!` will always invoke
+  this function.  The optimized render is called by this function, which does extra bookkeeping and
+  other supporting features common to all rendering.
 
-  and anything your selected rendering optization system allows.  Shared props are updated via `shared-fn`
+  Options include:
+  - `force-root?`: boolean.  When true disables all optimizations and forces a full root re-render.
+  - anything your selected rendering optization system allows.  Shared props are updated via `shared-fn`
   only on `force-root?` and when (shallow) root props change.
   "
   ([app]
@@ -115,18 +121,28 @@
        (when (or force-root? root-props-changed?)
          (update-shared! app))
        (render! app (merge options {:root-props-changed? root-props-changed?})))
-     (swap! runtime-atom assoc ::last-rendered-state @state-atom))))
+
+     (swap! runtime-atom assoc ::last-rendered-state @state-atom)
+
+     (let [limited-refresh? (seq (::only-refresh @runtime-atom))
+           refresh?         (seq (::to-refresh @runtime-atom))]
+       ;; limited refresh can cause missed refreshes. Clear only the limited ones, and schedule one more update.
+       ;; If more limited refreshes arrive before that scheduled update, then they will run and block the requested
+       ;; refreshes again, and cause this to try again.
+       (if (and refresh? limited-refresh?)
+         (do
+           (swap! runtime-atom assoc ::only-refresh #{})
+           (schedule-render! app))
+         (swap! runtime-atom assoc
+           ::to-refresh #{}
+           ::only-refresh #{}))))))
 
 (defn schedule-render!
   "Schedule a render on the next animation frame."
   ([app]
    (schedule-render! app {:force-root? false}))
   ([app options]
-   #?(:clj  (render! app options)
-      :cljs (let [r #(render! app options)]
-              (if (not (exists? js/requestAnimationFrame))
-                (sched/defer r 16)
-                (js/requestAnimationFrame r))))))
+   (sched/schedule-animation! app ::render-scheduled? #(render! app options))))
 
 (defn default-tx!
   "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options
@@ -146,10 +162,14 @@
     This can be used to avoid the overhead of looking for stale data when you know exactly what
     you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
 
+  WARNING: `:only-refresh` can cause missed refreshes because rendering is debounced. If you are using this for
+           rapid-fire updates like drag-and-drop it is recommended that on the trailing edge (e.g. drop) of your sequence you
+           force a normal refresh via `app/render!`.
+
   If the `options` include `:ref` (which comp/transact! sets), then it will be auto-included on the `:refresh` list.
 
-  NOTE: Fulcro 2 'follow-on reads' are ignored in Fulcro 3 transactions. You must use one of the described options
-  if you want to influence rendering.
+  NOTE: Fulcro 2 'follow-on reads' are supported and are added to the `:refresh` entries. Your choice of rendering
+  algorithm will influence their necessity.
 
   Returns the transaction ID of the submitted transaction.
   "
@@ -160,12 +180,16 @@
    [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
    (txn/schedule-activation! app)
    (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
-         node    (txn/tx-node tx options)
-         refresh (cond-> (or refresh #{})
-                   ref (conj ref))]
+         follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
+         node            (txn/tx-node tx options)
+         accumulate      (fn [r items] (into (set r) items))
+         refresh         (cond-> (set refresh)
+                           (seq follow-on-reads) (into follow-on-reads)
+                           ref (conj ref))]
      (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
-                                   (seq refresh) (assoc ::to-refresh refresh)
-                                   (seq only-refresh) (assoc ::only-refresh only-refresh))))
+                                   ;; refresh sets are cumulative because rendering is debounced
+                                   (seq refresh) (update ::to-refresh accumulate refresh)
+                                   (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
      (::txn/id node))))
 
 (>defn default-remote-error?
@@ -359,7 +383,10 @@
    This effectively forces React to do a full VDOM diff. Useful for things like UI refresh on hot code reload and
    changing locales where there are no real data changes, but the UI still needs to refresh.
 
-   Argument can be anything that any->reconciler accepts."
+   Argument can be anything that any->reconciler accepts.
+
+   WARNING: This disables all Fulcro rendering optimizations, so it is much slower than other ways of refreshing the app.
+   Use `schedule-render!` to request a normal optimized render."
   [app-ish]
   (when-let [app (comp/any->app app-ish)]
     (binding [comp/*blindly-render* true]

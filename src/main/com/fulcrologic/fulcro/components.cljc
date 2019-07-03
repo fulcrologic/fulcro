@@ -722,6 +722,10 @@
   - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
     the network portion of the transaction (assuming it has not already completed).
 
+  NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
+  supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
+  influence their necessity.
+
   Returns the transaction ID of the submitted transaction.
   "
   ([app-or-component tx options]
@@ -823,9 +827,10 @@
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
-      (let [index-root! (ah/app-algorithm :index-root!)]
+      (let [{:algorithm/keys [schedule-render! index-root!]} (ah/app-algorithm :index-root!)]
         (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
-        (when index-root! (index-root! app)))
+        (when index-root! (index-root! app))
+        (when schedule-render! (schedule-render! app {:force-root? true})))
       (log/error "Unable to set query. Invalid arguments."))))
 
 (defn get-indexes
@@ -856,7 +861,8 @@
   "Get all components from the indexes that are instances of the component class.
   `x` can be anything `any->app` is ok with."
   [x class]
-  (some-> (get-indexes x) :class->components (get class)))
+  (let [k (class->registry-key class)]
+    (some-> (get-indexes x) :class->components (get k))))
 
 (defn class->any
   "Get any component from the indexes that are instances of the component class.
@@ -941,11 +947,11 @@
   pessimistically (one at a time) in the order given. Follow-on reads in the given transaction will be repeated after each remote
   interaction.
 
-  `comp-or-reconciler` a mounted component or reconciler
+  `component-or-app` a mounted component or the app
   `tx` the tx to run
   `ref` the ident (ref context) in which to run the transaction (including all deferrals)"
-  ([comp-or-reconciler tx]
-   (transact! comp-or-reconciler tx {:optimistic? false}))
-  ([comp-or-reconciler ref tx]
-   (transact! comp-or-reconciler tx {:optimistic? false
-                                     :ref         ref})))
+  ([component-or-app tx]
+   (transact! component-or-app tx {:optimistic? false}))
+  ([component-or-app ref tx]
+   (transact! component-or-app tx {:optimistic? false
+                                   :ref         ref})))

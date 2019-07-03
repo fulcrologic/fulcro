@@ -11,15 +11,16 @@
   [prop->classes {parent-component :component
                   parent-children  :children
                   :as              ast}]
-  (let [parent-children (seq parent-children)
+  (let [parent-key      (comp/class->registry-key parent-component)
+        parent-children (seq parent-children)
         update-index    (fn [idx k c] (update idx k (fnil conj #{}) c))]
     (if parent-children
       (reduce
         (fn [idx {:keys [key dispatch-key children] :as child-ast}]
           (cond-> idx
-            (and (vector? key) (= '_ (second key))) (update-index dispatch-key parent-component)
-            (and (vector? key) (not= '_ (second key))) (update-index key parent-component)
-            (keyword? key) (update-index key parent-component)
+            (and (vector? key) (= '_ (second key))) (update-index dispatch-key parent-key)
+            (and (vector? key) (not= '_ (second key))) (update-index key parent-key)
+            (keyword? key) (update-index key parent-key)
             (seq children) (index-query* child-ast)))
         prop->classes
         parent-children)
@@ -53,15 +54,16 @@
       (swap! runtime-atom index-root* root-query))))
 
 (defn- index-component* [runtime-state instance ident cls]
-  (-> runtime-state
-    (update-in
-      [:com.fulcrologic.fulcro.application/indexes :class->components cls]
-      (fnil conj #{})
-      instance)
-    (update-in
-      [:com.fulcrologic.fulcro.application/indexes :ident->components ident]
-      (fnil conj #{})
-      instance)))
+  (let [k (comp/class->registry-key cls)]
+    (cond-> runtime-state
+      k (update-in
+          [:com.fulcrologic.fulcro.application/indexes :class->components k]
+          (fnil conj #{})
+          instance)
+      ident (update-in
+              [:com.fulcrologic.fulcro.application/indexes :ident->components ident]
+              (fnil conj #{})
+              instance))))
 
 (defn index-component!
   "Add a component instance to the app index. This adds the component to the `class->components` and
@@ -69,28 +71,29 @@
   [this]
   (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
         get-ident (comp/component-options this :ident)]
-    (when (and get-ident runtime-atom)
-      (let [ident (get-ident this (comp/props this))
-            cls   (comp/react-type this)]
-        (when #?(:cljs goog.DEBUG :clj true)
-          (when-not (eql/ident? ident)
-            (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident))
-          (when (nil? (second ident))
-            (log/info
-              (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
-                " This warning can be safely ignored if that is intended.")))
-          (log/debug "Adding" (comp/component-name this) "instance to class index")
-          (log/debug "Adding" (comp/component-name this) "with ident" ident "to ident index"))
-        (swap! runtime-atom index-component* this ident cls)))))
+    (let [ident (when get-ident (get-ident this (comp/props this)))
+          cls   (comp/react-type this)]
+      (when #?(:cljs goog.DEBUG :clj true)
+        (when (and ident (not (eql/ident? ident)))
+          (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident))
+        (when (and ident (nil? (second ident)))
+          (log/info
+            (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
+              " This warning can be safely ignored if that is intended.")))
+        (log/debug "Adding" (comp/component-name this) "instance to class index")
+        (when ident
+          (log/debug "Adding" (comp/component-name this) "with ident" ident "to ident index")))
+      (swap! runtime-atom index-component* this ident cls))))
 
 (defn- drop-component*
   [runtime-state instance ident cls]
-  (cond-> (update-in runtime-state [:com.fulcrologic.fulcro.application/indexes :class->components cls]
-            disj instance)
-    ident (update-in
-            [:com.fulcrologic.fulcro.application/indexes :ident->components ident]
-            disj
-            instance)))
+  (let [k (comp/class->registry-key cls)]
+    (cond-> (update-in runtime-state [:com.fulcrologic.fulcro.application/indexes :class->components k]
+              disj instance)
+      ident (update-in
+              [:com.fulcrologic.fulcro.application/indexes :ident->components ident]
+              disj
+              instance))))
 
 (defn drop-component!
   "Remove the component instance from the indexes. If ident is supplied it uses that, otherwise it gets the

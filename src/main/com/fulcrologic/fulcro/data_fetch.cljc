@@ -157,14 +157,15 @@
 (defn load-failed!
   "The normal internal processng of a load that has failed (error returned true). Triggers the `error-action` and
   `fallback` if defined for the load.  If there is a `global-error-action` defined for the app it is also invoked."
-  [{:keys [app] :as env} {:keys [error-action fallback] :as params}]
+  [{:keys [app] :as env} {:keys [error-action marker fallback] :as params}]
   (log/debug "Running load failure logic.")
+  (set-load-marker! app marker :failed)
   (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
     (global-error-action env))
   (when (fn? error-action)
     (error-action env))
   (when (symbol? fallback)
-    (comp/transact! app `[(fallback ~(assoc env :load-params params))])))
+    (comp/transact! app `[(~fallback ~(assoc env :load-params params))])))
 
 (defmethod m/mutate `internal-load! [{:keys [ast] :as env}]
   (let [params     (get ast :params)
