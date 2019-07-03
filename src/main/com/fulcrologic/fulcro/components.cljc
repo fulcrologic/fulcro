@@ -721,6 +721,7 @@
     you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
   - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
     the network portion of the transaction (assuming it has not already completed).
+  - `:compressible?` - boolean. Check compressible-transact! docs.
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
@@ -955,3 +956,17 @@
   ([component-or-app ref tx]
    (transact! component-or-app tx {:optimistic? false
                                    :ref         ref})))
+
+(defn compressible-transact!
+  "Identical to `transact!`, but marks the history edge as compressible. This means that if more than one
+  adjacent history transition edge is compressible, only the more recent of the sequence of them is kept. This
+  is useful for things like form input fields, where storing every keystoke in history is undesirable. This
+  also compress the transactions in Fulcro Inspect.
+
+  NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
+  automatic network error recovery handling."
+  ([comp-or-reconciler tx]
+   (transact! comp-or-reconciler tx {:compressible? true}))
+  ([comp-or-reconciler ref tx]
+   (transact! comp-or-reconciler tx {:compressible? true
+                                     :ref           ref})))

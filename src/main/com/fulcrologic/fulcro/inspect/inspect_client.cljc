@@ -20,7 +20,7 @@
 (defonce apps* (atom {}))
 (def app-uuid-key :fulcro.inspect.core/app-uuid)
 
-(defonce send-ch #?(:clj nil :cljs (async/chan (async/dropping-buffer 1024))))
+(defonce send-ch #?(:clj nil :cljs (async/chan (async/dropping-buffer 50000))))
 (defn post-message [type data]
   #?(:cljs (async/put! send-ch [type data])))
 
@@ -38,6 +38,7 @@
 (defn app-uuid [app] (some-> app :com.fulcrologic.fulcro.application/state-atom deref (get app-uuid-key)))
 (defn remotes [app] (some-> (runtime-atom app) deref :com.fulcrologic.fulcro.application/remotes))
 (defn app-id [app] (some-> (app-state app) :fulcro.inspect.core/app-id))
+(defn fulcro-app-id [app] (:com.fulcrologic.fulcro.application/id app))
 (defn get-component-name [component] (when component (some-> (util/isoget component :fulcro$options) :displayName)))
 (defn comp-transact! [app tx options]
   (let [tx! (ah/app-algorithm app :tx!)]
@@ -78,8 +79,6 @@
                                                          :fulcro.inspect.client/prev-state-hash (hash old-state)
                                                          :fulcro.inspect.client/state-hash      (hash new-state)
                                                          :fulcro.inspect.client/state-delta     diff})))))
-
-
 
 (defn event-data [event]
   #?(:cljs (some-> event (gobj/getValueByKeys "data" "fulcro-inspect-devtool-message") encode/read)))
@@ -284,7 +283,7 @@
   #?(:cljs
      (let [networking (remotes app)
            state*     (state-atom app)
-           app-uuid   (random-uuid)]
+           app-uuid   (fulcro-app-id app)]
        (swap! apps* assoc app-uuid app)
        (update-state-history app @state*)
        (swap! state* assoc app-uuid-key app-uuid)
@@ -300,15 +299,18 @@
 
    app - The app
    env - The mutation env that completed."
-  [app {:keys [component ref state] :as env} {:keys [tx-id tx component-name state-before]}]
+  [app
+   {:keys [component ref state com.fulcrologic.fulcro.algorithms.tx-processing/options]}
+   {:keys [tx-id tx state-before]}]
   #?(:cljs
      (let [component-name (get-component-name component)
-           tx             (cond-> {:fulcro.inspect.ui.transactions/tx-id tx-id
-                                   :fulcro.history/client-time           (js/Date.)
-                                   :fulcro.history/tx                    tx
-                                   :fulcro.history/db-before-hash        (hash state-before)
-                                   :fulcro.history/db-after-hash         (hash @state)
-                                   :fulcro.history/network-sends         []}
+           tx             (cond-> {:fulcro.inspect.ui.transactions/tx-id                    tx-id
+                                   :fulcro.history/client-time                              (js/Date.)
+                                   :fulcro.history/tx                                       tx
+                                   :fulcro.history/db-before-hash                           (hash state-before)
+                                   :fulcro.history/db-after-hash                            (hash @state)
+                                   :fulcro.history/network-sends                            []
+                                   :com.fulcrologic.fulcro.algorithms.tx-processing/options options}
                             component-name (assoc :component component-name)
                             ref (assoc :ident-ref ref))
            app-uuid       (app-uuid app)]
