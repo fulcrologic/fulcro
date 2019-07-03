@@ -9,7 +9,7 @@
 image:docs/logo.png[]
 
 image:https://img.shields.io/clojars/v/com.fulcrologic/fulcro.svg[link=https://clojars.org/com.fulcrologic/fulcro]
-image:https://cljdoc.xyz/badge/com/fulcrologic/fulcro[link=https://cljdoc.xyz/d/com/fulcrologic/fulcro/CURRENT]
+image:https://cljdoc.xyz/badge/com.fulcrologic/fulcro[link=https://cljdoc.xyz/d/com.fulcrologic/fulcro/CURRENT]
 
 Fulcro is a library for building data-driven full-stack applications for the web. It uses React and is written in
 Clojure and Clojurescript.
