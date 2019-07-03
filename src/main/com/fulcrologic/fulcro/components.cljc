@@ -947,11 +947,11 @@
   pessimistically (one at a time) in the order given. Follow-on reads in the given transaction will be repeated after each remote
   interaction.
 
-  `comp-or-reconciler` a mounted component or reconciler
+  `component-or-app` a mounted component or the app
   `tx` the tx to run
   `ref` the ident (ref context) in which to run the transaction (including all deferrals)"
-  ([comp-or-reconciler tx]
-   (transact! comp-or-reconciler tx {:optimistic? false}))
-  ([comp-or-reconciler ref tx]
-   (transact! comp-or-reconciler tx {:optimistic? false
-                                     :ref         ref})))
+  ([component-or-app tx]
+   (transact! component-or-app tx {:optimistic? false}))
+  ([component-or-app ref tx]
+   (transact! component-or-app tx {:optimistic? false
+                                   :ref         ref})))

@@ -22,7 +22,7 @@
           data-tree        (if query
                              (fdn/db->tree query state-map state-map)
                              state-map)
-          app-root #?(:clj {}                               ; TODO
+          app-root #?(:clj {}
                       :cljs (js/ReactDOM.render (root-factory data-tree) mount-node))]
       (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/app-root app-root)
       #?(:cljs app-root))))

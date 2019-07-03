@@ -9,6 +9,7 @@
 - Added lost-refresh avoidance when both refresh and only-refresh collide.
 - Added recovery from failures in ident-optimized refresh with console messaging
 - Changed indexes to use class registry keys instead of classes so hot reload works better.
+- Fixed load fallbacks
 
 3.0.0-alpha-15
 --------------

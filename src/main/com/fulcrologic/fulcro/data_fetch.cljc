@@ -165,7 +165,7 @@
   (when (fn? error-action)
     (error-action env))
   (when (symbol? fallback)
-    (comp/transact! app `[(fallback ~(assoc env :load-params params))])))
+    (comp/transact! app `[(~fallback ~(assoc env :load-params params))])))
 
 (defmethod m/mutate `internal-load! [{:keys [ast] :as env}]
   (let [params     (get ast :params)
