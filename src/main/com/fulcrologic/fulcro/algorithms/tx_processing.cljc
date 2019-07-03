@@ -10,6 +10,7 @@
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
+    com.fulcrologic.fulcro.specs
     [ghostwheel.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
@@ -577,7 +578,7 @@
           (distribute-results! app))))))
 
 (>defn requested-refreshes [app queue]
-  [::app (s/coll-of ::tx-node) => set?]
+  [:com.fulcrologic.fulcro.application/app (s/coll-of ::tx-node) => set?]
   "Returns a set of refreshes that have been requested by active mutations in the queue"
   (reduce
     (fn [acc tx-node]

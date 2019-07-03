@@ -30,15 +30,21 @@
   component-local state)."
   [app ident c]
   #?(:cljs
-     (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
-           state-map @state-atom
-           query     (comp/get-query c state-map)
-           q         [{ident query}]
-           data-tree (when query (fdn/db->tree q state-map state-map))
-           new-props (get data-tree ident)]
-       (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
-       (when (comp/mounted? c)
-         (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))))
+     (if (and c ident)
+       (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
+             state-map @state-atom
+             query     (comp/get-query c state-map)
+             q         [{ident query}]
+             data-tree (when query (fdn/db->tree q state-map state-map))
+             new-props (get data-tree ident)]
+         (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
+         (when (comp/mounted? c)
+           (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))
+       (do
+         (log/info "Failed to do optimized update. Component" (-> c comp/react-type (comp/class->registry-key))
+           "queries for data that changed, but does not have an ident. If that is your application root,"
+           "consider moving that changing state to a child component.")
+         (throw (ex-info "Targeted update failed" {}))))))
 
 (defn render-components-with-ident!
   "Renders *only* components that *have* the given ident."
@@ -94,8 +100,9 @@
       (let [{limited-idents true
              limited-props  false} (group-by eql/ident? only-refresh)
             limited-to-render (props->components app limited-props)]
-        (doseq [c limited-to-render]
-          (render-component! app (comp/get-ident c) c))
+        (doseq [c limited-to-render
+                :let [ident (comp/get-ident c)]]
+          (render-component! app ident c))
         (doseq [i limited-idents]
           (render-components-with-ident! app i)))
       (let [state-map       @state-atom
@@ -123,5 +130,9 @@
   ([app {:keys [force-root? root-props-changed?] :as options}]
    (if (or force-root? root-props-changed?)
      (kr/render! app options)
-     (render-stale-components! app))))
+     (try
+       (render-stale-components! app)
+       (catch #?(:clj Exception :cljs :default) e
+         (log/info "Optimized render failed. Falling back to root render.")
+         (kr/render! app options))))))
 

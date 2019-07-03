@@ -7,6 +7,8 @@
 - Fixed tracking of `:refresh` and `:only-refresh` to accumulate and clear properly.
 - Added back support for `refresh` section of mutations.
 - Added lost-refresh avoidance when both refresh and only-refresh collide.
+- Added recovery from failures in ident-optimized refresh with console messaging
+- Changed indexes to use class registry keys instead of classes so hot reload works better.
 
 3.0.0-alpha-15
 --------------

@@ -15,6 +15,7 @@
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
+    com.fulcrologic.fulcro.specs
     [ghostwheel.core :refer [>defn => |]]
     [clojure.spec.alpha :as s]
     #?@(:cljs [[goog.object :as gobj]

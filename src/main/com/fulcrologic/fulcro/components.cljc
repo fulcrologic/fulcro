@@ -861,7 +861,8 @@
   "Get all components from the indexes that are instances of the component class.
   `x` can be anything `any->app` is ok with."
   [x class]
-  (some-> (get-indexes x) :class->components (get class)))
+  (let [k (class->registry-key class)]
+    (some-> (get-indexes x) :class->components (get k))))
 
 (defn class->any
   "Get any component from the indexes that are instances of the component class.
