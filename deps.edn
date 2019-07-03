@@ -1,6 +1,9 @@
 {:paths   ["src/main" "src/todomvc"]
 
  :deps    {edn-query-language/eql     {:mvn/version "0.0.4"}
+           cljsjs/react               {:mvn/version "16.8.6-0"}
+           cljsjs/react-dom           {:mvn/version "16.8.6-0"}
+           cljsjs/react-dom-server    {:mvn/version "16.8.6-0"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
            com.taoensso/tufte         {:mvn/version "2.0.1"}
            com.cognitect/transit-clj  {:mvn/version "0.8.313"}
