@@ -76,6 +76,7 @@
 (gw/>def :com.fulcrologic.fulcro.application/remote-name keyword?)
 (gw/>def :com.fulcrologic.fulcro.application/remote-names (s/coll-of keyword? :kind set?))
 (gw/>def :com.fulcrologic.fulcro.application/remotes (s/map-of :com.fulcrologic.fulcro.application/remote-name map?))
+(gw/>def :com.fulcrologic.fulcro.application/active-remotes (s/coll-of :com.fulcrologic.fulcro.application/remote-name :kind set?))
 (gw/>def :com.fulcrologic.fulcro.application/basis-t pos-int?)
 (gw/>def :com.fulcrologic.fulcro.application/last-rendered-state map?)
 (gw/>def :com.fulcrologic.fulcro.application/runtime-state (s/keys :req [:com.fulcrologic.fulcro.application/app-root

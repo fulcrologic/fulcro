@@ -137,12 +137,12 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote          (get (app->remotes app) remote-name)
-               transmit!       (get remote :transmit!)
+  (enc/if-let [remote (get (app->remotes app) remote-name)
+               transmit! (get remote :transmit!)
                query-transform (ah/app-algorithm app :global-eql-transform)
-               send-node       (if query-transform
-                                 (update send-node ::ast query-transform)
-                                 send-node)]
+               send-node (if query-transform
+                           (update send-node ::ast query-transform)
+                           send-node)]
     (try
       (inspect/ilet [tx (eql/ast->query (::ast send-node))]
         (inspect/send-started! app remote-name (::id send-node) tx))
@@ -591,9 +591,36 @@
     #{}
     queue))
 
+(>defn remotes-active-on-node
+  "Given a tx node and the set of legal remotes: returns a set of remotes that are active on that node."
+  [{::keys [elements] :as tx-node} remotes]
+  [::tx-node :com.fulcrologic.fulcro.application/remote-names
+   => :com.fulcrologic.fulcro.application/remote-names]
+  (let [active-on-element (fn [{::keys [dispatch complete?]}]
+                            (let [remotes (set remotes)]
+                              (-> remotes
+                                (set/intersection (set (keys dispatch)))
+                                (set/difference complete?))))]
+    (reduce
+      (fn [acc ele]
+        (set/union acc (active-on-element ele)))
+      #{}
+      elements)))
+
+(>defn active-remotes
+  "Calculate which remotes still have network activity to do on the given active queue."
+  [queue remotes]
+  [::active-queue :com.fulcrologic.fulcro.application/remote-names
+   => :com.fulcrologic.fulcro.application/active-remotes]
+  (reduce
+    (fn [ra n]
+      (set/union ra (remotes-active-on-node n remotes)))
+    #{}
+    queue))
+
 (>defn process-queue!
   "Run through the active queue and do a processing step."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}]
+  [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom] :as app}]
   [:com.fulcrologic.fulcro.application/app => any?]
   (let [new-queue        (reduce
                            (fn *pstep [new-queue n]
@@ -603,8 +630,11 @@
                            []
                            (::active-queue @runtime-atom))
         accumulate       (fn [r items] (into (set r) items))
+        remotes          (app->remote-names app)
         schedule-render! (ah/app-algorithm app :schedule-render!)
-        explicit-refresh (requested-refreshes app new-queue)]
+        explicit-refresh (requested-refreshes app new-queue)
+        remotes-active?  (active-remotes new-queue remotes)]
+    (swap! state-atom assoc :com.fulcrologic.fulcro.application/active-remotes remotes-active?)
     (swap! runtime-atom assoc ::active-queue new-queue)
     (when (seq explicit-refresh)
       (swap! runtime-atom update :com.fulcrologic.fulcro.application/to-refresh accumulate explicit-refresh))

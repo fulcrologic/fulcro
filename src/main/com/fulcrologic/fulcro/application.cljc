@@ -253,6 +253,11 @@
         true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
         the normal remotes.  The default version of this returns true if the status code isn't 200.
       - `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
+      - `:load-mutation` - A symbol. Defines which mutation to use as an implementation of low-level load operations. See
+      Developer's Guide
+      - `:query-transform-default` - A `(fn [query] query')`. Defaults to a function that strips `:ui/...` keywords and
+      form state config joins from load queries.
+      - `:load-marker-default` - A default value to use for load markers. Defaults to false.
     "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
@@ -265,11 +270,17 @@
             client-did-mount
             remote-error?
             remotes
+            query-transform-default
+            load-marker-default
+            load-mutation
             shared
             shared-fn] :as options}]
    {::id              (util/uuid)
     ::state-atom      (atom (or initial-db {}))
     :client-did-mount client-did-mount
+    ::config          {:load-marker-default     load-marker-default
+                       :query-transform-default query-transform-default
+                       :load-mutation           load-mutation}
     ::algorithms      {:algorithm/tx!                   default-tx!
                        :algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
                        :algorithm/shared-fn             (or shared-fn (constantly {}))
