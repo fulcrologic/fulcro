@@ -786,8 +786,8 @@
         "(normal target)"
         (uism/compute-target test-env {::targeting/target [:a 1]}) => [:a 1]
         "(special target)"
-        (uism/compute-target test-env {::targeting/target (df/append-to [:a 1])}) => [:a 1]
-        (targeting/special-target? (uism/compute-target test-env {::targeting/target (df/append-to [:a 1])})) => true))
+        (uism/compute-target test-env {::targeting/target (targeting/append-to [:a 1])}) => [:a 1]
+        (targeting/special-target? (uism/compute-target test-env {::targeting/target (targeting/append-to [:a 1])})) => true))
     (behavior "Resolves actors"
       (assertions
         (uism/compute-target test-env {::uism/target-actor :dialog}) => [:dialog 1]
@@ -798,7 +798,7 @@
         => true
 
         "can combine actor targets with a multiple-target"
-        (uism/compute-target test-env {::targeting/target          (df/multiple-targets [:a 1] [:b 2])
+        (uism/compute-target test-env {::targeting/target          (targeting/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-actor :dialog})
         => [[:a 1] [:b 2] [:dialog 1]]))
     (behavior "Resolves aliases"
@@ -811,6 +811,6 @@
         => true
 
         "can combine alias targets with a multiple-target"
-        (uism/compute-target test-env {::targeting/target          (df/multiple-targets [:a 1] [:b 2])
+        (uism/compute-target test-env {::targeting/target          (targeting/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-alias :x})
         => [[:a 1] [:b 2] [:dialog 1 :foo]]))))

@@ -8,55 +8,45 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as m]
+    [clojure.spec.alpha :as s]
+    [ghostwheel.core :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
 
-(defn data-state?
+(>defn data-state?
   "Is the given parameter a load marker?"
   [state]
-  (contains? state :status))
+  [any? => boolean?]
+  (and (map? state) (contains? state :status)))
 
-(defn load-marker?
+(>defn load-marker?
   "Is the given parameter a load marker?"
   [x]
-  (contains? x :status))
+  [any? => boolean?]
+  (data-state? x))
 
-(defn ready? "Is the given load marker ready for loading?" [marker] (= :loading (:status marker)))
-(defn loading? "Is the given load marker loading?" [marker] (= :loading (:status marker)))
-(defn failed?
+(>defn ready? "Is the given load marker ready for loading?" [marker]
+  [(s/nilable map?) => boolean?]
+  (= :loading (:status marker)))
+
+(>defn loading? "Is the given load marker loading?" [marker]
+  [(s/nilable map?) => boolean?]
+  (= :loading (:status marker)))
+
+(>defn failed?
   "Is the given load marker indicate failed?
 
   WARNING: This function is current unimplemented and will be removed.  The new way of dealing with failure is to
   define an `error-action` for the load in question and modify your own state. You can also override"
-  [marker] (= :failed (:status marker)))
+  [marker]
+  [(s/nilable map?) => boolean?]
+  (= :failed (:status marker)))
 
 (def marker-table
   "The name of the table in which fulcro load markers are stored. You must query for this via a link query
   `[df/marker-table '_]` in any component that needs to use them (and refresh) during loads."
   :ui.fulcro.client.data-fetch.load-markers/by-id)
-
-(defn multiple-targets
-  "Aggregate multiple targets together for use with load targeting. Each target can be a
-  vector (raw path) or another special target like `append-to`."
-  [& targets]
-  (apply targeting/multiple-targets targets))
-
-(defn prepend-to
-  "Place the loaded data as an edge at the beginning of the given to-many edges at the target path (in the normalized db)."
-  [target]
-  (targeting/prepend-to target))
-
-(defn append-to
-  "Place the loaded data as an edge at the end of the given to-many edges at the target path (in the normalized db)."
-  [target]
-  (targeting/append-to target))
-
-(defn replace-at
-  "Place the loaded data at the given target, which may include numbers to target a to-many index
-  (in the normalized db)."
-  [target]
-  (targeting/replace-at target))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."

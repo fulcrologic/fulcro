@@ -7,7 +7,8 @@
 - Added global query transform override
 - Added load marker default support
 - Fixed http remote to not force status code to 500 unless it is missing on errors.
-- 
+- Removed targeting aliases in data-fetch. Use the targeting ns directly for append-to et al.
+
 3.0.0-alpha-16
 --------------
 - Added failed load marker support.

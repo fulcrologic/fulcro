@@ -110,7 +110,8 @@ app can be declared once in a namespace of it's own and then used directly every
 the reconciler could have been. There are no protocols involved.
 
 Returning and Targeting:: The `returning`, `with-target`, and `with-params` helpers take `env` now.  The return value
-of client-side mutations now support returning the `env` in addition to the original boolean or AST.
+of client-side mutations now support returning the `env` in addition to the original boolean or AST. The `append-to` and
+related targeting wrappers are now in the targeting namespace.
 
 Remotes:: Remotes were protocol based, and are now simply maps. The primary
 "method" to implement is a function under the `:transmit!` key, which now receives

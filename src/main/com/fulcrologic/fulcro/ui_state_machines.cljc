@@ -901,7 +901,7 @@
     (if (> noptions 1)
       (if (and target (targeting/multiple-targets? target))
         (into target (keep identity [actor field]))
-        (apply df/multiple-targets (keep identity [target actor field])))
+        (apply targeting/multiple-targets (keep identity [target actor field])))
       (or target actor field))))
 
 (let [mtrigger! (fn mutation-trigger* [{:keys [app result]} actor-ident asm-id event data]

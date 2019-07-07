@@ -249,10 +249,11 @@
             (when componentDidUpdate
               (componentDidUpdate this prev-props prev-state snapshot))
             (when ident
-              (let [old-ident  (ident this prev-props)
-                    next-ident (ident this (props this))
-                    app        (any->app this)
-                    {:keys [:algorithm/drop-component! :algorithm/index-component!]} (ah/app-algorithm app)]
+              (let [old-ident        (ident this prev-props)
+                    next-ident       (ident this (props this))
+                    app              (any->app this)
+                    drop-component!  (ah/app-algorithm app :drop-component!)
+                    index-component! (ah/app-algorithm app :index-component)]
                 (when (not= old-ident next-ident)
                   (drop-component! this old-ident)
                   (index-component! this))))))))
@@ -263,7 +264,7 @@
           (gobj/set this "fulcro$mounted" true)
           (let [{:keys [componentDidMount]} (component-options this)
                 app              (any->app this)
-                index-component! (ah/app-algorithm app :index-component!)]
+                index-component! (ah/app-algorithm app :index-component)]
             (index-component! this)
             (when componentDidMount
               (componentDidMount this))))))
@@ -668,7 +669,7 @@
              ref              (:ref props)
              ref              (cond-> ref (keyword? ref) str)
              app              *app*
-             props-middleware (:algorithm/props-middleware (ah/app-algorithm app))
+             props-middleware (ah/app-algorithm app :props-middleware)
              ;; Our data-readers.clj makes #js == identity in CLJ
              props            #js {:ref             ref
                                    :fulcro$reactKey key
@@ -828,7 +829,8 @@
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
-      (let [{:algorithm/keys [schedule-render! index-root!]} (ah/app-algorithm :index-root!)]
+      (let [index-root!      (ah/app-algorithm app :index-root!)
+            schedule-render! (ah/app-algorithm app :schedule-render!)]
         (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
         (when index-root! (index-root! app))
         (when schedule-render! (schedule-render! app {:force-root? true})))
