@@ -253,7 +253,7 @@
                     next-ident       (ident this (props this))
                     app              (any->app this)
                     drop-component!  (ah/app-algorithm app :drop-component!)
-                    index-component! (ah/app-algorithm app :index-component)]
+                    index-component! (ah/app-algorithm app :index-component!)]
                 (when (not= old-ident next-ident)
                   (drop-component! this old-ident)
                   (index-component! this))))))))
@@ -264,7 +264,7 @@
           (gobj/set this "fulcro$mounted" true)
           (let [{:keys [componentDidMount]} (component-options this)
                 app              (any->app this)
-                index-component! (ah/app-algorithm app :index-component)]
+                index-component! (ah/app-algorithm app :index-component!)]
             (index-component! this)
             (when componentDidMount
               (componentDidMount this))))))
