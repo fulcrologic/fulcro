@@ -1,5 +1,4 @@
 (ns com.fulcrologic.fulcro.algorithms.legacy-db-tree
-  (:refer-clojure :exclude [replace])
   (:require
     [clojure.zip :as zip]
     [taoensso.timbre :as log]))
@@ -165,7 +164,7 @@
                       (recur (zip/right loc) path)))))))]
     (query-template* (query-zip query) path)))
 
-(defn- replace [template new-query]
+(defn- zip-replace [template new-query]
   (-> template (zip/replace new-query) zip/root))
 
 (defn reduce-query-depth
@@ -175,7 +174,7 @@
     (if-let [pos (query-template q [k])]
       (let [node  (zip/node pos)
             node' (cond-> node (number? node) dec)]
-        (replace pos node'))
+        (zip-replace pos node'))
       q)
     q))
 

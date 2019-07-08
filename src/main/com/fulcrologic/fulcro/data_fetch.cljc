@@ -8,55 +8,45 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as m]
+    [clojure.spec.alpha :as s]
+    [ghostwheel.core :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
 
-(defn data-state?
+(>defn data-state?
   "Is the given parameter a load marker?"
   [state]
-  (contains? state :status))
+  [any? => boolean?]
+  (and (map? state) (contains? state :status)))
 
-(defn load-marker?
+(>defn load-marker?
   "Is the given parameter a load marker?"
   [x]
-  (contains? x :status))
+  [any? => boolean?]
+  (data-state? x))
 
-(defn ready? "Is the given load marker ready for loading?" [marker] (= :loading (:status marker)))
-(defn loading? "Is the given load marker loading?" [marker] (= :loading (:status marker)))
-(defn failed?
+(>defn ready? "Is the given load marker ready for loading?" [marker]
+  [(s/nilable map?) => boolean?]
+  (= :loading (:status marker)))
+
+(>defn loading? "Is the given load marker loading?" [marker]
+  [(s/nilable map?) => boolean?]
+  (= :loading (:status marker)))
+
+(>defn failed?
   "Is the given load marker indicate failed?
 
   WARNING: This function is current unimplemented and will be removed.  The new way of dealing with failure is to
   define an `error-action` for the load in question and modify your own state. You can also override"
-  [marker] (= :failed (:status marker)))
+  [marker]
+  [(s/nilable map?) => boolean?]
+  (= :failed (:status marker)))
 
 (def marker-table
   "The name of the table in which fulcro load markers are stored. You must query for this via a link query
   `[df/marker-table '_]` in any component that needs to use them (and refresh) during loads."
   :ui.fulcro.client.data-fetch.load-markers/by-id)
-
-(defn multiple-targets
-  "Aggregate multiple targets together for use with load targeting. Each target can be a
-  vector (raw path) or another special target like `append-to`."
-  [& targets]
-  (apply targeting/multiple-targets targets))
-
-(defn prepend-to
-  "Place the loaded data as an edge at the beginning of the given to-many edges at the target path (in the normalized db)."
-  [target]
-  (targeting/prepend-to target))
-
-(defn append-to
-  "Place the loaded data as an edge at the end of the given to-many edges at the target path (in the normalized db)."
-  [target]
-  (targeting/append-to target))
-
-(defn replace-at
-  "Place the loaded data at the given target, which may include numbers to target a to-many index
-  (in the normalized db)."
-  [target]
-  (targeting/replace-at target))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
@@ -210,7 +200,7 @@
   - `remote` - Optional. Keyword name of the remote that this load should come from.
   - `params` - Optional parameters to add to the generated query
   - `marker` - ID of marker. Normalizes a load marker into app state so you can see progress.
-  - `refresh` - REMOVED. Not needed.
+  - `refresh` - A list of things in the UI to refresh. Depends on rendering optimization.
   - `parallel` - Send the load out-of-order (immediately) without waiting for other loads in progress.
   - `post-mutation` - DEPRECATED. use post-action. A mutation (symbol) to run after the data is merged. Note, if target is supplied be sure your post mutation
   should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
@@ -237,13 +227,14 @@
   ([app-or-comp server-property-or-ident class-or-factory] (load! app-or-comp server-property-or-ident class-or-factory {}))
   ([app-or-comp server-property-or-ident class-or-factory config]
    (let [app           (comp/any->app app-or-comp)
-         {:keys [load-marker-default query-transform-default]} (-> app :config)
+         {:keys [load-marker-default query-transform-default load-mutation]} (-> app ::app/config)
          {:keys [parallel] :as config} (merge
                                          (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
                                            query-transform-default (assoc :update-query query-transform-default))
                                          config)
+         load-sym      (or load-mutation `internal-load!)
          mutation-args (load-params* app server-property-or-ident class-or-factory config)]
-     (comp/transact! app `[(internal-load! ~mutation-args)] {:parallel? parallel}))))
+     (comp/transact! app `[(~load-sym ~mutation-args)] {:parallel? parallel}))))
 
 (defn load-field!
   "Load a field of the current component. Runs `prim/transact!`.

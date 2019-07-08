@@ -1,3 +1,17 @@
+3.0.0-alpha-17
+--------------
+- Added active remote status tracking to state atom
+- Added compressible transactions with support in Inspect
+- Reduced chances of lost db updates for inspect.
+- Added hooks to allow global customization of load internals
+- Added global query transform override
+- Added load marker default support
+- Fixed http remote to not force status code to 500 unless it is missing on errors.
+- Removed targeting aliases in data-fetch. Use the targeting ns directly for append-to et al.
+- Fixed problem with mutations sending as empty-query mutation joins due
+to faulty global query transform.
+- Changed internal alg names so that they could be safely spec'd
+
 3.0.0-alpha-16
 --------------
 - Added failed load marker support.

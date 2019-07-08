@@ -1,4 +1,4 @@
-(ns com.fulcrologic.fulcro.transactions-spec
+(ns com.fulcrologic.fulcro.algorithms.tx-processing-spec
   (:require
     [clojure.string :as str]
     [com.fulcrologic.fulcro.specs :as s+]
@@ -826,7 +826,7 @@
                                          nil)
       (app/schedule-render! a) => nil
 
-      (let [{:keys [::app/runtime-atom] :as app} (mock-app)
+      (let [{::app/keys [state-atom runtime-atom] :as app} (mock-app)
             active-queue [(assoc (txn/tx-node `[(f {})]) ::txn/id (uuid 1))
                           (assoc (txn/tx-node `[(g {})]) ::txn/id (uuid 2))]]
         (swap! runtime-atom assoc ::txn/active-queue active-queue)
@@ -834,6 +834,8 @@
         (txn/process-queue! app)
 
         (assertions
+          "Add an active remotes key to app state"
+          (contains? @state-atom ::app/active-remotes) => true
           "Updates the live active queue, removing any nodes that came back nil from processing"
           (get @runtime-atom ::txn/active-queue) => [(first active-queue)])))))
 
@@ -956,6 +958,34 @@
               (-> g-result deref :body keys set) => #{`g}
               "Includes the rest of the combined result"
               (-> f-result deref :status-code) => 200)))))))
+
+(specification "remotes-active-on-node"
+  (let [node        (-> (txn/tx-node '[(m1 {}) (m2 {})])
+                      (assoc-in [::txn/elements 0 ::txn/dispatch] {:remote identity :action identity})
+                      (assoc-in [::txn/elements 1 ::txn/dispatch] {:rest {} :ok-action identity}))
+        node2       (-> node
+                      (assoc-in [::txn/elements 0 ::txn/complete?] #{:remote}))
+        node3       (-> node2
+                      (assoc-in [::txn/elements 1 ::txn/complete?] #{:rest}))
+        all-remotes #{:rest :remote :graphql}]
+    (assertions
+      "Detects which remotes are still active based on the dispatch and complete"
+      (txn/remotes-active-on-node node all-remotes) => #{:rest :remote}
+      (txn/remotes-active-on-node node2 all-remotes) => #{:rest}
+      (txn/remotes-active-on-node node3 all-remotes) => #{})))
+
+(specification "active-remotes"
+  (let [node1 (txn/tx-node '[(m1 {}) (m2 {})])
+        node2 (txn/tx-node '[(m1 {})])
+        queue [node1 node2]]
+    (provided! "uses remotes-active-on-node"
+      (txn/remotes-active-on-node n r) =1x=> #{:rest}
+      (txn/remotes-active-on-node n r) =1x=> #{:remote}
+
+      (assertions
+        "Gathers the active remotes into a set from the active queue"
+        (txn/active-remotes queue #{:remote :rest}) => #{:rest :remote})
+      )))
 
 (defmutation b1 [params]
   (action [env]

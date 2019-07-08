@@ -249,10 +249,11 @@
             (when componentDidUpdate
               (componentDidUpdate this prev-props prev-state snapshot))
             (when ident
-              (let [old-ident  (ident this prev-props)
-                    next-ident (ident this (props this))
-                    app        (any->app this)
-                    {:keys [:algorithm/drop-component! :algorithm/index-component!]} (ah/app-algorithm app)]
+              (let [old-ident        (ident this prev-props)
+                    next-ident       (ident this (props this))
+                    app              (any->app this)
+                    drop-component!  (ah/app-algorithm app :drop-component!)
+                    index-component! (ah/app-algorithm app :index-component!)]
                 (when (not= old-ident next-ident)
                   (drop-component! this old-ident)
                   (index-component! this))))))))
@@ -668,7 +669,7 @@
              ref              (:ref props)
              ref              (cond-> ref (keyword? ref) str)
              app              *app*
-             props-middleware (:algorithm/props-middleware (ah/app-algorithm app))
+             props-middleware (ah/app-algorithm app :props-middleware)
              ;; Our data-readers.clj makes #js == identity in CLJ
              props            #js {:ref             ref
                                    :fulcro$reactKey key
@@ -721,6 +722,7 @@
     you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
   - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
     the network portion of the transaction (assuming it has not already completed).
+  - `:compressible?` - boolean. Check compressible-transact! docs.
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
@@ -827,7 +829,8 @@
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
     (if (and (string? queryid) (or query params))
-      (let [{:algorithm/keys [schedule-render! index-root!]} (ah/app-algorithm :index-root!)]
+      (let [index-root!      (ah/app-algorithm app :index-root!)
+            schedule-render! (ah/app-algorithm app :schedule-render!)]
         (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
         (when index-root! (index-root! app))
         (when schedule-render! (schedule-render! app {:force-root? true})))
@@ -955,3 +958,17 @@
   ([component-or-app ref tx]
    (transact! component-or-app tx {:optimistic? false
                                    :ref         ref})))
+
+(defn compressible-transact!
+  "Identical to `transact!`, but marks the history edge as compressible. This means that if more than one
+  adjacent history transition edge is compressible, only the more recent of the sequence of them is kept. This
+  is useful for things like form input fields, where storing every keystoke in history is undesirable. This
+  also compress the transactions in Fulcro Inspect.
+
+  NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
+  automatic network error recovery handling."
+  ([comp-or-reconciler tx]
+   (transact! comp-or-reconciler tx {:compressible? true}))
+  ([comp-or-reconciler ref tx]
+   (transact! comp-or-reconciler tx {:compressible? true
+                                     :ref           ref})))

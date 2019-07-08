@@ -253,6 +253,11 @@
         true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
         the normal remotes.  The default version of this returns true if the status code isn't 200.
       - `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
+      - `:load-mutation` - A symbol. Defines which mutation to use as an implementation of low-level load operations. See
+      Developer's Guide
+      - `:query-transform-default` - A `(fn [query] query')`. Defaults to a function that strips `:ui/...` keywords and
+      form state config joins from load queries.
+      - `:load-marker-default` - A default value to use for load markers. Defaults to false.
     "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
@@ -265,48 +270,54 @@
             client-did-mount
             remote-error?
             remotes
+            query-transform-default
+            load-marker-default
+            load-mutation
             shared
             shared-fn] :as options}]
-   {::id              (util/uuid)
-    ::state-atom      (atom (or initial-db {}))
-    :client-did-mount client-did-mount
-    ::algorithms      {:algorithm/tx!                   default-tx!
-                       :algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
-                       :algorithm/shared-fn             (or shared-fn (constantly {}))
-                       :algorithm/render!               render!
-                       :algorithm/remote-error?         (or remote-error? default-remote-error?)
-                       :algorithm/global-error-action   global-error-action
-                       :algorithm/merge*                merge/merge*
-                       :algorithm/default-result-action (or default-result-action mut/default-result-action)
-                       :algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
-                       :algorithm/index-root!           indexing/index-root!
-                       :algorithm/index-component!      indexing/index-component!
-                       :algorithm/drop-component!       indexing/drop-component!
-                       :algorithm/props-middleware      props-middleware
-                       :algorithm/render-middleware     render-middleware
-                       :algorithm/schedule-render!      schedule-render!}
-    ::runtime-atom    (atom
-                        {::app-root                        nil
-                         ::mount-node                      nil
-                         ::root-class                      nil
-                         ::root-factory                    nil
-                         ::basis-t                         1
-                         ::last-rendered-state             {}
+   {::id           (util/uuid)
+    ::state-atom   (atom (or initial-db {}))
+    ::config       {:load-marker-default     load-marker-default
+                    ::client-did-mount       (or client-did-mount (:started-callback options))
+                    :query-transform-default query-transform-default
+                    :load-mutation           load-mutation}
+    ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                   default-tx!
+                    :com.fulcrologic.fulcro.algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
+                    :com.fulcrologic.fulcro.algorithm/shared-fn             (or shared-fn (constantly {}))
+                    :com.fulcrologic.fulcro.algorithm/render!               render!
+                    :com.fulcrologic.fulcro.algorithm/remote-error?         (or remote-error? default-remote-error?)
+                    :com.fulcrologic.fulcro.algorithm/global-error-action   global-error-action
+                    :com.fulcrologic.fulcro.algorithm/merge*                merge/merge*
+                    :com.fulcrologic.fulcro.algorithm/default-result-action (or default-result-action mut/default-result-action)
+                    :com.fulcrologic.fulcro.algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
+                    :com.fulcrologic.fulcro.algorithm/index-root!           indexing/index-root!
+                    :com.fulcrologic.fulcro.algorithm/index-component!      indexing/index-component!
+                    :com.fulcrologic.fulcro.algorithm/drop-component!       indexing/drop-component!
+                    :com.fulcrologic.fulcro.algorithm/props-middleware      props-middleware
+                    :com.fulcrologic.fulcro.algorithm/render-middleware     render-middleware
+                    :com.fulcrologic.fulcro.algorithm/schedule-render!      schedule-render!}
+    ::runtime-atom (atom
+                     {::app-root                        nil
+                      ::mount-node                      nil
+                      ::root-class                      nil
+                      ::root-factory                    nil
+                      ::basis-t                         1
+                      ::last-rendered-state             {}
 
-                         ::static-shared-props             shared
-                         ::shared-props                    {}
+                      ::static-shared-props             shared
+                      ::shared-props                    {}
 
-                         ::remotes                         (or remotes
-                                                             {:remote {:transmit! (fn [send]
-                                                                                    (log/fatal "Remote requested, but no remote defined."))}})
-                         ::indexes                         {:ident->components {}}
-                         ::mutate                          mut/mutate
-                         ::txn/activation-scheduled?       false
-                         ::txn/queue-processing-scheduled? false
-                         ::txn/sends-scheduled?            false
-                         ::txn/submission-queue            []
-                         ::txn/active-queue                []
-                         ::txn/send-queues                 {}})}))
+                      ::remotes                         (or remotes
+                                                          {:remote {:transmit! (fn [send]
+                                                                                 (log/fatal "Remote requested, but no remote defined."))}})
+                      ::indexes                         {:ident->components {}}
+                      ::mutate                          mut/mutate
+                      ::txn/activation-scheduled?       false
+                      ::txn/queue-processing-scheduled? false
+                      ::txn/sends-scheduled?            false
+                      ::txn/submission-queue            []
+                      ::txn/active-queue                []
+                      ::txn/send-queues                 {}})}))
 
 (>defn fulcro-app?
   "Returns true if the given `x` is a Fulcro application."
@@ -370,7 +381,7 @@
                     db           (util/deep-merge initial-db db-from-ui)]
                 (reset! (::state-atom app) db)))
             (reset-mountpoint!)
-            (when-let [cdm (:client-did-mount app)]
+            (when-let [cdm (::client-did-mount app)]
               (cdm app))))))))
 
 (defn app-root

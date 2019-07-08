@@ -69,13 +69,22 @@
 ;; ================================================================================
 (gw/>def :com.fulcrologic.fulcro.application/state-atom futil/atom?)
 (gw/>def :com.fulcrologic.fulcro.application/app-root (s/nilable any?))
-(gw/>def :com.fulcrologic.fulcro.application/indexes (s/keys :req-un [:com.fulcrologic.fulcro.application/ident->components]))
+(gw/>def :com.fulcrologic.fulcro.application/runtime-atom futil/atom?)
+
+;; indexing-related
 (gw/>def :com.fulcrologic.fulcro.application/ident->components (s/map-of eql/ident? set?))
-(gw/>def :com.fulcrologic.fulcro.application/keyword->components (s/map-of keyword? set?))
-(gw/>def :com.fulcrologic.fulcro.application/link-joins->components (s/map-of eql/ident? set?))
+(gw/>def :com.fulcrologic.fulcro.application/prop->classes (s/map-of (s/or :keyword keyword? :ident eql/ident?) set?))
+(gw/>def :com.fulcrologic.fulcro.application/class->components (s/map-of keyword? set?))
+(gw/>def :com.fulcrologic.fulcro.application/idents-in-joins (s/coll-of eql/ident? :kind set?))
+(gw/>def :com.fulcrologic.fulcro.application/indexes (s/keys :opt-un [:com.fulcrologic.fulcro.application/ident->components
+                                                                      :com.fulcrologic.fulcro.application/keyword->components
+                                                                      :com.fulcrologic.fulcro.application/idents-in-joins
+                                                                      :com.fulcrologic.fulcro.application/class->components]))
+
 (gw/>def :com.fulcrologic.fulcro.application/remote-name keyword?)
 (gw/>def :com.fulcrologic.fulcro.application/remote-names (s/coll-of keyword? :kind set?))
 (gw/>def :com.fulcrologic.fulcro.application/remotes (s/map-of :com.fulcrologic.fulcro.application/remote-name map?))
+(gw/>def :com.fulcrologic.fulcro.application/active-remotes (s/coll-of :com.fulcrologic.fulcro.application/remote-name :kind set?))
 (gw/>def :com.fulcrologic.fulcro.application/basis-t pos-int?)
 (gw/>def :com.fulcrologic.fulcro.application/last-rendered-state map?)
 (gw/>def :com.fulcrologic.fulcro.application/runtime-state (s/keys :req [:com.fulcrologic.fulcro.application/app-root
@@ -89,25 +98,39 @@
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/send-queues]))
-(gw/>def :com.fulcrologic.fulcro.application/runtime-atom futil/atom?)
-(gw/>def :algorithm/tx! fn?)
-(gw/>def :algorithm/optimized-render! fn?)
-(gw/>def :algorithm/render! fn?)
-(gw/>def :algorithm/merge* fn?)
-(gw/>def :algorithm/remote-error? fn?)
-(gw/>def :algorithm/index-component! fn?)
-(gw/>def :algorithm/drop-component! fn?)
-(gw/>def :algorithm/schedule-render! fn?)
-(gw/>def :algorithm/global-eql-transform fn?)
-(gw/>def :com.fulcrologic.fulcro.application/algorithms (s/keys :req [:algorithm/tx!
-                                                                      :algorithm/optimized-render!
-                                                                      :algorithm/render!
-                                                                      :algorithm/merge*
-                                                                      :algorithm/remote-error?
-                                                                      :algorithm/global-eql-transform
-                                                                      :algorithm/index-component!
-                                                                      :algorithm/drop-component!
-                                                                      :algorithm/schedule-render!]))
+(gw/>def :com.fulcrologic.fulcro.algorithm/tx! fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/optimized-render! fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/render! fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/merge* fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/remote-error? fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/schedule-render! fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/global-eql-transform (s/nilable fn?))
+(gw/>def :com.fulcrologic.fulcro.algorithm/shared-fn (s/nilable fn?))
+(gw/>def :com.fulcrologic.fulcro.algorithm/global-error-action (s/nilable fn?))
+(gw/>def :com.fulcrologic.fulcro.algorithm/default-result-action fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/index-root! fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/index-component! fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/drop-component! fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/props-middleware (s/nilable fn?))
+(gw/>def :com.fulcrologic.fulcro.algorithm/render-middleware (s/nilable fn?))
+
+(gw/>def :com.fulcrologic.fulcro.application/algorithms
+  (s/keys
+    :req [:com.fulcrologic.fulcro.algorithm/default-result-action
+          :com.fulcrologic.fulcro.algorithm/drop-component!
+          :com.fulcrologic.fulcro.algorithm/index-component!
+          :com.fulcrologic.fulcro.algorithm/index-root!
+          :com.fulcrologic.fulcro.algorithm/merge*
+          :com.fulcrologic.fulcro.algorithm/optimized-render!
+          :com.fulcrologic.fulcro.algorithm/remote-error?
+          :com.fulcrologic.fulcro.algorithm/render!
+          :com.fulcrologic.fulcro.algorithm/schedule-render!
+          :com.fulcrologic.fulcro.algorithm/tx!]
+    :opt [:com.fulcrologic.fulcro.algorithm/global-eql-transform
+          :com.fulcrologic.fulcro.algorithm/global-error-action
+          :com.fulcrologic.fulcro.algorithm/props-middleware
+          :com.fulcrologic.fulcro.algorithm/render-middleware
+          :com.fulcrologic.fulcro.algorithm/shared-fn]))
 
 (gw/>def :com.fulcrologic.fulcro.application/app (s/keys :req
                                                    [:com.fulcrologic.fulcro.application/state-atom

@@ -91,7 +91,10 @@
       (when (and union-elision? (<= (count children) 2))
         (log/warn "Unions are not designed to be used with fewer than two children. Check your calls to Fulcro
         load functions where the :without set contains " (pr-str union-key)))
-      (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c)))))))
+      (let [new-ast (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c))))]
+        (if (seq (:children new-ast))
+          new-ast
+          (dissoc new-ast :children))))))
 
 (defn elide-query-nodes
   "Remove items from a query when the query element where the (node-predicate key) returns true. Commonly used with

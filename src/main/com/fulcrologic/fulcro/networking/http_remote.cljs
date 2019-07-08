@@ -302,7 +302,7 @@
                                                          (log/error e "Update handler for remote" url "failed with an exception."))))))
                               error-handler    (fn [error-result]
                                                  (try
-                                                   (result-handler (merge {:status-code 500} (select-keys error-result #{:transaction :status-code :body :status-text})))
+                                                   (result-handler (merge (select-keys error-result #{:transaction :status-code :body :status-text}) {:status-code 500}))
                                                    (catch :default e
                                                      (log/error e "Error handler for remote" url "failed with an exception."))))]
                           (if-let [real-request (try (request-middleware {:headers {} :body edn :url url :method :post})
