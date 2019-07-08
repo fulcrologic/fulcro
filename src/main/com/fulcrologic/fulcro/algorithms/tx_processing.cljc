@@ -307,7 +307,7 @@
                                  done?           (not fully-complete?)
                                  new-acc         {:done?        done?
                                                   :new-elements (conj new-elements updated-element)}
-                                 env             (build-env app node {:ast (:original-ast-node element)})]
+                                 env             (build-env app node {:ast original-ast-node})]
                              (when exec?
                                (try
                                  (when action
@@ -337,7 +337,7 @@
                                                         (assoc ::state-before-action state-before)
                                                         (update ::complete? conj :action)) element)
                                new-acc      (conj new-elements updated-node)
-                               env          (build-env app node {:ast (:original-ast-node element)})]
+                               env          (build-env app node {:ast original-ast-node})]
                            (when exec?
                              (try
                                (action env)
