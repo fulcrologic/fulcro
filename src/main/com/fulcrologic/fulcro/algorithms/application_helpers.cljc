@@ -33,7 +33,9 @@
 
   Returns nil if the algorithm is currently undefined.
   "
-  [app k]
-  (if-let [nm (when (or (string? k) (keyword? k) (symbol? k))
-                (keyword "com.fulcrologic.fulcro.algorithm" (name k)))]
+  [{:com.fulcrologic.fulcro.application/keys [algorithms] :as app} k]
+  (when-let [nm (when (or (string? k) (keyword? k) (symbol? k))
+                  (keyword "com.fulcrologic.fulcro.algorithm" (name k)))]
+    (when-not (contains? algorithms nm)
+      (log/warn "Attempt to access an undefined app algorithm" k))
     (get-in app [:com.fulcrologic.fulcro.application/algorithms nm] nil)))
