@@ -107,7 +107,7 @@
 (gw/>def :com.fulcrologic.fulcro.algorithm/global-eql-transform (s/nilable fn?))
 (gw/>def :com.fulcrologic.fulcro.algorithm/shared-fn (s/nilable fn?))
 (gw/>def :com.fulcrologic.fulcro.algorithm/global-error-action (s/nilable fn?))
-(gw/>def :com.fulcrologic.fulcro.algorithm/default-result-action fn?)
+(gw/>def :com.fulcrologic.fulcro.algorithm/default-result-action! fn?)
 (gw/>def :com.fulcrologic.fulcro.algorithm/index-root! fn?)
 (gw/>def :com.fulcrologic.fulcro.algorithm/index-component! fn?)
 (gw/>def :com.fulcrologic.fulcro.algorithm/drop-component! fn?)
@@ -116,7 +116,7 @@
 
 (gw/>def :com.fulcrologic.fulcro.application/algorithms
   (s/keys
-    :req [:com.fulcrologic.fulcro.algorithm/default-result-action
+    :req [:com.fulcrologic.fulcro.algorithm/default-result-action!
           :com.fulcrologic.fulcro.algorithm/drop-component!
           :com.fulcrologic.fulcro.algorithm/index-component!
           :com.fulcrologic.fulcro.algorithm/index-root!

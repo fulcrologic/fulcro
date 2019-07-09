@@ -17,7 +17,7 @@
         actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'other/boo [~'fulcro-mutation-env-symbol]
                      (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                        {:result-action (fn [~'env]
-                                         (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action)]
+                                         (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                            (~'default-action ~'env)))
                         :action        (fn ~'action [~'env] (~'swap! ~'state) nil)})))))
   (component "Overridden result action"
@@ -42,7 +42,7 @@
         (first method) => `defmethod
         body => `(let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                    {:result-action (fn [~'env]
-                                     (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action)]
+                                     (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                        (~'default-action ~'env)))
                     :remote        (fn ~'remote [~'env] true)
                     :rest          (fn ~'rest [~'env] true)

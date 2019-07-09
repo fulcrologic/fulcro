@@ -34,7 +34,7 @@
      (-invoke [this args]
        (list sym args))))
 
-(>defn update-errors-on-ui-component
+(>defn update-errors-on-ui-component!
   "A handler for mutation network results that will place an error, if detected in env, on the data at `ref`.
   Errors are placed at `k` (defaults to `::m/mutation-error`).
 
@@ -43,7 +43,7 @@
   Swaps against app state and returns `env`."
   ([env]
    [::env => ::env]
-   (update-errors-on-ui-component env ::mutation-error))
+   (update-errors-on-ui-component! env ::mutation-error))
   ([env k]
    [::env keyword? => ::env]
    (let [{:keys [app state result ref]} env
@@ -55,7 +55,7 @@
                         (update-in s ref dissoc k)))))
      env)))
 
-(>defn trigger-global-error-action
+(>defn trigger-global-error-action!
   "When there is a `global-error-action` defined on the application, this function will checks for errors in the given
   mutation `env`. If any are found then it will call the global error action function with `env`.
 
@@ -71,7 +71,7 @@
       (global-error-action env))
     env))
 
-(>defn dispatch-ok-error-actions
+(>defn dispatch-ok-error-actions!
   "Looks for network mutation result in `env`, checks it against the global definition of remote errors.  If there
   is an error and the mutation has defined an `error-action` section, then it calls it; otherwise, if the mutation
   has an `ok-action` it calls that.
@@ -91,7 +91,7 @@
         (ok-action env)))
     env))
 
-(>defn integrate-mutation-return-value
+(>defn integrate-mutation-return-value!
   "If there is a successful result from the remote mutation in `env` this function will merge it with app state
   (if there was a mutation join query), and will also rewrite any tempid remaps that were returned
   in all of the possible locations they might be in both app database and runtime application state (e.g. network queues).
@@ -109,7 +109,7 @@
       (tempid/resolve-tempids! app body))
     env))
 
-(>defn default-result-action
+(>defn default-result-action!
   "The default Fulcro result action for `defmutation`, which can be overridden when you create your `app/fulcro-app`.
 
   This function is the following composition of operations from this same namespace:
@@ -126,10 +126,10 @@
   [env]
   [::env => ::env]
   (-> env
-    (update-errors-on-ui-component ::mutation-error)
-    (trigger-global-error-action)
-    (dispatch-ok-error-actions)
-    (integrate-mutation-return-value)))
+    (update-errors-on-ui-component! ::mutation-error)
+    (trigger-global-error-action!)
+    (dispatch-ok-error-actions!)
+    (integrate-mutation-return-value!)))
 
 (defn mutation-declaration? [expr] (= Mutation (type expr)))
 
@@ -337,7 +337,7 @@
                             `{~(first handlers) ~@(rest handlers)}
                             `{~(first handlers) ~@(rest handlers)
                               :result-action    (fn [~'env]
-                                                  (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action)]
+                                                  (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                                     (~'default-action ~'env)))})
            doc            (or doc "")
            multimethod    `(defmethod com.fulcrologic.fulcro.mutations/mutate '~fqsym [~env-symbol]
