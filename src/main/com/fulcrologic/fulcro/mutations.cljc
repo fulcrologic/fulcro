@@ -6,6 +6,7 @@
     [ghostwheel.core :as gw :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
+    [taoensso.encore :as enc]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -33,31 +34,102 @@
      (-invoke [this args]
        (list sym args))))
 
-(>defn default-result-action
-  "The default Fulcro result action for `defmutation`.  This function checks the status code. When it is
-  200 it will do merge/targeting of mutation joins, and  call `ok-action` (if defined on the mutation),
-  and otherwise will call `error-action`.
+(>defn update-errors-on-ui-component
+  "A handler for mutation network results that will place an error, if detected in env, on the data at `ref`.
+  Errors are placed at `k` (defaults to `::m/mutation-error`).
 
-  This function uses the application's `remote-error?` and `global-error-action` algorithms.
-  "
+  Typically used as part of the construction of a global default result handler for mutations.
+
+  Swaps against app state and returns `env`."
+  ([env]
+   [::env => ::env]
+   (update-errors-on-ui-component env ::mutation-error))
+  ([env k]
+   [::env keyword? => ::env]
+   (let [{:keys [app state result ref]} env
+         remote-error? (ah/app-algorithm app :remote-error?)]
+     (when ref
+       (swap! state (fn [s]
+                      (if (remote-error? (:result env))
+                        (assoc-in s (conj ref k) result)
+                        (update-in s ref dissoc k)))))
+     env)))
+
+(>defn trigger-global-error-action
+  "When there is a `global-error-action` defined on the application, this function will checks for errors in the given
+  mutation `env`. If any are found then it will call the global error action function with `env`.
+
+  Typically used as part of the construction of a global default result handler for mutations.
+
+  Always returns `env`."
   [env]
-  [::env => any?]
-  (let [{:keys [app state result dispatch]} env
+  [::env => ::env]
+  (let [{:keys [app result]} env]
+    (enc/when-let [global-error-action (ah/app-algorithm app :global-error-action)
+                   remote-error?       (ah/app-algorithm app :remote-error?)
+                   _                   (remote-error? result)]
+      (global-error-action env))
+    env))
+
+(>defn dispatch-ok-error-actions
+  "Looks for network mutation result in `env`, checks it against the global definition of remote errors.  If there
+  is an error and the mutation has defined an `error-action` section, then it calls it; otherwise, if the mutation
+  has an `ok-action` it calls that.
+
+  Typically used as part of the construction of a global default result handler for mutations.
+
+  Returns env."
+  [env]
+  [::env => ::env]
+  (let [{:keys [app dispatch result]} env
         {:keys [ok-action error-action]} dispatch
+        remote-error? (ah/app-algorithm app :remote-error?)]
+    (if (remote-error? result)
+      (when error-action
+        (error-action env))
+      (when ok-action
+        (ok-action env)))
+    env))
+
+(>defn integrate-mutation-return-value
+  "If there is a successful result from the remote mutation in `env` this function will merge it with app state
+  (if there was a mutation join query), and will also rewrite any tempid remaps that were returned
+  in all of the possible locations they might be in both app database and runtime application state (e.g. network queues).
+
+  Typically used as part of the construction of a global default result handler for mutations.
+
+  Returns env."
+  [env]
+  [::env => ::env]
+  (let [{:keys [app state result]} env
         {:keys [body transaction]} result
         remote-error? (ah/app-algorithm app :remote-error?)]
-    (if (remote-error? (:result env))
-      (do
-        (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
-          (global-error-action env))
-        (when error-action
-          (error-action env)))
-      (do
-        (swap! state merge/merge-mutation-joins transaction body)
-        (tempid/resolve-tempids! app body)
-        (when ok-action
-          (ok-action env)))))
-  nil)
+    (when-not (remote-error? result)
+      (swap! state merge/merge-mutation-joins transaction body)
+      (tempid/resolve-tempids! app body))
+    env))
+
+(>defn default-result-action
+  "The default Fulcro result action for `defmutation`, which can be overridden when you create your `app/fulcro-app`.
+
+  This function is the following composition of operations from this same namespace:
+
+  (-> env
+    (update-errors-on-ui-component ::mutation-error)
+    (trigger-global-error-action)
+    (dispatch-ok-error-actions)
+    (integrate-mutation-return-value))
+
+  This function returns `env`, so it can be used as part of the chain in your own definition of a \"default\"
+  mutation result action.
+  "
+  [env]
+  [::env => ::env]
+  (-> env
+    (update-errors-on-ui-component ::mutation-error)
+    (trigger-global-error-action)
+    (dispatch-ok-error-actions)
+    (integrate-mutation-return-value)))
 
 (defn mutation-declaration? [expr] (= Mutation (type expr)))
 

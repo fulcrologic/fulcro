@@ -2,6 +2,9 @@
 --------------
 - Various SSR fixes
 - Fixed initial state def and use. Was inconsistent in some places.
+- Added default mutation result handler update [ref ::m/mutation-error]
+- Made default mutation result handler a re-usable composition.
+- Made each step of default result handler a reusable functional step.
 
 3.0.0-alpha-17
 --------------

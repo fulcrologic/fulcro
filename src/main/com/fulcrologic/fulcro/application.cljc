@@ -233,7 +233,8 @@
       - `default-result-action` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
         default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
         and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
-        default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action`.
+        default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action`, which could be used
+        as an element of your own custom implementation.
       - `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
         before they are placed on the network layer.
       - `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
