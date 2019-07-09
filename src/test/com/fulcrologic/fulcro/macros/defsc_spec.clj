@@ -1,8 +1,9 @@
 (ns com.fulcrologic.fulcro.macros.defsc-spec
   (:require
-    [com.fulcrologic.fulcro.macros.defsc :as defsc]
+    [com.fulcrologic.fulcro.components :as defsc]
     [fulcro-spec.core :refer [assertions specification component]]
-    [clojure.test :refer [deftest is]])
+    [clojure.test :refer [deftest is]]
+    [com.fulcrologic.fulcro.algorithms.misc :as util])
   (:import (clojure.lang ExceptionInfo)))
 
 (declare =>)
@@ -10,13 +11,13 @@
 (deftest ^:focus destructured-keys-test
   (assertions
     "Finds the correct keys for arbitrary destructuring"
-    (defsc/destructured-keys '{:keys [a b]}) => #{:a :b}
-    (defsc/destructured-keys '{:some-ns/keys [a b]}) => #{:some-ns/a :some-ns/b}
-    (defsc/destructured-keys '{:x/keys [a b]
+    (util/destructured-keys '{:keys [a b]}) => #{:a :b}
+    (util/destructured-keys '{:some-ns/keys [a b]}) => #{:some-ns/a :some-ns/b}
+    (util/destructured-keys '{:x/keys  [a b]
                                :y/keys [n m]}) => #{:x/a :x/b :y/n :y/m}
-    (defsc/destructured-keys '{:y/keys [n m]
-                               boo     :gobble/that}) => #{:y/n :y/m :gobble/that}
-    (defsc/destructured-keys '{:keys  [:a.b/n db/id]
+    (util/destructured-keys '{:y/keys [n m]
+                               boo    :gobble/that}) => #{:y/n :y/m :gobble/that}
+    (util/destructured-keys '{:keys   [:a.b/n db/id]
                                ::keys [x]
                                }) => #{:a.b/n :db/id ::x}))
 

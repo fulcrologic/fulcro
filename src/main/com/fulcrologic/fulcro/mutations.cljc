@@ -1,21 +1,22 @@
 (ns com.fulcrologic.fulcro.mutations
   #?(:cljs (:require-macros com.fulcrologic.fulcro.mutations))
   (:require
-    #?(:clj com.fulcrologic.fulcro.macros.defmutation)
+    #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.components :as comp]
-    [ghostwheel.core :refer [>defn =>]]
+    [ghostwheel.core :as gw :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid])
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [clojure.string :as str])
   #?(:clj
      (:import (clojure.lang IFn))))
 
-(s/def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
-(s/def ::returning comp/component-class?)
+(gw/>def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
+(gw/>def ::returning comp/component-class?)
 
 #?(:clj
    (deftype Mutation [sym]
@@ -69,58 +70,6 @@
     mutation))
 
 (defmulti mutate (fn [env] (-> env :ast :dispatch-key)))
-
-#?(:clj
-   (defmacro
-     ^{:doc
-       "Define a Fulcro mutation.
-
-     The given symbol will be prefixed with the namespace of the current namespace, and if you use a simple symbol it
-     will also be def'd into a name that when used as a function will simply resolve to that function call as data:
-
-     ```
-     (defmutation f [p]
-       ...)
-
-     (f {:x 1}) => `(f {:x 1})
-     ```
-
-     This allows mutations to behave as data in transactions without needing quoting.
-
-     Mutations can have any number of handlers. By convention things that contain logic use names that end
-     in `action`.  The remote behavior of a mutation is defined by naming a handler after the remote.
-
-     ```
-     (defmutation boo
-       \"docstring\" [params-map]
-       (action [env] ...)
-       (my-remote [env] ...)
-       (other-remote [env] ...)
-       (remote [env] ...))
-     ```
-
-     NOTE: Every handler in the defmutation is turned into a lambda, and that lambda will be available in `env` under
-     the key `:handlers`. Thus actions and remotes can cross-call (TODO: Make the macro rewrite cross calls so they
-     can look like fn calls?):
-
-     ```
-     (defmutation boo
-       \"docstring\" [params-map]
-       (action [env] ...)
-       (ok-action [env] ...)
-       (result-action [env] ((-> env :handlers :ok-action) env)))
-     ```
-
-     This macro normally adds a `:result-action` handler that does normal Fulcro mutation remote result logic unless
-     you supply your own.
-
-     Remotes in Fulcro 3 are also lambdas, and are called with an `env` that contains the state as it exists *after*
-     the `:action` has run in `state`, but also include the 'before action state' as a map in `:state-before-action`.
-     "
-       :arglists
-       '([sym docstring? arglist handlers])} defmutation
-     [& args]
-     (com.fulcrologic.fulcro.macros.defmutation/defmutation* &env args)))
 
 #?(:clj
    (defmacro declare-mutation
@@ -272,16 +221,110 @@
   [env params]
   (assoc-in env [:ast :params] params))
 
-"Build a function for handling result actions.  Returns a function that is the default scheme for handling
-  remote mutation return values.  It is pluggable with hooks that can do additional work at well-defined
-  points in the result processing.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; DEFMUTATION MACRO: This code could live in another ns, but then hot code reload won't work right on the macro itself.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  The options map can contain:
+#?(:clj
+   (s/def ::handler (s/cat
+                      :handler-name symbol?
+                      :handler-args (fn [a] (and (vector? a) (= 1 (count a))))
+                      :handler-body (s/+ (constantly true)))))
 
-  - `:result-pre-action` - A `(fn [env])` that will be run (if present) before any user-supplied `ok-action` body when
-    using `defmutation` with the default result action.
-  - `:result-post-action` - A `(fn [env])` that will be run (if present) after the user-supplied `ok-action` body when
-    using `defmutation` with the default result action.
-  - `:global-error-action` a `(fn [env])` that is called on status codes other than 200 on *mutations* if the default
-    result-action is in use.
-   "
+#?(:clj
+   (s/def ::mutation-args (s/cat
+                            :sym symbol?
+                            :doc (s/? string?)
+                            :arglist (fn [a] (and (vector? a) (= 1 (count a))))
+                            :sections (s/* (s/or :handler ::handler)))))
+
+#?(:clj
+   (defn defmutation* [macro-env args]
+     (let [conform!       (fn [element spec value]
+                            (when-not (s/valid? spec value)
+                              (throw (ana/error macro-env (str "Syntax error in " element ": " (s/explain-str spec value)))))
+                            (s/conform spec value))
+           {:keys [sym doc arglist sections]} (conform! "defmutation" ::mutation-args args)
+           fqsym          (if (namespace sym)
+                            sym
+                            (symbol (name (ns-name *ns*)) (name sym)))
+           handlers       (reduce (fn [acc [_ {:keys [handler-name handler-args handler-body]}]]
+                                    (let [action? (str/ends-with? (str handler-name) "action")]
+                                      (into acc
+                                        (if action?
+                                          [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
+                                                                            ~@handler-body
+                                                                            nil)]
+                                          [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
+                            []
+                            sections)
+           ks             (into #{} (filter keyword?) handlers)
+           result-action? (contains? ks :result-action)
+           env-symbol     'fulcro-mutation-env-symbol
+           method-map     (if result-action?
+                            `{~(first handlers) ~@(rest handlers)}
+                            `{~(first handlers) ~@(rest handlers)
+                              :result-action    (fn [~'env]
+                                                  (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action)]
+                                                    (~'default-action ~'env)))})
+           doc            (or doc "")
+           multimethod    `(defmethod com.fulcrologic.fulcro.mutations/mutate '~fqsym [~env-symbol]
+                             (let [~(first arglist) (-> ~env-symbol :ast :params)]
+                               ~method-map))]
+       (if (= fqsym sym)
+         multimethod
+         `(do
+            ~multimethod
+            (def ~(with-meta sym {:doc doc}) (com.fulcrologic.fulcro.mutations/->Mutation '~fqsym)))))))
+
+#?(:clj
+   (defmacro
+     ^{:doc
+       "Define a Fulcro mutation.
+
+     The given symbol will be prefixed with the namespace of the current namespace, and if you use a simple symbol it
+     will also be def'd into a name that when used as a function will simply resolve to that function call as data:
+
+     ```
+     (defmutation f [p]
+       ...)
+
+     (f {:x 1}) => `(f {:x 1})
+     ```
+
+     This allows mutations to behave as data in transactions without needing quoting.
+
+     Mutations can have any number of handlers. By convention things that contain logic use names that end
+     in `action`.  The remote behavior of a mutation is defined by naming a handler after the remote.
+
+     ```
+     (defmutation boo
+       \"docstring\" [params-map]
+       (action [env] ...)
+       (my-remote [env] ...)
+       (other-remote [env] ...)
+       (remote [env] ...))
+     ```
+
+     NOTE: Every handler in the defmutation is turned into a lambda, and that lambda will be available in `env` under
+     the key `:handlers`. Thus actions and remotes can cross-call (TODO: Make the macro rewrite cross calls so they
+     can look like fn calls?):
+
+     ```
+     (defmutation boo
+       \"docstring\" [params-map]
+       (action [env] ...)
+       (ok-action [env] ...)
+       (result-action [env] ((-> env :handlers :ok-action) env)))
+     ```
+
+     This macro normally adds a `:result-action` handler that does normal Fulcro mutation remote result logic unless
+     you supply your own.
+
+     Remotes in Fulcro 3 are also lambdas, and are called with an `env` that contains the state as it exists *after*
+     the `:action` has run in `state`, but also include the 'before action state' as a map in `:state-before-action`.
+     "
+       :arglists
+       '([sym docstring? arglist handlers])} defmutation
+     [& args]
+     (defmutation* &env args)))
