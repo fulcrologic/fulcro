@@ -175,13 +175,15 @@
   IReactDOMElement
   (renderToString [this react-id sb]
     (append! sb "<!-- react-text: " @react-id " -->" (escape-html text) "<!-- /react-text -->")
-    (vswap! react-id inc)))
+    (vswap! react-id inc)
+    sb))
 
 (defrecord ReactEmpty []
   IReactDOMElement
   (renderToString [this react-id sb]
     (append! sb "<!-- react-empty: " @react-id " -->")
-    (vswap! react-id inc)))
+    (vswap! react-id inc)
+    sb))
 
 (defn text-node
   "HTML text node"
@@ -347,7 +349,8 @@
     (when (= react-id-val 1)
       (append! sb " data-reactroot=\"\""))
     (append! sb " data-reactid=\"" react-id-val "\"")
-    (vswap! react-id inc))
+    (vswap! react-id inc)
+    sb)
   (if (container-tag? tag (seq children))
     (do
       (append! sb ">")
