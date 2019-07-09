@@ -279,7 +279,7 @@
    {::id           (util/uuid)
     ::state-atom   (atom (or initial-db {}))
     ::config       {:load-marker-default     load-marker-default
-                    ::client-did-mount       (or client-did-mount (:started-callback options))
+                    :client-did-mount       (or client-did-mount (:started-callback options))
                     :query-transform-default query-transform-default
                     :load-mutation           load-mutation}
     ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    default-tx!
@@ -382,7 +382,7 @@
                     db           (util/deep-merge initial-db db-from-ui)]
                 (reset! (::state-atom app) db)))
             (reset-mountpoint!)
-            (when-let [cdm (::client-did-mount app)]
+            (when-let [cdm (-> app ::config :client-did-mount)]
               (cdm app))))))))
 
 (defn app-root
