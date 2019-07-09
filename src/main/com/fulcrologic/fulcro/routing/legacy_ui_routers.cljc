@@ -37,7 +37,7 @@
                                      (-> cases
                                        (conj kw (screen-render sym)))) [] kws-and-screens)]
          `(comp/defsc ~sym [~'this ~'props]
-            {:initial-state (fn [~'clz ~'params] (comp/get-initial-state ~first-screen ~'params))
+            {:initial-state (fn [~'params] (comp/get-initial-state ~first-screen ~'params))
              :ident         ~ident-arg
              :query         (fn [~'this] ~query)}
             (let [page# (first (comp/get-ident ~'this))]
@@ -49,7 +49,7 @@
 #?(:clj
    (defn- emit-router [router-id sym union-sym]
      `(comp/defsc ~sym [~'this ~'props ~'computed]
-        {:initial-state (fn [~'clz ~'params] {::id ~router-id ::current-route (comp/get-initial-state ~union-sym ~'params)})
+        {:initial-state (fn [~'params] {::id ~router-id ::current-route (comp/get-initial-state ~union-sym ~'params)})
          :ident         (fn [~'this ~'props] [:fulcro.client.routing.routers/by-id ~router-id])
          :query         [::id {::current-route (comp/get-query ~union-sym)}]}
         (let [props#               (::current-route (comp/props ~'this))
@@ -84,10 +84,10 @@
 
   ```
   (defsc Root [this props]
-    {:initial-state (fn [cls params]  (merge {:child-key (comp/get-initial-state Child)}
-                                        (routing-tree
-                                          (make-route :route/a [(router-instruction ...)])
-                                          ...)))
+    {:initial-state (fn [params]  (merge {:child-key (comp/get-initial-state Child)}
+                                    (routing-tree
+                                      (make-route :route/a [(router-instruction ...)])
+                                      ...)))
     ...
   ```
   "
@@ -219,7 +219,7 @@
 (defmethod get-dynamic-router-target :default [k] nil)
 
 (defn add-route-state [state-map target-kw component]
-  (let [tree-state       {:tmp/new-route (comp/get-initial-state component nil)}
+  (let [tree-state       {:tmp/new-route (comp/get-initial-state component)}
         query            [{:tmp/new-route (comp/get-query component)}]
         normalized-state (-> (fnorm/tree->db query tree-state true (merge/pre-merge-transform state-map))
                            (dissoc :tmp/new-route))]
@@ -249,7 +249,7 @@
   (def target-kw :my-component)
 
   (defsc Component [this props]
-    {:initial-state (fn [c p] {fulcro.client.routing/dynamic-route-key target-kw})
+    {:initial-state (fn [p] {fulcro.client.routing/dynamic-route-key target-kw})
      :ident (fn [this props] [target-kw :singleton])}
     ...)
 
@@ -434,7 +434,7 @@
            screen-render    (fn [cls] `((comp/factory ~cls) ~'props))
            query            (reduce (fn [q [kw sym]] (assoc q kw `(comp/get-query ~sym))) {} router-targets)
            query-fn         (apply list `(~'fn [] ~query))
-           initial-state-fn (apply list `(~'fn [~'cls ~'params] (comp/get-initial-state ~default-route ~'params)))
+           initial-state-fn (apply list `(~'fn [~'params] (comp/get-initial-state ~default-route ~'params)))
            render-cases     (reduce
                               (fn [cases [kw sym]]
                                 (-> cases
@@ -465,7 +465,7 @@
      (let [{:keys [router-id]} options
            this-sym          (first arglist)
            union-factory-sym (symbol (str "ui-" (name router-sym) "-Union"))
-           initial-state     (list `fn '[c params] {::id router-id ::current-route `(comp/get-initial-state ~union-sym ~'params)})
+           initial-state     (list `fn '[params] {::id router-id ::current-route `(comp/get-initial-state ~union-sym ~'params)})
            ident             (list `fn '[t p] [:fulcro.client.routing.routers/by-id router-id])
            query-fn          (list `fn '[] [::id {::current-route `(comp/get-query ~union-sym)}])
            options           (merge
