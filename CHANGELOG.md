@@ -1,3 +1,8 @@
+3.0.0-alpha-18
+--------------
+- Various SSR fixes
+- Fixed initial state def and use. Was inconsistent in some places.
+
 3.0.0-alpha-17
 --------------
 - Added active remote status tracking to state atom

@@ -12,7 +12,7 @@
     "Simple tag rendering"
     (render-to-str (div {} "Hello"))
     => "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-880209586\">Hello</div>"
-    "Empty tag rendering"
+    "strings adjacent to elements"
     (render-to-str (div {} "hello" (div)))
     => "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"1251944041\"><!-- react-text: 2 -->hello<!-- /react-text --><div data-reactid=\"3\"></div></div>"
     "Rendering with missing props"
