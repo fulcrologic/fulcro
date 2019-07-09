@@ -160,7 +160,7 @@
 (defn has-pre-merge? #?(:cljs {:tag boolean}) [component] (has-feature? component :pre-merge))
 (defn ident [this props] (when (has-feature? this :ident) ((component-options this :ident) this props)))
 (defn query [this] (when (has-feature? this :query) ((component-options this :query) this)))
-(defn initial-state [clz params] (when (has-feature? clz :initial-state) ((component-options clz :initial-state) clz params)))
+(defn initial-state [clz params] (when (has-feature? clz :initial-state) ((component-options clz :initial-state) params)))
 (defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) data)))
 (defn depth [this] (util/isoget-in this [:props :fulcro$depth]))
 
@@ -579,7 +579,7 @@
       ;; ident template is table name and ID property name
       :ident [:table/by-id :id] ; OR (fn [] [:table/by-id id]) ; this and props in scope
       ;; initial-state template is magic..see dev guide. Lambda version is normal.
-      :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; this in scope
+      :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; nothing is in scope
       ;; pre-merge, use a lamba to modify new merged data with component needs
       :pre-merge (fn [{:keys [...]}] (merge {:ui/default-value :start} tree))
 

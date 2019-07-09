@@ -15,6 +15,13 @@
    :extra-data    42}
   (dom/div "TODO"))
 
+(defsc B [this props]
+  {:ident         :person/id
+   :query         [:person/id :person/name]
+   :initial-state (fn [{:keys [id]}] {:person/id id :person/name "Tony"})
+   :extra-data    42}
+  (dom/div "TODO"))
+
 (def ui-a (comp/factory A))
 
 (specification "Component basics"
@@ -33,6 +40,9 @@
       (comp/get-ident A {:person/id 4}) => [:person/id 4]
       "Can be used to obtain the query"
       (comp/get-query A) => [:person/id :person/name]
+      "Initial state"
+      (comp/get-initial-state A) => {:person/name "Tony" :person/id 1}
+      (comp/get-initial-state B {:id 22}) => {:person/name "Tony" :person/id 22}
       "The class is available in the registry using a symbol or keyword"
       (comp/registry-key->class ::A) => A
       (comp/registry-key->class `A) => A)))

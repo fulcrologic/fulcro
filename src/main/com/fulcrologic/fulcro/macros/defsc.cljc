@@ -179,18 +179,18 @@
         state-map     (into {} kv-pairs)]
     (when (seq illegal-keys)
       (throw (ana/error env (str "Initial state includes keys " illegal-keys ", but they are not in your query."))))
-    `(~'fn ~'build-initial-state* [~'c ~'params] (com.fulcrologic.fulcro.components/make-state-map ~initial-state ~children-by-query-key ~'params))))
+    `(~'fn ~'build-initial-state* [~'params] (com.fulcrologic.fulcro.components/make-state-map ~initial-state ~children-by-query-key ~'params))))
 
 (defn- build-raw-initial-state
   "Given an initial state form that is a list (function-form), simple copy it into the form needed by defui."
-  [env thissym method]
-  (replace-and-validate-fn env 'build-raw-initial-state* [thissym] 1 method))
+  [env method]
+  (replace-and-validate-fn env 'build-raw-initial-state* [] 1 method))
 
-(defn- build-initial-state [env sym thissym {:keys [template method]} legal-keys query-template-or-method]
+(defn- build-initial-state [env sym {:keys [template method]} legal-keys query-template-or-method]
   (when (and template (contains? query-template-or-method :method))
     (throw (ana/error (merge env (meta template)) (str "When query is a method, initial state MUST be as well."))))
   (cond
-    method (build-raw-initial-state env thissym method)
+    method (build-raw-initial-state env method)
     template (let [query    (:template query-template-or-method)
                    children (or (children-by-prop query) {})]
                (build-and-validate-initial-state-map env sym template legal-keys children))))
@@ -235,7 +235,7 @@
                                            (or (-legal-keys (:template query-template-or-method)) #{})
                                            (complement #{}))
         ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
-        state-form                       (build-initial-state env sym thissym initial-state-template-or-method legal-key-checker query-template-or-method)
+        state-form                       (build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
         query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
         render-form                      (build-render sym thissym propsym computedsym extra-args body)
         nspc                             (if (cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
