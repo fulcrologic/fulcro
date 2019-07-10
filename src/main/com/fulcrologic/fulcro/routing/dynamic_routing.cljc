@@ -314,18 +314,27 @@
         root       (ast-node-for-live-router app ast)
         to-signal  (atom [])
         to-cancel  (atom [])
-        _          (loop [{:keys [component] :as node} root new-path-remaining new-path]
+        _          (loop [{:keys [component children] :as node} root new-path-remaining new-path]
                      (when (and component (router? component))
                        (let [new-target    (first new-path-remaining)
                              router-ident  (comp/get-ident component {})
                              active-target (get-in state-map (conj router-ident ::current-route))
                              {:keys [target]} (get-in state-map (conj router-ident ::pending-route))
-                             next-router   (some #(ast-node-for-live-router app %) (:children node))]
+                             next-router   (some #(ast-node-for-live-router app %) children)]
                          (when (eql/ident? target)
                            (swap! to-cancel conj target))
                          (when (and (not= new-target active-target) (vector? active-target))
-                           (when-let [c (comp/ident->any app active-target)]
-                             (swap! to-signal conj c)))
+                              (let [mounted-target-class (reduce (fn [acc {:keys [dispatch-key component]}]
+                                                                   (when (= ::current-route dispatch-key)
+                                                                     (reduced component)))
+                                                           nil
+                                                           (some-> component (comp/get-query state-map)
+                                                             eql/query->ast :children))
+                                    mounted-targets      (comp/class->all app mounted-target-class)]
+                                (when (> (count mounted-targets) 1)
+                                  (log/error "More than one route target on screen of type" mounted-target-class))
+                                (when (seq mounted-targets)
+                                  (swap! to-signal into mounted-targets))))
                          (when next-router
                            (recur next-router (rest new-path-remaining))))))
         components (reverse @to-signal)
@@ -346,6 +355,8 @@
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts]
+    (when-not (seq (proposed-new-path this-or-app relative-class-or-instance new-route))
+      (log/error "Could not find route targets for new-route" new-route))
    (if (signal-router-leaving app-or-comp relative-class-or-instance new-route)
      (let [app        (comp/any->app app-or-comp)
            state-map  (app/current-state app)
