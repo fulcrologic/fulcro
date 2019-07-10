@@ -6,7 +6,6 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.misc :as futil]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.spec.alpha :as s]
@@ -68,7 +67,7 @@
                                                              :fn        completion-fn}))
 (defn immediate? [ident] (some-> ident meta :immediate))
 
-(defn- apply-route* [state-map {:keys [router target] :as params}]
+(defn- apply-route* [state-map {:keys [router target]}]
   (let [router-class (-> router meta :component)
         router-id    (second router)
         target-class (-> target meta :component)]
@@ -105,7 +104,7 @@
 (defmutation target-ready
   "Mutation: Indicate that a target is ready."
   [{:keys [target]}]
-  (action [{:keys [app state]}]
+  (action [{:keys [app]}]
     (target-ready! app target))
   (refresh [_] [::current-route]))
 
@@ -324,17 +323,17 @@
                          (when (eql/ident? target)
                            (swap! to-cancel conj target))
                          (when (and (not= new-target active-target) (vector? active-target))
-                              (let [mounted-target-class (reduce (fn [acc {:keys [dispatch-key component]}]
-                                                                   (when (= ::current-route dispatch-key)
-                                                                     (reduced component)))
-                                                           nil
-                                                           (some-> component (comp/get-query state-map)
-                                                             eql/query->ast :children))
-                                    mounted-targets      (comp/class->all app mounted-target-class)]
-                                (when (> (count mounted-targets) 1)
-                                  (log/error "More than one route target on screen of type" mounted-target-class))
-                                (when (seq mounted-targets)
-                                  (swap! to-signal into mounted-targets))))
+                           (let [mounted-target-class (reduce (fn [acc {:keys [dispatch-key component]}]
+                                                                (when (= ::current-route dispatch-key)
+                                                                  (reduced component)))
+                                                        nil
+                                                        (some-> component (comp/get-query state-map)
+                                                          eql/query->ast :children))
+                                 mounted-targets      (comp/class->all app mounted-target-class)]
+                             (when (and #?(:cljs goog.DEBUG :clj true) (> (count mounted-targets) 1))
+                               (log/error "More than one route target on screen of type" mounted-target-class))
+                             (when (seq mounted-targets)
+                               (swap! to-signal into mounted-targets))))
                          (when next-router
                            (recur next-router (rest new-path-remaining))))))
         components (reverse @to-signal)
@@ -355,8 +354,8 @@
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts]
-    (when-not (seq (proposed-new-path this-or-app relative-class-or-instance new-route))
-      (log/error "Could not find route targets for new-route" new-route))
+   (when (and #?(:clj true :cljs goog.DEBUG) (not (seq (proposed-new-path app-or-comp relative-class-or-instance new-route))))
+     (log/error "Could not find route targets for new-route" new-route))
    (if (signal-router-leaving app-or-comp relative-class-or-instance new-route)
      (let [app        (comp/any->app app-or-comp)
            state-map  (app/current-state app)
