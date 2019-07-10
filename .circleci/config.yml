@@ -1,0 +1,36 @@
+version: 2
+jobs:
+  cljs:
+    docker:
+      - image: circleci/clojure:openjdk-8-tools-deps-node-browsers
+    steps:
+      - checkout
+      - restore_cache:
+          key: cljs-{{ checksum "deps.edn" }}-{{ checksum "package.json" }}
+      - run: npm install
+      - run: npx shadow-cljs -v compile ci-tests
+      - run: ls -l target
+      - run: npx karma start --single-run
+      - save_cache:
+                paths:
+                  - node_modules
+                  - ~/.m2
+                key: cljs-{{ checksum "deps.edn" }}-{{ checksum "package.json" }}
+  clj:
+    docker: 
+      - image: circleci/clojure:tools-deps-1.9.0.394
+    steps:
+      - checkout
+      - restore_cache:
+          key: clj-{{ checksum "deps.edn" }}
+      - run: clojure -A:provided:dev:test:clj-tests
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: clj-{{ checksum "deps.edn" }}
+workflows:
+  version: 2
+  fullstack:
+    jobs:
+      - clj
+      - cljs
