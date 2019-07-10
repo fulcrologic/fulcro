@@ -24,7 +24,7 @@
   - `:optimized-render!` - The concrete render algorithm for optimized renders (not root refreshes)
   - `:render!` - The top-level render function. Calls root render or optimized render by default. Renders on the calling thread.
   - `:schedule-render!` - The call that schedules a render. Defaults to using `js/requestAnimationFrame`.
-  - `:default-result-action` -  The action used for remote results in all mutations that do not have a `result-action` section.
+  - `:default-result-action!` -  The action used for remote results in all mutations that do not have a `result-action` section.
   - `:index-root!` - The algorithm that scans the current query from root an indexes all classes by their queries.
   - `:index-component!` - The algorithm that adds a component to indexes when it mounts.
   - `:drop-component!` - The algorithm that removes a component from indexes when it unmounts.

@@ -1,53 +1,49 @@
 (ns com.fulcrologic.fulcro.macros.defmutation-spec
   (:require
-    [com.fulcrologic.fulcro.macros.defmutation :as m]
+    [com.fulcrologic.fulcro.mutations :as m]
     [fulcro-spec.core :refer [specification assertions component]]
-    [clojure.test :refer :all]))
+    [clojure.test :refer :all]
+    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
 
 (declare =>)
 
-#_(specification "defmutation Macro"
+(specification "defmutation Macro"
   (component "Defining a mutation into a different namespace"
     (let [actual (m/defmutation* {}
                    '(other/boo [params]
                       (action [env] (swap! state))))]
-      #_(assertions
-          "Just emits the defmethod"
-          actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'other/boo [~'fulcro-mutation-env-symbol]
-                       (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
-                         {:result-action (fn [~'env] (when-let [] ~'env))
-                          :action        (fn ~'action [~'env] (~'swap! ~'state) nil)})))))
-  #_(component "Mutation remotes"
-      (let [actual (m/defmutation* {}
-                     '(boo [params]
-                        (action [env] (swap! state))
-                        (remote [env] true)
-                        (rest [env] true)))
-            method (second actual)]
-        (assertions
-          "Converts all sections to lambdas of a defmethod"
-          method => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'user/boo [~'fulcro-mutation-env-symbol]
-                       (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
-                         {:action        (fn ~'action [~'env] (~'swap! ~'state) nil)
-                          :result-action (fn [~'env] (com.fulcrologic.fulcro.mutations/default-result-action ~'env))
-                          :remote        (fn ~'remote [~'env] true)
-                          :rest          (fn ~'rest [~'env] true)})))))
-  #_(component "Defining a mutation into the current namespace"
-      (let [actual  (m/defmutation* {}
-                      '(boo [params]
-                         (action [env] (swap! state))))
-            method  (second actual)
-            the-def (nth actual 2)
-            sym     (second the-def)
-            decl    (nth the-def 2)]
-        (assertions
-          "defs the plain symbol"
-          (first the-def) => `def
-          sym => 'boo
-          "Converts sections to lambdas of a defmethod"
-          method => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'user/boo [~'fulcro-mutation-env-symbol]
-                       (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
-                         {:result-action (fn [~'env] (com.fulcrologic.fulcro.mutations/default-result-action ~'env))
-                          :action        (fn ~'action [~'env] (~'swap! ~'state) nil)}))
-          "the value of the def'd plain symbol is a Mutation declaration"
-          decl => `(com.fulcrologic.fulcro.mutations/->Mutation 'user/boo)))))
+      (assertions
+        "Emits a defmethod with the proper symbol, action, and default result action."
+        actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'other/boo [~'fulcro-mutation-env-symbol]
+                     (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
+                       {:result-action (fn [~'env]
+                                         (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
+                                           (~'default-action ~'env)))
+                        :action        (fn ~'action [~'env] (~'swap! ~'state) nil)})))))
+  (component "Overridden result action"
+    (let [actual (m/defmutation* {}
+                   '(other/boo [params]
+                      (result-action [env] (print "Hi"))))]
+      (assertions
+        "Uses the user-supplied version of default action"
+        actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'other/boo [~'fulcro-mutation-env-symbol]
+                     (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
+                       {:result-action (fn ~'result-action [~'env] (~'print "Hi") nil)})))))
+  (component "Mutation remotes"
+    (let [actual (m/defmutation* {}
+                   '(boo [params]
+                      (action [env] (swap! state))
+                      (remote [env] true)
+                      (rest [env] true)))
+          method (second actual)
+          body   (nth method 4)]
+      (assertions
+        "Converts all sections to lambdas of a defmethod"
+        (first method) => `defmethod
+        body => `(let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
+                   {:result-action (fn [~'env]
+                                     (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
+                                       (~'default-action ~'env)))
+                    :remote        (fn ~'remote [~'env] true)
+                    :rest          (fn ~'rest [~'env] true)
+                    :action        (fn ~'action [~'env] (~'swap! ~'state) nil)})))))

@@ -116,3 +116,43 @@
   ([obj k default]
    #?(:clj  (get obj k default)
       :cljs (or (gobj/get obj (some-> k (name))) default))))
+
+(defn destructured-keys
+  "Calculates the keys that are being extracted in a legal map destructuring expression.
+
+  - `m`: A map containing legal CLJ destructurings, like `{:keys [a] x :x ::keys [y]}`
+
+  Returns a set of all keywords that are destructured in the map.
+
+  Example:
+
+  ```
+  (destructured-keys {:a/keys [v] sym :other-key}) => #{:a/v :other-key}
+  ```
+  "
+  [m]
+  (let [regular-destructurings (reduce
+                                 (fn [acc k]
+                                   (if (and (keyword? k) (= "keys" (name k)))
+                                     (let [simple-syms (get m k)
+                                           included-ns (namespace k)
+                                           source-keys (into #{}
+                                                         (map (fn [s]
+                                                                (cond
+                                                                  included-ns (keyword included-ns (name s))
+                                                                  (and (keyword? s) (namespace s)) s
+                                                                  (namespace s) (keyword (namespace s) (name s))
+                                                                  :else (keyword s))))
+                                                         simple-syms)]
+                                       (into acc source-keys))
+                                     acc))
+                                 #{}
+                                 (keys m))
+        symbol-destructrings   (reduce
+                                 (fn [acc k]
+                                   (if (symbol? k)
+                                     (conj acc (get m k))
+                                     acc))
+                                 #{}
+                                 (keys m))]
+    (into regular-destructurings symbol-destructrings)))

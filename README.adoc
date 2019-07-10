@@ -14,7 +14,7 @@ image:https://cljdoc.xyz/badge/com.fulcrologic/fulcro[link=https://cljdoc.xyz/d/
 Fulcro is a library for building data-driven full-stack applications for the web. It uses React and is written in
 Clojure and Clojurescript.
 
-Fulcro 3 is current in Alpha (June 2019). The road map is approximately:
+Fulcro 3 is current in Alpha (July 2019). The road map is approximately:
 
 - Do regular (at least weekly) alpha releases until the APIs stabilize.
 ** An alpha release is one that mostly works, but which may still undergo breaking (structural) API changes.
@@ -298,9 +298,6 @@ The general road map (with status) is:
 **** Support extensibility  (100% complete)
 ** Turn component-local CSS into a pure library concern (100%)
 
-* I18N (0%)
-** Turn i18n into a pure library concern (0%)
-
 * Move UI State Machines into this library (100%)
 
 * Move Dynamic Router into this library (100%)
@@ -310,12 +307,12 @@ The general road map (with status) is:
 * Minimize dependencies (100%)
 
 * Documentation
-** Rewrite Developer's Guide (65%)
+** Rewrite Developer's Guide (75%)
 *** Port book examples (90%)
 ** Record new YouTube videos (0%)
-** Write new README (50%)
+** Write new README (60%)
 ** Doll up docstrings (80%)
-** Ensure it all works with cljdocs (0%)
+** Ensure it all works with cljdocs (50%)
 
 * Tests
 ** Port over tests from F2 (70%)
@@ -329,9 +326,9 @@ The general road map (with status) is:
 ** Make transactions tab show more of tx (100%)
 
 * Specs
-** Add more specs to functions (40%)
+** Add more specs to functions (50%)
 ** Fix up spec definitions to prevent cljs code bloat (100%)
-** Fix up ghostwheel usage so it doesn't bloat adv compile builds (90%)
+** Fix up ghostwheel usage so it doesn't bloat adv compile builds (100%)
 
 * Nice to Haves (depends a bit on contributors)
 ** React Hooks-based `defsc` (designed and prototyped, but needs integration work)

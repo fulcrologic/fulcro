@@ -1,3 +1,13 @@
+3.0.0-alpha-18
+--------------
+- Various SSR fixes
+- Fixed initial state def and use. Was inconsistent in some places.
+- Added default mutation result handler update [ref ::m/mutation-error]
+- Made default mutation result handler a re-usable composition.
+- Made each step of default result handler a reusable functional step.
+- BREAKING CHANGE: `default-result-action` renamed to `default-result-action!`
+- Updates/fixes for CCI/cljdoc
+
 3.0.0-alpha-17
 --------------
 - Added active remote status tracking to state atom

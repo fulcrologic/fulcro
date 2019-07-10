@@ -1,8 +1,9 @@
 (ns com.fulcrologic.fulcro.macros.defsc-spec
   (:require
-    [com.fulcrologic.fulcro.macros.defsc :as defsc]
+    [com.fulcrologic.fulcro.components :as defsc]
     [fulcro-spec.core :refer [assertions specification component]]
-    [clojure.test :refer [deftest is]])
+    [clojure.test :refer [deftest is]]
+    [com.fulcrologic.fulcro.algorithms.misc :as util])
   (:import (clojure.lang ExceptionInfo)))
 
 (declare =>)
@@ -10,13 +11,13 @@
 (deftest ^:focus destructured-keys-test
   (assertions
     "Finds the correct keys for arbitrary destructuring"
-    (defsc/destructured-keys '{:keys [a b]}) => #{:a :b}
-    (defsc/destructured-keys '{:some-ns/keys [a b]}) => #{:some-ns/a :some-ns/b}
-    (defsc/destructured-keys '{:x/keys [a b]
+    (util/destructured-keys '{:keys [a b]}) => #{:a :b}
+    (util/destructured-keys '{:some-ns/keys [a b]}) => #{:some-ns/a :some-ns/b}
+    (util/destructured-keys '{:x/keys  [a b]
                                :y/keys [n m]}) => #{:x/a :x/b :y/n :y/m}
-    (defsc/destructured-keys '{:y/keys [n m]
-                               boo     :gobble/that}) => #{:y/n :y/m :gobble/that}
-    (defsc/destructured-keys '{:keys  [:a.b/n db/id]
+    (util/destructured-keys '{:y/keys [n m]
+                               boo    :gobble/that}) => #{:y/n :y/m :gobble/that}
+    (util/destructured-keys '{:keys   [:a.b/n db/id]
                                ::keys [x]
                                }) => #{:a.b/n :db/id ::x}))
 
@@ -86,31 +87,31 @@
       => '(fn ident* [this props] [:TABLE/by-id (:id props)])))
   (component "build-initial-state"
     (is (thrown-with-msg? ExceptionInfo #"defsc S: Illegal parameters to :initial-state"
-          (#'defsc/build-initial-state nil 'S 'this {:template {:child '(get-initial-state P {})}} #{:child}
+          (#'defsc/build-initial-state nil 'S {:template {:child '(get-initial-state P {})}} #{:child}
             '{:template [{:child (defsc/get-query S)}]})) "Throws an error in template mode if any of the values are calls to get-initial-state")
     (is (thrown-with-msg? ExceptionInfo #"When query is a method, initial state MUST"
-          (#'defsc/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:method '(fn [t] [])}))
+          (#'defsc/build-initial-state nil 'S {:template {:x 1}} #{} {:method '(fn [t] [])}))
       "If the query is a method, the initial state must be as well")
     (is (thrown-with-msg? ExceptionInfo #"Initial state includes keys"
-          (#'defsc/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:template [:x]}))
+          (#'defsc/build-initial-state nil 'S {:template {:x 1}} #{} {:template [:x]}))
       "In template mode: Disallows initial state to contain items that are not in the query")
     (assertions
       "Generates nothing when there is entry"
-      (#'defsc/build-initial-state nil 'S 'this nil #{} {:template []}) => nil
+      (#'defsc/build-initial-state nil 'S nil #{} {:template []}) => nil
       "Can build initial state from a method"
-      (#'defsc/build-initial-state nil 'S 'that {:method '(fn [p] {:x 1})} #{} {:template []}) =>
-      '(fn build-raw-initial-state* [that p] {:x 1})
+      (#'defsc/build-initial-state nil 'S {:method '(fn [p] {:x 1})} #{} {:template []}) =>
+      '(fn build-raw-initial-state* [p] {:x 1})
       "Can build initial state from a template"
-      (#'defsc/build-initial-state nil 'S 'this {:template {}} #{} {:template []}) =>
-      '(fn build-initial-state* [c params] (com.fulcrologic.fulcro.components/make-state-map {} {} params))
+      (#'defsc/build-initial-state nil 'S {:template {}} #{} {:template []}) =>
+      '(fn build-initial-state* [params] (com.fulcrologic.fulcro.components/make-state-map {} {} params))
       "Allows any state in initial-state method form, independent of the query form"
-      (#'defsc/build-initial-state nil 'S 'this {:method '(fn [p] {:x 1 :y 2})} #{} {:tempate []})
-      => '(fn build-raw-initial-state* [this p] {:x 1 :y 2})
-      (#'defsc/build-initial-state nil 'S 'this {:method '(initial-state [p] {:x 1 :y 2})} #{} {:method '(query [t] [])})
-      => '(fn build-raw-initial-state* [this p] {:x 1 :y 2})
+      (#'defsc/build-initial-state nil 'S {:method '(fn [p] {:x 1 :y 2})} #{} {:tempate []})
+      => '(fn build-raw-initial-state* [p] {:x 1 :y 2})
+      (#'defsc/build-initial-state nil 'S {:method '(initial-state [p] {:x 1 :y 2})} #{} {:method '(query [t] [])})
+      => '(fn build-raw-initial-state* [p] {:x 1 :y 2})
       "Generates proper state parameters to make-state-map when data is available"
-      (#'defsc/build-initial-state nil 'S 'this {:template {:x 1}} #{:x} {:template [:x]})
-      => '(fn build-initial-state* [c params]
+      (#'defsc/build-initial-state nil 'S {:template {:x 1}} #{:x} {:template [:x]})
+      => '(fn build-initial-state* [params]
             (com.fulcrologic.fulcro.components/make-state-map {:x 1} {} params))))
   (component "replace-and-validate-fn"
     (is (thrown-with-msg? ExceptionInfo #"Invalid arity for nm"

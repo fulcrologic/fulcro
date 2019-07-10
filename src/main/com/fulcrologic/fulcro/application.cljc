@@ -230,10 +230,11 @@
         refreshes), but applications with a lot of on-screen components may find the keyframe renderer to be faster. Both
         get added benefits from Fulcro's default `shouldComponentUpdate`, which will prevent rendering when there are no real
         changes.
-      - `default-result-action` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
+      - `default-result-action!` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
         default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
         and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
-        default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action`.
+        default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action!`, which could be used
+        as an element of your own custom implementation.
       - `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
         before they are placed on the network layer.
       - `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
@@ -263,7 +264,7 @@
   ([{:keys [props-middleware
             global-eql-transform
             global-error-action
-            default-result-action
+            default-result-action!
             optimized-render!
             render-middleware
             initial-db
@@ -278,24 +279,24 @@
    {::id           (util/uuid)
     ::state-atom   (atom (or initial-db {}))
     ::config       {:load-marker-default     load-marker-default
-                    ::client-did-mount       (or client-did-mount (:started-callback options))
+                    :client-did-mount       (or client-did-mount (:started-callback options))
                     :query-transform-default query-transform-default
                     :load-mutation           load-mutation}
-    ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                   default-tx!
-                    :com.fulcrologic.fulcro.algorithm/optimized-render!     (or optimized-render! ident-optimized/render!)
-                    :com.fulcrologic.fulcro.algorithm/shared-fn             (or shared-fn (constantly {}))
-                    :com.fulcrologic.fulcro.algorithm/render!               render!
-                    :com.fulcrologic.fulcro.algorithm/remote-error?         (or remote-error? default-remote-error?)
-                    :com.fulcrologic.fulcro.algorithm/global-error-action   global-error-action
-                    :com.fulcrologic.fulcro.algorithm/merge*                merge/merge*
-                    :com.fulcrologic.fulcro.algorithm/default-result-action (or default-result-action mut/default-result-action)
-                    :com.fulcrologic.fulcro.algorithm/global-eql-transform  (or global-eql-transform default-global-eql-transform)
-                    :com.fulcrologic.fulcro.algorithm/index-root!           indexing/index-root!
-                    :com.fulcrologic.fulcro.algorithm/index-component!      indexing/index-component!
-                    :com.fulcrologic.fulcro.algorithm/drop-component!       indexing/drop-component!
-                    :com.fulcrologic.fulcro.algorithm/props-middleware      props-middleware
-                    :com.fulcrologic.fulcro.algorithm/render-middleware     render-middleware
-                    :com.fulcrologic.fulcro.algorithm/schedule-render!      schedule-render!}
+    ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    default-tx!
+                    :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! ident-optimized/render!)
+                    :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
+                    :com.fulcrologic.fulcro.algorithm/render!                render!
+                    :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
+                    :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
+                    :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
+                    :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
+                    :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
+                    :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
+                    :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
+                    :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
+                    :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
+                    :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
+                    :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
     ::runtime-atom (atom
                      {::app-root                        nil
                       ::mount-node                      nil
@@ -381,7 +382,7 @@
                     db           (util/deep-merge initial-db db-from-ui)]
                 (reset! (::state-atom app) db)))
             (reset-mountpoint!)
-            (when-let [cdm (::client-did-mount app)]
+            (when-let [cdm (-> app ::config :client-did-mount)]
               (cdm app))))))))
 
 (defn app-root

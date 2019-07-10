@@ -928,7 +928,7 @@
                                         (cond-> env
                                           returning (m/returning returning)
                                           target (m/with-target target))))
-       :result-action               m/default-result-action
+       :result-action               m/default-result-action!
        :ok-action                   (fn [env]
                                       (log/debug "Remote mutation " mutation "success")
                                       (mtrigger! env actor-ident asm-id ok-event ok-data))
