@@ -8,7 +8,7 @@ jobs:
       - restore_cache:
           key: cljs-{{ checksum "deps.edn" }}-{{ checksum "package.json" }}
       - run: npm install
-      - run: npx shadow-cljs -v compile ci-tests
+      - run: npx shadow-cljs -A:dev -v compile ci-tests
       - run: ls -l target
       - run: npx karma start --single-run
       - save_cache:
@@ -23,7 +23,7 @@ jobs:
       - checkout
       - restore_cache:
           key: clj-{{ checksum "deps.edn" }}
-      - run: clojure -A:provided:dev:test:clj-tests
+      - run: clojure -A:dev:test:clj-tests -J-Dghostwheel.enabled=true
       - save_cache:
           paths:
             - ~/.m2
