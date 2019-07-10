@@ -6,6 +6,7 @@
 - Made default mutation result handler a re-usable composition.
 - Made each step of default result handler a reusable functional step.
 - BREAKING CHANGE: `default-result-action` renamed to `default-result-action!`
+- Updates/fixes for CCI/cljdoc
 
 3.0.0-alpha-17
 --------------
