@@ -24,7 +24,7 @@
   "Universal CLJC version of will-enter.  Don't use the protocol method in CLJ."
   [class route-params]
   (when-let [f (get-route-cancelled class)]
-    (f class route-params)))
+    (f route-params)))
 
 (defn get-will-enter [class]
   "Returns the function that is called before a route target is activated (if the route segment of interest has changed and the
