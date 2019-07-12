@@ -1139,10 +1139,9 @@
                 [props#]
                 (cljs.core/this-as this#
                   (if-let [init-state# (get options# :initLocalState)]
-                    (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this#)))
+                    (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this# (goog.object/get props# "fulcro$value"))))
                     (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
-                  (when-let [constructor# (get options# :constructor)]
-                    (constructor# this# (goog.object/get props# "fulcro$value")))))
+                  nil))
               (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
          `(do
             (declare ~sym)
@@ -1173,7 +1172,7 @@
       :pre-merge (fn [{:keys [...]}] (merge {:ui/default-value :start} tree))
 
       ; React Lifecycle Methods (this in scope)
-      :initLocalState            (fn [this] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
+      :initLocalState            (fn [this props] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
       :shouldComponentUpdate     (fn [this next-props next-state] ...)
 
       :componentDidUpdate        (fn [this prev-props prev-state snapshot] ...) ; snapshot is optional, and is 16+. Is context for 15
