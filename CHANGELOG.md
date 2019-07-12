@@ -1,3 +1,12 @@
+3.0.0-alpha-19
+--------------
+- Removed :constructor
+- Added props as arg to `:initLocalState`
+- Fixed bug from incubator commit 38659c19cc8caa20167d4649242039d7a35dfae1 
+- Fixed/updated dynamic router
+- Fixed some ident-optimized render oversights
+- Made it possible to self-refer in a mutation body
+
 3.0.0-alpha-18
 --------------
 - Various SSR fixes

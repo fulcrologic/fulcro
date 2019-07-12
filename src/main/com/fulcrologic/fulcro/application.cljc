@@ -59,16 +59,6 @@
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 
-(>defn props-only-query
-  [query]
-  [vector? => vector?]
-  (let [{:keys [children]} (eql/query->shallow-ast query)]
-    (into []
-      (comp
-        (map :key)
-        (filter keyword?))
-      children)))
-
 (>defn root-props-changed?
   "Returns true if the props queries directly by the root component of the app (if mounted) have changed since the last
   render.  This is a shallow analysis such that, for example, a join from root (in a normalized db) will be checked as a difference
@@ -80,14 +70,14 @@
   [app]
   [::app => boolean?]
   (let [{::keys [runtime-atom state-atom]} app
-        {::keys [root-class]} @runtime-atom]
+        {::keys [root-class indexes]} @runtime-atom]
     (if-not (comp/get-query root-class)
       true
       (let [state-map       @state-atom
             prior-state-map (-> runtime-atom deref ::last-rendered-state)
-            props-query     (props-only-query (comp/get-query root-class state-map))
-            root-old        (select-keys prior-state-map props-query)
-            root-new        (select-keys state-map props-query)]
+            root-props      (:root-props indexes)
+            root-old        (select-keys prior-state-map root-props)
+            root-new        (select-keys state-map root-props)]
         (not= root-old root-new)))))
 
 (declare schedule-render!)
@@ -255,9 +245,9 @@
         the normal remotes.  The default version of this returns true if the status code isn't 200.
       - `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
       - `:load-mutation` - A symbol. Defines which mutation to use as an implementation of low-level load operations. See
-      Developer's Guide
+        Developer's Guide
       - `:query-transform-default` - A `(fn [query] query')`. Defaults to a function that strips `:ui/...` keywords and
-      form state config joins from load queries.
+        form state config joins from load queries.
       - `:load-marker-default` - A default value to use for load markers. Defaults to false.
     "
   ([] (fulcro-app {}))
@@ -279,7 +269,7 @@
    {::id           (util/uuid)
     ::state-atom   (atom (or initial-db {}))
     ::config       {:load-marker-default     load-marker-default
-                    :client-did-mount       (or client-did-mount (:started-callback options))
+                    :client-did-mount        (or client-did-mount (:started-callback options))
                     :query-transform-default query-transform-default
                     :load-mutation           load-mutation}
     ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    default-tx!

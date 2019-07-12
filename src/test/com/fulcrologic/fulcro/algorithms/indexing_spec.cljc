@@ -3,7 +3,8 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.algorithms.indexing :as idx]
-    [fulcro-spec.core :refer [specification assertions behavior component when-mocking]]))
+    [fulcro-spec.core :refer [specification assertions behavior component when-mocking]]
+    [edn-query-language.core :as eql]))
 
 (declare => =throws=>)
 
@@ -82,15 +83,19 @@
       (prop->classes :root/prop) => #{::RootLinks ::LinkChild}
       (prop->classes [:table 1]) => #{::LinkChild})))
 
-(specification "index-root*"
-  (let [runtime-state {::app/indexes {}}
-        root-query    (comp/get-query RootLinks)
-        rs2           (#'idx/index-root* runtime-state root-query)]
+(specification "link-query-props"
+  (let [ast          (eql/query->ast (comp/get-query RootLinks))
+        linked-props (idx/link-query-props ast)]
     (assertions
-      "Adds a list of all ident join keys to the indexes"
-      (-> rs2 ::app/indexes :idents-in-joins) => #{[:table 1]}
-      "Adds the prop->classes index"
-      (contains? (-> rs2 ::app/indexes) :prop->classes) => true)))
+      "is a set of the props that appear in link queries"
+      linked-props => #{:root/prop})))
+
+(specification "top-level-keys"
+  (let [ast        (eql/query->ast (comp/get-query RootLinks))
+        root-props (idx/top-level-keys ast)]
+    (assertions
+      "is a set of the props that appear in just the root of an ast"
+      root-props => #{:root/prop :left})))
 
 (specification "index-component*"
   (let [runtime-state {::app/indexes {}}

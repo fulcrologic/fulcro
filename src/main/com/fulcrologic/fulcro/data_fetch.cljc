@@ -122,40 +122,53 @@
        - Runs the post-mutation (if defined)
        - Runs the post-action (if defined)"
   [{:keys [app result] :as env} {:keys [query ok-action post-mutation post-mutation-params
-                                        post-action target marker source-key]}]
-  (when (or (nil? app) (nil? result))
-    (throw (ex-info "Load is missing app or result" {})))
-
+                                        post-action target marker source-key] :as params}]
   (remove-load-marker! app marker)
 
-  (if (fn? ok-action)
-    (do
-      (log/debug "Skipping default merge and calling user-supplied ok-action.")
-      (ok-action env))
-    (let [{:keys [body]} result
-          {:keys [::app/state-atom]} app]
-      (log/debug "Doing merge and targeting steps: " body query)
-      (swap! state-atom (fn [s] (cond-> (merge/merge* s query body)
-                                  target (targeting/process-target source-key target))))
-      (when (symbol? post-mutation)
-        (log/debug "Doing post mutation " post-mutation)
-        (comp/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
-      (when (fn? post-action)
-        (log/debug "Doing post action ")
-        (post-action env)))))
+  (let [env (assoc env :load-params params)]
+    (if (fn? ok-action)
+      (do
+        (log/debug "Skipping default merge and calling user-supplied ok-action.")
+        (ok-action env))
+      (let [{:keys [body]} result
+            {:keys [::app/state-atom]} app]
+        (log/debug "Doing merge and targeting steps: " body query)
+        (swap! state-atom (fn [s] (cond-> (merge/merge* s query body)
+                                    target (targeting/process-target source-key target))))
+        (when (symbol? post-mutation)
+          (log/debug "Doing post mutation " post-mutation)
+          (comp/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
+        (when (fn? post-action)
+          (log/debug "Doing post action ")
+          (post-action env))))))
 
 (defn load-failed!
-  "The normal internal processng of a load that has failed (error returned true). Triggers the `error-action` and
-  `fallback` if defined for the load.  If there is a `global-error-action` defined for the app it is also invoked."
+  "The normal internal processing of a load that has failed (error returned true).
+
+  Sets the load marker, if present, to :failed.
+
+  If an `error-action` was desired, it is used to process the rest of the failure.
+
+  The `env` will include the network `:result` and the original `:load-params`.
+
+  *Otherwise*, this function will:
+
+  - Trigger the global error action (if defined on the app) (arg is env as described above)
+  - Trigger any fallback for the load. (params are the env described above)
+  "
   [{:keys [app] :as env} {:keys [error-action marker fallback] :as params}]
   (log/debug "Running load failure logic.")
   (set-load-marker! app marker :failed)
-  (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
-    (global-error-action env))
-  (when (fn? error-action)
-    (error-action env))
-  (when (symbol? fallback)
-    (comp/transact! app `[(~fallback ~(assoc env :load-params params))])))
+  (let [env (assoc env :load-params params)]
+    (if (fn? error-action)
+      (do
+        (log/debug "Skipping default load error action")
+        (error-action env))
+      (do
+        (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
+          (global-error-action env))
+        (when (symbol? fallback)
+          (comp/transact! app `[(~fallback ~env)]))))))
 
 (defmethod m/mutate `internal-load! [{:keys [ast] :as env}]
   (let [params     (get ast :params)
@@ -201,28 +214,32 @@
   - `params` - Optional parameters to add to the generated query
   - `marker` - ID of marker. Normalizes a load marker into app state so you can see progress.
   - `refresh` - A list of things in the UI to refresh. Depends on rendering optimization.
-  - `parallel` - Send the load out-of-order (immediately) without waiting for other loads in progress.
-  - `post-mutation` - DEPRECATED. use post-action. A mutation (symbol) to run after the data is merged. Note, if target is supplied be sure your post mutation
-  should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
-  - `post-mutation-params` - An optional map  that will be passed to the post-mutation when it is called. May only contain raw data, not code!
-  - `ok-action` - WARNING: OVERRIDES ALL DEFAULT OK BEHAVIOR (post-mutation, merge, clearing load marker)! A lambda that will receive the remote result in a mutation env parameter `(fn [env] ...)`.
-  - `post-action` - A lambda that will receive the remote result in a mutation env parameter `(fn [env] ...)`. Called after success, like post-mutation,
-  but as a lambda.
-  - `error-action` - A lambda that will receive the errant result (bad server status code/body) in a mutation env parameter `(fn [env] ...)`. Like the error-action section
-  of mutations.
-  - `fallback` - A mutation (symbol) to run if there is a server/network error. The `env` of the fallback will be like a mutation `env`, and will
-  include a `:result` key with the real result from the server.
-  - `update-query` - A optional function that can transform the component query before sending to remote.
-      For example, to focus a subquery using update-query:
-          {:update-query #(eql/focus-subquery % [:my {:sub [:query]}])}
-
-      Removing properties (like previous :without option):
-          {:update-query #(df/elide-query-nodes % #{:my :elisions})}
   - `focus` - Focus the query along a path. See eql/focus-subquery.
   - `without` - A set of keys to remove (recursively) from the query.
-  - `abort-id` - TODO. Normally use txn id, which is returned by this function.
+  - `update-query` - A general-purpose function that can transform the component query before sending to remote. See also
+     the application's `:global-eql-transform` option.
+     For example, to focus a subquery using update-query: `{:update-query #(eql/focus-subquery % [:my {:sub [:query]}])}`
+     Removing properties (like previous :without option): `{:update-query #(df/elide-query-nodes % #{:my :elisions})}`
+  - `abort-id` - Set a unique key. If supplied, then the load can be cancelled via that abort ID.
+  - `parallel` - Send the load out-of-order (immediately) without waiting for other loads in progress.
+  - `post-mutation` - A mutation (symbol) to run *after* the data is merged. Note, if target is supplied be sure your post mutation
+    should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
+  - `post-mutation-params` - An optional map that will be passed to the post-mutation when it is called.
+  - `post-action` - A lambda that will a mutation env parameter `(fn [env] ...)`. Called after success, like post-mutation
+    (and after post-mutation if also defined). `env` will include the original `:load-params` and raw network layer `:result`. If you
+    want the post behavior to act as a top-level mutation, then prefer `post-mutation`. The action can also call `transact!`.
+  - `fallback` - A mutation (symbol) to run if there is a server/network error. The `env` of the fallback will be like a mutation `env`, and will
+    include a `:result` key with the real result from the server, along with the original `:load-params`.
 
-  Returns a transaction ID, which can be used with abort
+  Special-purpose config options:
+
+  The config options can also include the following things that completely override behaviors of other (respons-processing) options,
+  and should only be used in very advanced situations where you know what you are doing:
+
+  - `ok-action` - WARNING: OVERRIDES ALL DEFAULT OK BEHAVIOR (except load marker removal)! A lambda that will receive an env parameter `(fn [env] ...)` that
+    includes the `:result` and original `:load-params`.
+  - `error-action` - WARNING: OVERRIDES ALL DEFAULT ERROR BEHAVIOR (except load marker update). A lambda that will receive an `env`
+    that includes the `:result` and original `:load-params`.
   "
   ([app-or-comp server-property-or-ident class-or-factory] (load! app-or-comp server-property-or-ident class-or-factory {}))
   ([app-or-comp server-property-or-ident class-or-factory config]
