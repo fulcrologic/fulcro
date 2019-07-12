@@ -93,6 +93,13 @@ as it existed before the optimistic update.
 
 === Breaking API Changes
 
+Full-Stack:: The happy path is mostly the same for full-stack operation; however, The overall network error handling is
+completely different.  There is still a global error handler, but it gets
+a more detailed environment (and a new name). *Mutation* fallbacks are no longer supported. See the new mutations, which
+have `result-action` and `error-action` sections to handle per-mutation errors. Load fallbacks are still supported, as
+they were already targeted to the load in question. Global network activity and error markers have changed. See the
+developer's guide for more details.
+
 React Lifecycle Methods:: The *non-static* React lifecycle methods (e.g. componentDidMount, shouldComponentUpdate, etc.) now all require
 an explicit `this`. Everything in the options map in Fulcro 3 except query/ident/initial-state are completely literal
 (e.g. lambdas or data).

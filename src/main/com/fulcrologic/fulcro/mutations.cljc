@@ -346,8 +346,8 @@
        (if (= fqsym sym)
          multimethod
          `(do
-            ~multimethod
-            (def ~(with-meta sym {:doc doc}) (com.fulcrologic.fulcro.mutations/->Mutation '~fqsym)))))))
+            (def ~(with-meta sym {:doc doc}) (com.fulcrologic.fulcro.mutations/->Mutation '~fqsym))
+            ~multimethod)))))
 
 #?(:clj
    (defmacro
@@ -395,6 +395,9 @@
 
      Remotes in Fulcro 3 are also lambdas, and are called with an `env` that contains the state as it exists *after*
      the `:action` has run in `state`, but also include the 'before action state' as a map in `:state-before-action`.
+
+     IMPORTANT: You can fully-qualify a mutation's symbol when declaring it to force it into a custom namespace,
+     but this is highly discouraged and will require quoting when used in a mutation.
      "
        :arglists
        '([sym docstring? arglist handlers])} defmutation
