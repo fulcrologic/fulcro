@@ -105,7 +105,7 @@
                 :let [ident (comp/get-ident c)]]
           (render-component! app ident c))
         (doseq [i limited-idents]
-          (render-components-with-ident! app i)))
+          (render-dependents-of-ident! app i)))
       (let [state-map          @state-atom
             idents-in-joins    (or idents-in-joins #{})
             dirty-linked-props (reduce
@@ -119,17 +119,15 @@
                                  linked-props)
             {idents-to-force true
              props-to-force  false} (group-by eql/ident? to-refresh)
+            props-to-force     (set/union props-to-force dirty-linked-props)
             mounted-idents     (concat (keys ident->components) idents-in-joins)
             stale-idents       (dirty-table-entries last-rendered-state state-map mounted-idents)
-            extra-to-force     (set/union
-                                 dirty-linked-props
-                                 (props->components app props-to-force))]
-        (doseq [i idents-to-force]
+            extra-to-force     (props->components app props-to-force)
+            all-idents         (set/union (set idents-to-force) (set stale-idents))]
+        (doseq [i all-idents]
           (render-dependents-of-ident! app i))
         (doseq [c extra-to-force]
-          (render-component! app (comp/get-ident c) c))
-        (doseq [ident stale-idents]
-          (render-dependents-of-ident! app ident))))))
+          (render-component! app (comp/get-ident c) c))))))
 
 (defn render!
   "The top-level call for using this optimized render in your application.
