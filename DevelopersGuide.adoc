@@ -663,7 +663,7 @@ your mounted application:
 
 [source]
 ----
-dev:cljs.user=> @(fulcro.client.primitives/app-state (get @app.client/app :reconciler))
+dev:cljs.user=> @(fulcro.client.primitives/app-state (get @app.client/SPA :reconciler))
 ----
 
 Let's see how we program our UI to access the data in the application state!
