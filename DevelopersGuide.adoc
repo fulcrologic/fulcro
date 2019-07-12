@@ -1176,7 +1176,7 @@ If you reload the web page (needed to reinitialize the database state), then you
 database at the REPL (*NOTE: It is much easier to look at this using Fulcro Inspect in your developer tools tab*):
 
 ----
-dev:cljs.user=> @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler))
+dev:cljs.user=> @(fulcro.client.primitives/app-state (-> app.client/SPA deref :reconciler))
 {:friends [:person-list/by-id :friends],
  :enemies [:person-list/by-id :enemies],
  :person/by-id
@@ -1201,7 +1201,7 @@ database. In Fulcro these are the same. So, try this at the REPL:
 
 [source]
 ----
-dev:cljs.user=> (def current-db @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler)))
+dev:cljs.user=> (def current-db @(fulcro.client.primitives/app-state (-> app.client/SPA deref :reconciler)))
 dev:cljs.user=> (def root-query (fulcro.client.primitives/get-query app.ui.root/Root))
 #'cljs.user/current-db
 dev:cljs.user=> (fulcro.client.primitives/db->tree root-query current-db current-db)
