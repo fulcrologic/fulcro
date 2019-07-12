@@ -23,20 +23,20 @@
 (specification "load-config"
   (when-mocking
     (server/load-edn-file! d) =1x=> (do
-                                        (assertions
-                                          "Looks for the defaults file"
-                                          d => "config/defaults.edn")
-                                        {})
+                                      (assertions
+                                        "Looks for the defaults file"
+                                        d => "config/defaults.edn")
+                                      {})
     (server/get-system-prop prop) => (do
                                        (assertions
                                          "usess the system property config"
                                          prop => "config")
                                        "some-file")
     (server/load-edn-file! f) =1x=> (do
-                                        (assertions
-                                          "to find the supplied config file"
-                                          f => "some-file")
-                                        {:k :v})
+                                      (assertions
+                                        "to find the supplied config file"
+                                        f => "some-file")
+                                      {:k :v})
 
     (assertions
       "looks for system property -Dconfig"
@@ -51,29 +51,25 @@
       (server/load-edn-file! nil) =1x=> {:c :d}
       (assertions
         (server/load-config! {}) => {:a :b
-                                    :c  :d})))
+                                     :c :d})))
 
   (behavior "config file overrides defaults"
     (when-mocking
-      (server/load-edn-file! defaults-path) =1x=> {:a {:b   {:c :d}
-                                                         :e {:z :v}}}
-      (server/load-edn-file! nil) =1x=> {:a {:b   {:c :f
-                                                   :u :y}
-                                               :e 13}}
+      (server/load-edn-file! defaults-path) =1x=> {:a {:b {:c :d}
+                                                       :e {:z :v}}}
+      (server/load-edn-file! nil) =1x=> {:a {:b {:c :f
+                                                 :u :y}
+                                             :e 13}}
       (assertions (server/load-config! {}) => {:a {:b {:c :f
-                                                      :u  :y}
-                                                  :e  13}})))
+                                                       :u :y}
+                                                   :e 13}})))
 
   (component "load-config"
     (behavior "crashes if no default is found"
       (assertions
         (server/load-config! {}) =throws=> #""))
     (behavior "crashes if no config is found"
-      (let [real-open server/load-edn-file!]
-        (when-mocking
-          (server/load-edn-file! defaults-path) =1x=> {}
-          (server/load-edn-file! f) => (real-open f)
-          (assertions (server/load-config! {}) =throws=> #""))))
+      (assertions (server/load-config! {:config-path "/tmp/asdlfkjhadsflkjh"}) =throws=> #""))
     (behavior "falls back to `config-path`"
       (when-mocking
         (server/load-edn-file! defaults-path) =1x=> {}
@@ -81,13 +77,13 @@
         (assertions (server/load-config! {:config-path "/some/path"}) => {:k :v})))
     (behavior "recursively resolves symbols using resolve-symbol"
       (when-mocking
-        (server/load-edn-file! defaults-path) =1x=> {:a   {:b {:c 'clojure.core/symbol}}
-                                                       :v [0 "d"]
-                                                       :s #{'clojure.core/symbol}}
+        (server/load-edn-file! defaults-path) =1x=> {:a {:b {:c 'clojure.core/symbol}}
+                                                     :v [0 "d"]
+                                                     :s #{'clojure.core/symbol}}
         (server/load-edn-file! nil) =1x=> {}
         (assertions (server/load-config! {}) => {:a {:b {:c #'clojure.core/symbol}}
-                                                :v  [0 "d"]
-                                                :s  #{#'clojure.core/symbol}})))
+                                                 :v [0 "d"]
+                                                 :s #{#'clojure.core/symbol}})))
     (behavior "passes config-path to get-config"
       (when-mocking
         (server/load-edn-file! defaults-path) =1x=> {}
