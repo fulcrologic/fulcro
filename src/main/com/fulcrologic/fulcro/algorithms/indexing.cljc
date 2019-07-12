@@ -3,6 +3,9 @@
   (:require
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [ghostwheel.core :as gw :refer [>defn]]
+    [clojure.set :as set]
     [edn-query-language.core :as eql]
     [taoensso.encore :as encore]
     [taoensso.timbre :as log]))
@@ -33,25 +36,40 @@
   (let [ast (eql/query->ast query)]
     (index-query* {} ast)))
 
-(defn- index-root*
-  [runtime-state root-query]
-  (encore/when-let [prop->classes   (index-query root-query)
-                    idents-in-joins (into #{}
-                                      (filter eql/ident?)
-                                      (keys prop->classes))]
-    (-> runtime-state
-      (assoc-in [:com.fulcrologic.fulcro.application/indexes :idents-in-joins] idents-in-joins)
-      (assoc-in [:com.fulcrologic.fulcro.application/indexes :prop->classes] prop->classes))))
+(defn top-level-keys
+  "Return a set of keywords that are in the top-level of the given AST"
+  [ast]
+  (let [{:keys [children]} ast]
+    (into #{} (comp (map :key) (filter keyword?)) children)))
+
+(defn link-query-props
+  "Returns a set of all of the keys that appear in link refs `[:k '_]` in the entire ast."
+  [{:keys [key children] :as ast}]
+  (cond
+    (fdn/link-ref? key) (apply set/union #{(first key)} (map link-query-props children))
+    (seq children) (apply set/union (map link-query-props children))
+    :otherwise #{}))
 
 (defn index-root!
   "Index the root query (see index-query) and side-effect the result (`prop->classes`) into the given app.
   This function assumes the `root-class` has already been supplied to the app (i.e. is has been mounted)."
   [app]
+  (log/debug "(Re)indexing application query for prop->classes")
   (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} app
-        {:com.fulcrologic.fulcro.application/keys [root-class]} @runtime-atom]
-    (encore/when-let [root-query (comp/get-query root-class @state-atom)]
-      (log/debug "(Re)indexing application query for prop->classes")
-      (swap! runtime-atom index-root* root-query))))
+        {:com.fulcrologic.fulcro.application/keys [root-class]} @runtime-atom
+        state-map       @state-atom
+        root-query      (comp/get-query root-class state-map)
+        ast             (eql/query->ast root-query)
+        prop->classes   (index-query root-query)
+        idents-in-joins (into #{} (filter eql/ident?) (keys prop->classes))
+        root-props      (top-level-keys ast)
+        linked-props    (link-query-props ast)]
+    (swap! runtime-atom (fn [s]
+                          (-> s
+                            (assoc-in [:com.fulcrologic.fulcro.application/indexes :root-props] root-props)
+                            (assoc-in [:com.fulcrologic.fulcro.application/indexes :linked-props] linked-props)
+                            (assoc-in [:com.fulcrologic.fulcro.application/indexes :idents-in-joins] idents-in-joins)
+                            (assoc-in [:com.fulcrologic.fulcro.application/indexes :prop->classes] prop->classes))))))
 
 (defn- index-component* [runtime-state instance ident cls]
   (let [k (comp/class->registry-key cls)]

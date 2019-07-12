@@ -11,9 +11,3 @@
   (let [app (app/fulcro-app)]
     (assertions
       (s/valid? ::app/app app) => true)))
-
-(deftest props-only-query-test
-  (assertions
-    "Can extract the correct props-only query from an arbitrary query."
-    (app/props-only-query '[:a {:b [:x]} (f) (:c {:y 1}) ({:j [:y]} {:no 2})])
-    => [:a :b :c :j]))
