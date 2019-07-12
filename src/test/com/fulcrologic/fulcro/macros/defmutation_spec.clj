@@ -35,7 +35,7 @@
                       (action [env] (swap! state))
                       (remote [env] true)
                       (rest [env] true)))
-          method (second actual)
+          method (nth actual 2)
           body   (nth method 4)]
       (assertions
         "Converts all sections to lambdas of a defmethod"
