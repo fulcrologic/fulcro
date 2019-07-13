@@ -49,7 +49,7 @@
     (reduce (fn [response f] (f response)) {})))
 
 (defn handle-api-request
-  "Given a parser, a parser environment, and a query: Runs the parser on the query,
+  "Given a parser and a query: Runs the parser on the query,
    and generates a standard Fulcro-compatible response."
   [query query-processor]
   (generate-response
