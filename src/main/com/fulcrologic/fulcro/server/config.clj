@@ -1,6 +1,6 @@
 (ns com.fulcrologic.fulcro.server.config
   "Utilities for managing server configuration via EDN files.  These functions expect a config/defaults.edn to exist
-  on the classpath as a definition for server configuration default values.  When you call `load-config` it will
+  on the classpath as a definition for server configuration default values.  When you call `load-config!` it will
   deep merge the file you supply with the base defaults to return the 'complete' configuration.  When loading
   configurations a relative path is evaluated against CLASSPATH and an absolute path against the real filesystem.
 
@@ -20,13 +20,13 @@
 (defn get-system-prop [prop-name]
   (System/getProperty prop-name))
 
-(defn load-edn
+(defn- load-edn!
   "If given a relative path, looks on classpath (via class loader) for the file, reads the content as EDN, and returns it.
   If the path is an absolute path, it reads it as EDN and returns that.
   If the resource is not found, returns nil.
 
   This function returns the EDN file without further interpretation (no merging or env evaluation).  Normally you want
-  to use `load-config` instead."
+  to use `load-config!` instead."
   [^String file-path]
   (let [?edn-file (io/file file-path)]
     (if-let [edn-file (and (.isAbsolute ?edn-file)
@@ -35,12 +35,12 @@
       (-> edn-file slurp edn/read-string)
       (some-> file-path io/resource .openStream slurp edn/read-string))))
 
-(defn open-config-file
+(defn- load-edn-file!
   "Calls load-edn on `file-path`,
   and throws an ex-info if that failed."
   [file-path]
   (log/info "Reading configuration file at " file-path)
-  (if-let [edn (some-> file-path load-edn)]
+  (if-let [edn (some-> file-path load-edn!)]
     edn
     (do
       (log/error "Unable to read configuration file " file-path)
@@ -57,7 +57,7 @@
 (defn- get-system-env [var-name]
   (System/getenv var-name))
 
-(defn load-config
+(defn load-config!
   "Load a configuration file via the given options.
 
   options is a map with keys:
@@ -91,7 +91,7 @@
   {:port :env.edn/PORT}
   ```
 
-  and a call to `(load-config \"/usr/local/etc/app.edn\")` on a system with env variable `PORT=\"8080\"` would return:
+  and a call to `(load-config! {:config-path \"/usr/local/etc/app.edn\"})` on a system with env variable `PORT=\"8080\"` would return:
 
   ```
   {:port 8080  ;; as an integer, not a string
@@ -101,10 +101,10 @@
   If your EDN file includes a symbol (which must be namespaced) then it will try to require and resolve
   it dynamically as the configuration loads.
   "
-  ([] (load-config {}))
+  ([] (load-config! {}))
   ([{:keys [config-path]}]
-   (let [defaults (open-config-file "config/defaults.edn")
-         config   (open-config-file (or (get-system-prop "config") config-path))]
+   (let [defaults (load-edn-file! "config/defaults.edn")
+         config   (load-edn-file! (or (get-system-prop "config") config-path))]
      (->> (util/deep-merge defaults config)
        (walk/prewalk #(cond-> % (symbol? %) resolve-symbol
                         (and (keyword? %) (namespace %)
@@ -112,3 +112,15 @@
                         (-> name get-system-env
                           (cond-> (= "env.edn" (namespace %))
                             (edn/read-string)))))))))
+
+(def ^:deprecated load-config
+  "Use load-config!"
+  load-config!)
+
+(def ^:deprecated open-config-file
+  "Not meant for public consumption"
+  load-edn-file!)
+
+(def ^:deprecated load-edn
+  "Not meant for public consumption"
+  load-edn!)

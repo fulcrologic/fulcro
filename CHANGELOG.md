@@ -1,3 +1,7 @@
+3.0.0-alpha-20
+--------------
+- Added hooks to redefine render/hydrate (for native support)
+
 3.0.0-alpha-19
 --------------
 - Removed :constructor
