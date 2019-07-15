@@ -249,6 +249,10 @@
       - `:query-transform-default` - A `(fn [query] query')`. Defaults to a function that strips `:ui/...` keywords and
         form state config joins from load queries.
       - `:load-marker-default` - A default value to use for load markers. Defaults to false.
+      - `:render-root!` - The function to call in order to render the root of your application. Defaults
+        to `js/ReactDOM.render`.
+      - `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
+        to `js/ReactDOM.hydrate`.
     "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
@@ -256,6 +260,8 @@
             global-error-action
             default-result-action!
             optimized-render!
+            render-root!
+            hydrate-root!
             render-middleware
             initial-db
             client-did-mount
@@ -275,6 +281,8 @@
     ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    default-tx!
                     :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! ident-optimized/render!)
                     :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
+                    :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
+                    :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
                     :com.fulcrologic.fulcro.algorithm/render!                render!
                     :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
                     :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
@@ -338,10 +346,12 @@
   - `:initialize-state?` (default true) - If NOT mounted already: Pulls the initial state tree from root component,
   normalizes it, and installs it as the application's state.  If there was data supplied as an initial-db, then this
   new initial state will be *merged* with that initial-db.
+  - `:hydrate?` (default false) - Indicates that the DOM will already contain content from the
+    server that should be attached instead of overwritten. See ReactDOM.hydrate.
   "
   ([app root node]
    (mount! app root node {:initialize-state? true}))
-  ([app root node {:keys [initialize-state?]}]
+  ([app root node {:keys [initialize-state? hydrate?]}]
    #?(:cljs
       (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
             reset-mountpoint! (fn []
@@ -356,7 +366,8 @@
                                         ::root-class root)
                                       (update-shared! app)
                                       (indexing/index-root! app)
-                                      (schedule-render! app {:force-root? true})))))]
+                                      (schedule-render! app {:force-root? true
+                                                             :hydrate?    hydrate?})))))]
         (if (mounted? app)
           (reset-mountpoint!)
           (do
