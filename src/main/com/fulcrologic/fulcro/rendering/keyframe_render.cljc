@@ -21,8 +21,8 @@
     (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
           {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom
           r!               (if hydrate?
-                             (or (ah/app-algorithm app :hydrate-root!) js/ReactDOM.hydrate js/ReactDOM.render)
-                             (or (ah/app-algorithm app :render-root!) js/ReactDOM.render))
+                             (or (ah/app-algorithm app :hydrate-root!) #?(:cljs js/ReactDOM.hydrate) #?(:cljs js/ReactDOM.render))
+                             (or (ah/app-algorithm app :render-root!) #?(:cljs js/ReactDOM.render)))
           state-map        @state-atom
           query            (comp/get-query root-class state-map)
           data-tree        (if query
