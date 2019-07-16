@@ -149,7 +149,7 @@
 
   If an `error-action` was desired, it is used to process the rest of the failure.
 
-  The `env` will include the network `:result` and the original `:load-params`.
+  The `env` will include the network `:result` and the original load options as `:load-params`.
 
   *Otherwise*, this function will:
 
