@@ -1,0 +1,24 @@
+== Optimizing Sends
+
+The internals of the tx processing splits the original transactions so that there is one tx-node per element of the
+top-level transaction. Loads use an `internal-load` mutation, so they are always a single top-level tx.
+
+
+To Do:
+
+- There should be a function that takes the nodes with the same ID that are queued and re-combines them. This is
+  the current combine-sends, but the logic needs to not do reordering or even return what to send.
+- The next step of processing the send queue should be optional write reordering
+- The next step should then be potentially creating a multi-send send node so that the entire queue can be sent on
+one network request.
+
+
+So, desired send processing:
+
+1. restore transaction semantics: fn of send-queue -> send-queue.  Combines send nodes with a common tx ID into a single send node so
+   that as much of the original tx will be sent as a unit as is possible.
+2. Reorder the queue: Pluggable and optional. Put writes first, enable customization like "tx priorities"
+3. Merge the queue (optional, requires enabling on client and server): For a given remote it is possible for us to encode
+   a "multi-send", where the send nodes from (1/2) are combined into a data structure that allows the lower-level
+   networking to send the entire queue in one network round-trip.  Something like a vector of maps?
+   `[{::id id ::tx tx} {::id id2 ::tx tx}]`, where the server returns `{id result id2 result ...}`.

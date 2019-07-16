@@ -405,3 +405,67 @@
     (binding [comp/*blindly-render* true]
       (render! app {:force-root? true}))))
 
+(defn- abort-elements!
+  "Abort any elements in the given send-queue that have the given abort id.
+
+  Aborting will cause the network to abort (which will report a result), or if the item is not yet active a
+  virtual result will still be sent for that node.
+
+  Returns a new send-queue that no longer contains the aborted nodes."
+  [{:keys [abort!] :as remote} send-queue abort-id]
+  (if abort!
+    (reduce
+      (fn [result {::txn/keys [active? options result-handler] :as send-node}]
+        (let [aid (or (-> options ::txn/abort-id) (-> options :abort-id))]
+          (cond
+            (not= aid abort-id) (do
+                                  (conj result send-node))
+            active? (do
+                      (log/debug "Aborting an ACTIVE network request." abort-id)
+                      (abort! remote abort-id)
+                      result)
+            :otherwise (do
+                         (log/debug "Aborting a QUEUED network request." abort-id)
+                         (result-handler {:status-text "Cancelled" ::txn/aborted? true})
+                         result))))
+      []
+      send-queue)
+    (do
+      (log/error "Cannot abort network requests. The remote has no abort support!")
+      send-queue)))
+
+(defn abort!
+  "Attempt to abort the send queue entries with the given abort ID.  Will notify any aborted operations (e.g. result-handler
+  will be invoked, remote-error? will be used to decide if you consider that an error, etc.).
+  The result map from an abort will include `{::txn/aborted? true}`, but will not include `:status-code` or `:body`.
+
+  This function affects both started and non-started items in the send queues, but will not affect submissions that have not yet
+  made it to the network processing layer (things still in top-level transaction submission queue).
+
+  So the sequence of calls:
+
+  ```
+  (comp/transact! this `[(f)] {:abort-id :a})
+  (app/abort! this :a)
+  ```
+
+  will cancel anything active with abort id `:a`, but since you've held the thread the entire time the submission of
+  mutation `(f)` is still on the submission queue and will not be aborted.
+
+  - `app-ish`: Anything that can be coerced to an app with comp/any->app.
+  - `abort-id`: The abort ID of the operations to be aborted.
+  "
+  [app-ish abort-id]
+  (let [{::keys [runtime-atom]} (comp/any->app app-ish)
+        runtime-state   @runtime-atom
+        {::keys     [remotes]
+         ::txn/keys [send-queues]} runtime-state
+        remote-names    (keys send-queues)
+        new-send-queues (reduce
+                          (fn [result remote-name]
+                            (assoc result remote-name (abort-elements!
+                                                        (get remotes remote-name)
+                                                        (get send-queues remote-name) abort-id)))
+                          {}
+                          remote-names)]
+    (swap! runtime-atom assoc ::send-queues new-send-queues)))

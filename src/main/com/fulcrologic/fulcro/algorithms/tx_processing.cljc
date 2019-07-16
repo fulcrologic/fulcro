@@ -97,6 +97,7 @@
   (let [[active-nodes send-queue] (split-with ::active? send-queue)
         send-queue        (sort-queue-writes-before-reads (vec send-queue))
         id-to-send        (-> send-queue first ::id)
+        options           (-> send-queue first ::options)
         [to-send to-defer] (split-with #(= id-to-send (::id %)) send-queue)
         tx                (reduce
                             (fn [acc {:keys [::ast]}]
@@ -112,12 +113,13 @@
         combined-node     {::id             combined-node-id
                            ::idx            combined-node-idx
                            ::ast            ast
+                           ::options        options
                            ::update-handler (fn [{:keys [body] :as combined-result}]
-                                              (doseq [{:keys [::ast ::update-handler]} to-send]
+                                              (doseq [{::keys [update-handler]} to-send]
                                                 (when update-handler
                                                   (update-handler combined-result))))
                            ::result-handler (fn [{:keys [body] :as combined-result}]
-                                              (doseq [{:keys [::ast ::result-handler]} to-send]
+                                              (doseq [{::keys [ast result-handler]} to-send]
                                                 (let [new-body (select-keys body (top-keys ast))
                                                       result   (assoc combined-result :body new-body)]
                                                   (inspect/ilet [{:keys [status-code body]} result]
@@ -137,12 +139,12 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote (get (app->remotes app) remote-name)
-               transmit! (get remote :transmit!)
+  (enc/if-let [remote          (get (app->remotes app) remote-name)
+               transmit!       (get remote :transmit!)
                query-transform (ah/app-algorithm app :global-eql-transform)
-               send-node (if query-transform
-                           (update send-node ::ast query-transform)
-                           send-node)]
+               send-node       (if query-transform
+                                 (update send-node ::ast query-transform)
+                                 send-node)]
     (try
       (inspect/ilet [tx (eql/ast->query (::ast send-node))]
         (inspect/send-started! app remote-name (::id send-node) tx))
@@ -178,7 +180,7 @@
                               ;; sequential items are kept in queue to prevent out-of-order operation
                               (if (::active? front)
                                 (assoc new-send-queues remote serial)
-                                (let [{:keys [::send-queue ::send-node]} (combine-sends app remote serial)]
+                                (let [{::keys [send-queue send-node]} (combine-sends app remote serial)]
                                   (when send-node
                                     (net-send! app send-node remote))
                                   (assoc new-send-queues remote send-queue)))))
@@ -396,7 +398,7 @@
 
 (>defn add-send!
   "Generate a new send node and add it to the appropriate send queue. Returns the new send node."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {:keys [::id ::options] :as tx-node} ele-idx remote]
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {::keys [id options] :as tx-node} ele-idx remote]
   [:com.fulcrologic.fulcro.application/app ::tx-node ::idx :com.fulcrologic.fulcro.application/remote-name => ::send-node]
   (let [handler        (fn result-handler* [result]
                          (record-result! app id ele-idx remote result)

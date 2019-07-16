@@ -18,19 +18,19 @@
 (goog-define MOCK false)
 ; (goog-define WEBSOCKETS false)
 
-(defonce app (app/fulcro-app {:shared            {:STATIC 1}
-                              :shared-fn         (fn [root-props]
-                                                   (log/info "Calc shared" root-props)
-                                                   {:derived 1})
+(defonce app (app/fulcro-app {:shared    {:STATIC 1}
+                              :shared-fn (fn [root-props]
+                                           (log/info "Calc shared" root-props)
+                                           {:derived 1})
                               ;:optimized-render! keyframe/render!
-                              :remotes           {:remote
-                                                  (if MOCK
-                                                    (mock-remote/mock-http-server {:parser (fn [req]
-                                                                                             (sapi/parser {} req))})
-                                                    (fhr/fulcro-http-remote {:url "/api"})
-                                                    #_(if WEBSOCKETS
-                                                        (fws/fulcro-websocket-remote {})
-                                                        (fhr/fulcro-http-remote {:url "/api"})))}}))
+                              :remotes   {:remote
+                                          (if MOCK
+                                            (mock-remote/mock-http-server {:parser (fn [req]
+                                                                                     (sapi/parser {} req))})
+                                            (fhr/fulcro-http-remote {:url "/api"})
+                                            #_(if WEBSOCKETS
+                                                (fws/fulcro-websocket-remote {})
+                                                (fhr/fulcro-http-remote {:url "/api"})))}}))
 
 (defn ^:export start []
   (log/info "mount")

@@ -3,6 +3,7 @@
   (:require
     [clojure.walk :refer [walk prewalk]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.application :as app]
@@ -250,8 +251,12 @@
                                            query-transform-default (assoc :update-query query-transform-default))
                                          config)
          load-sym      (or load-mutation `internal-load!)
-         mutation-args (load-params* app server-property-or-ident class-or-factory config)]
-     (comp/transact! app `[(~load-sym ~mutation-args)] {:parallel? parallel}))))
+         mutation-args (load-params* app server-property-or-ident class-or-factory config)
+         abort-id      (:abort-id mutation-args)]
+     (comp/transact! app `[(~load-sym ~mutation-args)]
+       (cond-> {}
+         (boolean? parallel) (assoc :parallel? parallel)
+         abort-id (assoc ::txn/abort-id abort-id))))))
 
 (defn load-field!
   "Load a field of the current component. Runs `prim/transact!`.
@@ -274,8 +279,12 @@
                          update-query (update-query)))
         params       (load-params* app ident component (assoc options
                                                          :update-query update-query
-                                                         :source-key (comp/get-ident component)))]
-    (comp/transact! app [(list `internal-load! params)] {:parallel? parallel})))
+                                                         :source-key (comp/get-ident component)))
+        abort-id     (:abort-id params)]
+    (comp/transact! app [(list `internal-load! params)]
+      (cond-> {}
+        (boolean? parallel) (assoc :parallel? parallel)
+        abort-id (assoc ::txn/abort-id abort-id)))))
 
 (defn refresh!
   ([component load-options]
