@@ -211,49 +211,49 @@
 (defn fulcro-app
   "Create a new Fulcro application.
 
-  `options` - A map of initial options
-      - `initial-db` a *map* containing a *normalized* Fulcro app db.  Normally Fulcro will populate app state with
-        your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
-      - `:optimized-render!` - A function that can analyze the state of the application and optimally refresh the screen.
-        Defaults to `ident-optimized-render/render!`, but can also be set to `keyframe-render/render!`.  Further customizations are
-        also possible.  Most applications will likely be best with the default (which analyzes changes by ident and targets
-        refreshes), but applications with a lot of on-screen components may find the keyframe renderer to be faster. Both
-        get added benefits from Fulcro's default `shouldComponentUpdate`, which will prevent rendering when there are no real
-        changes.
-      - `default-result-action!` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
-        default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
-        and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
-        default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action!`, which could be used
-        as an element of your own custom implementation.
-      - `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
-        before they are placed on the network layer.
-      - `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
-      - `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
-        a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
-      - `:shared` - A (static) map of data that should be visible in all components through `comp/shared`.
-      - `:shared-fn` - A function on root props that can select/augment shared whenever a forced root render
-        or explicit call to `app/update-shared!` happens.
-      - `:props-middleware` - A function that can add data to the 4th (optional) argument of
-        `defsc`.  Useful for allowing users to quickly destructure extra data created by
-        component extensions. See the fulcro-garden-css project on github for an example usage.
-      - `:render-middleware` - A `(fn [this real-render])`. If supplied it will be called for every Fulcro component
-        render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
-        function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
-        `this` is the component being rendered.
-      - `:remote-error?` - A `(fn [result] boolean)`. It can examine the network result and should only return
-        true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
-        the normal remotes.  The default version of this returns true if the status code isn't 200.
-      - `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
-      - `:load-mutation` - A symbol. Defines which mutation to use as an implementation of low-level load operations. See
-        Developer's Guide
-      - `:query-transform-default` - A `(fn [query] query')`. Defaults to a function that strips `:ui/...` keywords and
-        form state config joins from load queries.
-      - `:load-marker-default` - A default value to use for load markers. Defaults to false.
-      - `:render-root!` - The function to call in order to render the root of your application. Defaults
-        to `js/ReactDOM.render`.
-      - `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
-        to `js/ReactDOM.hydrate`.
-    "
+  `options`: A map of initial options
+
+   * `:initial-db` a *map* containing a *normalized* Fulcro app db.  Normally Fulcro will populate app state with
+     your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
+   * `:optimized-render!` - A function that can analyze the state of the application and optimally refresh the screen.
+     Defaults to `ident-optimized-render/render!`, but can also be set to `keyframe-render/render!`.  Further customizations are
+     also possible.  Most applications will likely be best with the default (which analyzes changes by ident and targets
+     refreshes), but applications with a lot of on-screen components may find the keyframe renderer to be faster. Both
+     get added benefits from Fulcro's default `shouldComponentUpdate`, which will prevent rendering when there are no real
+     changes.
+   * `default-result-action!` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
+     default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
+     and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
+     default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action!`, which could be used
+     as an element of your own custom implementation.
+   * `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
+     before they are placed on the network layer.
+   * `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
+   * `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
+     a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
+   * `:shared` - A (static) map of data that should be visible in all components through `comp/shared`.
+   * `:shared-fn` - A function on root props that can select/augment shared whenever a forced root render
+     or explicit call to `app/update-shared!` happens.
+   * `:props-middleware` - A function that can add data to the 4th (optional) argument of
+     `defsc`.  Useful for allowing users to quickly destructure extra data created by
+     component extensions. See the fulcro-garden-css project on github for an example usage.
+   * `:render-middleware` - A `(fn [this real-render])`. If supplied it will be called for every Fulcro component
+     render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
+     function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
+     `this` is the component being rendered.
+   * `:remote-error?` - A `(fn [result] boolean)`. It can examine the network result and should only return
+     true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
+     the normal remotes.  The default version of this returns true if the status code isn't 200.
+   * `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
+   * `:load-mutation` - A symbol. Defines which mutation to use as an implementation of low-level load operations. See
+     Developer's Guide
+   * `:query-transform-default` - A `(fn [query] query')`. Defaults to a function that strips `:ui/...` keywords and
+     form state config joins from load queries.
+   * `:load-marker-default` - A default value to use for load markers. Defaults to false.
+   * `:render-root!` - The function to call in order to render the root of your application. Defaults
+     to `js/ReactDOM.render`.
+   * `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
+     to `js/ReactDOM.hydrate`."
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             global-eql-transform
