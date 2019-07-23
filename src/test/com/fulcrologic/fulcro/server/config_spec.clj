@@ -21,6 +21,39 @@
     (.delete tmp-file) res))
 
 (specification "load-config"
+  (behavior "If the user specifies an empty  default path"
+    (when-mocking
+      (server/load-edn-file! d) =1x=> (do
+                                        (assertions
+                                          "it uses the normal default"
+                                          d => "config/defaults.edn")
+                                        {})
+      (server/load-edn-file! f) =1x=> {:k :v}
+
+      (server/load-config! {:defaults-path ""})))
+
+  (behavior "If the user specifies an  nil default path"
+    (when-mocking
+      (server/load-edn-file! d) =1x=> (do
+                                        (assertions
+                                          "it uses the normal default"
+                                          d => "config/defaults.edn")
+                                        {})
+      (server/load-edn-file! f) =1x=> {:k :v}
+
+      (server/load-config! {:defaults-path nil})))
+
+  (behavior "If a user specifies and alternate defaults:"
+    (when-mocking
+      (server/load-edn-file! d) =1x=> (do
+                                        (assertions
+                                          "Alternate is used for the defaults"
+                                          d => "override.edn")
+                                        {})
+      (server/load-edn-file! f) =1x=> {:k :v}
+
+      (server/load-config! {:defaults-path "override.edn"})))
+
   (when-mocking
     (server/load-edn-file! d) =1x=> (do
                                       (assertions
@@ -29,7 +62,7 @@
                                       {})
     (server/get-system-prop prop) => (do
                                        (assertions
-                                         "usess the system property config"
+                                         "uses the system property config"
                                          prop => "config")
                                        "some-file")
     (server/load-edn-file! f) =1x=> (do
@@ -67,9 +100,9 @@
   (component "load-config"
     (behavior "crashes if no default is found"
       (assertions
-        (server/load-config! {}) =throws=> #""))
+        (server/load-config! {}) =throws=> #"Invalid config"))
     (behavior "crashes if no config is found"
-      (assertions (server/load-config! {:config-path "/tmp/asdlfkjhadsflkjh"}) =throws=> #""))
+      (assertions (server/load-config! {:config-path "/tmp/asdlfkjhadsflkjh"}) =throws=> #"Invalid config"))
     (behavior "falls back to `config-path`"
       (when-mocking
         (server/load-edn-file! defaults-path) =1x=> {}
