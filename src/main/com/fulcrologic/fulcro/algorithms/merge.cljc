@@ -391,10 +391,11 @@
   (if-let [top-ident (comp/get-ident component component-data)]
     (let [query          [{top-ident (comp/get-query component)}]
           state-to-merge {top-ident component-data}
-          table-entries  (-> (fnorm/tree->db query state-to-merge true (pre-merge-transform state-map))
-                           (dissoc top-ident))]
+          table-entries  (fnorm/tree->db query state-to-merge true (pre-merge-transform state-map))
+          top-ident'     (get table-entries top-ident)
+          table-entries  (dissoc table-entries top-ident)]
       (cond-> (util/deep-merge state-map table-entries)
-        (seq named-parameters) (#(apply integrate-ident* % top-ident named-parameters))))
+        (seq named-parameters) (#(apply integrate-ident* % top-ident' named-parameters))))
     state-map))
 
 (defn merge-alternate-union-elements

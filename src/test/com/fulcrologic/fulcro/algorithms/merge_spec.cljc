@@ -308,13 +308,19 @@
    :query     [:id :number]
    :pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (merge
-                  {:ui/initial-flag :start}
+                  {:id              :sample-phone-id
+                   :ui/initial-flag :start}
                   current-normalized
                   data-tree))})
 
 (defsc MPersonPM [_ props]
-  {:ident [:person/id :id]
-   :query [:id :name {:numbers (comp/get-query MPhonePM)}]})
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (merge
+                  {:id :sample-person-id}
+                  current-normalized
+                  data-tree))
+   :ident     [:person/id :id]
+   :query     [:id :name {:numbers (comp/get-query MPhonePM)}]})
 
 (defsc Score
   [_ {::keys []}]
@@ -394,12 +400,22 @@
 
   (assertions
     (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
-    => {:person/id {:mary {:id         :mary
-                              :name    "Mary"
-                              :numbers [[:phone/id 55]]}}
+    => {:person/id {:mary {:id      :mary
+                           :name    "Mary"
+                           :numbers [[:phone/id 55]]}}
         :phone/id  {55 {:id              55
-                           :number          "98765-4321"
-                           :ui/initial-flag :start}}}
+                        :number          "98765-4321"
+                        :ui/initial-flag :start}}}
+
+    (merge/merge-component {} MPersonPM {:name "Mary" :numbers [{:number "98765-4321"}]}
+      :replace [:global-ref])
+    => {:global-ref [:person/id :sample-person-id]
+        :person/id  {:sample-person-id {:id      :sample-person-id
+                                        :name    "Mary"
+                                        :numbers [[:phone/id :sample-phone-id]]}}
+        :phone/id   {:sample-phone-id {:id              :sample-phone-id
+                                       :number          "98765-4321"
+                                       :ui/initial-flag :start}}}
 
     (merge/merge-component {} Scoreboard {::scoreboard-id 123
                                           ::scores        [{::score-id 1
@@ -423,12 +439,12 @@
                             :ui/expanded? false}}}
 
     (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]) :replace [:main-person])
-    => {:person/id   {:mary {:id       :mary
-                              :name    "Mary"
-                              :numbers [[:phone/id 55]]}}
+    => {:person/id   {:mary {:id      :mary
+                             :name    "Mary"
+                             :numbers [[:phone/id 55]]}}
         :phone/id    {55 {:id              55
-                           :number          "98765-4321"
-                           :ui/initial-flag :start}}
+                          :number          "98765-4321"
+                          :ui/initial-flag :start}}
         :main-person [:person/id :mary]}
 
     (do
