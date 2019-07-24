@@ -1,3 +1,8 @@
+2.8.12
+------
+- Added ability to pass options to garden css processing.
+- Fixed pre-merge bug (backported from F3) on idents
+
 2.8.11
 ------
 - Fixed network activity indicators

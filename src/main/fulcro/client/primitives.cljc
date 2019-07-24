@@ -301,13 +301,13 @@
         ([this#])
         ~'componentWillMount
         ([this#]
-          (let [reconciler# (fulcro.client.primitives/get-reconciler this#)
-                lifecycle#  (get-in reconciler# [:config :lifecycle])
-                indexer#    (get-in reconciler# [:config :indexer])]
-            (when-not (nil? lifecycle#)
-              (lifecycle# this# :mount))
-            (when-not (nil? indexer#)
-              (fulcro.client.impl.protocols/index-component! indexer# this#))))
+         (let [reconciler# (fulcro.client.primitives/get-reconciler this#)
+               lifecycle#  (get-in reconciler# [:config :lifecycle])
+               indexer#    (get-in reconciler# [:config :indexer])]
+           (when-not (nil? lifecycle#)
+             (lifecycle# this# :mount))
+           (when-not (nil? indexer#)
+             (fulcro.client.impl.protocols/index-component! indexer# this#))))
         ~'render
         ([this#])}}))
 
@@ -652,20 +652,20 @@
      (ident x m)
      (log/warn "get-ident was invoked on component with nil props (this could mean it wasn't yet mounted): " x)))
   ([class props]
-    #?(:clj  (if-let [ident (if (component? class)
-                              ident
-                              (-> class meta :ident))]
-               (let [id (ident class props)]
-                 (if-not (util/ident? id)
-                   (log/warn "get-ident returned an invalid ident for class:" class))
-                 (if (= ::not-found (second id)) [(first id) nil] id))
-               (log/warn "get-ident called with something that is either not a class or does not implement ident: " class))
-       :cljs (if (implements? Ident class)
-               (let [id (ident class props)]
-                 (if-not (util/ident? id)
-                   (log/warn "get-ident returned an invalid ident for class:" class))
-                 (if (= ::not-found (second id)) [(first id) nil] id))
-               (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)))))
+   #?(:clj  (if-let [ident (if (component? class)
+                             ident
+                             (-> class meta :ident))]
+              (let [id (ident class props)]
+                (if-not (util/ident? id)
+                  (log/warn "get-ident returned an invalid ident for class:" class))
+                (if (= ::not-found (second id)) [(first id) nil] id))
+              (log/warn "get-ident called with something that is either not a class or does not implement ident: " class))
+      :cljs (if (implements? Ident class)
+              (let [id (ident class props)]
+                (if-not (util/ident? id)
+                  (log/warn "get-ident returned an invalid ident for class:" class))
+                (if (= ::not-found (second id)) [(first id) nil] id))
+              (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)))))
 
 (defn component-name
   "Returns a string version of the given react component's name."
@@ -1687,7 +1687,7 @@
                       props' (tree->db c-or-q props false (pre-merge-transform tree))
                       refs   (meta props')]
                   ((:merge-tree config)
-                    (merge-ident config tree' ident props') refs))
+                   (merge-ident config tree' ident props') refs))
                 (merge-ident config tree' ident props)))]
       (reduce step tree refs))))
 
@@ -2176,16 +2176,16 @@
               (assoc :queued-sends {})
               (assoc :sends-queued false))))
         ((:send config) sends
-          (fn send-cb
-            ([resp]
-             (merge! this resp nil))
-            ([resp query]
-             (merge! this resp query))
-            ([resp query remote]
-             (when-not (nil? remote)
-               (p/queue! this (keys resp) remote))
-             (merge! this resp query remote)
-             (p/reconcile! this remote))))))))
+         (fn send-cb
+           ([resp]
+            (merge! this resp nil))
+           ([resp query]
+            (merge! this resp query))
+           ([resp query remote]
+            (when-not (nil? remote)
+              (p/queue! this (keys resp) remote))
+            (merge! this resp query remote)
+            (p/reconcile! this remote))))))))
 
 (defn reconciler
   "Construct a reconciler from a configuration map.
@@ -3205,8 +3205,8 @@
    See the Developer's Guide at book.fulcrologic.com for more details.
    "
                :arglists '([this dbprops computedprops]
-                            [this dbprops computedprops local-css-classes])}
-   defsc
+                           [this dbprops computedprops local-css-classes])}
+     defsc
      [& args]
      (let [location (str *ns* ":" (:line (meta &form)))]
        (try
@@ -3293,10 +3293,11 @@
   (if-let [top-ident (get-ident component component-data)]
     (let [query          [{top-ident (get-query component)}]
           state-to-merge {top-ident component-data}
-          table-entries  (-> (tree->db query state-to-merge true (pre-merge-transform state-map))
-                           (dissoc ::tables top-ident))]
+          table-entries  (tree->db query state-to-merge true (pre-merge-transform state-map))
+          top-ident'     (get table-entries top-ident)
+          table-entries  (dissoc table-entries top-ident)]
       (cond-> (util/deep-merge state-map table-entries)
-        (seq named-parameters) (#(apply util/__integrate-ident-impl__ % top-ident named-parameters))))
+        (seq named-parameters) (#(apply util/__integrate-ident-impl__ % top-ident' named-parameters))))
     state-map))
 
 (defn merge-component!

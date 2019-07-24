@@ -24,7 +24,8 @@
 
 (defsc A [_ _]
   {:query [:x]
-   :css   [[:a {:color "red"}]]})
+   :css   [[:a {:color         "red"
+                :border-radius "2px"}]]})
 
 (defsc DuplicateCSS [_ _]
   {:query [{:a (prim/get-query A)} {:b (prim/get-query A)}]})
@@ -69,11 +70,12 @@
                              "Uses legacy get-css-rules"
                              c => NestedRoot2)
                            :rules)
-      (g/css rules) => (do
-                         (assertions
-                           "Uses garden to compute the css"
-                           rules => :rules)
-                         ".boo {}")
+      (g/css garden-flags rules) => (do
+                                      (assertions
+                                       "Uses garden to compute the css"
+                                       rules => :rules
+                                       garden-flags => {})
+                                      ".boo {}")
 
       (#'injection/compute-css {:component     NestedRoot2
                                 :auto-include? false})))
@@ -89,18 +91,40 @@
                                       "Gets the rules for that component"
                                       c => A)
                                     [:rules])
-      (g/css rules) => (do
+      (g/css garden-flags rules) => (do
                          (assertions
                            "Uses garden to compute the css"
-                           rules => [:rules])
+                           rules => [:rules]
+                           garden-flags => {})
                          ".boo {}")
 
       (#'injection/compute-css {:component     A
-                                :auto-include? true}))))
+                                :auto-include? true})))
+  (behavior "When garden compler flags are provided"
+    (when-mocking
+      (css/get-css c) => (do
+                           (assertions
+                             "Uses legacy get-css-rules"
+                             c => NestedRoot2)
+                           :rules)
+      (g/css garden-flags rules) => (do
+                                      (assertions
+                                       "Uses garden to compute the css"
+                                       rules => :rules
+                                       garden-flags => {:pretty-print? false})
+                                      ".boo {}")
+
+      (#'injection/compute-css {:component     NestedRoot2
+                                :garden-flags  {:pretty-print? false}
+                                :auto-include? false}))))
 
 #?(:clj
    (specification "Style element CSS render"
      (assertions
        "Renders via render-to-str for the server"
        (str/includes? (dom/render-to-str (injection/style-element {:component A})) "<style") => true
-       (str/includes? (dom/render-to-str (injection/style-element {:component A})) "color: red") => true)))
+       (str/includes? (dom/render-to-str (injection/style-element {:component A})) "color: red") => true
+       (str/includes? (dom/render-to-str (injection/style-element {:component    A
+                                                                   :garden-flags {:vendors     ["webkit"]
+                                                                                  :auto-prefix #{:border-radius}}}))
+                      "-webkit-border-radius: 2px;") => true)))
