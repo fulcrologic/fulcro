@@ -6,6 +6,7 @@
 - Added support for alternate default config edn
 - Fixed legacy union router ident signature
 - Fixed dynamic routing path interpretation
+- Made mark/sweep merge an option of general merge functions
 
 3.0.0-alpha-20
 --------------
