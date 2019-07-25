@@ -565,7 +565,7 @@
                  actual => [[:x :y]])))))))
 
   (specification "trigger-queued-events!"
-    (let [mutation-env (mutation-env (atom {}) [] {:ref [:TABLE 1]})
+    (let [mutation-env (mutation-env (atom {}) [:fake] {:ref [:TABLE 1]})
           event-1      {::uism/asm-id :a ::uism/event-id :event-1 ::uism/event-data {:a 1}}
           event-2      {::uism/asm-id :b ::uism/event-id :event-2 ::uism/event-data {:a 2}}
           triggers     [event-1 event-2]]
