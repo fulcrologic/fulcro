@@ -311,8 +311,10 @@
   ```
 
   - `state-map` - The normalized database.
-  - `query` - The query that was used to obtain the query-result.
+  - `query` - The query that was used to obtain the query-result. This query will be treated relative to the root of the database.
   - `query-result` - The query-result to merge (a map).
+
+  See `merge-component` and `merge-component!` for possibly more appropriate functions for your task.
 
   Returns the new normalized database."
   [state-map query result-tree]
@@ -331,24 +333,6 @@
   (let [ident        (comp/ident component object-data)
         object-query (comp/get-query component state-map)]
     [{ident object-query}]))
-
-(defn -preprocess-merge
-  "PRIVATE.
-
-  Does the steps necessary to honor the data merge technique defined by Fulcro with respect
-  to data overwrites in the app database."
-  [state-map component object-data]
-  (let [ident         (comp/get-ident component object-data)
-        object-query  (comp/get-query component state-map)
-        object-query  (if (map? object-query) [object-query] object-query)
-        base-query    (component-merge-query state-map component object-data)
-        ;; :fulcro/merge is way to make unions merge properly when joined by idents
-        merge-query   [{:fulcro/merge base-query}]
-        existing-data (get (fdn/db->tree base-query state-map state-map) ident {})
-        marked-data   (mark-missing object-data object-query)
-        merge-data    {:fulcro/merge {ident (util/deep-merge existing-data marked-data)}}]
-    {:merge-query merge-query
-     :merge-data  merge-data}))
 
 (defn merge-alternate-unions
   "Walks the given query and calls (merge-fn parent-union-component union-child-initial-state) for each non-default element of a union that has initial app state.
@@ -376,39 +360,6 @@
       (eql/query->ast (comp/get-query root-component))
       merge-union)))
 
-(defn merge-component
-  "Given a state map of the application database, a component, and a tree of component-data: normalizes
-   the tree of data and merges the component table entries into the state, returning a new state map.
-   Since there is not an implied root, the component itself won't be linked into your graph (though it will
-   remain correctly linked for its own consistency).
-   Therefore, this function is just for dropping normalized things into tables
-   when they themselves have a recursive nature. This function is useful when you want to create a new component instance
-   and put it in the database, but the component instance has recursive normalized state. This is a basically a
-   thin wrapper around `merge/tree->db`.
-
-   See also integrate-ident, integrate-ident!, and merge-component!"
-  [state-map component component-data & named-parameters]
-  (if-let [top-ident (comp/get-ident component component-data)]
-    (let [query          [{top-ident (comp/get-query component)}]
-          state-to-merge {top-ident component-data}
-          table-entries  (fnorm/tree->db query state-to-merge true (pre-merge-transform state-map))
-          top-ident'     (get table-entries top-ident)
-          table-entries  (dissoc table-entries top-ident)]
-      (cond-> (util/deep-merge state-map table-entries)
-        (seq named-parameters) (#(apply integrate-ident* % top-ident' named-parameters))))
-    state-map))
-
-(defn merge-alternate-union-elements
-  "Just like merge-alternate-union-elements!, but usable from within mutations and on server-side rendering. Ensures
-  that when a component has initial state it will end up in the state map, even if it isn't currently in the
-  initial state of the union component (which can only point to one at a time)."
-  [state-map root-component]
-  (let [state-map-atom (atom state-map)
-        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
-        _              (merge-alternate-unions merge-to-state root-component)
-        new-state      @state-map-atom]
-    new-state))
-
 (defn merge!
   "Merge an arbitrary data-tree that conforms to the shape of the given query using Fulcro's
   standard merge and normalization logic.
@@ -422,6 +373,33 @@
   (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} (comp/any->app app)]
     (when state-atom
       (swap! state-atom merge* query data-tree))))
+
+(defn merge-component
+  "Given a state map of the application database, a component, and a tree of component-data: normalizes
+   the tree of data and merges the component table entries into the state, returning a new state map.
+   Since there is not an implied root, the component itself won't be linked into your graph (though it will
+   remain correctly linked for its own consistency).
+   Therefore, this function is just for dropping normalized things into tables
+   when they themselves have a recursive nature. This function is useful when you want to create a new component instance
+   and put it in the database, but the component instance has recursive normalized state. This is a basically a
+   thin wrapper around `merge/tree->db`.
+
+   See also integrate-ident, integrate-ident!, and merge-component!"
+  [state-map component component-data & named-parameters]
+  (if (comp/has-ident? component)
+    (let [query         (comp/get-query component state-map)
+          updated-state (merge* state-map [{::merge query}] {::merge component-data})
+          real-ident    (get updated-state ::merge)
+          process       (fn [s]
+                          (if (seq named-parameters)
+                            (apply integrate-ident* s real-ident named-parameters)
+                            s))]
+      (-> updated-state
+        (process)
+        (dissoc ::merge)))
+    (do
+      (log/error "Cannot merge component " component " because it does not have an ident!")
+      state-map)))
 
 (defn merge-component!
   "Normalize and merge a (sub)tree of application state into the application using a known UI component's query and ident.
@@ -455,18 +433,21 @@
   (when-let [app (comp/any->app app)]
     (if-not (comp/has-ident? component)
       (log/error "merge-component!: component must implement Ident. Merge skipped.")
-      (let [ident   (comp/get-ident component object-data)
-            state   (:com.fulcrologic.fulcro.application/state-atom app)
-            {:keys [merge-data merge-query]} (-preprocess-merge @state component object-data)
+      (let [state   (:com.fulcrologic.fulcro.application/state-atom app)
             render! (ah/app-algorithm app :schedule-render!)]
-        (merge! app merge-data merge-query)
-        (swap! state (fn [s]
-                       (as-> s st
-                         ;; Use utils until we make smaller namespaces, requiring mutations would
-                         ;; cause circular dependency.
-                         (apply integrate-ident* st ident named-parameters)
-                         (dissoc st :fulcro/merge))))
-        (render! app)))))
+        (swap! state (fn [s] (apply merge-component s component object-data named-parameters)))
+        (render! app {})))))
+
+(defn merge-alternate-union-elements
+  "Just like merge-alternate-union-elements!, but usable from within mutations and on server-side rendering. Ensures
+  that when a component has initial state it will end up in the state map, even if it isn't currently in the
+  initial state of the union component (which can only point to one at a time)."
+  [state-map root-component]
+  (let [state-map-atom (atom state-map)
+        merge-to-state (fn [comp tree] (swap! state-map-atom merge-component comp tree))
+        _              (merge-alternate-unions merge-to-state root-component)
+        new-state      @state-map-atom]
+    new-state))
 
 (defn merge-alternate-union-elements!
   "Walks the query and initial state of root-component and merges the alternate sides of unions with initial state into

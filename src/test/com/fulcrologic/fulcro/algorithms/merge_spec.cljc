@@ -3,14 +3,15 @@
     #?(:clj  [clojure.test :refer :all]
        :cljs [clojure.test :refer [deftest]])
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [fulcro-spec.core :refer [assertions specification component when-mocking behavior]]
+    [fulcro-spec.core :refer [assertions specification component when-mocking behavior provided]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.application :as app]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]))
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]))
 
 (declare =>)
 
@@ -45,76 +46,6 @@
       => {:db/id      1
           :main-child {:db/id 1}
           :children   [{:db/id 3} {:db/id 1}]})))
-
-(defsc MergeTestChild [_ props]
-  {:ident (fn [] [:child/by-id (:id props)])
-   :query (fn [] [:id :label])})
-
-(defsc MergeTestParent [_ props]
-  {:initial-state (fn [params] {:ui/checked true})
-   :ident         (fn [] [:parent/by-id (:id props)])
-   :query         (fn [] [:ui/checked :id :title {:child (comp/get-query MergeTestChild)}])})
-
-(specification "merge-component!"
-  (assertions
-    "merge-query is the component query joined on it's ident"
-    (merge/component-merge-query {} MergeTestParent {:id 42}) => [{[:parent/by-id 42] [:ui/checked :id :title {:child (comp/get-query MergeTestChild)}]}])
-  (component "preprocessing the object to merge"
-    (let [no-state             {:parent/by-id {}}
-          no-state-merge-data  (:merge-data (merge/-preprocess-merge no-state MergeTestParent {:id 42}))
-          state-with-old       {:parent/by-id {42 {:ui/checked true :id 42 :title "Hello"}}}
-          id                   [:parent/by-id 42]
-          old-state-merge-data (-> (merge/-preprocess-merge state-with-old MergeTestParent {:id 42}) :merge-data :fulcro/merge)]
-      (assertions
-        "Uses the existing object in app state as base for merge when present"
-        (get-in old-state-merge-data [id :ui/checked]) => true
-        "Marks fields that were queried but are not present as not-found"
-        old-state-merge-data => {[:parent/by-id 42] {:id         42
-                                                     :ui/checked true
-                                                     :title      ::merge/not-found
-                                                     :child      ::merge/not-found}}))
-    (let [union-query {:union-a [:b] :union-b [:c]}
-          state       (atom {})]
-      (when-mocking
-        (comp/get-ident c d) => :ident
-        (comp/get-query comp st) => union-query
-        (merge/component-merge-query s comp data) => :merge-query
-        (fdn/db->tree q d r) => {:ident :data}
-        (merge/mark-missing d q) => (do
-                                      (assertions
-                                        "wraps union queries in a vector"
-                                        q => [union-query])
-
-                                      {:ident :data})
-        (util/deep-merge d1 d2) => :merge-result
-
-        (merge/-preprocess-merge state :comp :data))))
-  (let [state (atom {})
-        data  {}]
-    (when-mocking
-      (merge/-preprocess-merge s c d) => (do
-                                           (assertions
-                                             "Runs the data through the preprocess merge step"
-                                             d => data)
-                                           {:merge-data :preprocessed-data :merge-query :the-query})
-      (merge/integrate-ident* s i op1 args1 op2 args2) => (do
-                                                            (assertions
-                                                              "Calls integrate-ident with appropriate args"
-                                                              (map? s) => true
-                                                              i => [:table :id]
-                                                              op1 => :append
-                                                              op2 => :replace)
-                                                            s)
-
-      (comp/get-ident c p) => [:table :id]
-      (merge/merge! r d q) => (do
-                                (assertions
-                                  "merges the preprocessed data (which sweeps marked missing data)"
-                                  d => :preprocessed-data)
-                                :ignore)
-      (app/schedule-render! a) => nil
-
-      (merge/merge-component! (app/fulcro-app) MergeTestChild data :append [:children] :replace [:items 0]))))
 
 (specification "integrate-ident"
   (let [state {:a    {:path [[:table 2]]}
@@ -182,11 +113,11 @@
   {:initial-state (fn [params] {:type :y :n :y})
    :query         (fn [] [:n :type])})
 
-
 (defsc MergeAChild [_ _]
   {:initial-state (fn [params] {:child :merge-a})
    :ident         (fn [] [:mergea :child])
    :query         (fn [] [:child])})
+
 
 (defsc MergeA [_ _]
   {:initial-state (fn [params] {:type :a :n :a :child (comp/get-initial-state MergeAChild nil)})
@@ -205,6 +136,10 @@
   {:initial-state (fn [params] {:a 1 :b (comp/get-initial-state MergeUnion {})})
    :query         (fn [] [:a {:b (comp/get-query MergeUnion)}])})
 
+(defsc U2 [_ _]
+  {:initial-state (fn [params] (comp/get-initial-state MergeX {}))
+   :query         (fn [] {:x (comp/get-query MergeX) :y (comp/get-query MergeY)})})
+
 ;; Nested routing tree
 ;; NestedRoot
 ;;     |
@@ -213,10 +148,6 @@
 ;;    R2
 ;;   U2       A2
 ;;  X  Y
-
-(defsc U2 [_ _]
-  {:initial-state (fn [params] (comp/get-initial-state MergeX {}))
-   :query         (fn [] {:x (comp/get-query MergeX) :y (comp/get-query MergeY)})})
 
 (defsc R2 [_ _]
   {:initial-state (fn [params] {:id 1 :u2 (comp/get-initial-state U2 {})})
@@ -230,26 +161,26 @@
   {:initial-state (fn [params] {:u1 (comp/get-initial-state U1 {})})
    :query         (fn [] [{:u1 (comp/get-query U1)}])})
 
+(defsc SU1 [_ props]
+  {:initial-state (fn [params] (comp/get-initial-state MergeB {}))
+   :ident         (fn [] [(:type props) 1])
+   :query         (fn [] {:a (comp/get-query MergeA) :b (comp/get-query MergeB)})})
+
 ;; Sibling routing tree
 ;; SiblingRoot
 ;;     |   \
 ;;   SU1   SU2
 ;;  A   B  X  Y
 
-(defsc SU1 [_ props]
-  {:initial-state (fn [params] (comp/get-initial-state MergeB {}))
-   :ident         (fn [] [(:type props) 1])
-   :query         (fn [] {:a (comp/get-query MergeA) :b (comp/get-query MergeB)})})
-
 (defsc SU2 [_ props]
   {:initial-state (fn [params] (comp/get-initial-state MergeX {}))
    :ident         (fn [] [(:type props) 2])
    :query         (fn [] {:x (comp/get-query MergeX) :y (comp/get-query MergeY)})})
 
-
 (defsc SiblingRoot [_ _]
   {:initial-state (fn [params] {:su1 (comp/get-initial-state SU1 {}) :su2 (comp/get-initial-state SU2 {})})
    :query         (fn [] [{:su1 (comp/get-query SU1)} {:su2 (comp/get-query SU2)}])})
+
 
 (specification "merge-alternate-union-elements!"
   (behavior "For applications with sibling unions"
@@ -293,8 +224,8 @@
         (merge/merge-alternate-union-elements! app MergeRoot)))))
 
 (defn phone-number [id n] {:id id :number n})
-(defn person [id name numbers] {:id id :name name :numbers numbers})
 
+(defn person [id name numbers] {:id id :name name :numbers numbers})
 (defsc MPhone [_ props]
   {:query (fn [] [:id :number])
    :ident (fn [] [:phone/id (:id props)])})
@@ -399,6 +330,7 @@
       (get-in new-state-map [:phone/id 3]) => phone-3))
 
   (assertions
+    "Can merge basic data into the database"
     (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
     => {:person/id {:mary {:id      :mary
                            :name    "Mary"
@@ -407,6 +339,7 @@
                         :number          "98765-4321"
                         :ui/initial-flag :start}}}
 
+    "Can assign IDs to primary entities via pre-merge"
     (merge/merge-component {} MPersonPM {:name "Mary" :numbers [{:number "98765-4321"}]}
       :replace [:global-ref])
     => {:global-ref [:person/id :sample-person-id]
@@ -417,6 +350,7 @@
                                        :number          "98765-4321"
                                        :ui/initial-flag :start}}}
 
+    "can merge nested to-many items and apply pre-merge"
     (merge/merge-component {} Scoreboard {::scoreboard-id 123
                                           ::scores        [{::score-id 1
                                                             ::points   4}
@@ -438,6 +372,7 @@
                             ::points      7
                             :ui/expanded? false}}}
 
+    "can place ident via replace named parameter with pre-merge"
     (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]) :replace [:main-person])
     => {:person/id   {:mary {:id      :mary
                              :name    "Mary"
@@ -447,6 +382,7 @@
                           :ui/initial-flag :start}}
         :main-person [:person/id :mary]}
 
+    "pre-merge step can assign an id to generated sub-elements (to-one)"
     (do
       (reset! id-counter 0)
       (merge/merge-component {} UiLoadedItem
@@ -457,6 +393,7 @@
                         :ui/item    [::id 1]}}
         ::id        {1 {::id 1}}}
 
+    "pre-merge step can assign an id to generated sub-elements (to-many)"
     (do
       (reset! id-counter 0)
       (merge/merge-component {} UiCollectionHolder
@@ -476,6 +413,23 @@
                         :ui/item    [::id 2]}}
         ::id        {1 {::id 1}
                      2 {::id 2}}}))
+
+(specification "merge-component!"
+  (let [app (app/fulcro-app)]
+    (when-mocking
+      (merge/merge-component s c d & np) => (do
+                                              (assertions
+                                                "calls merge-component with the component and data"
+                                                c => MPerson
+                                                d => {}
+                                                "includes the correct named parameters"
+                                                np => [:replace [:x]]
+                                                ))
+      (sched/schedule-animation! a k act) => (assertions
+                                               "schedules a refresh"
+                                               true => true)
+
+      (merge/merge-component! app MPerson {} :replace [:x]))))
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defsc Table [_ _]
