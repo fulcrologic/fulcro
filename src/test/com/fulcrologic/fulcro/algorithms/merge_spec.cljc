@@ -327,10 +327,21 @@
       "leaves the original state untouched"
       (contains? new-state-map :people) => true
       (get-in new-state-map [:person/id :sally]) => sally
-      (get-in new-state-map [:phone/id 3]) => phone-3))
+      (get-in new-state-map [:phone/id 3]) => phone-3
+      "honors sweep-merge (overwrites data that is in query but did not appear in result) if asked"
+      (merge/merge-component
+        {:person/id {1 {:id 1 :name "Joe" :numbers [[:phone/id 1]]}}}
+        MPerson {:id 1 :numbers []}
+        :remove-missing? true)
+      => {:person/id {1 {:id 1 :numbers []}}}
+      "Prevents sweep-merge by default"
+      (merge/merge-component
+        {:person/id {1 {:id 1 :name "Joe" :numbers [[:phone/id 1]]}}}
+        MPerson {:id 1 :numbers []})
+      => {:person/id {1 {:id 1 :name "Joe" :numbers []}}}))
 
   (assertions
-    "Can merge basic data into the database"
+    "Can merge basic data into the database (pre-merge not override)"
     (merge/merge-component {} MPersonPM (person :mary "Mary" [(phone-number 55 "98765-4321")]))
     => {:person/id {:mary {:id      :mary
                            :name    "Mary"
@@ -340,11 +351,11 @@
                         :ui/initial-flag :start}}}
 
     "Can assign IDs to primary entities via pre-merge"
-    (merge/merge-component {} MPersonPM {:name "Mary" :numbers [{:number "98765-4321"}]}
+    (merge/merge-component {} MPersonPM {:name "Mary2" :numbers [{:number "98765-4321"}]}
       :replace [:global-ref])
     => {:global-ref [:person/id :sample-person-id]
         :person/id  {:sample-person-id {:id      :sample-person-id
-                                        :name    "Mary"
+                                        :name    "Mary2"
                                         :numbers [[:phone/id :sample-phone-id]]}}
         :phone/id   {:sample-phone-id {:id              :sample-phone-id
                                        :number          "98765-4321"

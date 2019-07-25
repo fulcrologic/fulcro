@@ -1,6 +1,6 @@
 {:paths   ["src/main" "src/todomvc"]
 
- :deps    {edn-query-language/eql     {:mvn/version "0.0.4"}
+ :deps    {edn-query-language/eql     {:mvn/version "0.0.6"}
            cljsjs/react               {:mvn/version "16.8.6-0"}
            cljsjs/react-dom           {:mvn/version "16.8.6-0"}
            cljsjs/react-dom-server    {:mvn/version "16.8.6-0"}
@@ -17,7 +17,7 @@
 
  :aliases {:test      {:extra-paths ["src/test"]
                        :extra-deps  {org.clojure/test.check  {:mvn/version "0.9.0"}
-                                     fulcrologic/fulcro-spec {:local/root "/Users/tonykay/fulcrologic/fulcro-spec"}}}
+                                     fulcrologic/fulcro-spec {:mvn/version "3.1.4"}}}
 
            :clj-tests {:extra-paths ["src/test"]
                        :main-opts   ["-m" "kaocha.runner"]

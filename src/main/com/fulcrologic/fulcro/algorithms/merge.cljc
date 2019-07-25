@@ -46,14 +46,14 @@
                                  to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
                                  index          (last data-path)
                                  vector         (get-in state path-to-vector)]
-                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                             (when-not (vector? data-path) (log/error "Replacement path must be a vector. You passed: " data-path))
                              (when to-many?
-                               (do
-                                 (assert (vector? vector) "Path for replacement must be a vector")
-                                 (assert (number? index) "Path for replacement must end in a vector index")
-                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                               (cond
+                                 (not (vector? vector)) (log/error "Path for replacement must be a vector")
+                                 (not (number? index)) (log/error "Path for replacement must end in a vector index")
+                                 (not (contains? vector index)) (log/error "Target vector for replacement does not have an item at index " index)))
                              (assoc-in state data-path ident))
-                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
+                  state)))
       state actions)))
 
 (defn is-ui-query-fragment?
@@ -61,6 +61,13 @@
   [kw]
   (let [kw (if (map? kw) (-> kw keys first) kw)]
     (when (keyword? kw) (some->> kw namespace (re-find #"^ui(?:\.|$)")))))
+
+(defn not-found?
+  "Returns true if the `k` in `props` is the sweep-merge not-found marker. This marker appears
+  *during* merge, and can affect `:pre-merge` processing, since the data-tree will have these
+  markers when the given data is missing."
+  [props k]
+  (= ::not-found (get props k)))
 
 (defn nilify-not-found
   "Given x, return x value unless it's ::not-found (the mark/sweep missing marker), in which case it returns nil.
@@ -103,7 +110,7 @@
 
   See the Developer Guide section on Fulcro's merge process for more information."
   [result query]
-  (let [missing-entity {:ui/fetch-state {:fulcro.client.impl.data-fetch/type :not-found}}]
+  (let [missing-entity ::not-found]
     (reduce (fn [result element]
               (let [element      (cond
                                    (list? element) (first element)
@@ -228,43 +235,61 @@
     target
     source))
 
-(defn component-pre-merge [class query state data]
+(defn- component-pre-merge [class query state data {:keys [remove-missing?]}]
   (if (comp/has-pre-merge? class)
-    (let [entity (some->> (comp/get-ident class data) (get-in state))]
-      (comp/pre-merge class {:state-map          state
-                             :current-normalized entity
-                             :data-tree          data
-                             :query              query}))
+    (let [entity          (some->> (comp/get-ident class data) (get-in state))
+          unmarked-data   (if remove-missing?
+                            (sweep-merge {} data)
+                            data)
+          unmarked-result (comp/pre-merge class {:state-map          state
+                                                 :current-normalized entity
+                                                 :data-tree          unmarked-data
+                                                 :query              query})
+          result          (if remove-missing?
+                            (mark-missing unmarked-result query)
+                            unmarked-result)]
+      result)
     data))
 
 (defn pre-merge-transform
   "Transform function that modifies data using component pre-merge hook."
-  [state]
-  (fn pre-merge-transform-internal [query data]
-    (if-let [class (-> query meta :component)]
-      (component-pre-merge class query state data)
-      data)))
+  ([state]
+   (pre-merge-transform state {}))
+  ([state options]
+   (fn pre-merge-transform-internal [query data]
+     (if-let [class (-> query meta :component)]
+       (component-pre-merge class query state data options)
+       data))))
 
 (defn merge-mutation-joins
-  "Merge all of the mutations that were joined with a query."
-  [state query data-tree]
-  (if (map? data-tree)
-    (reduce (fn [updated-state query-element]
-              (let [k       (and (util/mutation-join? query-element) (util/join-key query-element))
-                    subtree (get data-tree k)]
-                (if (and k subtree)
-                  (let [subquery         (util/join-value query-element)
-                        target           (-> (meta subquery) ::targeting/target)
-                        idnt             ::temporary-key
-                        norm-query       [{idnt subquery}]
-                        norm-tree        {idnt subtree}
-                        norm-tree-marked (mark-missing norm-tree norm-query)
-                        db               (fnorm/tree->db norm-query norm-tree-marked true (pre-merge-transform state))]
-                    (cond-> (sweep-merge updated-state db)
-                      target (targeting/process-target idnt target)
-                      (not target) (dissoc db idnt)))
-                  updated-state))) state query)
-    state))
+  "Merge all of the mutations that were joined with a query.
+
+  The options, if supplied, can include:
+
+  * `:remove-missing?`: (default false) If true then any items that appear in the `query` but not in the
+  `data-tree` will be removed from `state` (if present)."
+  ([state query data-tree]
+   (merge-mutation-joins state query data-tree {}))
+  ([state query data-tree {:keys [remove-missing?] :as options}]
+   (if (map? data-tree)
+     (reduce (fn [updated-state query-element]
+               (let [k       (and (util/mutation-join? query-element) (util/join-key query-element))
+                     subtree (get data-tree k)]
+                 (if (and k subtree)
+                   (let [subquery         (util/join-value query-element)
+                         target           (-> (meta subquery) ::targeting/target)
+                         idnt             ::temporary-key
+                         norm-query       [{idnt subquery}]
+                         norm-tree        {idnt subtree}
+                         norm-tree-marked (if remove-missing?
+                                            (mark-missing norm-tree norm-query)
+                                            norm-tree)
+                         db               (fnorm/tree->db norm-query norm-tree-marked true (pre-merge-transform state options))]
+                     (cond-> (sweep-merge updated-state db)
+                       target (targeting/process-target idnt target)
+                       (not target) (dissoc db idnt)))
+                   updated-state))) state query)
+     state)))
 
 (defn merge-ident [app-state ident props]
   (update-in app-state ident (comp sweep-one merge) props))
@@ -282,11 +307,11 @@
                           source)]
     (sweep-merge target source-to-merge)))
 
-(defn- merge-idents
+(defn merge-idents
   "Merge the given `refs` (a map from ident to props), query (a query that contains ident-joins), and tree:
 
   returns a new tree with the data merged into the proper ident-based tables."
-  [tree query refs]
+  [tree query refs {:keys [remove-missing?] :as options}]
   (let [ident-joins (into {} (comp
                                (map #(cond-> % (seq? %) first))
                                (filter #(and (util/join? %)
@@ -294,9 +319,10 @@
                       query)]
     (letfn [(step [result-tree [ident props]]
               (let [component-query (get ident-joins ident '[*])
-                    ;; TODO: Test mark missing in this situation is working right
-                    marked-props    (mark-missing props component-query)
-                    normalized-data (fnorm/tree->db component-query marked-props false (pre-merge-transform tree))
+                    marked-props    (if remove-missing?
+                                      (mark-missing props component-query)
+                                      props)
+                    normalized-data (fnorm/tree->db component-query marked-props false (pre-merge-transform tree options))
                     refs            (meta normalized-data)]
                 (merge-tree (merge-ident result-tree ident normalized-data) refs)))]
       (reduce step tree refs))))
@@ -312,18 +338,26 @@
 
   - `state-map` - The normalized database.
   - `query` - The query that was used to obtain the query-result. This query will be treated relative to the root of the database.
-  - `query-result` - The query-result to merge (a map).
+  - `tree` - The query-result to merge (a map).
+
+  The options is a map containing:
+
+  * `:remove-missing?` If true (default false) then anything appearing in the `query` but not the `result-tree`
+  will be removed from `state-map`.
 
   See `merge-component` and `merge-component!` for possibly more appropriate functions for your task.
 
   Returns the new normalized database."
-  [state-map query result-tree]
-  (let [[idts result-tree] (sift-idents result-tree)
-        normalized-result (fnorm/tree->db query result-tree true (pre-merge-transform state-map))]
-    (-> state-map
-      (merge-mutation-joins query result-tree)
-      (merge-idents query idts)
-      (merge-tree normalized-result))))
+  ([state-map query result-tree]
+   (merge* state-map query result-tree {})
+   )
+  ([state-map query result-tree {:keys [remove-missing?] :as options}]
+   (let [[idts result-tree] (sift-idents result-tree)
+         normalized-result (fnorm/tree->db query result-tree true (pre-merge-transform state-map options))]
+     (-> state-map
+       (merge-mutation-joins query result-tree options)
+       (merge-idents query idts options)
+       (merge-tree normalized-result)))))
 
 (defn component-merge-query
   "Calculates the query that can be used to pull (or merge) a component with an ident
@@ -365,37 +399,57 @@
   standard merge and normalization logic.
 
   app - A fulcro application to merge into.
-  query - A query, derived from defui components, that can be used to normalized a tree of data.
+  query - A query, derived from components, that can be used to normalized a tree of data.
   data-tree - A tree of data that matches the nested shape of query.
 
+  The options is a map containing:
+
+  * `:remove-missing?` If true (default false) then anything appearing in the `query` but not the `result-tree`
+  will be removed from `state-map`.
+
+  NOTE: This function assumes you are merging against the root of the tree. See
+  `merge-component` and `merge-component!` for relative merging.
+
   See also `merge*`."
-  [app data-tree query]
-  (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} (comp/any->app app)]
-    (when state-atom
-      (swap! state-atom merge* query data-tree))))
+
+  ([app data-tree query]
+   (merge! app data-tree query {}))
+  ([app data-tree query options]
+   (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} (comp/any->app app)]
+     (when state-atom
+       (swap! state-atom merge* query data-tree options)))))
 
 (defn merge-component
   "Given a state map of the application database, a component, and a tree of component-data: normalizes
    the tree of data and merges the component table entries into the state, returning a new state map.
+
    Since there is not an implied root, the component itself won't be linked into your graph (though it will
    remain correctly linked for its own consistency).
-   Therefore, this function is just for dropping normalized things into tables
-   when they themselves have a recursive nature. This function is useful when you want to create a new component instance
-   and put it in the database, but the component instance has recursive normalized state. This is a basically a
-   thin wrapper around `merge/tree->db`.
+
+   * `state-map` - The normalized database
+   * `component` - A component class
+   * `component-data` - A tree of data that matches the shape of the component's query.
+   * `named-parameters` - Parameters from `integrate-ident` that will let you link the merged component into the graph.
+   Named parameters may also include `:remove-missing?`, which will remove things that are queried for but do
+   not appear in the data from the state.
 
    See also integrate-ident, integrate-ident!, and merge-component!"
   [state-map component component-data & named-parameters]
   (if (comp/has-ident? component)
-    (let [query         (comp/get-query component state-map)
-          updated-state (merge* state-map [{::merge query}] {::merge component-data})
-          real-ident    (get updated-state ::merge)
-          process       (fn [s]
-                          (if (seq named-parameters)
-                            (apply integrate-ident* s real-ident named-parameters)
-                            s))]
+    (let [options           (apply hash-map named-parameters)
+          {:keys [remove-missing?]} options
+          query             (comp/get-query component state-map)
+          marked-data       (if remove-missing?
+                              (mark-missing component-data query)
+                              component-data)
+          updated-state     (merge* state-map [{::merge query}] {::merge marked-data} options)
+          real-ident        (get updated-state ::merge)
+          integrate-targets (fn [s]
+                              (if (seq named-parameters)
+                                (apply integrate-ident* s real-ident named-parameters)
+                                s))]
       (-> updated-state
-        (process)
+        (integrate-targets)
         (dissoc ::merge)))
     (do
       (log/error "Cannot merge component " component " because it does not have an ident!")
@@ -420,10 +474,12 @@
   This function is primarily meant to be used from things like server push and setTimeout/setInterval, where you're outside
   of the normal mutation story. Do not use this function within abstract mutations.
 
-  - app: Your application.
-  - component: The class of the component that corresponds to the data. Must have an ident.
-  - object-data: A map (tree) of data to merge. Will be normalized for you.
-  - named-parameter: Post-processing ident integration steps. see `integrate-ident!`
+  * `app`: Your application.
+  * `component`: The class of the component that corresponds to the data. Must have an ident.
+  * `object-data`: A map (tree) of data to merge. Will be normalized for you.
+  * `named-parameter`: Post-processing ident integration steps. see `integrate-ident!`. You may also
+  include `:remove-missing? true/false` to indicate that data that is missing for the component's query
+  should be removed from app state.
 
   Any keywords that appear in ident integration steps will be added to the re-render queue.
 

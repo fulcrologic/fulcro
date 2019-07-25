@@ -134,7 +134,7 @@
       (let [{:keys [body]} result
             {:keys [::app/state-atom]} app]
         (log/debug "Doing merge and targeting steps: " body query)
-        (swap! state-atom (fn [s] (cond-> (merge/merge* s query body)
+        (swap! state-atom (fn [s] (cond-> (merge/merge* s query body {:remove-missing? true})
                                     target (targeting/process-target source-key target))))
         (when (symbol? post-mutation)
           (log/debug "Doing post mutation " post-mutation)
