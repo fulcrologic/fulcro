@@ -434,11 +434,11 @@
                                                                     mutation-2-descriptor])]
       (behavior "Walks the list of queued mutations in env"
         (when-mocking!
-          (comp/transact! comp tx)
+          (comp/transact! comp tx options)
           =1x=> (assertions
                   "Calls transact with the (1st) mutation delegate and the mutation descriptor "
                   tx => `[(uism/mutation-delegate ~mutation-1-descriptor)])
-          (comp/transact! comp tx)
+          (comp/transact! comp tx options)
           =1x=> (assertions
                   "Calls transact with the (2nd) mutation delegate and the mutation descriptor "
                   tx => `[(uism/mutation-delegate ~mutation-2-descriptor)])

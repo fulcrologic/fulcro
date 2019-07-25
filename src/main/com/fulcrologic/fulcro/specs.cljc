@@ -15,13 +15,16 @@
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/started inst?)
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/finished inst?)
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/tx vector?)
-(gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/options map?)
+(gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/abort-id any?)
+(gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/options (s/keys
+                                                                    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/abort-id]
+                                                                    :opt-un [:com.fulcrologic.fulcro.algorithms.tx-processing/abort-id]))
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/started? set?)
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/complete? set?)
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/results (s/map-of keyword? any?))
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/progress (s/map-of keyword? any?))
-(gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch map?)
-(gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/ast :edn-query-language.ast/node) ; a tree is also a node
+(gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch map?) ; a tree is also a node
+(gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/ast :edn-query-language.ast/node)
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/ast)
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element (s/keys
                                                                        :req [:com.fulcrologic.fulcro.algorithms.tx-processing/idx
@@ -53,7 +56,7 @@
                                                                             :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
                                                                             :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
                                                                             :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
-                                                                      :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/parallel?]))
+                                                                      :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options]))
 
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
 (gw/>def :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))

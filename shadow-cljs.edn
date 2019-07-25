@@ -1,4 +1,4 @@
-{:deps     {:aliases [:test]}
+{:deps     {:aliases [:dev :test]}
  :nrepl    {:port 9000}
  :dev-http {9001 "resources/public"}
  :jvm-opts ["-Xmx2G" #_"-Dghostwheel.enabled=true"]

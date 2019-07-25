@@ -7,6 +7,7 @@
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [fulcro-todomvc.api :as api]
+    [com.fulcrologic.fulcro.networking.http-remote :as http-remote]
     [goog.object :as gobj]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.mutations :as m]))
@@ -181,6 +182,5 @@
 (defsc Root [this {:root/keys [router] :as props}]
   {:initial-state (fn [p] {:root/router (comp/get-initial-state TopRouter {})})
    :query         [{:root/router (comp/get-query TopRouter)}]}
-  (log/info "root props" props)
   (dom/div {}
     (ui-router router)))

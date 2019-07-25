@@ -152,17 +152,28 @@
 
   where `class` is the component class that accepts the path (the target, NOT the router), and `matching-prefix` is the
   portion of the path that is accepted by that class.
+
+  NOTE: If more than one target matches, then the target with the longest match will be returned. A warning will be
+  printed if more than one match of equal length is found.
   "
   [router-class path]
   (when (and router-class (router? router-class))
-    (let [targets (get-targets router-class)]
-      (reduce (fn [result target-class]
-                (let [prefix (and target-class (route-target? target-class)
-                               (some-> target-class (route-segment) (matching-prefix path)))]
-                  (if (and prefix (seq prefix))
-                    (reduced {:matching-prefix prefix
-                              :target          target-class})
-                    result))) nil targets))))
+    (let [targets    (get-targets router-class)
+          matches    (->> (reduce (fn [result target-class]
+                                    (let [prefix (and target-class (route-target? target-class)
+                                                   (some-> target-class (route-segment) (matching-prefix path)))]
+                                      (if (and prefix (seq prefix))
+                                        (conj result {:length          (count prefix)
+                                                      :matching-prefix prefix
+                                                      :target          target-class})
+                                        result))) [] targets)
+                       (sort-by :length)
+                       reverse)
+          max-length (some-> matches first :length)
+          match      (filter #(= max-length (:length %)) matches)]
+      (when (second match)
+        (log/warn "More than one route target matches" path))
+      (first match))))
 
 (defn accepts-route?
   "Returns true if the given component is a router that manages a route target that will accept the given path."

@@ -1,4 +1,4 @@
-{ :trace           0
+{:trace           0
  :trace-color     :violet
  :check           false
  :check-coverage  false

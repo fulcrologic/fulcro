@@ -14,7 +14,6 @@
 
 (gw/>def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
 (gw/>def ::url string?)
-(gw/>def ::abort-id any?)
 (gw/>def ::headers (s/map-of string? string?))
 (gw/>def ::body any?)
 (gw/>def ::request (s/keys :req-un [::method ::body ::url ::headers]))
@@ -209,7 +208,7 @@
 
 (defn cleanup-routine*
   [abort-id active-requests xhrio]
-  [any? ::active-requests ::xhrio => fn?]
+  [::txn/abort-id ::active-requests ::xhrio => fn?]
   (fn []
     (when abort-id
       (swap! active-requests clear-request* abort-id xhrio))
@@ -286,7 +285,7 @@
                         (let [edn              (eql/ast->query ast)
                               ok-handler       (fn [result]
                                                  (try
-                                                   (result-handler (select-keys result #{:transaction :status-code :body :status-text}))
+                                                   (result-handler result)
                                                    (catch :default e
                                                      (log/error e "Result handler for remote" url "failed with an exception."))))
                               progress-handler (fn [update-msg]
@@ -302,15 +301,16 @@
                                                          (log/error e "Update handler for remote" url "failed with an exception."))))))
                               error-handler    (fn [error-result]
                                                  (try
-                                                   (result-handler (merge (select-keys error-result #{:transaction :status-code :body :status-text}) {:status-code 500}))
+                                                   (result-handler (merge error-result {:status-code 500}))
                                                    (catch :default e
                                                      (log/error e "Error handler for remote" url "failed with an exception."))))]
                           (if-let [real-request (try (request-middleware {:headers {} :body edn :url url :method :post})
                                                      (catch :default e
                                                        (log/error "Send aborted due to middleware failure " e)
                                                        nil))]
-                            ;; TODO: need an additional marker to only set this when the txn should be abortable?
-                            (let [abort-id             (::txn/id send-node)
+                            (let [abort-id             (or
+                                                         (-> send-node ::txn/options ::txn/abort-id)
+                                                         (-> send-node ::txn/options :abort-id))
                                   xhrio                (make-xhrio)
                                   {:keys [body headers url method]} real-request
                                   http-verb            (-> (or method :post) name str/upper-case)
@@ -322,17 +322,20 @@
                                   error-routine        (error-routine* extract-response-mw ok-routine progress-routine error-handler)
                                   with-cleanup         (fn [f] (fn [evt] (try (f evt) (finally (gc-network-resources)))))]
                               (when abort-id
+                                (log/info "Registering abort-id" abort-id)
                                 (swap! active-requests update abort-id (fnil conj #{}) xhrio))
                               (when progress-handler
                                 (xhrio-enable-progress-events xhrio)
                                 (events/listen xhrio (.-DOWNLOAD_PROGRESS EventType) #(progress-routine :receiving %))
                                 (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-routine :sending %)))
                               (events/listen xhrio (.-SUCCESS EventType) (with-cleanup ok-routine))
-                              (events/listen xhrio (.-ABORT EventType) (with-cleanup #(ok-handler {})))
+                              (events/listen xhrio (.-ABORT EventType) (with-cleanup #(ok-handler {:status-text "Cancelled"
+                                                                                                   ::txn/aborted? true})))
                               (events/listen xhrio (.-ERROR EventType) (with-cleanup error-routine))
                               (xhrio-send xhrio url http-verb body headers))
                             (error-handler {:error :abort :error-text "Transmission was aborted because the request middleware threw an exception"}))))
      :abort!          (fn abort! [this id]
-                        (when-let [xhrios (get @(:active-requests this) id)]
+                        (if-let [xhrios (get @(:active-requests this) id)]
                           (doseq [xhrio xhrios]
-                            (xhrio-abort xhrio))))}))
+                            (xhrio-abort xhrio))
+                          (log/info "Unable to abort. No active request with abort id:" id)))}))

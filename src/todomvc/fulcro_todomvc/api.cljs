@@ -76,6 +76,8 @@
     (swap! state #(-> %
                     (update-in [:list/id list-id :list/items] remove-from-idents id)
                     (update :item/id dissoc id))))
+  (error-action [{:keys [result] :as env}]
+    (log/info "Delete cancelled!!!" result))
   (remote [_] true))
 
 (defn on-all-items-in-list
@@ -102,7 +104,7 @@
   (action [{:keys [state]}]
     (let [is-complete? (fn [item-ident] (get-in @state (conj item-ident :item/complete)))]
       (swap! state update-in [:list/id list-id :list/items]
-             (fn [todos] (vec (remove (fn [ident] (is-complete? ident)) todos))))))
+        (fn [todos] (vec (remove (fn [ident] (is-complete? ident)) todos))))))
   (remote [_] true))
 
 (defn current-list-id [state] (get-in state [:application :root :todos 1]))

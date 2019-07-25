@@ -220,24 +220,31 @@
 
 (specification "db->tree - from generated"
   (assertions
+    "A"
     (verify-db->tree-generated [[:A/A 0]])
     => {}
 
+    "B"
     (verify-db->tree-generated [{[:A/A 0] {:A/A []}}])
     => {}
 
+    "C"
     (verify-db->tree-generated [{:!-n1/y!PN [{:A/A [:A/B]}]}])
     => {:!-n1/y!PN [{:A/A {:A/B ":A/B"}} {:A/A {:A/B ":A/B"}}]}
 
+    "D"
     (verify-db->tree-generated [{:A/A {:A/A []}}])
     => {:A/A []}
 
+    "E"
     (verify-db->tree-generated [{:a/A {:A/A [:A/A0]}}])
     => {:a/A {}}
 
+    "F"
     (verify-db->tree-generated [{:M/*S {:A/A []}}])
     => {:M/*S [{}]}
 
+    "G"
     (verify-db->tree-generated [{:A/A [{:A/A* {:A/A [:A/B]}}]}])
     => {:A/A {:A/A* [{}]}}))
 

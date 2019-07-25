@@ -10,6 +10,7 @@
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
@@ -500,8 +501,11 @@
   [app env]
   [::fulcro-app ::env => nil?]
   (let [queued-mutations (::queued-mutations env)]
-    (doseq [mutation-params queued-mutations]
-      (comp/transact! app [(mutation-delegate mutation-params)]))
+    (doseq [mutation-params queued-mutations
+            :let [abort-id (::txn/abort-id mutation-params)]]
+      (comp/transact! app [(mutation-delegate mutation-params)]
+        (cond-> {}
+          abort-id (assoc :abort-id abort-id))))
     nil))
 
 (>defn queue-actor-load!
@@ -955,24 +959,26 @@
   `::uism/ok-data map-of-data` - Data to include in the event-data on an ok event
   `::uism/error-data map-of-data` - Data to include in the event-data on an error event
   `::uism/mutation-remote` - The keyword name of the Fulcro remote (defaults to :remote)
+  `:com.fulcrologic.fulcro.algorithms.tx-processing/abort-id` - An abort ID for being able to cancel the mutation.
 
   NOTE: The mutation response *will be merged* into the event data that is sent to the SM handler.
 
   This function does *not* side effect.  It queues the mutation to run after the handler exits."
-  [env actor mutation {
-                       :as options-and-params}]
+  [env actor mutation options-and-params]
   [::env ::actor-name
    (s/or :sym ::mutation :decl ::mutation-decl)
    (s/keys :opt [::m/returning ::targeting/target ::target-actor
                  ::target-alias ::ok-event ::error-event ::ok-data ::error-data ::mutation-remote])
    => ::env]
   (let [target              (compute-target env options-and-params)
+        abort-id            (or (::txn/abort-id options-and-params) (:abort-id options-and-params))
         asm-id              (::asm-id env)
         mutation-sym        (m/mutation-symbol mutation)
         mutation-descriptor (-> options-and-params
                               (dissoc ::target-actor ::target-alias ::targeting/target)
                               (assoc ::asm-id asm-id ::mutation mutation-sym ::mutation-context actor)
                               (cond->
+                                abort-id (assoc ::txn/abort-id abort-id)
                                 (seq target) (assoc ::targeting/target target)))]
     (update env ::queued-mutations (fnil conj []) mutation-descriptor)))
 

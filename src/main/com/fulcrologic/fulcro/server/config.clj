@@ -10,8 +10,10 @@
     [clojure.java.io :as io]
     [clojure.edn :as edn]
     [clojure.walk :as walk]
+    [ghostwheel.core :refer [>defn =>]]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]))
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [clojure.spec.alpha :as s]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CONFIG
@@ -62,10 +64,12 @@
 
   options is a map with keys:
 
-  - :config-path : The path to the file to load (in addition to the addl behavior described below).
+  * `:config-path` : The path to the file to load (in addition to the addl behavior described below).
+  * `:defaults-path` : (optional) A relative or absolute path to the default options that should be the basis of configuration.
+     Defaults to `config/defaults.edn`. When relative, will come from resources. When absolute, will come from disk.
 
-  Reads (from classpath) `config/defaults.edn`, then deep merges the EDN content
-  of the config file you specify into that and evaluates environment variable expansions.
+  Reads the defaults, then deep merges the EDN content
+  of an additional config file you specify into that and evaluates environment variable expansions.
 
   You may use a Java system property to specify (override) the config file used:
 
@@ -102,9 +106,12 @@
   it dynamically as the configuration loads.
   "
   ([] (load-config! {}))
-  ([{:keys [config-path]}]
-   (let [defaults (load-edn-file! "config/defaults.edn")
-         config   (load-edn-file! (or (get-system-prop "config") config-path))]
+  ([{:keys [config-path defaults-path]}]
+   (let [defaults-path (if (seq defaults-path)
+                         defaults-path
+                         "config/defaults.edn")
+         defaults      (load-edn-file! defaults-path)
+         config        (load-edn-file! (or (get-system-prop "config") config-path))]
      (->> (util/deep-merge defaults config)
        (walk/prewalk #(cond-> % (symbol? %) resolve-symbol
                         (and (keyword? %) (namespace %)

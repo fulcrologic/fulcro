@@ -10,7 +10,8 @@
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]
     [ring.util.response :refer [response file-response resource-response]]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [clojure.tools.namespace.repl :as tools-ns]))
 
 (def item-db (atom {1 {:item/id       1
                        :item/label    "Item 1"
@@ -150,6 +151,7 @@
 
   (http-server)
   (web/stop @server)
+  (tools-ns/refresh-all)
 
   (async/<!! (parser {} `[(fulcro-todomvc.api/todo-new-item {:id 2 :text "Hello"})]))
 

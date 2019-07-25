@@ -38,13 +38,13 @@
   - `action` - The function to run when the scheduled time comes."
   ([app scheduled-key action]
    [:com.fulcrologic.fulcro.application/app keyword? fn? => any?]
-   #?(:clj  (action app)
+   #?(:clj  (action)
       :cljs (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app]
               (when-not (get @runtime-atom scheduled-key)
                 (swap! runtime-atom assoc scheduled-key true)
                 (let [f (fn []
                           (swap! runtime-atom assoc scheduled-key false)
-                          (action app))]
+                          (action))]
                   (if-not (exists? js/requestAnimationFrame)
                     (defer f 16)
                     (js/requestAnimationFrame f))))))))
