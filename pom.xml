@@ -80,7 +80,7 @@
     <dependency>
       <groupId>edn-query-language</groupId>
       <artifactId>eql</artifactId>
-      <version>0.0.4</version>
+      <version>0.0.7</version>
     </dependency>
     <dependency>
       <groupId>com.taoensso</groupId>
