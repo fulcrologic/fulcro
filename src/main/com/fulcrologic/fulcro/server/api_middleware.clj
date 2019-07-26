@@ -23,7 +23,12 @@
     (update :headers assoc "Content-Type" "application/transit+json")))
 
 (defn augment-response
-  "Augments the Ring response that's returned from the handler.
+  "Adds a lambda to the given data `core-response` such that `apply-response-augmentations`
+  will use it to morph the raw Ring response in which the `core-response` is embedded
+  (the core response becomes the `:body`).
+
+  The `ring-response-fn` is a `(fn [resp] resp')` that will be passed a raw (possibly empty)
+  Ring response which it can modify and return.
 
   Use this function when you need to add information into the handler response, for
   example when you need to add cookies or session data. Example:
@@ -34,23 +39,30 @@
           {:uid 42} ; your regular response
           #(assoc-in % [:session :user-id] 42))) ; a function resp -> resp
 
-  If the parser has multiple responses with `augment-response` they will be applied
-  in order, the first one will receive an empty map as input. Only top level values
-  of your response will be checked for augmented response (i.e. primarily mutation responses)."
+  If the parser has multiple responses that use `augment-response` they will all be applied.
+  The first one will receive an empty map as input. Only top level values
+  of your response will be checked for augmented response (i.e. primarily mutation responses).
+
+  See `apply-response-augmentations`, which is used by `handle-api-request`, which in turn is the
+  primary implementation element of `wrap-api`."
   [core-response ring-response-fn]
   (assert (instance? clojure.lang.IObj core-response) "Scalar values can't be augmented.")
   (with-meta core-response {::augment-response ring-response-fn}))
 
-(defn augment-map
-  "Fulcro queries and mutations can wrap their responses with `augment-response` to indicate they need access to
-   the raw Ring response. This function processes those into the response."
+(defn apply-response-augmentations
+  "Process the raw response from the parser looking for lambdas that were added by
+  top-level Fulcro queries and mutations via
+  `augment-response`. Runs each in turn and accumulates their effects. The result is
+  meant to be a Ring response (and is used as such by `handle-api-request`."
   [response]
   (->> (keep #(some-> (second %) meta ::augment-response) response)
     (reduce (fn [response f] (f response)) {})))
 
 (defn handle-api-request
   "Given a parser and a query: Runs the parser on the query,
-   and generates a standard Fulcro-compatible response."
+   and generates a standard Fulcro-compatible response, and augment the raw Ring response with
+   any augment handlers that were indicated on top-level mutations/queries via
+   `augment-response`."
   [query query-processor]
   (generate-response
     (let [parse-result (try
@@ -60,7 +72,7 @@
                            e))]
       (if (instance? Throwable parse-result)
         {:status 500 :body "Internal server error. Parser threw an exception. See server logs for details."}
-        (merge {:status 200 :body parse-result} (augment-map parse-result))))))
+        (merge {:status 200 :body parse-result} (apply-response-augmentations parse-result))))))
 
 (defn reader
   "Create a transit reader. This reader can handler the tempid type.

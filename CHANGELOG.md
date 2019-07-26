@@ -1,3 +1,9 @@
+3.0.0-alpha-22
+--------------
+- Working on final naming for APIs.
+- NAME UPDATES (BREAKING)
+- namespace application-helpers -> lookup
+
 3.0.0-alpha-21
 --------------
 - Added support for network aborts
