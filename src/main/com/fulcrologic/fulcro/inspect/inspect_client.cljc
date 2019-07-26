@@ -3,7 +3,7 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.inspect.inspect-client))
   (:require
     [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     #?@(:cljs [[goog.object :as gobj]
                [com.fulcrologic.fulcro.inspect.diff :as diff]
                [com.fulcrologic.fulcro.inspect.transit :as encode]

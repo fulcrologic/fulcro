@@ -1,7 +1,6 @@
-(ns com.fulcrologic.fulcro.algorithms.application-helpers
-  "This namespace helps with access to details of the application, but with no dependency on the application namespace.
-  This prevents circular references since many things need to work with applications, but are themselves used in the
-  construction of an application."
+(ns com.fulcrologic.fulcro.algorithms.lookup
+  "Namespace with support for finding plug-in algorithms on the app. Avoids circular references
+  within the library itself."
   (:require
     [taoensso.timbre :as log]))
 
@@ -10,8 +9,7 @@
   when you create your fulcro app.
 
   `app` - The application
-  `k` - (optional) the algorithm to obtain. This can be a plain keyword or a symbol of the algorithm desired.  If this
-  is not specified then a map keyed by `:algorithm/name` will be retured.
+  `k` - the algorithm to obtain. This can be a plain keyword or a symbol of the algorithm desired.
 
   Supported algorithms that can be obtained/overridden in Fulcro (check the source of app/fulcro-app if you suspect this is out
   of date):

@@ -16,7 +16,7 @@
     [edn-query-language.core :as eql]
     [clojure.test :as test :refer [is are deftest]]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]))
 
 (test/use-fixtures :once
   ;; NOTE: This makes submission processing immediate

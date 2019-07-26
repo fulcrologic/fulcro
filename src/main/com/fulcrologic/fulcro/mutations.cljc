@@ -10,7 +10,7 @@
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [clojure.string :as str])
   #?(:clj

@@ -3,7 +3,7 @@
   (:require
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.misc :as util]

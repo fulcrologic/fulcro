@@ -2,7 +2,7 @@
   "The keyframe optimized render."
   (:require
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.components :as comp]))
 
 (defn render!

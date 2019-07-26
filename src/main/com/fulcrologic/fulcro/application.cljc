@@ -1,7 +1,6 @@
 (ns com.fulcrologic.fulcro.application
   (:require
-    [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -17,7 +16,6 @@
     [edn-query-language.core :as eql]
     com.fulcrologic.fulcro.specs
     [ghostwheel.core :refer [>defn => |]]
-    [clojure.spec.alpha :as s]
     #?@(:cljs [[goog.object :as gobj]
                [goog.dom :as gdom]])
     [taoensso.timbre :as log])
@@ -30,14 +28,15 @@
   (-> app ::runtime-atom deref ::basis-t))
 
 (>defn current-state
-  "Get the value of the application state database at the current time."
+  "Get the current value of the application state database."
   [app-or-component]
   [any? => map?]
   (let [app (comp/any->app app-or-component)]
     (-> app ::state-atom deref)))
 
 (>defn tick!
-  "Move the basis-t forward one tick. For internal use and internal algorithms."
+  "Move the basis-t forward one tick. For internal use in internal algorithms. Fulcro
+  uses this to add metadata to props so it can detect the newer of two version of props."
   [app]
   [::app => any?]
   (swap! (::runtime-atom app) update ::basis-t inc))
@@ -185,7 +184,7 @@
 (>defn default-remote-error?
   "Default detection of network errors. Returns true if the status-code of the given result
   map is not 200."
-  [{:keys [status-code body] :as result}]
+  [{:keys [status-code]}]
   [map? => boolean?]
   (not= 200 status-code))
 
@@ -307,8 +306,9 @@
                       ::shared-props                    {}
 
                       ::remotes                         (or remotes
-                                                          {:remote {:transmit! (fn [send]
-                                                                                 (log/fatal "Remote requested, but no remote defined."))}})
+                                                          {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
+                                                                                 (log/fatal "Remote requested, but no remote defined.")
+                                                                                 (result-handler {:status-code 418 :body {}}))}})
                       ::indexes                         {:ident->components {}}
                       ::mutate                          mut/mutate
                       ::txn/activation-scheduled?       false

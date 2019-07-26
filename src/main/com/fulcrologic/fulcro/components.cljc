@@ -14,7 +14,7 @@
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [clojure.set :as set])
   #?(:clj
      (:import

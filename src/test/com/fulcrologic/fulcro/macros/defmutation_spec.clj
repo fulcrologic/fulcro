@@ -3,7 +3,7 @@
     [com.fulcrologic.fulcro.mutations :as m]
     [fulcro-spec.core :refer [specification assertions component]]
     [clojure.test :refer :all]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]))
 
 (declare =>)
 

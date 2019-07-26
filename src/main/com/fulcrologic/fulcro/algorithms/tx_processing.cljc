@@ -4,7 +4,7 @@
   (:require
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.misc :as futil]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]

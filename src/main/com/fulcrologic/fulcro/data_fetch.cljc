@@ -13,7 +13,7 @@
     [ghostwheel.core :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]))
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]))
 
 (>defn data-state?
   "Is the given parameter a load marker?"
