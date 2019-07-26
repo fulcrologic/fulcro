@@ -3,6 +3,7 @@
 - Working on final naming for APIs.
 - NAME UPDATES (BREAKING)
 - namespace application-helpers -> lookup
+- api-middleware: augment-map -> apply-response-augmentations
 
 3.0.0-alpha-21
 --------------
