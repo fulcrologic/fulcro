@@ -1,6 +1,6 @@
 {:paths   ["src/main" "src/todomvc"]
 
- :deps    {edn-query-language/eql     {:mvn/version "0.0.7"}
+ :deps    {edn-query-language/eql     {:mvn/version "0.0.8"}
            cljsjs/react               {:mvn/version "16.8.6-0"}
            cljsjs/react-dom           {:mvn/version "16.8.6-0"}
            cljsjs/react-dom-server    {:mvn/version "16.8.6-0"}
