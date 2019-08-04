@@ -282,11 +282,11 @@
   (component "load-config"
     (behavior "crashes if no default is found"
       (assertions
-        (server/load-config {}) =throws=> (ExceptionInfo #"")))
+        (server/load-config {}) =throws=> ExceptionInfo))
     (behavior "crashes if no config is found"
       (when-mocking
         (server/get-defaults defaults-path) => {}
-        (assertions (server/load-config {}) =throws=> (ExceptionInfo #""))))
+        (assertions (server/load-config {}) =throws=> ExceptionInfo)))
     (behavior "falls back to `config-path`"
       (when-mocking
         (server/get-defaults defaults-path) => {}
@@ -309,11 +309,11 @@
     (assertions
       "config-path can be a relative path"
       (server/load-config {:config-path "not/abs/path"})
-      =throws=> (ExceptionInfo #"Invalid config file")
+      =throws=> #"Invalid config file"
 
       "prints the invalid path in the exception message"
       (server/load-config {:config-path "invalid/file"})
-      =throws=> (ExceptionInfo #"invalid/file")))
+      =throws=> #"invalid/file"))
 
   (component "resolve-symbol"
     (behavior "requires if necessary"
@@ -323,13 +323,13 @@
         (assertions (#'server/resolve-symbol 'fulcro.server.fixtures.dont-require-me/stahp) => false)))
     (behavior "fails if require fails"
       (assertions
-        (#'server/resolve-symbol 'srsly/not-a-var) =throws=> (java.io.FileNotFoundException #"")))
+        (#'server/resolve-symbol 'srsly/not-a-var) =throws=> java.io.FileNotFoundException))
     (behavior "if not found in the namespace after requiring"
       (assertions
-        (#'server/resolve-symbol 'fulcro.server.fixtures.dont-require-me/invalid) =throws=> (AssertionError #"not \(nil")))
+        (#'server/resolve-symbol 'fulcro.server.fixtures.dont-require-me/invalid) =throws=> #"not \(nil"))
     (behavior "must be namespaced, throws otherwise"
       (assertions
-        (#'server/resolve-symbol 'invalid) =throws=> (AssertionError #"namespace"))))
+        (#'server/resolve-symbol 'invalid) =throws=> #"namespace")))
 
   (component "load-edn"
     (behavior "returns nil if absolute file is not found"
@@ -367,10 +367,10 @@
           (#'server/open-config-file "/foobar") => "42")))
     (behavior "or if path is nil, uses a default path"
       (assertions
-        (#'server/open-config-file nil) =throws=> (ExceptionInfo #"Invalid config file")))
+        (#'server/open-config-file nil) =throws=> #"Invalid config file"))
     (behavior "if path doesn't exist on fs, it throws an ex-info"
       (assertions
-        (#'server/get-config "/should/fail") =throws=> (ExceptionInfo #"Invalid config file")))))
+        (#'server/get-config "/should/fail") =throws=> #"Invalid config file"))))
 
 (defrecord App []
   component/Lifecycle
@@ -417,11 +417,11 @@
 (specification "make-fulcro-server"
   (assertions
     "requires :parser to be a function"
-    (easy/make-fulcro-server :parser 'cymbal) =throws=> (AssertionError #"fn?")
+    (easy/make-fulcro-server :parser 'cymbal) =throws=> #"fn?"
     "requires that :components be a map"
-    (easy/make-fulcro-server :parser #() :components [1 2 3]) =throws=> (AssertionError #"map\? components")
+    (easy/make-fulcro-server :parser #() :components [1 2 3]) =throws=> #"map\? components"
     "throws an exception if injections are not keywords"
-    (easy/make-fulcro-server :parser #() :parser-injections [:a :x 'sym]) =throws=> (AssertionError #"every\? keyword")))
+    (easy/make-fulcro-server :parser #() :parser-injections [:a :x 'sym]) =throws=> #"every\? keyword"))
 
 (defrecord SimpleTestModule []
   server/Module
@@ -576,26 +576,23 @@
       (server/fulcro-system {:components {:foo {}}
                              :modules    [(make-test-api-module
                                             {:sys-key :foo})]})
-      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*fulcro-system")
+      =throws=> #"(?i)duplicate.*:foo.*fulcro-system"
       (server/fulcro-system {:components {:foo {}}
                              :modules    [(make-test-api-module
                                             {:cmps {:foo "test-api"}})]})
-      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*fulcro-system"
-                  #(do (t/is
-                         (= (ex-data %) {:key :foo :prev-value {} :new-value "test-api"}))
-                       true))
+      =throws=> #"(?i)duplicate.*:foo.*fulcro-system"
       (server/fulcro-system {:modules [(make-test-api-module
                                          {:sys-key :foo})
                                        (make-test-api-module
                                          {:sys-key :foo})]})
-      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/system-key")
+      =throws=> #"(?i)duplicate.*:foo.*Module/system-key"
       (server/fulcro-system {:modules [(make-test-api-module
                                          {:sys-key :foo1
                                           :cmps    {:foo "foo1"}})
                                        (make-test-api-module
                                          {:sys-key :foo2
                                           :cmps    {:foo "foo2"}})]})
-      =throws=> (ExceptionInfo #"(?i)duplicate.*:foo.*Module/components"))))
+      =throws=> #"(?i)duplicate.*:foo.*Module/components")))
 
 (t/use-fixtures
   :once #(do
