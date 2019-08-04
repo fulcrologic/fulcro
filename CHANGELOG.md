@@ -1,3 +1,7 @@
+2.8.13
+------
+- Fixed transitive deps. May require you to add deps to your project.
+
 2.8.12
 ------
 - Added ability to pass options to garden css processing.

@@ -86,12 +86,11 @@
     (let [data-tree {:id 1 :name "A" :thing {:id 2 :x 42}}]
       (assertions
         "throws an exception if the target fails to query for form config"
-        (f/add-form-config NonForm data-tree) =throws=> {:regex #"to .*NonForm, but it does not query for config"}
+        (f/add-form-config NonForm data-tree) =throws=> #"to .*NonForm, but it does not query for config"
         "throws an exception if the target fails to declare fields"
-        (f/add-form-config FormNoFields data-tree) =throws=> {:regex #"to .*FormNoFields, but it does not declare any fields"}
+        (f/add-form-config FormNoFields data-tree) =throws=> #"to .*FormNoFields, but it does not declare any fields"
         "does recursive checks on subforms"
-        (f/add-form-config BadlyNestedForm data-tree) =throws=> {:regex #"Subform .*NonForm of .*BadlyNestedForm"
-                                                                 :fn    (fn [e] (some-> e (ex-data) (contains? :nested-exception)))}))))
+        (f/add-form-config BadlyNestedForm data-tree) =throws=> #"Subform .*NonForm of .*BadlyNestedForm"))))
 
 (specification "add-form-config*"
   (let [state-map         {:person/by-id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true

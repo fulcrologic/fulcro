@@ -1138,13 +1138,13 @@
          => `(~'static fulcro.client.primitives/IQuery (~'query [~'this] [:db/id :person/name {:person/job (~'prim/get-query ~'Job)} {:person/settings (~'prim/get-query ~'Settings)}]))
          "Verifies the propargs matches queries data when not a symbol"
          (#'prim/build-query-forms nil 'X 'this '{:keys [db/id person/nme person/job]} {:template '[:db/id :person/name {:person/job (prim/get-query Job)}]})
-         =throws=> {:regex #"defsc X: .person/nme. was destructured"}))
+         =throws=> #"defsc X: .person/nme. was destructured"))
      (component "build-initial-state"
        (assertions
          "Throws an error in template mode if any of the values are calls to get-initial-state"
          (#'prim/build-initial-state nil 'S 'this {:template {:child '(get-initial-state P {})}} #{:child}
            '{:template [{:child (prim/get-query S)}]} false)
-         =throws=> {:regex #"defsc S: Illegal parameters to :initial-state"}
+         =throws=> #"defsc S: Illegal parameters to :initial-state"
          "Generates nothing when there is entry"
          (#'prim/build-initial-state nil 'S 'this nil #{} {:template []} false) => nil
          "Can build initial state from a method"
@@ -1158,7 +1158,7 @@
               (fulcro.client.primitives/make-state-map {} {} params)))
          "If the query is a method, so must the initial state"
          (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:method '(fn [t] [])} false)
-         =throws=> (ExceptionInfo #"When query is a method, initial state MUST")
+         =throws=> #"When query is a method, initial state MUST"
          "Allows any state in initial-state method form, independent of the query form"
          (#'prim/build-initial-state nil 'S 'this {:method '(fn [p] {:x 1 :y 2})} #{} {:tempate []} false)
          => '(static fulcro.client.primitives/InitialAppState (initial-state [this p] {:x 1 :y 2}))
@@ -1166,7 +1166,7 @@
          => '(static fulcro.client.primitives/InitialAppState (initial-state [this p] {:x 1 :y 2}))
          "In template mode: Disallows initial state to contain items that are not in the query"
          (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{} {:template [:x]} false)
-         =throws=> {:regex #"Initial state includes keys"}
+         =throws=> #"Initial state includes keys"
          "Generates proper state parameters to make-state-map when data is available"
          (#'prim/build-initial-state nil 'S 'this {:template {:x 1}} #{:x} {:template [:x]} false)
          => '(static fulcro.client.primitives/InitialAppState
@@ -1184,7 +1184,7 @@
          (#'prim/build-ident nil 't 'p nil #{:boo}) => nil
          "Requires the ID to be in the declared props"
          (#'prim/build-ident nil 't 'p {:template [:TABLE/by-id :id]} #{})
-         =throws=> {:regex #"The ID property :id of :ident"}
+         =throws=> #"The ID property :id of :ident"
          "Can use a ident method to build the defui forms"
          (#'prim/build-ident nil 't 'p {:method '(fn [] [:x :id])} #{})
          => '(static fulcro.client.primitives/Ident (ident [t p] [:x :id]))
@@ -1206,7 +1206,7 @@
          (#'prim/replace-and-validate-fn nil 'nm ['that 'other-thing] 3 '(fn [x y z] ...)) => '(nm [that other-thing x y z] ...)
          "Throws an exception if there are too few arguments"
          (#'prim/replace-and-validate-fn nil 'nm ['a] 2 '(fn [p] ...))
-         =throws=> (ExceptionInfo #"Invalid arity for nm")))
+         =throws=> #"Invalid arity for nm"))
      (component "build-css"
        (assertions
          "Can take templates and turn them into the proper protocol"
@@ -1235,7 +1235,7 @@
               (form-fields [this] #{:a :b})]
          "Error-checks the field set against the keys in the query"
          (#'prim/build-form nil #{:a :b} [:a 'f/form-config-join])
-         =throws=> (ExceptionInfo #":form-fields include keywords that are not in the query")))
+         =throws=> #":form-fields include keywords that are not in the query"))
      (component "build-render"
        (assertions
          "emits a list of forms for the render itself"
@@ -1390,7 +1390,7 @@
        (assertions
          "warns if the css destructuring is included, but no css option has been"
          (prim/defsc* nil '(Person [this {:keys [some-prop]} computed css] (dom/div nil "Boo")))
-         =throws=> (ExceptionInfo #"You included a CSS argument")
+         =throws=> #"You included a CSS argument"
          "allows one to define a simple component without options"
          (prim/defsc* nil '(Person [this {:keys [some-prop]}] (dom/div nil "Boo")))
          => '(fulcro.client.primitives/defui Person
@@ -2348,7 +2348,7 @@
     (prim/tree->db [{:multi {:a (genc :a/id [:a/id :a/name])
                              :b (genc :b/id [:b/id :a/name])}}]
       {:multi {:a/id 3}})
-    =throws=> {:regex #"Union components must implement Ident"})
+    =throws=> #"Union components must implement Ident")
 
   (assertions
     "normalized data"
