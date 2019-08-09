@@ -31,7 +31,7 @@
 ;; Active State Machine and ENV specs
 (gw/>def ::state-map map?)
 (gw/>def ::refresh-vector (s/with-gen (s/coll-of eql/ident? :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
-(gw/>def ::fulcro-app comp/fulcro-app?)
+(gw/>def ::fulcro-app app/fulcro-app?)
 (gw/>def ::source-actor-ident eql/ident?)
 (gw/>def ::actor-name keyword?)
 (gw/>def ::actor->component-name (s/map-of ::actor-name keyword?))
