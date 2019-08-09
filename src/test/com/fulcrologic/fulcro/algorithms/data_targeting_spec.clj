@@ -58,3 +58,61 @@
                                                                                                                      :table     {1 {:id     1
                                                                                                                                     :stuff  [[:y 2]]
                                                                                                                                     :things [[:x 1] [:x 2] [:y 2]]}}})))))
+
+(specification "integrate-ident*"
+  (let [state {:a    {:path [[:table 2]]}
+               :b    {:path [[:table 2]]}
+               :d    [:table 6]
+               :many {:path [[:table 99] [:table 88] [:table 77]]}}]
+    (assertions
+      "Can append to an existing vector"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "Will append (create) on a non-existent vector"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :append [:a :missing])
+        (get-in [:a :missing]))
+      => [[:table 3]]
+
+      "(is a no-op if the ident is already there)"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :append [:a :path])
+        (get-in [:a :path]))
+      => [[:table 2] [:table 3]]
+
+      "Can prepend to an existing vector"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "Will prepend (create) on a non-existent vector"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :prepend [:a :missing])
+        (get-in [:a :missing]))
+      => [[:table 3]]
+
+      "(is a no-op if already there)"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :prepend [:b :path])
+        (get-in [:b :path]))
+      => [[:table 3] [:table 2]]
+
+      "Can create/replace a to-one ident"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :replace [:d])
+        (get-in [:d]))
+      => [:table 3]
+      (-> state
+        (targeting/integrate-ident* [:table 3] :replace [:c :path])
+        (get-in [:c :path]))
+      => [:table 3]
+
+      "Can replace an existing to-many element in a vector"
+      (-> state
+        (targeting/integrate-ident* [:table 3] :replace [:many :path 1])
+        (get-in [:many :path]))
+      => [[:table 99] [:table 3] [:table 77]])))

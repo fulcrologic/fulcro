@@ -14,7 +14,7 @@
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.algorithms.misc :as util :refer [atom?]]))
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util :refer [atom?]]))
 
 (declare asm-value trigger-state-machine-event! apply-action)
 (def mutation-delegate (m/->Mutation `mutation-delegate))

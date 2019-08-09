@@ -5,7 +5,8 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.algorithms.misc :as futil]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.specs]
@@ -108,7 +109,7 @@
                             []
                             to-send)
         ast               (eql/query->ast tx)
-        combined-node-id  (futil/uuid)
+        combined-node-id  (tempid/uuid)
         combined-node-idx 0
         combined-node     {::id             combined-node-id
                            ::idx            combined-node-idx
@@ -209,7 +210,7 @@
                             ::results           {}
                             ::dispatch          {}})))
                      ast-nodes)]
-     {::id       (futil/uuid)
+     {::id       (tempid/uuid)
       ::created  (futil/now)
       ::options  options
       ::tx       tx

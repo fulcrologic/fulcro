@@ -4,13 +4,13 @@
   (:require
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.components :as comp]
     #?@(:cljs [[goog.object :as gobj]
                [com.fulcrologic.fulcro.inspect.diff :as diff]
                [com.fulcrologic.fulcro.inspect.transit :as encode]
                [cljs.core.async :as async]])
     [taoensso.encore :as encore]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]))
+    [taoensso.timbre :as log]))
 
 #?(:cljs (goog-define INSPECT false))
 
@@ -39,7 +39,7 @@
 (defn remotes [app] (some-> (runtime-atom app) deref :com.fulcrologic.fulcro.application/remotes))
 (defn app-id [app] (some-> (app-state app) :fulcro.inspect.core/app-id))
 (defn fulcro-app-id [app] (:com.fulcrologic.fulcro.application/id app))
-(defn get-component-name [component] (when component (some-> (util/isoget component :fulcro$options) :displayName)))
+(defn get-component-name [component] (when component (some-> (comp/isoget component :fulcro$options) :displayName)))
 (defn comp-transact! [app tx options]
   (let [tx! (ah/app-algorithm app :tx!)]
     (tx! app tx options)))
@@ -214,7 +214,7 @@
 
        :fulcro.inspect.client/hide-dom-preview
        (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
-                         app     (some-> @apps* (get app-uuid))
+                         app (some-> @apps* (get app-uuid))
                          render! (ah/app-algorithm app :render!)]
          (render! app {:force-root? true}))
 
@@ -223,11 +223,11 @@
               remote-name                    :fulcro.inspect.client/remote
               :fulcro.inspect.ui-parser/keys [msg-id]
               :fulcro.inspect.core/keys      [app-uuid]} data]
-         (encore/when-let [app       (get @apps* app-uuid)
-                           remote    (get (remotes app) remote-name)
+         (encore/when-let [app (get @apps* app-uuid)
+                           remote (get (remotes app) remote-name)
                            transmit! (-> remote :transmit!)
-                           ast       (eql/query->ast query)
-                           tx-id     (random-uuid)]
+                           ast (eql/query->ast query)
+                           tx-id (random-uuid)]
            (send-started! app remote-name tx-id query)
            (transmit! remote {:com.fulcrologic.fulcro.algorithms.tx-processing/id             tx-id
                               :com.fulcrologic.fulcro.algorithms.tx-processing/ast            ast

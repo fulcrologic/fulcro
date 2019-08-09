@@ -9,7 +9,7 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     #?@(:clj  [[cljs.analyzer :as ana]]
         :cljs [[cljsjs.react]
                [cljs.loader :as loader]])

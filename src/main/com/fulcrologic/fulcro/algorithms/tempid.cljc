@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.tempid
   "Functions for making and consuming Fulcro temporary IDs."
+  (:refer-clojure :exclude [uuid])
   (:require
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk-replace]])
@@ -104,3 +105,14 @@
           (update :com.fulcrologic.fulcro.transactions/submission-queue resolve-tempids tid->rid)
           (update :com.fulcrologic.fulcro.transactions/active-queue resolve-tempids tid->rid)
           (update :com.fulcrologic.fulcro.transactions/send-queues resolve-tempids tid->rid))))))
+
+(defn uuid
+  "Generate a UUID. With no args returns a random UUID. with an arg (numeric)
+  it generates a stable one based on that number (useful for testing). Works in cljc."
+  #?(:clj ([] (java.util.UUID/randomUUID)))
+  #?(:clj ([n]
+           (java.util.UUID/fromString
+             (format "ffffffff-ffff-ffff-ffff-%012d" n))))
+  #?(:cljs ([] (random-uuid)))
+  #?(:cljs ([& args] (cljs.core/uuid (apply str args)))))
+

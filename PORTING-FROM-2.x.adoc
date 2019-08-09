@@ -7,27 +7,8 @@ up arguments and logic. This document covers the known porting
 tasks. If you run into an issue when porting that is not documented
 here please ask on the Fulcro Slack channel in Clojurians.
 
-=== Idents are Refs (UNDER CONSIDERATION)
-
-One central theme of Fulcro from the very beginning is component-based
-database normalization.  The term `ident` was used by the original Om Next
-project from which Fulcro claims its roots.  Over time it has become apparent that
-the term "ident", which Cognitect uses in Clojure to mean "a keyword or symbol"
-(`ident?` was added to core in 1.9), is a somewhat poor choice for the name.
-
-The real origin of the concept came from Datomic's Lookup Refs, which name
-a "unique identity" attribute and the value of that attribute as a vector (e.g.
-`[:account/id 33]`).
-
-Thus the larger Clojure community generally recognizes these kinds of vectors as
-"lookup refs".
-
-NOTE: As a curious historical note: there were early debates as to what to call
-these things, both `ref` and `ident` were in use in Om Next's early code, and "ident" won;
-however, some things like mutation `env` were missed and have always had a `:ref` member.
-
+as the new official teminology in its function and parameter naming.
 Since we're renaming a bunch of stuff already: Fulcro 3 may adopt "lookup ref" or "ref"
-as the new official terminology in its function and parameter naming.
 
 One problem is that `ref` is another already claimed "thing", and `:lookup-ref` is
 a bit cumbersome to type.
@@ -129,7 +110,41 @@ should be top-level API compatible with your existing code.
 Server:: Easy server is gone. Supported server middleware helpers and config support
 are in the `com.fulcrologic.fulcro.server` package. Fulcro 3 no longer supplies
 server-side macros for mutations and reads, as `pathom` is a much better choice for
-EQL service.
+EQL service. Porting to Pathom is relatively minor, and if you want a "no source change" solution you can
+simple write macros like this:
+
+```
+(def resolvers (atom []))
+
+(s/def ::root-value (s/cat
+                      :value-name (fn [sym] (= sym 'value))
+                      :value-args (fn [a] (and (vector? a) (= 2 (count a))))
+                      :value-body (s/+ (constantly true))))
+
+(s/def ::query-root-args (s/cat
+                           :kw keyword?
+                           :doc (s/? string?)
+                           :value #(and (list? %) (= 'value (first %)) (vector? (second %)))))
+
+(defn defquery-root* [env args]
+  (let [target-sym (::sym env)
+        ;; conform! is just an exception-throwing version of s/conform
+        {:keys [kw doc value]} (util/conform! ::query-root-args args)
+        {:keys [value-args value-body]} (util/conform! ::root-value value)
+        env-sym    (first value-args)
+        params-sym (second value-args)]
+    `(do
+       (pc/defresolver ~target-sym [~'env__internal ~'_]
+         ~(cond-> {::pc/output [kw]}
+            doc (assoc :doc doc))
+         (let [~env-sym ~'env__internal
+               ~params-sym (-> ~'env__internal :ast :params)]
+           {~kw (do ~@value-body)}))
+       (swap! resolvers conj ~target-sym))))
+
+(defmacro defquery-root [& args]
+  (defquery-root* (assoc &env ::sym (gensym "query")) args))
+```
 
 UI State Machines:: The names of a few parameters on API for
 doing loads and mutations were named. The load `::uism/post-event` was

@@ -1,10 +1,12 @@
 (ns com.fulcrologic.fulcro.application
   (:require
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
@@ -199,13 +201,13 @@
   "
   [ast]
   (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
-    (util/elide-ast-nodes ast (fn [k]
-                                (when-let [ns (some-> k kw-namespace)]
-                                  (or
-                                    (= k ::fs/config)
-                                    (and
-                                      (string? ns)
-                                      (= "ui" ns))))))))
+    (df/elide-ast-nodes ast (fn [k]
+                              (when-let [ns (some-> k kw-namespace)]
+                                (or
+                                  (= k ::fs/config)
+                                  (and
+                                    (string? ns)
+                                    (= "ui" ns))))))))
 
 (defn fulcro-app
   "Create a new Fulcro application.
@@ -271,7 +273,7 @@
             load-mutation
             shared
             shared-fn] :as options}]
-   {::id           (util/uuid)
+   {::id           (tempid/uuid)
     ::state-atom   (atom (or initial-db {}))
     ::config       {:load-marker-default     load-marker-default
                     :client-did-mount        (or client-did-mount (:started-callback options))

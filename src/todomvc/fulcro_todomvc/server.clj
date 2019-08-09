@@ -1,7 +1,7 @@
 (ns fulcro_todomvc.server
   (:require
     [clojure.core.async :as async]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.server.api-middleware :as fmw :refer [not-found-handler wrap-api]]
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
@@ -11,7 +11,8 @@
     [ring.middleware.resource :refer [wrap-resource]]
     [ring.util.response :refer [response file-response resource-response]]
     [taoensso.timbre :as log]
-    [clojure.tools.namespace.repl :as tools-ns]))
+    [clojure.tools.namespace.repl :as tools-ns]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
 
 (def item-db (atom {1 {:item/id       1
                        :item/label    "Item 1"
@@ -28,7 +29,7 @@
    ::pc/params [:list-id :id :text]
    ::pc/output [:item/id]}
   (log/info "New item on server")
-  (let [new-id (util/uuid)]
+  (let [new-id (tempid/uuid)]
     (swap! item-db assoc new-id {:item/id new-id :item/label text :item/complete false})
     {:tempids {id new-id}
      :item/id new-id}))

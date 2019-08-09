@@ -2,8 +2,7 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.components))
   (:require
     #?@(:clj
-        [[clojure.reflect :as reflect]
-         [cljs.analyzer :as ana]]
+        [[cljs.analyzer :as ana]]
         :cljs
         [[goog.object :as gobj]
          cljsjs.react])
@@ -12,7 +11,7 @@
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [clojure.set :as set])
@@ -27,6 +26,26 @@
 (def ^:dynamic *depth* nil)
 (def ^:dynamic *shared* nil)
 (def ^:dynamic *blindly-render* false)
+
+(defn isoget-in
+  "Like get-in, but for js objects, and in CLJC. In clj, it is just get-in. In cljs it is
+  gobj/getValueByKeys."
+  ([obj kvs]
+   (isoget-in obj kvs nil))
+  ([obj kvs default]
+   #?(:clj (get-in obj kvs default)
+      :cljs
+           (let [ks (mapv (fn [k] (some-> k name)) kvs)]
+             (or (apply gobj/getValueByKeys obj ks) default)))))
+
+(defn isoget
+  "Like get, but for js objects, and in CLJC. In clj, it is just `get`. In cljs it is
+  `gobj/get`."
+  ([obj k] (isoget obj k nil))
+  ([obj k default]
+   #?(:clj  (get obj k default)
+      :cljs (or (gobj/get obj (some-> k (name))) default))))
+
 
 (defn register-component!
   "Add a component to Fulcro's component registry.  This is used by defsc to ensure that all Fulcro classes
@@ -73,12 +92,12 @@
 (defn component-name
   "Returns a string version of the given react component's name. Works on component instances and classes."
   [class]
-  (util/isoget class :displayName))
+  (isoget class :displayName))
 
 (defn class->registry-key
   "Returns the registry key for the given component class."
   [class]
-  (util/isoget class :fulcro$registryKey))
+  (isoget class :fulcro$registryKey))
 
 (defn registry-key->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
@@ -122,14 +141,14 @@
 (defn get-extra-props
   "Get any data (as a map) that extensions have associated with the given Fulcro component."
   [this]
-  (util/isoget-in this [:props :fulcro$extra_props] {}))
+  (isoget-in this [:props :fulcro$extra_props] {}))
 
 (defn props
   "Return a components props."
   [component]
-  (let [props-from-parent    (util/isoget-in component [:props :fulcro$value])
+  (let [props-from-parent    (isoget-in component [:props :fulcro$value])
         computed-from-parent (get-computed props-from-parent)
-        props-from-updates   (computed (util/isoget-in component [:state :fulcro$value]) computed-from-parent)]
+        props-from-updates   (computed (isoget-in component [:state :fulcro$value]) computed-from-parent)]
     (newer-props props-from-parent props-from-updates)))
 
 (defn children
@@ -148,7 +167,7 @@
 (defn component-options
   ([this & ks]
    (let [c       (react-type this)
-         options (or (util/isoget this :fulcro$options) (util/isoget c :fulcro$options))]
+         options (or (isoget this :fulcro$options) (isoget c :fulcro$options))]
      (if (seq options)
        (get-in options (vec ks))
        options))))
@@ -162,12 +181,12 @@
 (defn query [this] (when (has-feature? this :query) ((component-options this :query) this)))
 (defn initial-state [clz params] (when (has-feature? clz :initial-state) ((component-options clz :initial-state) params)))
 (defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) data)))
-(defn depth [this] (util/isoget-in this [:props :fulcro$depth]))
+(defn depth [this] (isoget-in this [:props :fulcro$depth]))
 
 (defn get-raw-react-prop
   "GET a RAW react prop"
   [c k]
-  (util/isoget-in c [:props k]))
+  (isoget-in c [:props k]))
 
 (defn fulcro-app? [x] (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom)))
 
@@ -196,7 +215,7 @@
    (shared component []))
   ([component k-or-ks]
    {:pre [(component-instance? component)]}
-   (let [shared (util/isoget-in component [:props :fulcro$shared])
+   (let [shared (isoget-in component [:props :fulcro$shared])
          ks     (cond-> k-or-ks
                   (not (sequential? k-or-ks)) vector)]
      (cond-> shared
@@ -1225,3 +1244,11 @@
 
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
+
+(defn force-children
+  "Utility function that will force a lazy sequence of children (recursively) into realized
+  vectors (React cannot deal with lazy seqs)"
+  [x]
+  (cond->> x
+    (seq? x) (into [] (map force-children))))
+

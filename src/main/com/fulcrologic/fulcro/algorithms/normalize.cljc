@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.algorithms.normalize
   "Functions for dealing with normalizing Fulcro databases. In particular `tree->db`."
   (:require
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :refer [has-ident? ident get-ident get-query]]))

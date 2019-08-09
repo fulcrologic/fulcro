@@ -11,7 +11,7 @@
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [com.fulcrologic.fulcro.components :refer [component-instance?]]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [clojure.spec.alpha :as s]
     [clojure.core.reducers :as r]
     [taoensso.timbre :as log]

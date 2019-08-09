@@ -3,8 +3,8 @@
   (:require
     [clojure.spec.alpha :as s]
     [clojure.set :as set]
-    [com.fulcrologic.fulcro.algorithms.misc :as misc]
     [ghostwheel.core :as gw :refer [>defn =>]]
+    [taoensso.timbre :as log]
     [edn-query-language.core :as eql]))
 
 (gw/>def ::target vector?)
@@ -58,7 +58,7 @@
   [any? => boolean?]
   (boolean (seq (set/intersection (-> target meta keys set) #{::replace-target ::append-target ::prepend-target ::multiple-targets}))))
 
-(>defn integrate-ident
+(>defn integrate-ident*
   "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
   implementations as a general helper function.
 
@@ -82,26 +82,22 @@
                 (case command
                   :prepend (if (already-has-ident-at-path? data-path)
                              state
-                             (do
-                               (assert (vector? (get-in state data-path)) (str "Path " data-path " for prepend must target an app-state vector."))
-                               (update-in state data-path #(into [ident] %))))
+                             (update-in state data-path #(into [ident] %)))
                   :append (if (already-has-ident-at-path? data-path)
                             state
-                            (do
-                              (assert (vector? (get-in state data-path)) (str "Path " data-path " for append must target an app-state vector."))
-                              (update-in state data-path conj ident)))
+                            (update-in state data-path (fnil conj []) ident))
                   :replace (let [path-to-vector (butlast data-path)
                                  to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
                                  index          (last data-path)
                                  vector         (get-in state path-to-vector)]
-                             (assert (vector? data-path) (str "Replacement path must be a vector. You passed: " data-path))
+                             (when-not (vector? data-path) (log/error "Replacement path must be a vector. You passed: " data-path))
                              (when to-many?
-                               (do
-                                 (assert (vector? vector) "Path for replacement must be a vector")
-                                 (assert (number? index) "Path for replacement must end in a vector index")
-                                 (assert (contains? vector index) (str "Target vector for replacement does not have an item at index " index))))
+                               (cond
+                                 (not (vector? vector)) (log/error "Path for replacement must be a vector")
+                                 (not (number? index)) (log/error "Path for replacement must end in a vector index")
+                                 (not (contains? vector index)) (log/error "Target vector for replacement does not have an item at index " index)))
                              (assoc-in state data-path ident))
-                  (throw (ex-info "Unknown post-op to merge-state!: " {:command command :arg data-path})))))
+                  state)))
       state actions)))
 
 (>defn process-target
@@ -146,7 +142,7 @@
                                                        (assoc-in state target item-to-place)))
        (special-target? target) (cond-> state-map
                                   remove-source? (dissoc source-path)
-                                  (prepend-target? target) (integrate-ident item-to-place :prepend target)
-                                  (append-target? target) (integrate-ident item-to-place :append target)
-                                  (replacement-target? target) (integrate-ident item-to-place :replace target))
+                                  (prepend-target? target) (integrate-ident* item-to-place :prepend target)
+                                  (append-target? target) (integrate-ident* item-to-place :append target)
+                                  (replacement-target? target) (integrate-ident* item-to-place :replace target))
        :else state-map))))

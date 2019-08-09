@@ -4,9 +4,7 @@
     [clojure.walk :refer [walk prewalk]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as m]
     [clojure.spec.alpha :as s]
@@ -49,6 +47,25 @@
   `[df/marker-table '_]` in any component that needs to use them (and refresh) during loads."
   :ui.fulcro.client.data-fetch.load-markers/by-id)
 
+(defn elide-ast-nodes
+  "Remove items from a query (AST) that have a key that returns true for the elision-predicate"
+  [{:keys [key union-key children] :as ast} elision-predicate]
+  (let [union-elision? (elision-predicate union-key)]
+    (when-not (or union-elision? (elision-predicate key))
+      (when (and union-elision? (<= (count children) 2))
+        (log/warn "Unions are not designed to be used with fewer than two children. Check your calls to Fulcro
+        load functions where the :without set contains " (pr-str union-key)))
+      (let [new-ast (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c))))]
+        (if (seq (:children new-ast))
+          new-ast
+          (dissoc new-ast :children))))))
+
+(defn elide-query-nodes
+  "Remove items from a query when the query element where the (node-predicate key) returns true. Commonly used with
+   a set as a predicate to elide specific well-known UI-only paths."
+  [query node-predicate]
+  (-> query eql/query->ast (elide-ast-nodes node-predicate) eql/ast->query))
+
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
   [app server-property-or-ident class-or-factory {:keys [target params marker post-mutation post-mutation-params without
@@ -60,10 +77,10 @@
          (or (nil? post-mutation-params) (map? post-mutation-params))
          (or (nil? params) (map? params))
          (or (eql/ident? server-property-or-ident) (keyword? server-property-or-ident))]}
-  (let [state-map         (app/current-state app)
+  (let [state-map         (-> app :com.fulcrologic.fulcro.application/state-atom deref)
         transformed-query (if class-or-factory
                             (cond-> (comp/get-query class-or-factory state-map)
-                              (set? without) (util/elide-query-nodes without)
+                              (set? without) (elide-query-nodes without)
                               focus (eql/focus-subquery focus)
                               update-query update-query)
                             nil)
@@ -96,7 +113,7 @@
   NOTE: You must query for the marker table in any component that wants to show activity."
   [app marker status]
   (when marker
-    (let [{::app/keys [state-atom]} app
+    (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
           render! (ah/app-algorithm app :schedule-render!)]
       (log/debug "Setting load marker")
       (swap! state-atom assoc-in [marker-table marker] {:status status})
@@ -107,7 +124,7 @@
   "Removes the load marker with the given `marker` id from the df/marker-table."
   [app marker]
   (when marker
-    (let [{::app/keys [state-atom]} app]
+    (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app]
       (log/debug "Removing load marker")
       (swap! state-atom update marker-table dissoc marker))))
 
@@ -132,7 +149,7 @@
         (log/debug "Skipping default merge and calling user-supplied ok-action.")
         (ok-action env))
       (let [{:keys [body]} result
-            {:keys [::app/state-atom]} app]
+            {:com.fulcrologic.fulcro.application/keys [state-atom]} app]
         (log/debug "Doing merge and targeting steps: " body query)
         (swap! state-atom (fn [s] (cond-> (merge/merge* s query body {:remove-missing? true})
                                     target (targeting/process-target source-key target))))
@@ -245,7 +262,7 @@
   ([app-or-comp server-property-or-ident class-or-factory] (load! app-or-comp server-property-or-ident class-or-factory {}))
   ([app-or-comp server-property-or-ident class-or-factory config]
    (let [app           (comp/any->app app-or-comp)
-         {:keys [load-marker-default query-transform-default load-mutation]} (-> app ::app/config)
+         {:keys [load-marker-default query-transform-default load-mutation]} (-> app :com.fulcrologic.fulcro.application/config)
          {:keys [parallel] :as config} (merge
                                          (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
                                            query-transform-default (assoc :update-query query-transform-default))

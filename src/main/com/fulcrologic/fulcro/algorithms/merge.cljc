@@ -6,7 +6,7 @@
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
@@ -18,43 +18,6 @@
   (let [new-list (fn [old-list]
                    (vec (filter #(not= ident %) old-list)))]
     (update-in state-map path-to-idents new-list)))
-
-(defn integrate-ident*
-  "Integrate an ident into any number of places in the app state. This function is safe to use within mutation
-  implementations as a general helper function.
-
-  The named parameters can be specified any number of times. They are:
-
-  - append:  A vector (path) to a list in your app state where this new object's ident should be appended. Will not append
-  the ident if that ident is already in the list.
-  - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not append
-  the ident if that ident is already in the list.
-  - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector."
-  [state ident & named-parameters]
-  (let [actions (partition 2 named-parameters)]
-    (reduce (fn [state [command data-path]]
-              (let [already-has-ident-at-path? (fn [data-path] (some #(= % ident) (get-in state data-path)))]
-                (case command
-                  :prepend (if (already-has-ident-at-path? data-path)
-                             state
-                             (update-in state data-path #(into [ident] %)))
-                  :append (if (already-has-ident-at-path? data-path)
-                            state
-                            (update-in state data-path (fnil conj []) ident))
-                  :replace (let [path-to-vector (butlast data-path)
-                                 to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
-                                 index          (last data-path)
-                                 vector         (get-in state path-to-vector)]
-                             (when-not (vector? data-path) (log/error "Replacement path must be a vector. You passed: " data-path))
-                             (when to-many?
-                               (cond
-                                 (not (vector? vector)) (log/error "Path for replacement must be a vector")
-                                 (not (number? index)) (log/error "Path for replacement must end in a vector index")
-                                 (not (contains? vector index)) (log/error "Target vector for replacement does not have an item at index " index)))
-                             (assoc-in state data-path ident))
-                  state)))
-      state actions)))
 
 (defn is-ui-query-fragment?
   "Check the given keyword to see if it is in the :ui namespace."
@@ -429,11 +392,11 @@
    * `state-map` - The normalized database
    * `component` - A component class
    * `component-data` - A tree of data that matches the shape of the component's query.
-   * `named-parameters` - Parameters from `integrate-ident` that will let you link the merged component into the graph.
+   * `named-parameters` - Parameters from `targeting/integrate-ident*` that will let you link the merged component into the graph.
    Named parameters may also include `:remove-missing?`, which will remove things that are queried for but do
    not appear in the data from the state.
 
-   See also integrate-ident, integrate-ident!, and merge-component!"
+   See also targeting/integrate-ident*, and merge/merge-component!"
   [state-map component component-data & named-parameters]
   (if (comp/has-ident? component)
     (let [options           (apply hash-map named-parameters)
@@ -444,9 +407,14 @@
                               component-data)
           updated-state     (merge* state-map [{::merge query}] {::merge marked-data} options)
           real-ident        (get updated-state ::merge)
+          integrate-params  (mapcat (fn [[k v]]
+                                      (if (#{:append :prepend :replace} k)
+                                        [k v]
+                                        nil))
+                              (partition 2 named-parameters))
           integrate-targets (fn [s]
                               (if (seq named-parameters)
-                                (apply integrate-ident* s real-ident named-parameters)
+                                (apply targeting/integrate-ident* s real-ident integrate-params)
                                 s))]
       (-> updated-state
         (integrate-targets)
@@ -477,7 +445,7 @@
   * `app`: Your application.
   * `component`: The class of the component that corresponds to the data. Must have an ident.
   * `object-data`: A map (tree) of data to merge. Will be normalized for you.
-  * `named-parameter`: Post-processing ident integration steps. see `integrate-ident!`. You may also
+  * `named-parameter`: Post-processing ident integration steps. see `targeting/integrate-ident*`. You may also
   include `:remove-missing? true/false` to indicate that data that is missing for the component's query
   should be removed from app state.
 

@@ -2,7 +2,7 @@
   "Functions that implement the query and component indexing."
   (:require
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [ghostwheel.core :as gw :refer [>defn]]
     [clojure.set :as set]

@@ -5,7 +5,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.components :as comp]
     [cljsjs.react]
     [cljsjs.react.dom]
     [goog.object :as gobj]
@@ -178,7 +178,7 @@
   arr)
 
 (defn- arr-append [arr tail]
-  (reduce arr-append* arr (util/force-children tail)))
+  (reduce arr-append* arr (comp/force-children tail)))
 
 (defn macro-create-wrapped-form-element
   "Used internally by element generation."

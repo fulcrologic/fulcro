@@ -7,7 +7,7 @@
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.application :as app]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
@@ -46,64 +46,6 @@
       => {:db/id      1
           :main-child {:db/id 1}
           :children   [{:db/id 3} {:db/id 1}]})))
-
-(specification "integrate-ident"
-  (let [state {:a    {:path [[:table 2]]}
-               :b    {:path [[:table 2]]}
-               :d    [:table 6]
-               :many {:path [[:table 99] [:table 88] [:table 77]]}}]
-    (assertions
-      "Can append to an existing vector"
-      (-> state
-        (merge/integrate-ident* [:table 3] :append [:a :path])
-        (get-in [:a :path]))
-      => [[:table 2] [:table 3]]
-
-      "Will append (create) on a non-existent vector"
-      (-> state
-        (merge/integrate-ident* [:table 3] :append [:a :missing])
-        (get-in [:a :missing]))
-      => [[:table 3]]
-
-      "(is a no-op if the ident is already there)"
-      (-> state
-        (merge/integrate-ident* [:table 3] :append [:a :path])
-        (get-in [:a :path]))
-      => [[:table 2] [:table 3]]
-
-      "Can prepend to an existing vector"
-      (-> state
-        (merge/integrate-ident* [:table 3] :prepend [:b :path])
-        (get-in [:b :path]))
-      => [[:table 3] [:table 2]]
-
-      "Will prepend (create) on a non-existent vector"
-      (-> state
-        (merge/integrate-ident* [:table 3] :prepend [:a :missing])
-        (get-in [:a :missing]))
-      => [[:table 3]]
-
-      "(is a no-op if already there)"
-      (-> state
-        (merge/integrate-ident* [:table 3] :prepend [:b :path])
-        (get-in [:b :path]))
-      => [[:table 3] [:table 2]]
-
-      "Can create/replace a to-one ident"
-      (-> state
-        (merge/integrate-ident* [:table 3] :replace [:d])
-        (get-in [:d]))
-      => [:table 3]
-      (-> state
-        (merge/integrate-ident* [:table 3] :replace [:c :path])
-        (get-in [:c :path]))
-      => [:table 3]
-
-      "Can replace an existing to-many element in a vector"
-      (-> state
-        (merge/integrate-ident* [:table 3] :replace [:many :path 1])
-        (get-in [:many :path]))
-      => [[:table 99] [:table 3] [:table 77]])))
 
 (defsc MergeX [_ _]
   {:initial-state (fn [params] {:type :x :n :x})

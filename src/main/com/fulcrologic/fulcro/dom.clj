@@ -3,8 +3,8 @@
   (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
-    
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [clojure.string :as str])
   (:import
@@ -60,7 +60,7 @@
         children            (mapv (fn [[_ c]]
                                     (if (or (nil? c) (string? c))
                                       c
-                                      `(util/force-children ~c))) children)
+                                      `(comp/force-children ~c))) children)
         attrs-type          (or (first attrs) :nil)         ; attrs omitted == nil
         attrs-value         (or (second attrs) {})
         create-element      (case str-tag-name

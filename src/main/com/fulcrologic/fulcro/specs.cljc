@@ -2,7 +2,7 @@
   (:require
     [ghostwheel.core :as gw]
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.misc :as futil]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [edn-query-language.core :as eql]))
 
 ;; ================================================================================

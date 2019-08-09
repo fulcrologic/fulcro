@@ -2,7 +2,6 @@
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
     #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
        :cljs [com.fulcrologic.fulcro.dom :as dom])
     #?(:cljs [goog.object :as gobj])
@@ -84,4 +83,4 @@
         updated-props (wrapper A #js {})]
     (assertions
       "Places extra props in raw props at :fulcro$extra_props"
-      (util/isoget updated-props :fulcro$extra_props) => {:X 1})))
+      (comp/isoget updated-props :fulcro$extra_props) => {:X 1})))

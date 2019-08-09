@@ -272,23 +272,3 @@
 (def zeta "\u03B6")
 (def zwj "\u200D")
 (def zwnj "\u200C")
-
-(comment
-  ; used for extraction from Wikipedia table on List of XML and HTML character entity table. Save the table content
-  ; as outer HTML in ent.html
-  (require '[hickory.core :as hc])
-  (require '[hickory.select :as hs])
-
-  (def html (slurp "ent.html"))
-  (def content (hc/as-hickory (hc/parse html)))
-  (def rows (hs/select (hs/tag :tr) content))
-
-  (def data (map (fn [row]
-                   (let [cols (hs/select (hs/tag :td) row)]
-                     (take 3 (map (comp first :content) cols)))) rows))
-
-  (defn to-unicode [s]
-    (clojure.string/replace s #"^U\+([0-9a-fA-F]+)\s.*$" "u$1"))
-
-  (doseq [[ent meaning code] data]
-    (println (str "(def " ent " \"\\" (to-unicode code) "\")"))))

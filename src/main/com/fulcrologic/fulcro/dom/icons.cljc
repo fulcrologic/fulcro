@@ -5,8 +5,6 @@
   "
   (:require
     [clojure.string :as str]
-    [clojure.spec.alpha :as s]
-    [ghostwheel.core :as gw :refer [>defn =>]]
     [taoensso.timbre :as log]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
@@ -980,92 +978,9 @@ z"
    :star_half                                   "M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4V6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"
 
    ;; Custom
-   :editing_circle                              "M10 0c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm-6.721 13.466h13.442v2.188h-13.442v-2.188zm12.218-8.43c.218-.213.218-.558 0-.771l-1.311-1.28c-.218-.213-.571-.213-.79 0l-1.098 1.072 2.1 2.051 1.098-1.072h.001zm-1.517 1.482l-2.1-2.051-5.601 5.47v2.051h2.1l5.601-5.47z"
-   })
+   :editing_circle                              "M10 0c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm-6.721 13.466h13.442v2.188h-13.442v-2.188zm12.218-8.43c.218-.213.218-.558 0-.771l-1.311-1.28c-.218-.213-.571-.213-.79 0l-1.098 1.072 2.1 2.051 1.098-1.072h.001zm-1.517 1.482l-2.1-2.051-5.601 5.47v2.051h2.1l5.601-5.47z"})
 
-(def icon-names (sort (keys material-icon-paths)))
-
-(defn title-case
-  "Capitalize every word in a string"
-  [s]
-  (->> (str/split (str s) #"\b")
-    (map str/capitalize)
-    str/join))
-
-(def state-mods {:is  #{:active :open :optional :collapsed :passive :positive :negative :neutral :live :alterable :informative :featured :disabled :indeterminate :invalid :error}
-                 :has #{:descendents :focus :actions}})
-
-(defn concat-class-string
-  "`fragments` is a collection of fragments to concat."
-  ([fragments]
-   (concat-class-string "" "" fragments))
-  ([type fragments]
-   (concat-class-string "" type fragments))
-  ([base-str type fragments]
-   (reduce
-     (fn [acc n]
-       (str acc " " (str base-str type (name n))))
-     base-str
-     fragments)))
-
-(defn concat-state-string
-  [states]
-  (reduce (fn [acc n] (let [middle (when (not-empty acc) " ")]
-                        (cond
-                          ((:is state-mods) n) (str acc middle (str "is-" (name n)))
-                          ((:has state-mods) n) (str acc middle (str "has-" (name n)))
-                          :else acc)))
-    ""
-    states))
-
-#?(:clj (def clj->js identity))
-
-(defn icon
-  "
-  DEPRECATED. Use `ui-icon` instead.
-
-  Gets an SVG representation of the given icon. Scan the source of this namespace for the defined icons.
-
-  - `props`:
-     - `width` and `height`: Size. defaults to 24.
-     - `modifiers`: A sequence of modifiers as keywords, like :X, which adds `c-icon--X` to the resulting classes.
-     - `states`: A sequence of states like :open. Adds classes like `is-open`
-     - `title`: A string to use as the title element
-     - All other keys pass through to the SVG element itself. If you specify className then it overrides
-       `modifiers` and `states`.
-  - `icon-name`: One of the icons defined in this file, as a keyword.
-
-   "
-  [{:keys [width height modifiers states title] :as props} icon-name]
-  (assert (keyword? icon-name) "Icon name must be a keyword")
-  (let [path-check (icon-name material-icon-paths)
-        icon-name  (str/replace (name icon-name) #"_" "-")
-        w          (str (or width "24"))
-        h          (str (or height "24"))]
-    (when-not (str/blank? path-check)
-      (dom/svg (clj->js
-                 (merge {:className       (str/join " " [(concat-class-string "c-icon" "--" modifiers)
-                                                         (str "c-icon--" icon-name)
-                                                         (concat-state-string states)])
-                         :version         "1.1"
-                         :xmlns           "http://www.w3.org/2000/svg"
-                         :width           w
-                         :height          h
-                         :aria-labelledby "title"
-                         :role            "img"
-                         :viewBox         (str "0 0 " w " " h)}
-                   props))
-        (dom/title
-          (or title
-            (str (title-case (str/replace (name icon-name) #"_" " ")))))
-        (dom/path {:d path-check})))))
-
-(gw/>def ::icon keyword?)
-(gw/>def ::width int?)
-(gw/>def ::height int?)
-(gw/>def ::title string?)
-
-(>defn ui-icon
+(defn ui-icon
   "
   Gets an SVG representation of the given icon. Scan the source of this namespace for the defined icons.
 
@@ -1080,7 +995,6 @@ z"
   Returns an empty div if the icon is invalid.
   "
   [{:keys [icon width height title] :as props}]
-  [(s/keys :req-un [::icon] :opt-un [::width ::height ::title]) => any?]
   (let [alt-name (keyword (str/replace (name icon) #"-" "_"))
         w        (str (or width "24"))
         h        (str (or height "24"))

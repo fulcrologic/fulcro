@@ -3,7 +3,7 @@
     [com.fulcrologic.fulcro.components :as defsc]
     [fulcro-spec.core :refer [assertions specification component]]
     [clojure.test :refer [deftest is]]
-    [com.fulcrologic.fulcro.algorithms.misc :as util])
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util])
   (:import (clojure.lang ExceptionInfo)))
 
 (declare =>)
