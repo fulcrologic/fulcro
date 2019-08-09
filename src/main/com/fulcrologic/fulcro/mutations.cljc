@@ -3,6 +3,7 @@
   (:require
     #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.dom.events :as evt]
     [ghostwheel.core :as gw :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
@@ -200,8 +201,6 @@
    :clj
    (defn- ensure-integer [v] (Integer/parseInt v)))
 
-(defn target-value [evt] (.. evt -target -value))
-
 (defn set-integer!
   "Set the given integer on the given `field` of a `component`. Allows same parameters as `set-string!`.
 
@@ -209,7 +208,7 @@
    and write clear top-level transactions for anything else. Calls to this are compressed in history."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
-  (let [value (ensure-integer (if event (target-value event) value))]
+  (let [value (ensure-integer (if event (evt/target-value event) value))]
     (set-value! component field value)))
 
 #?(:cljs
@@ -226,7 +225,7 @@
    and write clear top-level transactions for anything else. Calls to this are compressed in history."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
-  (let [value (ensure-double (if event (target-value event) value))]
+  (let [value (ensure-double (if event (evt/target-value event) value))]
     (set-value! component field value)))
 
 (defn set-string!
@@ -245,7 +244,7 @@
   Calls to this are compressed in history."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
-  (let [value (if event (target-value event) value)]
+  (let [value (if event (evt/target-value event) value)]
     (set-value! component field value)))
 
 (defn returning

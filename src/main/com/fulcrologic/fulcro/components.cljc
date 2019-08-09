@@ -188,17 +188,16 @@
   [c k]
   (isoget-in c [:props k]))
 
-(defn fulcro-app? [x] (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom)))
-
 (defn any->app
   "Attempt to coerce `x` to a reconciler.  Legal inputs are a fulcro application, reconciler, a mounted component, a
   map with a :reconciler key, or an atom holding any of the above."
   [x]
-  (cond
-    (component-instance? x) (get-raw-react-prop x :fulcro$app)
-    (fulcro-app? x) x
-    #?(:clj  (instance? IDeref x)
-       :cljs (satisfies? IDeref x)) (any->app (deref x))))
+  (letfn [(fulcro-app? [x] (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom)))]
+    (cond
+      (component-instance? x) (get-raw-react-prop x :fulcro$app)
+      (fulcro-app? x) x
+      #?(:clj  (instance? IDeref x)
+         :cljs (satisfies? IDeref x)) (any->app (deref x)))))
 
 (defn raw->newest-props
   "Using raw react props/state returns the newest Fulcro props."
@@ -580,10 +579,8 @@
          (render-middleware this real-render)
          (real-render)))))
 
-
-
-(defn create-element
-  "Create a react element.  In CLJ this returns the same thing as a mounted instance, whereas in CLJS it is an
+(defn- create-element
+  "Create a react element for a Fulcro class.  In CLJ this returns the same thing as a mounted instance, whereas in CLJS it is an
   element (which has yet to instantiate an instance)."
   [class props children]
   #?(:clj
