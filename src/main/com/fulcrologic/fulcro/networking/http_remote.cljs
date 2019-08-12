@@ -142,7 +142,7 @@
   ([] (wrap-fulcro-response identity))
   ([handler] (wrap-fulcro-response handler nil))
   ([handler addl-transit-handlers]
-   (let [base-handlers {"f" (fn [v] (js/parseFloat v)) "u" cljs.core/uuid}
+   (let [base-handlers {}
          handlers      (if (map? addl-transit-handlers) (merge base-handlers addl-transit-handlers) base-handlers)
          reader        (t/reader {:handlers handlers})]
      (fn fulcro-response-handler [{:keys [body] :as response}]
