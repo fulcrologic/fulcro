@@ -73,7 +73,6 @@ All of the namespaces changed (this may be outdated, as it is still in flux, but
 │           │   ├── form_state.cljc           ; from 2.x
 │           │   ├── indexing.cljc             ; internal
 │           │   ├── merge.cljc                ; merge-component!, etc.
-│           │   ├── misc.cljc                 ; 2.x util, roughly
 │           │   ├── normalize.cljc            ; tree->db
 │           │   ├── scheduling.cljc           ; internal
 │           │   ├── tempid.cljc               ; from 2.x
@@ -148,7 +147,7 @@ Calling this function on a mounted app will simply refresh the mounted app's UI.
 See also the porting guide in the main repo root at PORTING-FROM-2.3.adoc.
 
 I call these significant more for their long-term implications than their impact on existing code.  Most existing
-code will be trivial to port to Fulcro 3, and should operate without much further change; however, some of the
+code will be relatively easy to port to Fulcro 3, and should operate without much further change; however, some of the
 "hard edges" of Fulcro 2 are solved by these changes, and as such they are "significant" in that sense.
 
 ==== Defsc
@@ -226,6 +225,11 @@ This maintains backward compatibility while also giving you the power to impleme
 you can trigger new transactions from any part of that code means that chaining behaviors is now
 trivial and no longer needs the concept of `ptransact!` (though there is an `:optimistic? false` option
 of the new `transact!` that emulates that behavior.
+
+NOTE: Incubator's pessimistic mutations place the return value of mutations at a special key in app state during processing,
+which can facilitate component-local UI rendering of things like errors. Fulcro 3
+allows you to define that behavior, but instead makes the complete network result available in the mutation `env`. Thus, you
+could make things look more like incubator just be replacing the default mutation action.
 
 Interestingly, this also makes it super easy to generalize the implementation of loads even more than before.
 Loads are now implemented internally something like this (simplified for ease of understanding):
@@ -314,7 +318,7 @@ The general road map (with status) is:
 ** Record new YouTube videos (0%)
 ** Write new README (60%)
 ** Doll up docstrings (80%)
-** Ensure it all works with cljdocs (50%)
+** Ensure it all works with cljdocs (75%)
 
 * Tests
 ** Port over tests from F2 (70%)
@@ -328,7 +332,7 @@ The general road map (with status) is:
 ** Make transactions tab show more of tx (100%)
 
 * Specs
-** Add more specs to functions (50%)
+** Add more specs to functions (80%)
 ** Fix up spec definitions to prevent cljs code bloat (100%)
 ** Fix up ghostwheel usage so it doesn't bloat adv compile builds (100%)
 
