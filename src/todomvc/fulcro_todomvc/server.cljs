@@ -2,7 +2,6 @@
   (:require
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [clojure.core.async :as async]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.wsscode.pathom.core :as p]
     [com.wsscode.pathom.connect :as pc]
     [taoensso.timbre :as log]))
@@ -26,7 +25,7 @@
    ::pc/params [:list-id :id :text]
    ::pc/output [:item/id]}
   (log/info "New item on server")
-  (let [new-id (util/uuid)]
+  (let [new-id (random-uuid)]
     (swap! item-db assoc new-id {:item/id new-id :item/label text :item/complete false})
     {:tempids {id new-id}
      :item/id new-id}))

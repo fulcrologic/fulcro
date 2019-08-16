@@ -14,16 +14,16 @@
 #?(:cljs
    (deftype TempIdHandler []
      Object
-     (tag [_ _] com.fulcrologic.fulcro.algorithms.tempid/tag)
+     (tag [_ _] tempid/tag)
      (rep [_ r] (. r -id))
      (stringRep [_ _] nil)))
 
 #?(:clj
    (deftype TempIdHandler []
      WriteHandler
-     (tag [_ _] com.fulcrologic.fulcro.algorithms.tempid/tag)
+     (tag [_ _] tempid/tag)
      (rep [_ r] (.-id ^TempId r))
-     (stringRep [_ r] (str com.fulcrologic.fulcro.algorithms.tempid/tag "#" r))
+     (stringRep [_ r] (str tempid/tag "#" r))
      (getVerboseHandler [_] nil)))
 
 #?(:cljs
@@ -60,7 +60,7 @@
      ([opts]
       (t/reader :json
         (assoc-in opts
-          [:handlers com.fulcrologic.fulcro.algorithms.tempid/tag]
+          [:handlers tempid/tag]
           (fn [id] (tempid/tempid id)))))))
 
 #?(:clj
@@ -73,7 +73,7 @@
      ([in opts]
       (t/reader in :json
         (assoc-in opts
-          [:handlers com.fulcrologic.fulcro.algorithms.tempid/tag]
+          [:handlers tempid/tag]
           (reify
             ReadHandler
             (fromRep [_ id] (TempId. id))))))))
