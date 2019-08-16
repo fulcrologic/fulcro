@@ -111,7 +111,7 @@ Server:: Easy server is gone. Supported server middleware helpers and config sup
 are in the `com.fulcrologic.fulcro.server` package. Fulcro 3 no longer supplies
 server-side macros for mutations and reads, as `pathom` is a much better choice for
 EQL service. Porting to Pathom is relatively minor, and if you want a "no source change" solution you can
-simple write macros like this:
+write macros like this (and change your requires to use them instead):
 
 ```
 (def resolvers (atom []))
@@ -147,7 +147,7 @@ simple write macros like this:
 ```
 
 UI State Machines:: The names of a few parameters on API for
-doing loads and mutations were named. The load `::uism/post-event` was
+doing loads and mutations were updated. The load `::uism/post-event` was
 renamed to `::uism/ok-event`, fallbacks to error, etc.  The targeting
 namespace on the target for mutations was change to data-targeting, and
 the namespace for returning was change to normal mutations ns. The return
