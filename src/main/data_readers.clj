@@ -1,1 +1,0 @@
-{js clojure.core/identity}
