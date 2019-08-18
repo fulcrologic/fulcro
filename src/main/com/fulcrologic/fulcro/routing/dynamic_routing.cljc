@@ -599,10 +599,11 @@
     (get-routers children)))
 
 (defn initialize!
-  "Initialize the routing system.  This ensures that all routers have state machines in app state."
+  "Initialize the routing system.  This ensures that all routers have state machines in app state. This
+  must be called after the application has been mounted (e.g. right after calling `mount!`)."
   [app]
   (let [state-map (app/current-state app)
-        root      (app/app-root app)
+        root      (app/root-class app)
         routers   (all-reachable-routers state-map root)
         tx        (mapv (fn [r]
                           (let [router-ident (comp/get-ident r {})

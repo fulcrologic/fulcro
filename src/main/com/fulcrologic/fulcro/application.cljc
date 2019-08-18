@@ -393,6 +393,11 @@
   [app]
   (-> app ::runtime-atom deref ::app-root))
 
+(defn root-class
+  "Returns the current app root class, if mounted."
+  [app]
+  (-> app ::runtime-atom deref ::root-class))
+
 (defn force-root-render!
   "Force a re-render of the root. Runs a root query, disables shouldComponentUpdate, and renders the root component.
    This effectively forces React to do a full VDOM diff. Useful for things like UI refresh on hot code reload and
