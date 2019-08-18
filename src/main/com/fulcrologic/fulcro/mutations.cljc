@@ -4,7 +4,7 @@
     #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom.events :as evt]
-    [ghostwheel.core :as gw :refer [>defn =>]]
+    [ghostwheel.core :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [taoensso.encore :as enc]
@@ -17,8 +17,8 @@
   #?(:clj
      (:import (clojure.lang IFn))))
 
-(gw/>def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
-(gw/>def ::returning comp/component-class?)
+(s/def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
+(s/def ::returning comp/component-class?)
 
 #?(:clj
    (deftype Mutation [sym]
@@ -67,8 +67,8 @@
   [::env => ::env]
   (let [{:keys [app result]} env]
     (enc/when-let [global-error-action (ah/app-algorithm app :global-error-action)
-                   remote-error?       (ah/app-algorithm app :remote-error?)
-                   _                   (remote-error? result)]
+                   remote-error? (ah/app-algorithm app :remote-error?)
+                   _ (remote-error? result)]
       (global-error-action env))
     env))
 

@@ -1,3 +1,12 @@
+3.0.0-beta-1
+------------
+- Downgraded ghostwheel. This makes cljs builds bigger, but was necessary because 
+newer gw is still SNAPSHOT
+- Cleaned up a number of functions that needed to not move forward.
+- Removed legacy transit overrides in middleware. This means CLJS side will receive
+tagged bigdecimals now instead of floats. This can still be done for bw compat 
+with apps that want it, but should not be the default for the library.
+
 3.0.0-alpha-22
 --------------
 - Working on final naming for APIs.

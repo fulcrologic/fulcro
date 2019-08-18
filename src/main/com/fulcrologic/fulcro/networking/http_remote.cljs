@@ -7,40 +7,40 @@
     [com.fulcrologic.fulcro.algorithms.transit :as t]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [edn-query-language.core :as eql]
-    [ghostwheel.core :as gw :refer [>defn >def =>]]
+    [ghostwheel.core :as gw :refer [>defn =>]]
     [goog.events :as events]
     [taoensso.timbre :as log])
   (:import [goog.net XhrIo EventType ErrorCode]))
 
-(gw/>def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
-(gw/>def ::url string?)
-(gw/>def ::headers (s/map-of string? string?))
-(gw/>def ::body any?)
-(gw/>def ::request (s/keys :req-un [::method ::body ::url ::headers]))
-(gw/>def ::error #{:none :exception :http-error :network-error :abort
-                   :middleware-failure :access-denied :not-found :silent :custom :offline
-                   :timeout})
-(gw/>def ::error-text string?)
-(gw/>def ::status-code pos-int?)
-(gw/>def ::status-text string?)
-(gw/>def ::outgoing-request ::request)
-(gw/>def ::transaction vector?)
-(gw/>def ::progress-phase #{:sending :receiving :complete :failed})
-(gw/>def ::progress-event any?)
-(gw/>def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
-                      :opt-un [::progress-phase ::progress-event]))
-(gw/>def ::xhrio-event any?)
-(gw/>def ::xhrio any?)
+(s/def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
+(s/def ::url string?)
+(s/def ::headers (s/map-of string? string?))
+(s/def ::body any?)
+(s/def ::request (s/keys :req-un [::method ::body ::url ::headers]))
+(s/def ::error #{:none :exception :http-error :network-error :abort
+                 :middleware-failure :access-denied :not-found :silent :custom :offline
+                 :timeout})
+(s/def ::error-text string?)
+(s/def ::status-code pos-int?)
+(s/def ::status-text string?)
+(s/def ::outgoing-request ::request)
+(s/def ::transaction vector?)
+(s/def ::progress-phase #{:sending :receiving :complete :failed})
+(s/def ::progress-event any?)
+(s/def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
+                    :opt-un [::progress-phase ::progress-event]))
+(s/def ::xhrio-event any?)
+(s/def ::xhrio any?)
 
-(gw/>def ::response-middleware fn?)
-(gw/>def ::request-middleware fn?)
-(gw/>def ::active-requests (s/and
-                             #(map? (deref %))
-                             #(every? set? (vals (deref %)))))
+(s/def ::response-middleware fn?)
+(s/def ::request-middleware fn?)
+(s/def ::active-requests (s/and
+                           #(map? (deref %))
+                           #(every? set? (vals (deref %)))))
 
-(gw/>def ::transmit! fn?)
-(gw/>def ::abort! fn?)
-(gw/>def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
+(s/def ::transmit! fn?)
+(s/def ::abort! fn?)
+(s/def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
 
 (def xhrio-error-states {(.-NO_ERROR ErrorCode)        :none
                          (.-EXCEPTION ErrorCode)       :exception
@@ -329,7 +329,7 @@
                                 (events/listen xhrio (.-DOWNLOAD_PROGRESS EventType) #(progress-routine :receiving %))
                                 (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-routine :sending %)))
                               (events/listen xhrio (.-SUCCESS EventType) (with-cleanup ok-routine))
-                              (events/listen xhrio (.-ABORT EventType) (with-cleanup #(ok-handler {:status-text "Cancelled"
+                              (events/listen xhrio (.-ABORT EventType) (with-cleanup #(ok-handler {:status-text   "Cancelled"
                                                                                                    ::txn/aborted? true})))
                               (events/listen xhrio (.-ERROR EventType) (with-cleanup error-routine))
                               (xhrio-send xhrio url http-verb body headers))

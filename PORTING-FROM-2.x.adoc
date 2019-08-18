@@ -7,11 +7,218 @@ up arguments and logic. This document covers the known porting
 tasks. If you run into an issue when porting that is not documented
 here please ask on the Fulcro Slack channel in Clojurians.
 
-as the new official teminology in its function and parameter naming.
-Since we're renaming a bunch of stuff already: Fulcro 3 may adopt "lookup ref" or "ref"
+`defsc`:: The new `defsc` *looks* like the old one, and even does
+some of the same error checking (NOTE: there is a known bug in the new props destructuring checks I have not had time
+to fix...the workaround is to use lambda query/ident if you run into it). However, `defsc`'s option map now supports user-additions.
+Anything you include in that map now appears (unaltered) in `component-options`.  This allows library authors to co-locate
+information on a component without having to modify the macro.  The "magic" behaviors of query/ident/initial-state (and error
+checking) are still present for developer aid and bw compatibility.  Some of the arities may be wrong. I was considering
+making them all lambdas at one point and may have screwed something up. Please report any issues.
 
-One problem is that `ref` is another already claimed "thing", and `:lookup-ref` is
-a bit cumbersome to type.
+Namespaces::
+
+All of the namespaces changed (this may be outdated, as it is still in flux, but is approximately right):
+
+```
+├── com
+│   └── fulcrologic
+│       └── fulcro
+│           ├── algorithms
+│           │   ├── application_helpers.cljc
+│           │   ├── data_targeting.cljc       ; targeting for loads/mutations
+│           │   ├── denormalize.cljc          ; db->tree
+│           │   ├── form_state.cljc           ; from 2.x
+│           │   ├── indexing.cljc             ; internal
+│           │   ├── merge.cljc                ; merge-component!, etc.
+│           │   ├── normalize.cljc            ; tree->db
+│           │   ├── scheduling.cljc           ; internal
+│           │   ├── tempid.cljc               ; from 2.x
+│           │   ├── transit.cljc              ; from 2.x
+│           │   ├── tx_processing.cljc        ; internals of new transact!
+│           │   └── tx_processing_debug.cljc  ; debugging util for internals of new transact!
+│           ├── application.cljc              ; App constructor: fulcro-app
+│           ├── components.cljc               ; get-query, get-ident, etc.
+│           ├── data_fetch.cljc               ; from 2.x: load, load-data, etc.
+│           ├── dom
+│           │   ├── events.cljc               ; various helpers from 2.x
+│           │   ├── html_entities.cljc
+│           │   └── icons.cljc
+│           ├── dom.clj                       ; DOM from 2.x
+│           ├── dom.cljs
+│           ├── dom_common.cljc
+│           ├── dom_server.clj                ; DOM for SSR (NOT WORKING YET)
+│           ├── inspect                       ; package of nses for talking to Chrome Inspect plugin
+│           │   ├── diff.cljc
+│           │   ├── preload.cljs              ; Use THIS for using Inspect.  Do NOT include the inspect dependency.
+│           │   └── transit.cljs
+│           ├── macros
+│           │   ├── defmutation.clj           ; macro internals. Do not use.
+│           │   └── defsc.clj
+│           ├── mutations.cljc                ; client-side defmutation
+│           ├── networking
+│           │   ├── http_remote.cljs          ; normal client remote (no longer uses protocols)
+│           │   ├── mock_server_remote.cljs   ; mock server for use in cljs
+│           │   └── server_middleware.clj     ; middleware elements from 2.x for rolling your own server
+│           ├── rendering
+│           │   ├── ident_optimized_render.cljc  ; Default rendering optimization.  Not perfect yet, but fast.
+│           │   └── keyframe_render.cljc         ; More like Fulcro 2.x rendering. Relies on shouldComponentUpdate for performance.
+│           ├── routing
+│           │   ├── dynamic_routing.cljc      ; New UI Router promoted from Incubator
+│           │   └── legacy_ui_routers.cljc    ; Fulcro 2.x routers (old dynamic router untested, possibly broken)
+│           ├── specs.cljc
+│           └── ui_state_machines.cljc        ; From Incubator
+```
+
+=== Creating An Application
+
+Fulcro applications no longer use anything from Om Next. There are no protocols, no reconciler, etc. A Fulcro application
+is implemented as a map, and that `app` is usable everywhere the reconciler was in 2.x. There is no need to store it
+in an atom because it uses atoms internally to deal with state.
+
+For hot code reload, you should use `defonce` to make your application in some central location that can be used from
+any other namespace:
+
+```
+(ns my.app
+  (:require
+    [com.fulcrologic.fulcro.networking.http-remote :as fhr]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [my.app.ui :as ui]
+    [taoensso.timbre :as log]))
+
+(defonce app (app/fulcro-app {:remotes   {:remote (fhr/fulcro-http-remote {:url "/api"})}}))
+```
+
+At some point in your logic you will want to associate the root of your UI with the application via `app/mount!`:
+
+```
+(app/mount! app ui/Root "app")
+```
+
+Calling this function on a mounted app will simply refresh the mounted app's UI.
+
+=== Significant Changes
+
+See also the porting guide in the main repo root at PORTING-FROM-2.3.adoc.
+
+I call these significant more for their long-term implications than their impact on existing code.  Most existing
+code will be relatively easy to port to Fulcro 3, and should operate without much further change; however, some of the
+"hard edges" of Fulcro 2 are solved by these changes, and as such they are "significant" in that sense.
+
+==== Defsc
+
+As mentioned earlier: `defsc` no longer uses protocols at all.  The options map is "beefed up" by the `defsc` macro,
+but in fact you can simply create a "contructor function" and call `configure-component!` on it and pass a (non-magic)
+options map to create a component.  The macro just helps you with typos and is easier to read.
+
+This also means things like CSS can now be a pure library concern. In fact, the `fulcro-garden-css` library is where CSS
+functionality lives now.
+
+NOTE: Some things that *were* macros in Fulcro 2.x no longer need to be.  The incubator dynamic routers are an example
+of this.  The old union router is still a custom macro because it actually emits more than one thing.  In most cases
+just changing the "missing macro" to plain `defsc` will make it work.
+
+==== Transaction Changes
+
+The most significant change is in the internal plumbing of `transact!`, which is now in the `component` namespace.  Transactions are now safe
+to submit from *anywhere* in the code base.
+
+The `transact!` function just puts the tx on a submission queue.  That's it.  At some point (very soon) after submission
+Fulcro will process the current submissions into an active queue.
+
+NOTE: My intention is to make the transaction plumbing "pluggable" (it is already structured to be) so that various approaches to transaction
+semantics can be implemented as standard or even library concerns.
+
+This simplifies a lot of things:
+
+- You no longer need `ptransact!`.  Just embed a `transact!` in some part of the `result-action` (see below) of your mutation.
+- Timing issues in dynamic routing and ui state machines should be easier to avoid/solve.
+- You can submit transactions without using `setTimeout` and be sure they will activate in the order submitted.
+
+There is an `options` map that can be passed to the new `transact!`. The `optimistic?` flag can be turned to false to
+get the exact behavior of `ptransact!` if your application is written to use it.  A wrapper for this called `ptransact!`
+will probably be included in Fulcro 3 (undecided).
+
+==== Mutation Generalizations
+
+Mutations have become an even more central notion in the library.  All versions of Fulcro have actually treated loads
+internally as mutations, because in fact a load is a combination of some state changes (recording the fact that something
+is loading, i.e. load markers) and fetching the actual data.
+
+Prior versions of Fulcro had Om Next structure in the middle.  Version 3 does not.  The logic in 3 is *much* more direct:
+
+- A transaction is written as it always has been
+- Each element of the transaction (mutations) can choose local and remote behaviors
+- Optimistic actions run first
+- Remote actions go on a queue and run in order
+
+All of that should sound pretty much identical to what you've been doing all along.  The big difference is what
+happens next:
+
+- Network results are delivered to a new `result-action` section of the mutation.  If the user does *not* supply a `result-action`,
+then the `defmutation` macro supplies a default that behaves a bit like Fulcro 2 with some Incubator features added in
+(there is now an `ok-action` and `error-action` section as well).
+
+As a result any full-stack operation is completely under your control, and you can even "invent" new sections of
+the mutation that will appear as `dispatch` in the `env`:
+
+```
+(defmutation do-thing [params]
+  (action [env] ...optimistic actions...)
+  (remote [env] true)
+  (ok-action [env] ...your custom action type!...)
+  (result-action [{:keys [result app dispatch] :as env}]
+    (let [{:keys [status-code body]} result
+          {:keys [ok-action]} dispatch]
+      (if (= 200 status-code)
+        (ok-action env)
+        ...))))
+```
+
+This maintains backward compatibility while also giving you the power to implement things like
+`pmutate` from incubator without having to resort to magical transaction transforms.   The fact that
+you can trigger new transactions from any part of that code means that chaining behaviors is now
+trivial and no longer needs the concept of `ptransact!` (though there is an `:optimistic? false` option
+of the new `transact!` that emulates that behavior.
+
+NOTE: Incubator's pessimistic mutations place the return value of mutations at a special key in app state during processing,
+which can facilitate component-local UI rendering of things like errors. Fulcro 3
+allows you to define that behavior, but instead makes the complete network result available in the mutation `env`. Thus, you
+could make things look more like incubator just be replacing the default mutation action.
+
+Interestingly, this also makes it super easy to generalize the implementation of loads even more than before.
+Loads are now implemented internally something like this (simplified for ease of understanding):
+
+```
+(defmutation internal-load! [{:keys [query marker] :as params}]
+  (action [{:keys [app]}] (set-load-marker! app marker :loading))
+  (result-action [{:keys [result app] :as env}]
+      (if (load-error? result)
+        (load-failed! env params)
+        (finish-load! env params))))
+  (remote  [{:keys [ast]}] (eql/query->ast query)))
+```
+
+NOTE: The `data-fecth` API (e.g. `load`, renamed to `load!`) still exists, and is pretty much like it was. The primary change is boolean/in-place
+load markers are no longer supported.
+
+WARNING: The multimethod `mutate` is still at the center of this; however, the arguments have changed.  The multimethod
+is sent *only* an `env`, which contains `(-> env :ast :params)`.
+
+=== Using Inspect
+
+Do NOT include Fulcro Inspect as a dependency.  Instead, Fulcro now includes the client-side code necessary to talk
+to the Chrome extension without pulling in all of inspect's dependencies. Just add the following preload:
+
+```
+ :builds   {:app  {:target     :browser
+                   ...
+                   :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
+```
+
+At the time of this writing everything pretty much works, and even has some improved appearance.
 
 === Namespaces and Name Changes
 
@@ -33,6 +240,7 @@ and where to find them now:
 `merge-*`:: Merge-related logic is now in the
 `com.fulcrologic.fulcro.algorithms.merge` namespace.
 
+There are many other renames, but a quick grep of the source should make it obvioius where the new one is.
 
 === API Improvements that Should Not Hurt
 
@@ -154,3 +362,6 @@ the namespace for returning was change to normal mutations ns. The return
 value of mutations appears in ::uism/mutation-result now, and
 is the Fulcro 3 raw network result (status code, body, etc.).
 
+Incubator Pessimistic Mutations:: Incubator does not work with F3. The new mutations make it possible to implement
+the exact pmutations from incubator, but we did not adopt all of their functionality in the default mutation handler.
+See the developer's guide for instructions on how to expand how mutations work on the client.

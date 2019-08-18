@@ -25,14 +25,14 @@
 
 (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 
-(gw/>def ::id (s/with-gen eql/ident? ident-generator))      ; form config uses the entity's ident as an ID
-(gw/>def ::fields (s/every keyword? :kind set?))            ; a set of kws that are fields to track
-(gw/>def ::subforms (s/map-of keyword? any?))               ; a map of subform field to component class
-(gw/>def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
-(gw/>def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
-(gw/>def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
-(gw/>def ::validity #{:valid :invalid :unchecked})
-(gw/>def ::denormalized-form (s/keys :req [::config]))
+(s/def ::id (s/with-gen eql/ident? ident-generator))      ; form config uses the entity's ident as an ID
+(s/def ::fields (s/every keyword? :kind set?))            ; a set of kws that are fields to track
+(s/def ::subforms (s/map-of keyword? any?))               ; a map of subform field to component class
+(s/def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
+(s/def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
+(s/def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
+(s/def ::validity #{:valid :invalid :unchecked})
+(s/def ::denormalized-form (s/keys :req [::config]))
 
 (>defn get-form-fields
   "Returns the set of defined form fields for the given component class (or instance)."

@@ -7,7 +7,7 @@
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]))
 
-(gw/>def ::target vector?)
+(s/def ::target vector?)
 
 (>defn multiple-targets
   "Specifies a target that should place edges in the graph at multiple locations.
