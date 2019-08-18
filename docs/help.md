@@ -1,8 +1,7 @@
 # Getting Help
 
-If you're just getting started, please be sure you've at least watched a few of the
-[videos](https://www.youtube.com/playlist?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE) and tried
-the [documentation](docs.html).
+If you're just getting started, please be sure you've at least 
+tried the [documentation](docs.html).
 
 If you're still scratching your head and need someone to talk to, the best place to go
 is Slack. You can get a free invite via [https://clojurians.herokuapp.com/](https://clojurians.herokuapp.com/).
