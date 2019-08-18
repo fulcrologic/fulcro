@@ -1,0 +1,66 @@
+:source-highlighter: coderay
+:source-language: clojure
+:toc:
+:toc-placement: preamble
+:sectlinks:
+:sectanchors:
+:sectnums:
+
+image:docs/logo.png[]
+
+image:https://img.shields.io/clojars/v/com.fulcrologic/fulcro.svg[link=https://clojars.org/com.fulcrologic/fulcro]
+image:https://cljdoc.xyz/badge/com.fulcrologic/fulcro[link=https://cljdoc.xyz/d/com.fulcrologic/fulcro/CURRENT]
+image:https://circleci.com/gh/fulcrologic/fulcro3/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro3/tree/master"] (release)
+image:https://circleci.com/gh/fulcrologic/fulcro3/tree/develop.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro3/tree/develop"] (develop)
+
+Fulcro is a library for building data-driven full-stack applications for the web. It uses React and is written in
+Clojure and Clojurescript.
+
+Fulcro 3 is currently in Beta (August 2019).
+
+Official release candidates of version 3 will begin as soon as beta releases have been tested against enough code to give
+us high confidence that the library is usable in production. We hope to have an official release of 3.0 by the
+end of summer 2019, including updated documentation, videos, and sample application(s).
+
+== Version Differences
+
+Fulcro has undergone a number of face-lifts over its lifetime.
+
+[[Horizontal]]
+1.x:: An add-on library for Om Next. Has various limitations as a result of this, and several bugs that are deep within Om Next (which was not getting updates).
+2.0 - 2.4:: No longer depends on Om Next. Public API is the same, except where improvements and fixes were needed.
+2.5:: Integrated co-located CSS for better support (e.g. localized-dom), made all server dependencies dynamic, rewrite of i18n. This
+version requires you to change a few i18n things if you were using it, and adds API to the DOM to make UI much more concise.
+2.6:: Changes for React 16+. Changes in React led to a change in the underlying rendering refresh
+optimizations.
+3.0:: This version. A nearly complete rewrite of the internals.  Simplifies a lot of things, makes others
+more extensible, and preserves the shape of the API; however, it is not 100% API compatible with prior versions.  In
+particular in the course of fixing some long-standing issues subtle semantic differences were desirable/unavoidable in the
+transaction processing system.
+
+== Trying it Out
+
+The documentation is being update in the https://github.com/fulcrologic/fulcro-developer-guide[*new* revision of the Developer's Guide]. The
+docstrings in the namespaces have mostly been updated as well.
+
+There is a https://github.com/fulcrologic/fulcro-template[template project] in progress which you can use as a starting point.
+
+== Copyright and License
+
+Fulcro is:
+
+Copyright (c) 2017-2019, Fulcrologic, LLC
+The MIT License (MIT)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

@@ -1,0 +1,15 @@
+{:trace           0
+ :trace-color     :violet
+ :check           false
+ :check-coverage  false
+ :ignore-fx       false
+ :num-tests       5
+ :num-tests-ext   0
+ :extensive-tests false
+ :defn-macro      nil
+ :instrument      true
+ :outstrument     false
+ :extrument       nil
+ :expound         {:show-valid-values? true
+                   :print-specs?       true}
+ :report-output   :js-console}

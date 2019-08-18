@@ -1,0 +1,26 @@
+{:deps     {:aliases [:dev :test]}
+ :nrepl    {:port 9000}
+ :dev-http {9001 "resources/public"}
+ :jvm-opts ["-Xmx2G" #_"-Dghostwheel.enabled=true"]
+ :builds   {:todomvc  {:target     :browser
+                       :output-dir "resources/public/js/todomvc"
+                       :asset-path "/js/todomvc"
+                       :dev        {:compiler-options {:external-config {:ghostwheel {}}}}
+                       :modules    {:main {:entries [fulcro-todomvc.main]}}
+                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
+
+            :test     {:target           :browser-test
+                       :test-dir         "resources/public/js/test"
+                       :ns-regexp        "-spec$"
+                       :dev              {:compiler-options {:external-config {:ghostwheel {}}}}
+                       :compiler-options {:static-fns false} ; required for mocking to work
+                       :devtools         {:http-port          9002
+                                          :http-resource-root "public"
+                                          :http-root          "resources/public/js/test"}}
+
+            :ci-tests {:target           :karma
+                       :js-options       {:js-provider :shadow}
+                       :compiler-options {:static-fns false} ; required for mocking to work
+                       :output-to        "target/ci.js"
+                       :ns-regexp        "-spec$"}}}
+
