@@ -43,7 +43,7 @@ transaction processing system.
 The documentation is being update in the https://github.com/fulcrologic/fulcro-developer-guide[*new* revision of the Developer's Guide]. The
 docstrings in the namespaces have mostly been updated as well.
 
-There is a https://github.com/fulcrologic/fulcro3-template[template project] in progress which you can use as a starting point.
+There is a https://github.com/fulcrologic/fulcro-template[template project] in progress which you can use as a starting point.
 
 == Copyright and License
 
