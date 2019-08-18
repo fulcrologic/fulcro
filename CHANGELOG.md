@@ -1,3 +1,7 @@
+3.0.0-beta-3
+------------
+- Bug fix in dynamic router start code.
+
 3.0.0-beta-1
 ------------
 - Downgraded ghostwheel. This makes cljs builds bigger, but was necessary because 

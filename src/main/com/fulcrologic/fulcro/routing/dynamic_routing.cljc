@@ -420,7 +420,7 @@
    (change-route this new-route {}))
   ([this new-route timeouts]
    (let [app  (comp/any->app this)
-         root (app/app-root app)]
+         root (app/root-class app)]
      (change-route-relative app root new-route timeouts))))
 
 (defn current-route
@@ -597,20 +597,3 @@
                         []
                         nodes))]
     (get-routers children)))
-
-(defn initialize!
-  "Initialize the routing system.  This ensures that all routers have state machines in app state. This
-  must be called after the application has been mounted (e.g. right after calling `mount!`)."
-  [app]
-  (let [state-map (app/current-state app)
-        root      (app/root-class app)
-        routers   (all-reachable-routers state-map root)
-        tx        (mapv (fn [r]
-                          (let [router-ident (comp/get-ident r {})
-                                router-id    (second router-ident)]
-                            (uism/begin {::uism/asm-id           router-id
-                                         ::uism/state-machine-id (::uism/state-machine-id RouterStateMachine)
-                                         ::uism/event-data       {:path-segment []
-                                                                  :router       (vary-meta router-ident assoc :component r)}
-                                         ::uism/actor->ident     {:router (uism/with-actor-class router-ident r)}}))) routers)]
-    (comp/transact! app tx)))
