@@ -1,3 +1,7 @@
+3.0.0-beta-4
+------------
+- Fixed a bug when setting recursive dynamic queries.
+
 3.0.0-beta-3
 ------------
 - Bug fix in dynamic router start code.

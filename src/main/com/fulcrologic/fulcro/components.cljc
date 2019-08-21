@@ -461,7 +461,6 @@
        nil))))
 
 
-
 (defn is-factory?
   [class-or-factory]
   (and (fn? class-or-factory)
@@ -692,24 +691,31 @@
   "Determines if there are query elements in the present query that need to be normalized as well. If so, it does so.
   Returns the new state map."
   [state-map query]
-  (reduce (fn normalize-query-elements-reducer [state ele]
-            (let [parameterized? (seq? ele)                 ; not using list? because it could show up as a lazyseq
-                  raw-element    (if parameterized? (first ele) ele)]
-              (cond
-                (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
-                                                union-meta                  (-> union-alternates meta)
-                                                normalized-union-alternates (-> (into {} (map link-element union-alternates))
-                                                                              (with-meta union-meta))
-                                                union-query-id              (-> union-alternates meta :queryid)]
-                                            (assert union-query-id "Union query has an ID. Did you use extended get-query?")
-                                            (util/deep-merge
-                                              {::queries {union-query-id {:query normalized-union-alternates
-                                                                          :id    union-query-id}}}
-                                              (reduce (fn normalize-union-reducer [s [_ subquery]]
-                                                        (normalize-query s subquery)) state union-alternates)))
-                (util/join? raw-element) (normalize-query state (util/join-value raw-element))
-                :else state)))
-    state-map query))
+  (reduce
+    (fn normalize-query-elements-reducer [state ele]
+      (try
+        (let [parameterized? (seq? (log/spy :info ele))
+              raw-element    (if parameterized? (first ele) ele)]
+          (cond
+            (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
+                                            union-meta                  (-> union-alternates meta)
+                                            normalized-union-alternates (-> (into {} (map link-element union-alternates))
+                                                                          (with-meta union-meta))
+                                            union-query-id              (-> union-alternates meta :queryid)]
+                                        (assert union-query-id "Union query has an ID. Did you use extended get-query?")
+                                        (util/deep-merge
+                                          {::queries {union-query-id {:query normalized-union-alternates
+                                                                      :id    union-query-id}}}
+                                          (reduce (fn normalize-union-reducer [s [_ subquery]]
+                                                    (normalize-query s subquery)) state union-alternates)))
+            (and
+              (util/join? raw-element)
+              (util/recursion? (util/join-value raw-element))) state
+            (util/join? raw-element) (normalize-query state (util/join-value raw-element))
+            :else state))
+        (catch #?(:clj Exception :cljs :default) e
+          (log/error e "Query normalization failed. Perhaps you tried to set a query with a syntax error?"))))
+    state-map (log/spy :info query)))
 
 (defn link-query
   "Find all of the elements (only at the top level) of the given query and replace them
