@@ -858,9 +858,9 @@
   #?(:clj
      (let [optional-props (first args)
            props?         (and (instance? APersistentMap optional-props) (not (component-instance? optional-props)))
-           [props children] (if props?
-                              [(first args) (rest args)]
-                              [{} args])]
+           [_ children] (if props?
+                          [(first args) (rest args)]
+                          [{} args])]
        (vec children))
      :cljs
      (let [[props children] (if (map? (first args))

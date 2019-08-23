@@ -14,8 +14,8 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [clojure.spec.alpha :as s]
     [clojure.core.reducers :as r]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [taoensso.encore :as encore]))
 
 (definterface IReactDOMElement
   (^StringBuilder renderToString [react-id ^StringBuilder sb]))
@@ -201,8 +201,11 @@
 (defn- render-component [c]
   (if (or (nil? c) (element? c))
     c
-    (when-let [render (comp/component-options c :render)]
-      (recur (render c)))))
+    (encore/when-let [render (comp/component-options c :render)
+                      output (render c)]
+      (if (vector? output)
+        (mapv render-component output)
+        (recur output)))))
 
 (defn element
   "Creates a dom node."
@@ -380,7 +383,10 @@
                                                                         element
                                                                         (react-empty-node))
           sb      (StringBuilder.)]
-      (.renderToString element (volatile! 1) sb)
+      (if (vector? element)
+        (doseq [e element]
+          (.renderToString e (volatile! 1) sb))
+        (.renderToString element (volatile! 1) sb))
       sb)))
 
 ;; ===================================================================

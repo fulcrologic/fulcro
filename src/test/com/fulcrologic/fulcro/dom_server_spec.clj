@@ -96,3 +96,25 @@
     (dom/render-to-str (ui-lcc {}))
     =>
     "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-2047864948\">2</div>"))
+
+(defsc ComponentWithFragment [this props]
+  {}
+  (comp/fragment
+    (dom/div "A")
+    (dom/div "B")))
+
+(def ui-component-with-fragment (comp/factory ComponentWithFragment))
+
+(defsc ComponentWithVector [this props]
+  {}
+  [(dom/div "A")
+   (dom/div "B")])
+
+(def ui-component-with-vector (comp/factory ComponentWithVector))
+
+(specification "React Fragments" :focus
+  (assertions
+    "Renders the raised elements"
+    (dom/render-to-str (ui-component-with-fragment {})) => "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-366207178\">A</div><div data-reactroot=\"\" data-reactid=\"1\">B</div>"
+    "Allows fragments as vectors"
+    (dom/render-to-str (ui-component-with-vector {})) => "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-366207178\">A</div><div data-reactroot=\"\" data-reactid=\"1\">B</div>"))
