@@ -137,34 +137,38 @@
    (doseq [s rest]
      (.append sb s))))
 
+(def ^:dynamic *css-mode* false)
+
 (defn escape-html ^String [^String s]
-  (let [len (count s)]
-    (loop [^StringBuilder sb nil
-           i                 (int 0)]
-      (if (< i len)
-        (let [char (.charAt s i)
-              repl (case char
-                     \& "&amp;"
-                     \< "&lt;"
-                     \> "&gt;"
-                     \" "&quot;"
-                     \' "&#x27;"
-                     nil)]
-          (if (nil? repl)
-            (if (nil? sb)
-              (recur nil (inc i))
-              (recur (doto sb
-                       (.append char))
-                (inc i)))
-            (if (nil? sb)
-              (recur (doto (StringBuilder.)
-                       (.append s 0 i)
-                       (.append repl))
-                (inc i))
-              (recur (doto sb
-                       (.append repl))
-                (inc i)))))
-        (if (nil? sb) s (str sb))))))
+  (if *css-mode*
+    s
+    (let [len (count s)]
+      (loop [^StringBuilder sb nil
+             i                 (int 0)]
+        (if (< i len)
+          (let [char (.charAt s i)
+                repl (case char
+                       \& "&amp;"
+                       \< "&lt;"
+                       \> "&gt;"
+                       \" "&quot;"
+                       \' "&#x27;"
+                       nil)]
+            (if (nil? repl)
+              (if (nil? sb)
+                (recur nil (inc i))
+                (recur (doto sb
+                         (.append char))
+                  (inc i)))
+              (if (nil? sb)
+                (recur (doto (StringBuilder.)
+                         (.append s 0 i)
+                         (.append repl))
+                  (inc i))
+                (recur (doto sb
+                         (.append repl))
+                  (inc i)))))
+          (if (nil? sb) s (str sb)))))))
 
 (defrecord Text [s]
   IReactDOMElement
@@ -346,22 +350,23 @@
 (defn render-element!
   "Render a tag vector as a HTML element string."
   [{:keys [tag attrs children]} react-id ^StringBuilder sb]
-  (append! sb "<" tag)
-  (render-attr-map! sb tag attrs)
-  (let [react-id-val @react-id]
-    (when (= react-id-val 1)
-      (append! sb " data-reactroot=\"\""))
-    (append! sb " data-reactid=\"" react-id-val "\"")
-    (vswap! react-id inc)
-    sb)
-  (if (container-tag? tag (seq children))
-    (do
-      (append! sb ">")
-      (if-let [html-map (:dangerouslySetInnerHTML attrs)]
-        (render-unescaped-html! sb html-map)
-        (run! #(.renderToString % react-id sb) children))
-      (append! sb "</" tag ">"))
-    (append! sb "/>")))
+  (binding [*css-mode* (= "style" tag)]
+    (append! sb "<" tag)
+    (render-attr-map! sb tag attrs)
+    (let [react-id-val @react-id]
+      (when (= react-id-val 1)
+        (append! sb " data-reactroot=\"\""))
+      (append! sb " data-reactid=\"" react-id-val "\"")
+      (vswap! react-id inc)
+      sb)
+    (if (container-tag? tag (seq children))
+      (do
+        (append! sb ">")
+        (if-let [html-map (:dangerouslySetInnerHTML attrs)]
+          (render-unescaped-html! sb html-map)
+          (run! #(.renderToString % react-id sb) children))
+        (append! sb "</" tag ">"))
+      (append! sb "/>"))))
 
 (def key-escape-lookup
   {"=" "=0"
