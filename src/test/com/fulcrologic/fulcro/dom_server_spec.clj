@@ -112,7 +112,7 @@
 
 (def ui-component-with-vector (comp/factory ComponentWithVector))
 
-(specification "React Fragments" :focus
+(specification "React Fragments"
   (assertions
     "Renders the raised elements"
     (dom/render-to-str (ui-component-with-fragment {})) => "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"-366207178\">A</div><div data-reactroot=\"\" data-reactid=\"1\">B</div>"
