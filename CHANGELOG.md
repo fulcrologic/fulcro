@@ -1,3 +1,7 @@
+3.0.0-beta-5
+------------
+- Fixed some SSR issues: style elements don't corrupt CSS, fragments now work.
+
 3.0.0-beta-4
 ------------
 - Fixed a bug when setting recursive dynamic queries.
