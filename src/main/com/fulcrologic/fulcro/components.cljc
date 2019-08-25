@@ -1193,7 +1193,7 @@
       ;; pre-merge, use a lamba to modify new merged data with component needs
       :pre-merge (fn [{:keys [...]}] (merge {:ui/default-value :start} tree))
 
-      ; React Lifecycle Methods (this in scope)
+      ; React Lifecycle Methods
       :initLocalState            (fn [this props] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
       :shouldComponentUpdate     (fn [this next-props next-state] ...)
 
