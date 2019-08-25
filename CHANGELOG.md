@@ -1,3 +1,7 @@
+3.0.0-beta-6
+------------
+- Added React interop helpers for HOC
+
 3.0.0-beta-5
 ------------
 - Fixed some SSR issues: style elements don't corrupt CSS, fragments now work.
