@@ -694,7 +694,7 @@
   (reduce
     (fn normalize-query-elements-reducer [state ele]
       (try
-        (let [parameterized? (seq? (log/spy :info ele))
+        (let [parameterized? (seq? ele)
               raw-element    (if parameterized? (first ele) ele)]
           (cond
             (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
@@ -715,7 +715,7 @@
             :else state))
         (catch #?(:clj Exception :cljs :default) e
           (log/error e "Query normalization failed. Perhaps you tried to set a query with a syntax error?"))))
-    state-map (log/spy :info query)))
+    state-map query))
 
 (defn link-query
   "Find all of the elements (only at the top level) of the given query and replace them
