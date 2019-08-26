@@ -1,3 +1,11 @@
+3.0.0-beta-8
+------------
+- Dropped spy calls that were accidentally left in
+
+3.0.0-beta-7
+------------
+- Minor bug fixes. Dropped accidental inclusions.
+
 3.0.0-beta-6
 ------------
 - Added React interop helpers for HOC
