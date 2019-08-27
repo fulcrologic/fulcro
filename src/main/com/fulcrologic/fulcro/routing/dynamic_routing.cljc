@@ -597,3 +597,21 @@
                         []
                         nodes))]
     (get-routers children)))
+
+
+(defn initialize!
+  "Initialize the routing system.  This ensures that all routers have state machines in app state."
+  [app]
+  (let [state-map (app/current-state app)
+        root      (app/app-root app)
+        routers   (all-reachable-routers state-map root)
+        tx        (mapv (fn [r]
+                          (let [router-ident (comp/get-ident r {})
+                                router-id    (second router-ident)]
+                            (uism/begin {::uism/asm-id           router-id
+                                         ::uism/state-machine-id (::uism/state-machine-id RouterStateMachine)
+                                         ::uism/event-data       {:path-segment []
+                                                                  :router       (vary-meta router-ident assoc :component r)}
+                                         ::uism/actor->ident     {:router (uism/with-actor-class router-ident r)}}))) routers)]
+    (comp/transact! app tx)))
+
