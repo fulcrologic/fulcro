@@ -1,3 +1,7 @@
+3.0.0-beta-9
+------------
+- Re-added function in dr that got dropped
+
 3.0.0-beta-8
 ------------
 - Dropped spy calls that were accidentally left in
