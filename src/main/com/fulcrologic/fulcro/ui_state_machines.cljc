@@ -982,6 +982,20 @@
                                 (seq target) (assoc ::targeting/target target)))]
     (update env ::queued-mutations (fnil conj []) mutation-descriptor)))
 
+(>defn mutation-return-value
+  "Returns the return-value of a mutation, meant to be called in an event handler for remote-mutation.
+  Optionally takes in a key if you want to select a particular value in the return value."
+  ([env]
+   [::env => any?]
+   (mutation-return-value env nil))
+  ([{::keys [event-data]} k]
+   [::env keyword? => any?]
+   (let [{:keys [transaction body]} (::mutation-result event-data)]
+     (let [mutation-sym (ffirst transaction)]
+       (if k
+         (get-in body [mutation-sym k])
+         (get body mutation-sym))))))
+
 ;; ================================================================================
 ;; I/O: Load integration
 ;; ================================================================================
