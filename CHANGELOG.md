@@ -1,3 +1,7 @@
+3.0.0-beta-11
+-------------
+- Fixed deferred routing bug
+
 3.0.0-beta-10
 -------------
 - Fixed hot-code-reload issue. Component defonce was not being honored as metadata.

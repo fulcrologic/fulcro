@@ -86,27 +86,26 @@
                     routers)]
     router-id))
 
+(defmutation target-ready
+  "Mutation: Indicate that a target is ready."
+  [{:keys [target]}]
+  (action [{:keys [app]}]
+    (let [state-map (app/current-state app)
+          router-id (router-for-pending-target state-map target)]
+      (if router-id
+        (do
+          (log/debug "Router" router-id "notified that pending route is ready.")
+          (uism/trigger! app router-id :ready!))
+        (log/error "dr/target-ready! was called but there was no router waiting for the target listed: " target
+          "This could mean you sent one ident, and indicated ready on another."))))
+  (refresh [_] [::current-route]))
+
 (defn target-ready!
   "Indicate a target is ready.  Safe to use from within mutations.
 
   target - The ident that was originally listed as a deferred target."
   [component-or-app target]
-  ;; Normal triggers are deferred, but in this case we could be called due to an ongoing routing sequence, where multiple
-  ;; triggers occur.  We defer this particular event a bit more, just to ensure that it doesn't come too early
-  ;; in the case where the user is using deferred routing to do something immediate in a mutation (2 animation frames = 32ms).
-  (let [app       (comp/any->app component-or-app)
-        state-map (app/current-state app)
-        router-id (router-for-pending-target state-map target)]
-    (when router-id
-      (log/debug "Router" router-id "notified that pending route is ready.")
-      (uism/trigger! component-or-app router-id :ready!))))
-
-(defmutation target-ready
-  "Mutation: Indicate that a target is ready."
-  [{:keys [target]}]
-  (action [{:keys [app]}]
-    (target-ready! app target))
-  (refresh [_] [::current-route]))
+  (comp/transact! component-or-app [(target-ready {:target target})]))
 
 (defn router? [component] (boolean (comp/component-options component :router-targets)))
 
