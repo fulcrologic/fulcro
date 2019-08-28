@@ -72,6 +72,11 @@
         router-id    (second router)
         target-class (-> target meta :component)]
     (log/debug "Applying route ident" target "to router" router-id)
+    (when (nil? router-class)
+      (log/error "apply-route* was called without a proper :router argument."))
+    (when (nil? target-class)
+      (log/error "apply-route* for router " router-class "was given a target that did not have a component. "
+        "Did you remember to call route-deferred or route-immediate?"))
     (-> state-map
       (assoc-in (conj router ::current-route) target)
       (update-in router dissoc ::pending-route)
@@ -475,12 +480,17 @@
      (when-not (s/valid? ::defrouter-options options)
        (compile-error env options (str "defrouter options are invalid: " (s/explain-str ::defrouter-options options))))
      (let [{:keys [router-targets]} options
+           _                      (when (empty? router-targets)
+                                    (compile-error env options "defrouter requires at least one router-target"))
            id                     (keyword router-ns (name router-sym))
            query                  (into [::id
                                          [::uism/asm-id id]
                                          {::current-route `(comp/get-query ~(first router-targets))}]
                                     (map-indexed
-                                      (fn [idx s] {(keyword (str "alt" idx)) `(comp/get-query ~s)})
+                                      (fn [idx s]
+                                        (when (nil? s)
+                                          (compile-error env options "defrouter target contains nil!"))
+                                        {(keyword (str "alt" idx)) `(comp/get-query ~s)})
                                       (rest router-targets)))
            initial-state-map      (into {::id            id
                                          ::current-route `(comp/get-initial-state ~(first router-targets) ~'params)}
