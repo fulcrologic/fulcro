@@ -1157,13 +1157,13 @@
          `(do
             (declare ~sym)
             (let [options# ~options-map]
-              (defn ~(vary-meta sym assoc :doc doc :once true)
-                [props#]
-                (cljs.core/this-as this#
-                  (if-let [init-state# (get options# :initLocalState)]
-                    (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this# (goog.object/get props# "fulcro$value"))))
-                    (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
-                  nil))
+              (defonce ~(vary-meta sym assoc :doc doc)
+                (fn [props#]
+                  (cljs.core/this-as this#
+                    (if-let [init-state# (get options# :initLocalState)]
+                      (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this# (goog.object/get props# "fulcro$value"))))
+                      (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
+                    nil)))
               (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
          `(do
             (declare ~sym)
