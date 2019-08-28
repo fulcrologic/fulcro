@@ -37,29 +37,30 @@
 (s/def ::actor->component-name (s/map-of ::actor-name keyword?))
 (s/def ::actor->ident (s/map-of ::actor-name eql/ident?))
 (s/def ::ident->actor (s/map-of eql/ident? ::actor-name))
-(s/def ::active-state keyword?)                           ; The state the active instance is currently in
+(s/def ::active-state keyword?)                             ; The state the active instance is currently in
 (s/def ::state-machine-id (s/with-gen symbol? #(s/gen #{'the-state-machine}))) ; The symbol of the state machine's definition
-(s/def ::asm-id any?)                                     ; The ID of the active instance in fulcro state
+(s/def ::asm-id any?)                                       ; The ID of the active instance in fulcro state
 (s/def ::local-storage (s/map-of keyword? any?))
 (s/def ::timeout pos-int?)
 (s/def ::timer-id (s/with-gen any? #(s/gen #{:timer-1 42})))
 (s/def ::cancel-fn (s/with-gen (s/or :f fn? :s set?) #(s/gen #{#{:event! :other!}})))
 (s/def ::cancel-on (s/with-gen (fn fn-or-set* [i] (let [f (-> i meta :cancel-on)]
-                                                      (or (fn? f) (set? f)))) #(s/gen #{(with-meta {} {:cancel-on (fn [e] true)})})))
+                                                    (or (fn? f) (set? f)))) #(s/gen #{(with-meta {} {:cancel-on (fn [e] true)})})))
 (s/def ::js-timer (s/with-gen #(-> % meta :timer boolean) #(s/gen #{(with-meta {} {:timer {}})})))
 (s/def ::timeout-descriptor (s/keys :req [::js-timer ::timeout ::event-id ::timer-id ::cancel-on] :opt [::event-data]))
 (s/def ::queued-timeouts (s/coll-of ::timeout-descriptor))
 (s/def ::active-timers (s/map-of ::timer-id ::timeout-descriptor))
 (s/def ::asm (s/keys :req [::asm-id ::state-machine-id ::active-state ::actor->ident ::actor->component-name
-                             ::ident->actor ::active-timers ::local-storage]))
+                           ::ident->actor ::active-timers ::local-storage]))
 (s/def ::state-id keyword?)
 (s/def ::event-data map?)
 (s/def ::event-id keyword?)
+(s/def ::app map?)
 (s/def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
 (s/def ::queued-triggers (s/coll-of ::trigger-descriptor))
 (s/def ::env (s/keys :req [::state-map ::asm-id]
-                 :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
-                       ::queued-mutations ::queued-loads ::queued-timeouts]))
+               :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
+                     ::app ::queued-mutations ::queued-loads ::queued-timeouts]))
 
 (>defn fake-handler [env] [::env => ::env] env)
 
@@ -71,10 +72,10 @@
 (s/def ::event-processing (s/keys :opt [::handler ::event-predicate ::target-state]))
 (s/def ::events (s/map-of ::event-id ::event-processing))
 (s/def ::state (s/with-gen
-                   (s/or
-                     :handler (s/keys :req [::handler])
-                     :events (s/keys :req [::events]))
-                   #(s/gen #{{::handler fake-handler}})))
+                 (s/or
+                   :handler (s/keys :req [::handler])
+                   :events (s/keys :req [::events]))
+                 #(s/gen #{{::handler fake-handler}})))
 (s/def ::states (s/with-gen (s/map-of ::state-id ::state) #(s/gen #{{:initial {::handler fake-handler}}})))
 (s/def ::alias keyword?)
 (s/def ::aliases (s/map-of ::alias (s/tuple ::actor-name keyword?)))
@@ -83,9 +84,9 @@
 (s/def ::event-names (s/coll-of keyword? :kind set?))
 (s/def ::target-state keyword?)
 (s/def ::state-machine-definition (s/with-gen
-                                      (s/keys :req [::states] :opt [::actor-names ::aliases ::plugins ::event-names])
-                                      #(s/gen #{{::actor-names #{:a}
-                                                 ::states      {:initial {::handler (fn [env] env)}}}})))
+                                    (s/keys :req [::states] :opt [::actor-names ::aliases ::plugins ::event-names])
+                                    #(s/gen #{{::actor-names #{:a}
+                                               ::states      {:initial {::handler (fn [env] env)}}}})))
 
 ;; ================================================================================
 ;; State Machine Registry
@@ -343,9 +344,14 @@
    (state-machine-env state-map nil asm-id nil nil))
   ([state-map ref asm-id event-id event-data]
    [::state-map (s/nilable eql/ident?) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) => ::env]
+   (state-machine-env state-map ref asm-id event-id event-data nil))
+  ([state-map ref asm-id event-id event-data app]
+   [::state-map (s/nilable eql/ident?) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) (s/nilable ::app)
+    => ::env]
    (cond-> {::state-map state-map
             ::asm-id    asm-id}
      event-id (assoc ::event-id event-id)
+     app (assoc ::app app)
      (seq event-data) (assoc ::event-data event-data)
      ref (assoc ::source-actor-ident ref))))
 
@@ -722,7 +728,7 @@
   [::mutation-env ::trigger-descriptor => ::refresh-vector]
   (when-not (get-in @state [::asm-id asm-id])
     (log/error "Attemped to trigger event " event-id "on state machine" asm-id ", but that state machine has not been started (call begin! first)."))
-  (let [sm-env       (state-machine-env @state ref asm-id event-id event-data)
+  (let [sm-env       (state-machine-env @state ref asm-id event-id event-data app)
         handler      (active-state-handler sm-env)
         valued-env   (apply-event-value sm-env params)
         handled-env  (handler (assoc valued-env ::fulcro-app app))
@@ -878,8 +884,8 @@
 (s/def ::mutation-decl (s/with-gen m/mutation-declaration? #(s/gen #{spec-mutation})))
 (s/def ::mutation-context ::actor-name)
 (s/def ::mutation-descriptor (s/keys :req [::mutation-context ::mutation]
-                                 :opt [::targeting/target ::ok-event ::ok-data ::error-event ::error-data
-                                       ::m/returning ::mutation-remote]))
+                               :opt [::targeting/target ::ok-event ::ok-data ::error-event ::error-data
+                                     ::m/returning ::mutation-remote]))
 (s/def ::mutation-remote keyword?)
 (s/def ::queued-mutations (s/coll-of ::mutation-descriptor))
 
@@ -914,7 +920,7 @@
                       (comp/transact! app [(trigger-state-machine-event {::asm-id     asm-id
                                                                          ::event-id   event
                                                                          ::event-data event-data})] {:ref actor-ident}))))]
-  (defmethod m/mutate `mutation-delegate [{:keys [state ast] :as env}]
+  (defmethod m/mutate `mutation-delegate [{:keys [state ast app] :as env}]
     ;; mutation can be run for figuring out remote
     (let [{::m/keys [returning]
            ::targeting/keys [target]
@@ -924,7 +930,7 @@
                         ::mutation-context ::ok-data ::error-data
                         ::mutation-remote ::asm-id
                         ::m/returning ::targeting/target)
-          sm-env      (state-machine-env @state nil asm-id ok-event ok-data)
+          sm-env      (state-machine-env @state nil asm-id ok-event ok-data app)
           actor-ident (actor->ident sm-env mutation-context)
           ast         (eql/query->ast1 [(list mutation params)])]
       {(or mutation-remote :remote) (fn [env]
