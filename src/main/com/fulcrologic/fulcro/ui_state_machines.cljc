@@ -55,11 +55,12 @@
 (s/def ::state-id keyword?)
 (s/def ::event-data map?)
 (s/def ::event-id keyword?)
+(s/def ::app map?)
 (s/def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
 (s/def ::queued-triggers (s/coll-of ::trigger-descriptor))
 (s/def ::env (s/keys :req [::state-map ::asm-id]
                  :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
-                       ::queued-mutations ::queued-loads ::queued-timeouts]))
+                     ::app ::queued-mutations ::queued-loads ::queued-timeouts]))
 
 (>defn fake-handler [env] [::env => ::env] env)
 
@@ -343,9 +344,14 @@
    (state-machine-env state-map nil asm-id nil nil))
   ([state-map ref asm-id event-id event-data]
    [::state-map (s/nilable eql/ident?) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) => ::env]
+   (state-machine-env state-map ref asm-id event-id event-data nil))
+  ([state-map ref asm-id event-id event-data app]
+   [::state-map (s/nilable eql/ident?) ::asm-id (s/nilable ::event-id) (s/nilable ::event-data) (s/nilable ::app)
+    => ::env]
    (cond-> {::state-map state-map
             ::asm-id    asm-id}
      event-id (assoc ::event-id event-id)
+     app (assoc ::app app)
      (seq event-data) (assoc ::event-data event-data)
      ref (assoc ::source-actor-ident ref))))
 
@@ -722,7 +728,7 @@
   [::mutation-env ::trigger-descriptor => ::refresh-vector]
   (when-not (get-in @state [::asm-id asm-id])
     (log/error "Attemped to trigger event " event-id "on state machine" asm-id ", but that state machine has not been started (call begin! first)."))
-  (let [sm-env       (state-machine-env @state ref asm-id event-id event-data)
+  (let [sm-env       (state-machine-env @state ref asm-id event-id event-data app)
         handler      (active-state-handler sm-env)
         valued-env   (apply-event-value sm-env params)
         handled-env  (handler (assoc valued-env ::fulcro-app app))
@@ -914,7 +920,7 @@
                       (comp/transact! app [(trigger-state-machine-event {::asm-id     asm-id
                                                                          ::event-id   event
                                                                          ::event-data event-data})] {:ref actor-ident}))))]
-  (defmethod m/mutate `mutation-delegate [{:keys [state ast] :as env}]
+  (defmethod m/mutate `mutation-delegate [{:keys [state ast app] :as env}]
     ;; mutation can be run for figuring out remote
     (let [{::m/keys [returning]
            ::targeting/keys [target]
@@ -924,7 +930,7 @@
                         ::mutation-context ::ok-data ::error-data
                         ::mutation-remote ::asm-id
                         ::m/returning ::targeting/target)
-          sm-env      (state-machine-env @state nil asm-id ok-event ok-data)
+          sm-env      (state-machine-env @state nil asm-id ok-event ok-data app)
           actor-ident (actor->ident sm-env mutation-context)
           ast         (eql/query->ast1 [(list mutation params)])]
       {(or mutation-remote :remote) (fn [env]

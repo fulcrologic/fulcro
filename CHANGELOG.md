@@ -1,3 +1,8 @@
+3.0.0-beta-10
+-------------
+- Fixed hot-code-reload issue. Component defonce was not being honored as metadata.
+- Added ::uism/app to env in state machines
+
 3.0.0-beta-9
 ------------
 - Re-added function in dr that got dropped
