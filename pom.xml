@@ -8,6 +8,10 @@
     <packaging>jar</packaging>
     <version>3.0.0-beta-11</version>
 
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <name>fulcro</name>
     <description>A library for building full-stack SPA webapps in Clojure and Clojurescript</description>
     <url>https://github.com/fulcrologic/fulcro</url>
@@ -47,6 +51,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.6</version>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
