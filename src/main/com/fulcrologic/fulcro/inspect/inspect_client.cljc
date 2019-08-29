@@ -4,7 +4,6 @@
   (:require
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.components :as comp]
     #?@(:cljs [[goog.object :as gobj]
                [com.fulcrologic.fulcro.inspect.diff :as diff]
                [com.fulcrologic.fulcro.inspect.transit :as encode]
@@ -29,6 +28,14 @@
   [env]
   (boolean (:ns env)))
 
+(defn- isoget
+  "Like get, but for js objects, and in CLJC. In clj, it is just `get`. In cljs it is
+  `gobj/get`."
+  ([obj k] (isoget obj k nil))
+  ([obj k default]
+   #?(:clj  (get obj k default)
+      :cljs (or (gobj/get obj (some-> k (name))) default))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpers so we don't have to include other nses
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,7 +46,7 @@
 (defn remotes [app] (some-> (runtime-atom app) deref :com.fulcrologic.fulcro.application/remotes))
 (defn app-id [app] (some-> (app-state app) :fulcro.inspect.core/app-id))
 (defn fulcro-app-id [app] (:com.fulcrologic.fulcro.application/id app))
-(defn get-component-name [component] (when component (some-> (comp/isoget component :fulcro$options) :displayName)))
+(defn get-component-name [component] (when component (some-> (isoget component :fulcro$options) :displayName)))
 (defn comp-transact! [app tx options]
   (let [tx! (ah/app-algorithm app :tx!)]
     (tx! app tx options)))
