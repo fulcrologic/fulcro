@@ -1,3 +1,13 @@
+3.0.0-beta-12
+-------------
+- Added `app/initialize-state!` to set up state in headless mode.
+- Added option to `set-root!` to support an `initialize-state?` option.
+- Made `:will-enter` optional on route targets
+- Added sanity checks in dynamic routing:
+** Warn if will-enter returns an invalid ident
+** Warn if will-enter fails to wrap ident in route-*
+** Warn, on root mount, if any route targets have invalid route-segments
+
 3.0.0-beta-11
 -------------
 - Fixed deferred routing bug

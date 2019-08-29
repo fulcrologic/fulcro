@@ -11,6 +11,8 @@
     [clojure.spec.alpha :as s]
     #?(:clj [cljs.analyzer :as ana])))
 
+(declare route-immediate)
+
 (defn route-segment [class]
   "Returns a vector that describes the sub-path that a given route target represents. String elements represent
   explicit path elements, and keywords represent variable values (which are always pulled as strings)."
@@ -36,7 +38,10 @@
   `params` will be a map from any keywords found in `route-segment` to the string value of that path element.
 
   WARNING: This method MUST be side-effect free."
-  (comp/component-options class :will-enter))
+  (if-let [will-enter (comp/component-options class :will-enter)]
+    will-enter
+    (let [ident (comp/get-ident class {})]
+      (fn [_ _] (route-immediate ident)))))
 
 (defn will-enter
   "Universal CLJC version of will-enter.  Don't use the protocol method in CLJ."
@@ -310,6 +315,11 @@
                                {}
                                (map (fn [a b] [a b]) segment matching-prefix))
               target-ident   (will-enter target app params)]
+          (when (or (not (eql/ident? target-ident)) (nil? (second target-ident)))
+            (log/error "will-enter for router target" (comp/component-name target) "did not return a valid ident. Instead it returned: " target-ident))
+          (when (and (eql/ident? target-ident)
+                  (not (contains? (some-> target-ident meta) :immediate)))
+            (log/error "will-enter for router target" (comp/component-name target) "did not wrap the ident in route-immediate or route-deferred."))
           (when (vector? target-ident)
             (swap! result conj (vary-meta target-ident assoc :component target :params params)))
           (when (seq remaining-path)
@@ -471,6 +481,23 @@
 #?(:clj (s/def ::failed-ui list?))
 #?(:clj (s/def ::defrouter-options (s/keys :req-un [::router-targets] :opt-un [::initial-ui ::loading-ui ::failed-ui])))
 
+(defn validate-route-targets
+  "Run a runtime validation on route targets to verify that they at least declare a route-segment that is a vector."
+  [router-instance]
+  (doseq [t (get-targets router-instance)
+          :let [segment (route-segment t)
+                valid?  (and
+                          (vector? segment)
+                          (not (empty? segment))
+                          (every? #(or (keyword? %) (string? %)) segment))]]
+    (when-not valid?
+      (log/error "Route target "
+        (comp/component-name t)
+        "of router"
+        (comp/component-name router-instance)
+        "does not declare a valid :route-segment. Route segments must be non-empty vector that contain only strings"
+        "and keywords"))))
+
 #?(:clj
    (defn defrouter* [env router-ns router-sym arglist options body]
      (when-not (and (vector? arglist) (= 2 (count arglist)))
@@ -514,9 +541,10 @@
                                                                             :route-factory        (when ~'class (comp/factory ~'class))
                                                                             :current-state        ~'current-state}]
                                                      ~@body))))
-           options                (merge options `{:query         ~query
-                                                   :ident         ~ident-method
-                                                   :initial-state ~initial-state-lambda})]
+           options                (merge options `{:query             ~query
+                                                   :ident             ~ident-method
+                                                   :componentDidMount (fn [this#] (validate-route-targets this#))
+                                                   :initial-state     ~initial-state-lambda})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
           (let [~'current-state (uism/get-active-state ~'this ~id)

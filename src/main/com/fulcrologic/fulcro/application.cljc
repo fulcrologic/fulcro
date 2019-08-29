@@ -336,6 +336,21 @@
   [::app => boolean?]
   (-> runtime-atom deref ::app-root boolean))
 
+(defn initialize-state!
+  "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
+  in the state atom of the app. Can be called before `mount!`, in which case you should tell mount not to (re) initialize
+  state."
+  [app root]
+  (let [initial-db   (-> app ::state-atom deref)
+        root-query   (comp/get-query root initial-db)
+        initial-tree (comp/get-initial-state root)
+        db-from-ui   (if root-query
+                       (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
+                         (merge/merge-alternate-union-elements root))
+                       initial-tree)
+        db           (util/deep-merge initial-db db-from-ui)]
+    (reset! (::state-atom app) db)))
+
 (defn mount!
   "Mount the app.  If called on an already-mounted app this will have the effect of re-installing the root node so that
   hot code reload will refresh the UI (useful for development).
@@ -378,15 +393,7 @@
           (do
             (inspect/app-started! app)
             (when initialize-state?
-              (let [initial-db   (-> app ::state-atom deref)
-                    root-query   (comp/get-query root initial-db)
-                    initial-tree (comp/get-initial-state root)
-                    db-from-ui   (if root-query
-                                   (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
-                                     (merge/merge-alternate-union-elements root))
-                                   initial-tree)
-                    db           (util/deep-merge initial-db db-from-ui)]
-                (reset! (::state-atom app) db)))
+              (initialize-state! app root))
             (reset-mountpoint!)
             (when-let [cdm (-> app ::config :client-did-mount)]
               (cdm app))))))))
@@ -482,5 +489,7 @@
 
 (defn set-root!
   "Set a root class to use on the app. Doing so allows much of the API to work before mounting the app."
-  [app root]
-  (swap! (::runtime-atom app) assoc ::root-class root))
+  ([app root {:keys [initialize-state?]}]
+   (swap! (::runtime-atom app) assoc ::root-class root)
+   (when initialize-state?
+     (initialize-state! app root))))
