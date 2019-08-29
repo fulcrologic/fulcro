@@ -72,6 +72,11 @@
         router-id    (second router)
         target-class (-> target meta :component)]
     (log/debug "Applying route ident" target "to router" router-id)
+    (when (nil? router-class)
+      (log/error "apply-route* was called without a proper :router argument."))
+    (when (nil? target-class)
+      (log/error "apply-route* for router " router-class "was given a target that did not have a component. "
+        "Did you remember to call route-deferred or route-immediate?"))
     (-> state-map
       (assoc-in (conj router ::current-route) target)
       (update-in router dissoc ::pending-route)
@@ -86,27 +91,26 @@
                     routers)]
     router-id))
 
+(defmutation target-ready
+  "Mutation: Indicate that a target is ready."
+  [{:keys [target]}]
+  (action [{:keys [app]}]
+    (let [state-map (app/current-state app)
+          router-id (router-for-pending-target state-map target)]
+      (if router-id
+        (do
+          (log/debug "Router" router-id "notified that pending route is ready.")
+          (uism/trigger! app router-id :ready!))
+        (log/error "dr/target-ready! was called but there was no router waiting for the target listed: " target
+          "This could mean you sent one ident, and indicated ready on another."))))
+  (refresh [_] [::current-route]))
+
 (defn target-ready!
   "Indicate a target is ready.  Safe to use from within mutations.
 
   target - The ident that was originally listed as a deferred target."
   [component-or-app target]
-  ;; Normal triggers are deferred, but in this case we could be called due to an ongoing routing sequence, where multiple
-  ;; triggers occur.  We defer this particular event a bit more, just to ensure that it doesn't come too early
-  ;; in the case where the user is using deferred routing to do something immediate in a mutation (2 animation frames = 32ms).
-  (let [app       (comp/any->app component-or-app)
-        state-map (app/current-state app)
-        router-id (router-for-pending-target state-map target)]
-    (when router-id
-      (log/debug "Router" router-id "notified that pending route is ready.")
-      (uism/trigger! component-or-app router-id :ready!))))
-
-(defmutation target-ready
-  "Mutation: Indicate that a target is ready."
-  [{:keys [target]}]
-  (action [{:keys [app]}]
-    (target-ready! app target))
-  (refresh [_] [::current-route]))
+  (comp/transact! component-or-app [(target-ready {:target target})]))
 
 (defn router? [component] (boolean (comp/component-options component :router-targets)))
 
@@ -476,12 +480,17 @@
      (when-not (s/valid? ::defrouter-options options)
        (compile-error env options (str "defrouter options are invalid: " (s/explain-str ::defrouter-options options))))
      (let [{:keys [router-targets]} options
+           _                      (when (empty? router-targets)
+                                    (compile-error env options "defrouter requires at least one router-target"))
            id                     (keyword router-ns (name router-sym))
            query                  (into [::id
                                          [::uism/asm-id id]
                                          {::current-route `(comp/get-query ~(first router-targets))}]
                                     (map-indexed
-                                      (fn [idx s] {(keyword (str "alt" idx)) `(comp/get-query ~s)})
+                                      (fn [idx s]
+                                        (when (nil? s)
+                                          (compile-error env options "defrouter target contains nil!"))
+                                        {(keyword (str "alt" idx)) `(comp/get-query ~s)})
                                       (rest router-targets)))
            initial-state-map      (into {::id            id
                                          ::current-route `(comp/get-initial-state ~(first router-targets) ~'params)}
@@ -603,7 +612,7 @@
   "Initialize the routing system.  This ensures that all routers have state machines in app state."
   [app]
   (let [state-map (app/current-state app)
-        root      (app/app-root app)
+        root      (app/root-class app)
         routers   (all-reachable-routers state-map root)
         tx        (mapv (fn [r]
                           (let [router-ident (comp/get-ident r {})

@@ -72,7 +72,7 @@
   [::app => boolean?]
   (let [{::keys [runtime-atom state-atom]} app
         {::keys [root-class indexes]} @runtime-atom]
-    (if-not (comp/get-query root-class)
+    (if-not (comp/get-query root-class @state-atom)
       true
       (let [state-map       @state-atom
             prior-state-map (-> runtime-atom deref ::last-rendered-state)
@@ -81,7 +81,7 @@
             root-new        (select-keys state-map root-props)]
         (not= root-old root-new)))))
 
-(declare schedule-render!)
+(declare schedule-render! mounted?)
 
 (>defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
@@ -254,7 +254,9 @@
    * `:render-root!` - The function to call in order to render the root of your application. Defaults
      to `js/ReactDOM.render`.
    * `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
-     to `js/ReactDOM.hydrate`."
+     to `js/ReactDOM.hydrate`.
+   * `:root-class` - The component class that will be the root. This can be specified just with `mount!`, but
+   giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`."
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             global-eql-transform
@@ -271,6 +273,7 @@
             query-transform-default
             load-marker-default
             load-mutation
+            root-class
             shared
             shared-fn] :as options}]
    {::id           (tempid/uuid)
@@ -299,7 +302,7 @@
     ::runtime-atom (atom
                      {::app-root                        nil
                       ::mount-node                      nil
-                      ::root-class                      nil
+                      ::root-class                      root-class
                       ::root-factory                    nil
                       ::basis-t                         1
                       ::last-rendered-state             {}
@@ -376,7 +379,7 @@
             (inspect/app-started! app)
             (when initialize-state?
               (let [initial-db   (-> app ::state-atom deref)
-                    root-query   (comp/get-query root)
+                    root-query   (comp/get-query root initial-db)
                     initial-tree (comp/get-initial-state root)
                     db-from-ui   (if root-query
                                    (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
@@ -476,3 +479,8 @@
                           {}
                           remote-names)]
     (swap! runtime-atom assoc ::send-queues new-send-queues)))
+
+(defn set-root!
+  "Set a root class to use on the app. Doing so allows much of the API to work before mounting the app."
+  [app root]
+  (swap! (::runtime-atom app) assoc ::root-class root))

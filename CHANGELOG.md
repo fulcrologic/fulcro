@@ -1,3 +1,10 @@
+3.0.0-beta-11
+-------------
+- Fixed deferred routing bug
+- Add `app/set-root!` to allow many APIs to work before `app/mount!`
+- Made routing possible before mount
+- Added more warnings to routing, to help debug
+
 3.0.0-beta-10
 -------------
 - Fixed hot-code-reload issue. Component defonce was not being honored as metadata.
