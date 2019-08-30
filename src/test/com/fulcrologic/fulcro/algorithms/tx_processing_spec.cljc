@@ -619,7 +619,7 @@
               "Returns the updated node"
               (:updated actual) => 2)))))))
 
-(specification "dispatch-result!" :focus
+(specification "dispatch-result!"
   (when-mocking
     (txn/schedule-queue-processing! a t) => nil
 
@@ -1005,3 +1005,25 @@
     (log/info "Result action b2: " (:result env))
     ((:ok-action dispatch) env))
   (remote [env] (eql/query->ast `[(bam! ~params)])))
+
+(defmutation rf1 [params]
+  (action [env]
+    false)
+  (refresh [_]
+    [:a :b]))
+
+(defmutation rf2 [params]
+  (action [env]
+    false)
+  (refresh [_]
+    [:a :c]))
+
+(specification "requested-refreshes" :focus
+  (let [app             (mock-app)
+        dispatched-node (-> (txn/tx-node [(rf1) (rf2)])
+                          (txn/dispatch-elements {} (fn [e] (m/mutate e))))
+        queue           [dispatched-node]
+        actual          (txn/requested-refreshes app queue)]
+    (assertions
+      "finds the refreshes on tx nodes in a queue"
+      actual => #{:a :b :c})))
