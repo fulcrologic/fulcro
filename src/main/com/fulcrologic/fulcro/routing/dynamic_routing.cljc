@@ -541,10 +541,12 @@
                                                                             :route-factory        (when ~'class (comp/factory ~'class))
                                                                             :current-state        ~'current-state}]
                                                      ~@body))))
-           options                (merge options `{:query             ~query
-                                                   :ident             ~ident-method
-                                                   :componentDidMount (fn [this#] (validate-route-targets this#))
-                                                   :initial-state     ~initial-state-lambda})]
+           options                (merge
+                                    `{:componentDidMount (fn [this#] (validate-route-targets this#))}
+                                    options
+                                    `{:query         ~query
+                                      :ident         ~ident-method
+                                      :initial-state ~initial-state-lambda})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
           (let [~'current-state (uism/get-active-state ~'this ~id)
