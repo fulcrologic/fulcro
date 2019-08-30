@@ -584,13 +584,17 @@
   [:com.fulcrologic.fulcro.application/app (s/coll-of ::tx-node) => set?]
   "Returns a set of refreshes that have been requested by active mutations in the queue"
   (reduce
-    (fn [acc tx-node]
-      (let [env     (build-env app tx-node)
-            {::keys [dispatch]} tx-node
-            refresh (:refresh dispatch)]
-        (if refresh
-          (into acc (set (refresh env)))
-          acc)))
+    (fn [outer-acc tx-node]
+      (let [env (build-env app tx-node)]
+        (reduce
+          (fn [acc element]
+            (let [{::keys [dispatch]} element
+                  refresh (:refresh dispatch)]
+              (if refresh
+                (into acc (set (refresh env)))
+                acc)))
+          outer-acc
+          (::elements tx-node))))
     #{}
     queue))
 
