@@ -1,3 +1,8 @@
+3.0.0-beta-13
+-------------
+- Fixed mutation-requested UI refresh
+- Fixed dynamic router componentDidMount
+
 3.0.0-beta-12
 -------------
 - Added `app/initialize-state!` to set up state in headless mode.
