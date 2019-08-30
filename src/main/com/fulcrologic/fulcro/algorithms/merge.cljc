@@ -311,9 +311,7 @@
   See `merge-component` and `merge-component!` for possibly more appropriate functions for your task.
 
   Returns the new normalized database."
-  ([state-map query result-tree]
-   (merge* state-map query result-tree {})
-   )
+  ([state-map query result-tree] (merge* state-map query result-tree {}))
   ([state-map query result-tree {:keys [remove-missing?] :as options}]
    (let [[idts result-tree] (sift-idents result-tree)
          normalized-result (fnorm/tree->db query result-tree true (pre-merge-transform state-map options))]
