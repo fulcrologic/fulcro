@@ -57,7 +57,51 @@
                                                                       (targeting/append-to [:table 1 :things]))) => {:root/spot [[:y 2]]
                                                                                                                      :table     {1 {:id     1
                                                                                                                                     :stuff  [[:y 2]]
-                                                                                                                                    :things [[:x 1] [:x 2] [:y 2]]}}})))))
+                                                                                                                                    :things [[:x 1] [:x 2] [:y 2]]}}}
+          "multiple targets with explicit ident"
+          (targeting/process-target {:table {1 {:id    1
+                                                :stuff [:old :ident]}}} [:new :ident] (targeting/multiple-targets
+                                                                                        [:table 1 :stuff]
+                                                                                        [:root/spot])) => {:root/spot [:new :ident]
+                                                                                                           :table     {1 {:id    1
+                                                                                                                          :stuff [:new :ident]}}}
+
+          "multiple targets with explicit ident 2"
+          (targeting/process-target
+            {:table-1      {1 {:id 1}}
+             ::some-result [:new :ident]
+             :new          {:ident {:data 1}}
+             :table-2      {1 {:id 1}}}
+            ::some-result
+            (targeting/multiple-targets
+              [:table-1 1 :stuff]
+              [:table-2 1 :stuff]
+              [:root/spot]))
+          => {:table-1   {1 {:id    1
+                             :stuff [:new :ident]}}
+              :table-2   {1 {:id    1
+                             :stuff [:new :ident]}}
+              :root/spot [:new :ident]
+              :new       {:ident {:data 1}}}))))
+  (component "to-many source targeting"
+    (assertions
+      "can move to-many refs to new edges"
+      (targeting/process-target {:table      {1 {:id 1}
+                                              2 {:id 2}}
+                                 :new        {1 {:id 1}
+                                              2 {:id 2}}
+                                 :source-key [[:new 1] [:new 2]]}
+        :source-key
+        (targeting/multiple-targets
+          [:table 1 :stuff]
+          [:table 2 :stuff]))
+      =>
+      {:table {1 {:id    1
+                  :stuff [[:new 1] [:new 2]]}
+               2 {:id    2
+                  :stuff [[:new 1] [:new 2]]}}
+       :new   {1 {:id 1}
+               2 {:id 2}}})))
 
 (specification "integrate-ident*"
   (let [state {:a    {:path [[:table 2]]}

@@ -151,8 +151,9 @@
       (let [{:keys [body]} result
             {:com.fulcrologic.fulcro.application/keys [state-atom]} app]
         (log/debug "Doing merge and targeting steps: " body query)
-        (swap! state-atom (fn [s] (cond-> (merge/merge* s query body {:remove-missing? true})
-                                    target (targeting/process-target source-key target))))
+        (swap! state-atom (fn [s]
+                            (cond-> (merge/merge* s query body {:remove-missing? true})
+                              target (targeting/process-target source-key target))))
         (when (symbol? post-mutation)
           (log/debug "Doing post mutation " post-mutation)
           (comp/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
