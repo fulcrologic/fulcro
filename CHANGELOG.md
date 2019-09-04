@@ -1,3 +1,7 @@
+3.0.0-beta-13-1
+---------------
+- Fixed cljdoc build
+
 3.0.0-beta-13
 -------------
 - Fixed mutation-requested UI refresh
