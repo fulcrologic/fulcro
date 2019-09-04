@@ -19,10 +19,11 @@
   will be converted to js for interop. You may pass js props as an optimization."
   [js-component-class]
   (fn [props & children]
-    (apply js/React.createElement
-      js-component-class
-      (dom/convert-props props)
-      children)))
+    #?(:cljs
+       (apply js/React.createElement
+         js-component-class
+         (dom/convert-props props)
+         children))))
 
 (defn hoc-wrapper-factory
   "Creates a React factory `(fn [parent fulcro-props & children])` for a component that has had an HOC applied,
@@ -33,11 +34,12 @@
   (fn [this props & children]
     (when-not (comp/component? this)
       (log/error "The first argument to an HOC factory MUST be the parent component instance."))
-    (apply js/React.createElement
-      component-class
-      #js {"fulcro_hoc$parent"     this
-           "fulcro_hoc$childprops" props}
-      children)))
+    #?(:cljs
+       (apply js/React.createElement
+         component-class
+         #js {"fulcro_hoc$parent"     this
+              "fulcro_hoc$childprops" props}
+         children))))
 
 (defn hoc-factory
   "Returns a (fn [parent-component props & children] ...) that will render the target-fulcro-class, but as
