@@ -98,11 +98,11 @@
         (f/add-form-config BadlyNestedForm data-tree) =throws=> #"Subform .*NonForm of .*BadlyNestedForm"))))
 
 (specification "add-form-config*"
-  (let [state-map         {:person/id {1 {:db/id             1 ::person-name "Joe" :ui/checked? true
-                                             ::phone-numbers [[:phone/id 5]]}}
+  (let [state-map         {:person/id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true
+                                          ::phone-numbers [[:phone/id 5]]}}
                            :root-prop 99
                            :phone/id  {5 {:db/id 5 ::phone-number "555-4444"
-                                             :ui/n  22}}}
+                                          :ui/n  22}}}
         configured-db     (f/add-form-config* state-map Person [:person/id 1])
         fconfig-id-person [::f/forms-by-ident (f/form-id [:person/id 1])]
         fconfig-id-phone  [::f/forms-by-ident (f/form-id [:phone/id 5])]]
@@ -116,11 +116,11 @@
       (get-in configured-db [:phone/id 5 :ui/n]) => 22)))
 
 (specification "delete-form-state*"
-  (let [state-map     {:person/id {1 {:db/id             1 ::person-name "Joe" :ui/checked? true
-                                         ::phone-numbers [[:phone/id 5]]}}
+  (let [state-map     {:person/id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true
+                                      ::phone-numbers [[:phone/id 5]]}}
                        :root-prop 99
                        :phone/id  {5 {:db/id 5 ::phone-number "555-4444"
-                                         :ui/n  22}}}
+                                      :ui/n  22}}}
         configured-db (f/add-form-config* state-map Person [:person/id 1])]
     (assertions
       "Removes form states of multiple entity-idents"
@@ -158,6 +158,7 @@
                                                   [:person/id id]))
       new-phone-id                            (tempid/tempid)
       new-phone-number                        {:db/id new-phone-id ::phone-number "444-111-3333"}
+      existing-phone-number                   {:db/id 10 ::phone-number "444-111-3333"}
       new-phone-ident                         (comp/get-ident Phone new-phone-number)
       formified-phone                         (f/add-form-config Phone new-phone-number)
       edited-form-state-map                   (-> state-map
@@ -170,8 +171,10 @@
                                                                          ::person-age 22 ::phone-numbers [new-phone-number]})
       new-person-to-one                       (f/add-form-config Person {:db/id       new-person-id ::person-name "New"
                                                                          ::person-age 22 ::phone-numbers new-phone-number})
-      existing-person-no-child                (f/add-form-config Person {:db/id       1 ::person-name "New"
-                                                                         ::person-age 22})]
+      existing-person-no-child                (f/add-form-config Person {:db/id       1 ::person-name "Existing"
+                                                                         ::person-age 22})
+      existing-person-to-one                  (f/add-form-config Person {:db/id       1 ::person-name "Existing"
+                                                                         ::person-age 22 ::phone-numbers existing-phone-number})]
 
   (specification "dirty-fields"
     (behavior "(as delta)"
@@ -199,6 +202,14 @@
 
           "Includes the list of changes to subform idents"
           (get-in delta [[:person/id 1] ::phone-numbers]) => [[:phone/id 2] [:phone/id 3] [:phone/id new-phone-id]])))
+    (behavior "(new-entity? flag)"
+      (let [delta (f/dirty-fields existing-person-to-one true {:new-entity? true})]
+        (assertions
+          "Reports all entity fields"
+          (get-in delta [[:person/id 1] ::person-name :after]) => "Existing"
+          (get-in delta [[:person/id 1] ::person-age :after]) => 22
+          "Reports all nested entity fields"
+          (get-in delta [[:phone/id 10] ::phone-number :after]) => "444-111-3333")))
     (behavior "Brand new forms with relations"
       (assertions
         "Includes subform idents"
