@@ -422,54 +422,60 @@
   ```
   {entity-ident {:field 2}}
   ```
+
+  If ui-entity has tempid in ident or has `:new-entity? true` in opts map, then all fields for that form will be
+  included in result regardless of pristine state.
   "
-  [ui-entity as-delta?]
-  [::denormalized-form boolean? => map?]
-  (let [{:keys [::id ::fields ::pristine-state ::subforms] :as config} (get ui-entity ::config)
-        subform-keys       (-> subforms keys set)
-        subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (comp/get-ident entity)))
-        new-entity?        (tempid/tempid? (second id))
-        delta              (into {} (keep (fn [k]
-                                            (let [before (get pristine-state k)
-                                                  after  (get ui-entity k)]
-                                              (if (or new-entity? (not= before after))
-                                                (if as-delta?
-                                                  [k {:before before :after after}]
-                                                  [k after])
-                                                nil))) fields))
-        delta-with-refs    (into delta
-                             (keep
-                               (fn [k]
-                                 (let [items         (get ui-entity k)
-                                       old-value     (get-in ui-entity [::config ::pristine-state k])
-                                       current-value (cond
-                                                       (map? items) (subform-ident k items)
-                                                       (vector? items) (mapv #(subform-ident k %) items)
-                                                       :else items)
-                                       has-tempids?  (if (every? eql/ident? current-value)
-                                                       (some #(tempid/tempid? (second %)) current-value)
-                                                       (tempid/tempid? (second current-value)))]
-                                   (if (or has-tempids? (not= old-value current-value))
-                                     (if as-delta?
-                                       [k {:before old-value :after current-value}]
-                                       [k current-value])
-                                     nil)))
-                               subform-keys))
-        local-dirty-fields (if (empty? delta-with-refs) {} {id delta-with-refs})
-        complete-delta     (reduce
-                             (fn [dirty-fields-so-far subform-join-field]
-                               (let [subform (get ui-entity subform-join-field)]
-                                 (cond
-                                   ; to many
-                                   (vector? subform) (reduce (fn [d f] (merge d (dirty-fields f as-delta?))) dirty-fields-so-far subform)
-                                   ; to one
-                                   (map? subform) (let [dirty-subform-fields (dirty-fields subform as-delta?)]
-                                                    (merge dirty-fields-so-far dirty-subform-fields))
-                                   ; missing subform
-                                   :else dirty-fields-so-far)))
-                             local-dirty-fields
-                             subform-keys)]
-    complete-delta))
+  ([ui-entity as-delta?]
+   [::denormalized-form boolean? => map?]
+   (dirty-fields ui-entity as-delta? {}))
+  ([ui-entity as-delta? {:keys [new-entity?] :as opts}]
+   [::denormalized-form boolean? map? => map?]
+   (let [{:keys [::id ::fields ::pristine-state ::subforms] :as config} (get ui-entity ::config)
+         subform-keys       (-> subforms keys set)
+         subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (comp/get-ident entity)))
+         new-entity?        (or new-entity? (tempid/tempid? (second id)))
+         delta              (into {} (keep (fn [k]
+                                             (let [before (get pristine-state k)
+                                                   after  (get ui-entity k)]
+                                               (if (or new-entity? (not= before after))
+                                                 (if as-delta?
+                                                   [k {:before before :after after}]
+                                                   [k after])
+                                                 nil))) fields))
+         delta-with-refs    (into delta
+                              (keep
+                                (fn [k]
+                                  (let [items         (get ui-entity k)
+                                        old-value     (get-in ui-entity [::config ::pristine-state k])
+                                        current-value (cond
+                                                        (map? items) (subform-ident k items)
+                                                        (vector? items) (mapv #(subform-ident k %) items)
+                                                        :else items)
+                                        has-tempids?  (if (every? eql/ident? current-value)
+                                                        (some #(tempid/tempid? (second %)) current-value)
+                                                        (tempid/tempid? (second current-value)))]
+                                    (if (or new-entity? has-tempids? (not= old-value current-value))
+                                      (if as-delta?
+                                        [k {:before old-value :after current-value}]
+                                        [k current-value])
+                                      nil)))
+                                subform-keys))
+         local-dirty-fields (if (empty? delta-with-refs) {} {id delta-with-refs})
+         complete-delta     (reduce
+                              (fn [dirty-fields-so-far subform-join-field]
+                                (let [subform (get ui-entity subform-join-field)]
+                                  (cond
+                                    ; to many
+                                    (vector? subform) (reduce (fn [d f] (merge d (dirty-fields f as-delta? opts))) dirty-fields-so-far subform)
+                                    ; to one
+                                    (map? subform) (let [dirty-subform-fields (dirty-fields subform as-delta? opts)]
+                                                     (merge dirty-fields-so-far dirty-subform-fields))
+                                    ; missing subform
+                                    :else dirty-fields-so-far)))
+                              local-dirty-fields
+                              subform-keys)]
+     complete-delta)))
 
 (defn clear-complete*
   "Mark the fields incomplete so that validation checks will no longer return values. This function works on an app state database
