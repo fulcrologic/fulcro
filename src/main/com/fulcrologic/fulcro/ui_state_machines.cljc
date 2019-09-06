@@ -1059,10 +1059,10 @@
 
   `::comp/component-class` - The defsc name of the component to use for normalization and query. Only needed if the
     actor was not declared using a Fulcro component or component class.
-  `::uism/post-event`:: An event to send when the load is done (instead of calling a mutation)
-  `::uism/post-event-params`:: Extra parameters to send as event-data on the post-event.
-  `::uism/fallback-event`:: The event to send if the load triggers a fallback.
-  `::uism/fallback-event-params`:: Extra parameters to send as event-data on a fallback.
+  `::uism/ok-event`:: An event to send when the load is done (instead of calling a mutation)
+  `::uism/ok-data`:: To send as event-data on the ok-event.
+  `::uism/error-event`:: The event to send if the load has a network error.
+  `::uism/error-data`:: To send as event-data on error.
 
    Adds a load request to then env which will be sent to Fulcro as soon as the handler finishes."
   ([env actor-name]
