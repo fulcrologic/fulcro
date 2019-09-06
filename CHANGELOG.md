@@ -1,3 +1,8 @@
+3.0.0-beta-14
+-------------
+- Fixed bug in fs/dirty-fields.
+- Expanded dirty fields to not require the use of tempids.
+
 3.0.0-beta-13-1
 ---------------
 - Fixed cljdoc build
