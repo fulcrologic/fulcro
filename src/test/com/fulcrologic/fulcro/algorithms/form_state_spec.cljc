@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.algorithms.form-state-spec
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.algorithms.form-state :as f]
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
@@ -12,7 +12,7 @@
 (declare =>)
 
 (defsc Locale [this props]
-  {:query       [:db/id ::country f/form-config-join]
+  {:query       [:db/id ::country fs/form-config-join]
    :ident       [:locale/by-id :db/id]
    :form-fields #{::country}})
 
@@ -21,12 +21,12 @@
 (defsc Phone [this props]
   {:query       [:db/id {::locale (comp/get-query Locale)}
                  ::phone-number
-                 f/form-config-join]
+                 fs/form-config-join]
    :ident       [:phone/id :db/id]
    :form-fields #{::locale ::phone-number}})
 
 (defsc UnusedForm [this props]
-  {:query       [:db/id ::data f/form-config-join]
+  {:query       [:db/id ::data fs/form-config-join]
    :ident       [:unused/by-id :db/id]
    :form-fields #{::data}})
 
@@ -36,7 +36,7 @@
   {:query       [:db/id ::person-name ::person-age
                  {::unused (comp/get-query UnusedForm)}
                  {::phone-numbers (comp/get-query Phone)}
-                 f/form-config-join]
+                 fs/form-config-join]
    :ident       [:person/id :db/id]
    :form-fields #{::person-name ::unused ::person-age ::phone-numbers}})
 
@@ -45,11 +45,11 @@
    :ident [:ntop :id]})
 
 (defsc FormNoFields [this props]
-  {:query [:id :x f/form-config-join]
+  {:query [:id :x fs/form-config-join]
    :ident [:ntop :id]})
 
 (defsc BadlyNestedForm [this props]
-  {:query       [:id :name {:thing (comp/get-query NonForm)} f/form-config-join]
+  {:query       [:id :name {:thing (comp/get-query NonForm)} fs/form-config-join]
    :ident       [:top :id]
    :form-fields #{:name :thing}})
 
@@ -61,41 +61,41 @@
                            ::person-name   "Joe"
                            ::phone-numbers [{:db/id   2 ::phone-number "555-1212"
                                              ::locale {:db/id 5 ::country "US"}}]}
-          configured-form (f/add-form-config Person data-tree)
-          form-config     (get configured-form ::f/config)]
+          configured-form (fs/add-form-config Person data-tree)
+          form-config     (get configured-form ::fs/config)]
       (assertions
         "::f/config is a spec-valid config"
-        (s/valid? ::f/config form-config) => true
-        (s/explain-data ::f/config form-config) => nil
+        (s/valid? ::fs/config form-config) => true
+        (s/explain-data ::fs/config form-config) => nil
         "the original entity fields are unchanged"
         (-> configured-form
-          (dissoc ::f/config)
-          (update-in [::phone-numbers 0] dissoc ::f/config)
-          (update-in [::phone-numbers 0 ::locale] dissoc ::f/config)) => data-tree
+          (dissoc ::fs/config)
+          (update-in [::phone-numbers 0] dissoc ::fs/config)
+          (update-in [::phone-numbers 0 ::locale] dissoc ::fs/config)) => data-tree
         "the original fields (and subform idents) are saved to pristine state"
-        (::f/pristine-state form-config) => {::person-name   "Joe"
-                                             ::phone-numbers [[:phone/id 2]]}
+        (::fs/pristine-state form-config) => {::person-name   "Joe"
+                                              ::phone-numbers [[:phone/id 2]]}
         "the entity's ident is the form's ID"
-        (get-in configured-form [::f/config ::f/id]) => [:person/id 1]
+        (get-in configured-form [::fs/config ::fs/id]) => [:person/id 1]
         "has the scalar declared fields"
-        (get-in configured-form [::f/config ::f/fields]) => #{::person-name ::person-age}
+        (get-in configured-form [::fs/config ::fs/fields]) => #{::person-name ::person-age}
         "data about each populated subform is included (recursively)"
-        (some-> form-config ::f/subforms ::phone-numbers meta :component) => Phone
-        (some-> configured-form ::phone-numbers first ::f/config ::f/subforms ::locale meta :component) => Locale
+        (some-> form-config ::fs/subforms ::phone-numbers meta :component) => Phone
+        (some-> configured-form ::phone-numbers first ::fs/config ::fs/subforms ::locale meta :component) => Locale
         "data about empty subforms is included"
-        (some-> form-config ::f/subforms ::unused meta :component) => UnusedForm
+        (some-> form-config ::fs/subforms ::unused meta :component) => UnusedForm
         "each subform is recursively initialized"
-        (get-in configured-form [::phone-numbers 0 ::f/config ::f/id]) => [:phone/id 2]
-        (get-in configured-form [::phone-numbers 0 ::locale ::f/config ::f/id]) => [:locale/by-id 5])))
+        (get-in configured-form [::phone-numbers 0 ::fs/config ::fs/id]) => [:phone/id 2]
+        (get-in configured-form [::phone-numbers 0 ::locale ::fs/config ::fs/id]) => [:locale/by-id 5])))
   (component "error checking"
     (let [data-tree {:id 1 :name "A" :thing {:id 2 :x 42}}]
       (assertions
         "throws an exception if the target fails to query for form config"
-        (f/add-form-config NonForm data-tree) =throws=> #"to .*NonForm, but it does not query for config"
+        (fs/add-form-config NonForm data-tree) =throws=> #"to .*NonForm, but it does not query for config"
         "throws an exception if the target fails to declare fields"
-        (f/add-form-config FormNoFields data-tree) =throws=> #"to .*FormNoFields, but it does not declare any fields"
+        (fs/add-form-config FormNoFields data-tree) =throws=> #"to .*FormNoFields, but it does not declare any fields"
         "does recursive checks on subforms"
-        (f/add-form-config BadlyNestedForm data-tree) =throws=> #"Subform .*NonForm of .*BadlyNestedForm"))))
+        (fs/add-form-config BadlyNestedForm data-tree) =throws=> #"Subform .*NonForm of .*BadlyNestedForm"))))
 
 (specification "add-form-config*"
   (let [state-map         {:person/id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true
@@ -103,14 +103,14 @@
                            :root-prop 99
                            :phone/id  {5 {:db/id 5 ::phone-number "555-4444"
                                           :ui/n  22}}}
-        configured-db     (f/add-form-config* state-map Person [:person/id 1])
-        fconfig-id-person [::f/forms-by-ident (f/form-id [:person/id 1])]
-        fconfig-id-phone  [::f/forms-by-ident (f/form-id [:phone/id 5])]]
+        configured-db     (fs/add-form-config* state-map Person [:person/id 1])
+        fconfig-id-person [::fs/forms-by-ident (fs/form-id [:person/id 1])]
+        fconfig-id-phone  [::fs/forms-by-ident (fs/form-id [:phone/id 5])]]
     (assertions
       "Adds for configuration to normalized tables"
-      (get-in configured-db [:person/id 1 ::f/config]) => fconfig-id-person
-      (get-in configured-db [:phone/id 5 ::f/config]) => fconfig-id-phone
-      (get-in configured-db fconfig-id-person) =fn=> (fn [c] (contains? c ::f/id))
+      (get-in configured-db [:person/id 1 ::fs/config]) => fconfig-id-person
+      (get-in configured-db [:phone/id 5 ::fs/config]) => fconfig-id-phone
+      (get-in configured-db fconfig-id-person) =fn=> (fn [c] (contains? c ::fs/id))
       "leaves existing (non-form) data alone"
       (get-in configured-db [:person/id 1 :ui/checked?]) => true
       (get-in configured-db [:phone/id 5 :ui/n]) => 22)))
@@ -121,35 +121,35 @@
                        :root-prop 99
                        :phone/id  {5 {:db/id 5 ::phone-number "555-4444"
                                       :ui/n  22}}}
-        configured-db (f/add-form-config* state-map Person [:person/id 1])]
+        configured-db (fs/add-form-config* state-map Person [:person/id 1])]
     (assertions
       "Removes form states of multiple entity-idents"
       (-> configured-db
-        (f/delete-form-state* [[:person/id 1]
-                               [:phone/id 5]])
-        ::f/forms-by-ident)
+        (fs/delete-form-state* [[:person/id 1]
+                                [:phone/id 5]])
+        ::fs/forms-by-ident)
       => {}
       "Removes form states of one entity-ident at a time"
       (-> configured-db
-        (f/delete-form-state* [:person/id 1])
-        (f/delete-form-state* [:phone/id 5])
-        ::f/forms-by-ident)
+        (fs/delete-form-state* [:person/id 1])
+        (fs/delete-form-state* [:phone/id 5])
+        ::fs/forms-by-ident)
       => {})))
 
 (let [locale                                  {:db/id 22 ::country :US}
-      locale                                  (f/add-form-config Locale locale)
+      locale                                  (fs/add-form-config Locale locale)
       phone-numbers                           [{:db/id 2 ::phone-number "555-1212" ::locale locale} {:db/id 3 ::phone-number "555-1212"}]
-      phone-number-forms                      (mapv #(f/add-form-config Phone %) phone-numbers)
+      phone-number-forms                      (mapv #(fs/add-form-config Phone %) phone-numbers)
       person                                  {:db/id 1 ::person-name "Bo" ::phone-numbers phone-number-forms}
-      person-form                             (f/add-form-config Person person)
+      person-form                             (fs/add-form-config Person person)
       state-map                               (fnorm/tree->db [{:the-person (comp/get-query Person)}] {:the-person person-form} true)
       validated-person                        (-> person-form
-                                                (assoc-in [::f/config ::f/complete?] #{::person-name ::person-age})
-                                                (assoc-in [::phone-numbers 0 ::f/config ::f/complete?] #{::phone-number})
-                                                (assoc-in [::phone-numbers 0 ::locale ::f/config ::f/complete?] #{::country})
-                                                (assoc-in [::phone-numbers 1 ::f/config ::f/complete?] #{::phone-number}))
-      person-with-incomplete-name             (assoc-in validated-person [::f/config ::f/complete?] #{})
-      person-with-incomplete-nested-form      (assoc-in validated-person [::phone-numbers 0 ::locale ::f/config ::f/complete?] #{})
+                                                (assoc-in [::fs/config ::fs/complete?] #{::person-name ::person-age})
+                                                (assoc-in [::phone-numbers 0 ::fs/config ::fs/complete?] #{::phone-number})
+                                                (assoc-in [::phone-numbers 0 ::locale ::fs/config ::fs/complete?] #{::country})
+                                                (assoc-in [::phone-numbers 1 ::fs/config ::fs/complete?] #{::phone-number}))
+      person-with-incomplete-name             (assoc-in validated-person [::fs/config ::fs/complete?] #{})
+      person-with-incomplete-nested-form      (assoc-in validated-person [::phone-numbers 0 ::locale ::fs/config ::fs/complete?] #{})
       person-with-invalid-name                (assoc validated-person ::person-name "")
       person-with-invalid-nested-phone-locale (assoc-in validated-person [::phone-numbers 0 ::locale ::country] "England")
       person-ui-tree                          (fn [state id]
@@ -160,25 +160,25 @@
       new-phone-number                        {:db/id new-phone-id ::phone-number "444-111-3333"}
       existing-phone-number                   {:db/id 10 ::phone-number "444-111-3333"}
       new-phone-ident                         (comp/get-ident Phone new-phone-number)
-      formified-phone                         (f/add-form-config Phone new-phone-number)
+      formified-phone                         (fs/add-form-config Phone new-phone-number)
       edited-form-state-map                   (-> state-map
                                                 (assoc-in [:phone/id new-phone-id] formified-phone)
                                                 (assoc-in [:person/id 1 ::person-name] "New Name")
                                                 (update-in [:person/id 1 ::phone-numbers] conj new-phone-ident)
                                                 (assoc-in [:phone/id 3 ::phone-number] "555-9999"))
       new-person-id                           (tempid/tempid)
-      new-person-to-many                      (f/add-form-config Person {:db/id       new-person-id ::person-name "New"
-                                                                         ::person-age 22 ::phone-numbers [new-phone-number]})
-      new-person-to-one                       (f/add-form-config Person {:db/id       new-person-id ::person-name "New"
-                                                                         ::person-age 22 ::phone-numbers new-phone-number})
-      existing-person-no-child                (f/add-form-config Person {:db/id       1 ::person-name "Existing"
-                                                                         ::person-age 22})
-      existing-person-to-one                  (f/add-form-config Person {:db/id       1 ::person-name "Existing"
-                                                                         ::person-age 22 ::phone-numbers existing-phone-number})]
+      new-person-to-many                      (fs/add-form-config Person {:db/id       new-person-id ::person-name "New"
+                                                                          ::person-age 22 ::phone-numbers [new-phone-number]})
+      new-person-to-one                       (fs/add-form-config Person {:db/id       new-person-id ::person-name "New"
+                                                                          ::person-age 22 ::phone-numbers new-phone-number})
+      existing-person-no-child                (fs/add-form-config Person {:db/id       1 ::person-name "Existing"
+                                                                          ::person-age 22})
+      existing-person-to-one                  (fs/add-form-config Person {:db/id       1 ::person-name "Existing"
+                                                                          ::person-age 22 ::phone-numbers existing-phone-number})]
 
   (specification "dirty-fields"
     (behavior "(as delta)"
-      (let [delta (f/dirty-fields (person-ui-tree edited-form-state-map 1) true)]
+      (let [delta (fs/dirty-fields (person-ui-tree edited-form-state-map 1) true)]
         (assertions
           "Reports all fields of any entity with a temporary ID"
           (get-in delta [new-phone-ident ::phone-number :after]) => "444-111-3333"
@@ -192,7 +192,7 @@
           (get-in delta [[:person/id 1] ::phone-numbers :before]) => [[:phone/id 2] [:phone/id 3]]
           (get-in delta [[:person/id 1] ::phone-numbers :after]) => [[:phone/id 2] [:phone/id 3] [:phone/id new-phone-id]])))
     (behavior "(not as delta)"
-      (let [delta (f/dirty-fields (person-ui-tree edited-form-state-map 1) false)]
+      (let [delta (fs/dirty-fields (person-ui-tree edited-form-state-map 1) false)]
         (assertions
           "Reports all fields of any entity with a temporary ID"
           (get-in delta [new-phone-ident ::phone-number]) => "444-111-3333"
@@ -203,7 +203,7 @@
           "Includes the list of changes to subform idents"
           (get-in delta [[:person/id 1] ::phone-numbers]) => [[:phone/id 2] [:phone/id 3] [:phone/id new-phone-id]])))
     (behavior "(new-entity? flag)"
-      (let [delta (f/dirty-fields existing-person-to-one true {:new-entity? true})]
+      (let [delta (fs/dirty-fields existing-person-to-one true {:new-entity? true})]
         (assertions
           "Reports all entity fields"
           (get-in delta [[:person/id 1] ::person-name :after]) => "Existing"
@@ -213,77 +213,83 @@
     (behavior "Brand new forms with relations"
       (assertions
         "Includes subform idents"
-        (get-in (f/dirty-fields new-person-to-many false) [[:person/id new-person-id] ::phone-numbers]) => [[:phone/id new-phone-id]]
-        (get-in (f/dirty-fields new-person-to-one false) [[:person/id new-person-id] ::phone-numbers]) => [:phone/id new-phone-id]))
+        (get-in (fs/dirty-fields new-person-to-many false) [[:person/id new-person-id] ::phone-numbers]) => [[:phone/id new-phone-id]]
+        (get-in (fs/dirty-fields new-person-to-one false) [[:person/id new-person-id] ::phone-numbers]) => [:phone/id new-phone-id]))
     (behavior "Existing forms with empty relations"
       (assertions
         "Report empty list of changes"
-        (f/dirty-fields existing-person-no-child false) => {}
-        (f/dirty-fields existing-person-no-child true) => {})))
+        (fs/dirty-fields existing-person-no-child false) => {}
+        (fs/dirty-fields existing-person-no-child true) => {})))
 
   (specification "dirty?"
     (behavior "is a UI (tree) operation for checking if the form has been modified from pristine"
-      (assertions
-        "is false if there are no changes"
-        (f/dirty? person-form) => false
-        "is true if the data has changed in the top-level form"
-        (f/dirty? (assoc person-form ::person-name "New name")) => true
-        "is true if any subform item has changed"
-        (f/dirty? (assoc-in person-form [::phone-numbers 0 ::phone-number] "555-1111")) => true
-        (f/dirty? (assoc-in person-form [::phone-numbers 0 ::locale ::country] :MX)) => true
-        (f/dirty? (assoc-in person-form [::phone-numbers 1 ::phone-number] "555-1111")) => true)))
+      (let [new-phone-number      {:db/id 4 ::phone-number "888-1212"}
+            new-phone-number-form (fs/add-form-config Phone new-phone-number)]
+        (assertions
+          "is false if there are no changes"
+          (fs/dirty? person-form) => false
+          "is true if the data has changed in the top-level form"
+          (fs/dirty? (assoc person-form ::person-name "New name")) => true
+          "is true if any subform item has changed"
+          (fs/dirty? (assoc-in person-form [::phone-numbers 0 ::phone-number] "555-1111")) => true
+          (fs/dirty? (assoc-in person-form [::phone-numbers 0 ::locale ::country] :MX)) => true
+          (fs/dirty? (assoc-in person-form [::phone-numbers 1 ::phone-number] "555-1111")) => true
+          "is true if new subform item is added"
+          (fs/dirty? (update person-form ::phone-numbers conj new-phone-number-form)) => true
+          "is true if new subform item is removed"
+          (fs/dirty? (assoc person-form ::phone-numbers [(first phone-number-forms)])) => true))))
 
   (specification "get-spec-validity"
     (behavior "is a UI (tree) operation for checking if the form (or fields) are valid. It:"
       (assertions
         "returns :unchecked if the fields have not been interacted with"
-        (f/get-spec-validity person-form) => :unchecked
+        (fs/get-spec-validity person-form) => :unchecked
         "returns :valid if all fields are complete and valid"
-        (f/get-spec-validity validated-person) => :valid
+        (fs/get-spec-validity validated-person) => :valid
         "returns :unchecked if any field is not marked as complete"
-        (f/get-spec-validity person-with-incomplete-name) => :unchecked
+        (fs/get-spec-validity person-with-incomplete-name) => :unchecked
         "returns :unchecked if any NESTED fields are not marked as complete"
-        (f/get-spec-validity person-with-incomplete-nested-form) => :unchecked
+        (fs/get-spec-validity person-with-incomplete-nested-form) => :unchecked
         "returns :invalid if any top-level property is invalid"
-        (f/get-spec-validity person-with-invalid-name) => :invalid
+        (fs/get-spec-validity person-with-invalid-name) => :invalid
         "returns :invalid if any nexted property is invalid"
-        (f/get-spec-validity person-with-invalid-nested-phone-locale) => :invalid)))
+        (fs/get-spec-validity person-with-invalid-nested-phone-locale) => :invalid)))
   (specification "valid-spec?"
     (assertions
       "Returns true if validity is :valid"
-      (f/valid-spec? validated-person) => true
+      (fs/valid-spec? validated-person) => true
       "Returns false if validity is :unchecked"
-      (f/valid-spec? person-with-incomplete-nested-form) => false
+      (fs/valid-spec? person-with-incomplete-nested-form) => false
       "Returns false if validity is :invalid"
-      (f/valid-spec? person-with-invalid-name) => false))
+      (fs/valid-spec? person-with-invalid-name) => false))
   (specification "checked?"
     (assertions
       "Returns true if validity is :valid or :invalid"
-      (f/checked? validated-person) => true
-      (f/checked? person-with-invalid-name) => true
-      (f/checked? person-with-invalid-nested-phone-locale) => true
+      (fs/checked? validated-person) => true
+      (fs/checked? person-with-invalid-name) => true
+      (fs/checked? person-with-invalid-nested-phone-locale) => true
       "Returns false if validity is :unchecked"
-      (f/checked? person-with-incomplete-nested-form) => false))
+      (fs/checked? person-with-incomplete-nested-form) => false))
   (specification "invalid?"
     (assertions
       "Returns true if validity is :invalid"
-      (f/invalid-spec? person-with-invalid-name) => true
-      (f/invalid-spec? person-with-invalid-nested-phone-locale) => true
+      (fs/invalid-spec? person-with-invalid-name) => true
+      (fs/invalid-spec? person-with-invalid-nested-phone-locale) => true
       "Returns false if validity is :unchecked"
-      (f/invalid-spec? person-with-incomplete-nested-form) => false
+      (fs/invalid-spec? person-with-incomplete-nested-form) => false
       "Returns false if validity is :valid"
-      (f/invalid-spec? validated-person) => false))
+      (fs/invalid-spec? validated-person) => false))
 
   (specification "update-forms"
     (behavior "Allows one to traverse a nested form set in the app state database and apply xforms to the form and config"
-      (let [updated-state (f/update-forms state-map (fn [e c] [(assoc e ::touched true) (assoc c ::touched true)]) [:person/id 1])]
+      (let [updated-state (fs/update-forms state-map (fn [e c] [(assoc e ::touched true) (assoc c ::touched true)]) [:person/id 1])]
         (assertions
           "Touches the top-level form config"
-          (get-in updated-state [::f/forms-by-ident (f/form-id [:person/id 1]) ::touched]) => true
+          (get-in updated-state [::fs/forms-by-ident (fs/form-id [:person/id 1]) ::touched]) => true
           "Touches the nested form configs"
-          (get-in updated-state [::f/forms-by-ident (f/form-id [:phone/id 2]) ::touched]) => true
-          (get-in updated-state [::f/forms-by-ident (f/form-id [:phone/id 3]) ::touched]) => true
-          (get-in updated-state [::f/forms-by-ident (f/form-id [:locale/by-id 22]) ::touched]) => true
+          (get-in updated-state [::fs/forms-by-ident (fs/form-id [:phone/id 2]) ::touched]) => true
+          (get-in updated-state [::fs/forms-by-ident (fs/form-id [:phone/id 3]) ::touched]) => true
+          (get-in updated-state [::fs/forms-by-ident (fs/form-id [:locale/by-id 22]) ::touched]) => true
           "Touches the top-level entity"
           (get-in updated-state [:person/id 1 ::touched]) => true
           "Touches the nested form  entities"
@@ -294,15 +300,15 @@
   (specification "mark-complete*"
     (behavior "is a state map operation that marks field(s) as complete, so validation checks can be applied"
       (let [get-person (fn [state id validate?] (let [validated-state (cond-> state
-                                                                        validate? (f/mark-complete* [:person/id id]))]
+                                                                        validate? (fs/mark-complete* [:person/id id]))]
                                                   (person-ui-tree validated-state id)))]
         (assertions
           "makes the form checked? = true"
-          (f/checked? (get-person state-map 1 false)) => false
-          (f/checked? (get-person state-map 1 true)) => true
+          (fs/checked? (get-person state-map 1 false)) => false
+          (fs/checked? (get-person state-map 1 true)) => true
           "valid forms become valid"
-          (f/valid-spec? (get-person state-map 1 false)) => false
-          (f/valid-spec? (get-person state-map 1 true)) => true))))
+          (fs/valid-spec? (get-person state-map 1 false)) => false
+          (fs/valid-spec? (get-person state-map 1 true)) => true))))
 
   (specification "pristine->entity*"
     (behavior "is a state map operation that recursively undoes any entity state changes that differ from pristine"
@@ -310,7 +316,7 @@
                                  (assoc-in [:phone/id 3 ::phone-number] "111")
                                  (assoc-in [:locale/by-id 22 ::country] :UK)
                                  (assoc-in [:person/id 1 ::person-name] "Bobby"))
-            reset-state-map    (f/pristine->entity* modified-state-map [:person/id 1])]
+            reset-state-map    (fs/pristine->entity* modified-state-map [:person/id 1])]
         (assertions
           (not= modified-state-map state-map) => true
           reset-state-map => state-map))))
@@ -322,12 +328,12 @@
                                   (assoc-in [:locale/by-id 22 ::country] :UK)
                                   (assoc-in [:person/id 1 ::person-name] "Bobby"))
             modified-ui-tree    (person-ui-tree modified-state-map 1)
-            committed-state-map (f/entity->pristine* modified-state-map [:person/id 1])
+            committed-state-map (fs/entity->pristine* modified-state-map [:person/id 1])
             committed-ui-tree   (person-ui-tree committed-state-map 1)]
         (assertions
           "committing transitions dirty -> clean"
-          (f/dirty? modified-ui-tree) => true
-          (f/dirty? committed-ui-tree) => false
+          (fs/dirty? modified-ui-tree) => true
+          (fs/dirty? committed-ui-tree) => false
           "the clean version has the updated data"
           (get-in committed-ui-tree [::person-name]) => "Bobby"
           (get-in committed-ui-tree [::phone-numbers 1 ::phone-number]) => "111"

@@ -25,11 +25,11 @@
 
 (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 
-(s/def ::id (s/with-gen eql/ident? ident-generator))      ; form config uses the entity's ident as an ID
-(s/def ::fields (s/every keyword? :kind set?))            ; a set of kws that are fields to track
-(s/def ::subforms (s/map-of keyword? any?))               ; a map of subform field to component class
-(s/def ::pristine-state (s/map-of keyword? any?))         ; the saved state of the form
-(s/def ::complete? (s/every keyword? :kind set?))         ; the fields that have been interacted with
+(s/def ::id (s/with-gen eql/ident? ident-generator))        ; form config uses the entity's ident as an ID
+(s/def ::fields (s/every keyword? :kind set?))              ; a set of kws that are fields to track
+(s/def ::subforms (s/map-of keyword? any?))                 ; a map of subform field to component class
+(s/def ::pristine-state (s/map-of keyword? any?))           ; the saved state of the form
+(s/def ::complete? (s/every keyword? :kind set?))           ; the fields that have been interacted with
 (s/def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
 (s/def ::validity #{:valid :invalid :unchecked})
 (s/def ::denormalized-form (s/keys :req [::config]))
@@ -216,27 +216,6 @@
   (remove nil?
     (mapcat #(let [v (get entity %)]
                (if (sequential? v) v [v])) subform-join-keys)))
-
-(>defn dirty?
-  "Returns true if the given ui-entity-props that are configured as a form differ from the pristine version.
-  Recursively follows subforms if given no field. Returns true if anything doesn't match up.
-
-  If given a field, it only checks that field."
-  ([ui-entity-props field]
-   [map? keyword? => boolean?]
-   (let [{{pristine-state ::pristine-state} ::config} ui-entity-props
-         current  (get ui-entity-props field)
-         original (get pristine-state field)]
-     (not= current original)))
-  ([ui-entity-props]
-   [map? => boolean?]
-   (let [{:keys [::subforms ::fields]} (::config ui-entity-props)
-         dirty-field?     (fn [k] (dirty? ui-entity-props k))
-         subform-entities (immediate-subforms ui-entity-props (-> subforms (keys) (set)))]
-     (boolean
-       (or
-         (some dirty-field? fields)
-         (some dirty? subform-entities))))))
 
 (>defn no-spec-or-valid?
   "Returns false if and only if the given key has a spec, and the spec is not valid for the value found in the given
@@ -476,6 +455,21 @@
                               local-dirty-fields
                               subform-keys)]
      complete-delta)))
+
+(>defn dirty?
+  "Returns true if the given ui-entity-props that are configured as a form differ from the pristine version.
+  Recursively follows subforms if given no field. Returns true if anything doesn't match up.
+
+  If given a field, it only checks that field."
+  ([ui-entity-props field]
+   [map? keyword? => boolean?]
+   (let [{{pristine-state ::pristine-state} ::config} ui-entity-props
+         current  (get ui-entity-props field)
+         original (get pristine-state field)]
+     (not= current original)))
+  ([ui-entity-props]
+   [map? => boolean?]
+   (boolean (seq (dirty-fields ui-entity-props false)))))
 
 (defn clear-complete*
   "Mark the fields incomplete so that validation checks will no longer return values. This function works on an app state database
