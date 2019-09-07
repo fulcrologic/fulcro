@@ -356,8 +356,8 @@ write macros like this (and change your requires to use them instead):
 
 UI State Machines:: The names of a few parameters on API for
 doing loads and mutations were updated. The load `::uism/post-event` was
-renamed to `::uism/ok-event`, fallbacks to error, etc.  The targeting
-namespace on the target for mutations was change to data-targeting, and
+renamed to `::uism/ok-event`, fallbacks to error, etc. They match the API for triggering remote mutations now.
+The targeting namespace on the target for mutations was change to data-targeting, and
 the namespace for returning was change to normal mutations ns. The return
 value of mutations appears in ::uism/mutation-result now, and
 is the Fulcro 3 raw network result (status code, body, etc.).
