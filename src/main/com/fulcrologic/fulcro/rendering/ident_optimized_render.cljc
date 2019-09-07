@@ -17,13 +17,11 @@
   "Checks the given `idents` and returns a subset of them where the data they refer to has changed
    between `old-state` and `new-state`."
   [old-state new-state idents]
-  (reduce
-    (fn [result ident]
-      (if (identical? (get-in old-state ident) (get-in new-state ident))
-        result
-        (cons ident result)))
-    (list)
-    idents))
+  (into []
+        (filter (fn [ident]
+                  (not (identical? (get-in old-state ident)
+                                   (get-in new-state ident)))))
+        idents))
 
 (defn render-component!
   "Uses the component's query and the current application state to query for the current value of that component's
@@ -79,13 +77,10 @@
     (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
           {:com.fulcrologic.fulcro.application/keys [indexes]} @runtime-atom
           {:keys [prop->classes class->components]} indexes]
-      (reduce
-        (fn [result prop]
-          (let [classes    (prop->classes prop)
-                components (reduce #(into %1 (class->components %2)) #{} classes)]
-            (into result components)))
-        #{}
-        property-set))))
+      (into #{}
+            (comp (mapcat prop->classes)
+                  (mapcat class->components))
+            property-set))))
 
 (defn render-stale-components!
   "This function tracks the state of the app at the time of prior render in the app's runtime-atom. It
@@ -108,15 +103,12 @@
           (render-dependents-of-ident! app i)))
       (let [state-map          @state-atom
             idents-in-joins    (or idents-in-joins #{})
-            dirty-linked-props (reduce
-                                 (fn [acc p]
-                                   (if (not (identical?
-                                              (get state-map p)
-                                              (get last-rendered-state p)))
-                                     (conj acc p)
-                                     acc))
-                                 #{}
-                                 linked-props)
+            dirty-linked-props (into #{}
+                                     (filter (fn [p]
+                                               (not (identical?
+                                                      (get state-map p)
+                                                      (get last-rendered-state p)))))
+                                     linked-props)
             {idents-to-force true
              props-to-force  false} (group-by eql/ident? to-refresh)
             props-to-force     (set/union props-to-force dirty-linked-props)
