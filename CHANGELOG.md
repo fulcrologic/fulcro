@@ -1,3 +1,7 @@
+3.0.0-beta-15
+-------------
+- Fixed bug in explicit ref/component in transact with component.
+
 3.0.0-beta-14
 -------------
 - Fixed bug in fs/dirty-fields.
