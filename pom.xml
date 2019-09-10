@@ -46,7 +46,6 @@
                 <directory>src/main</directory>
             </resource>
         </resources>
-
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -79,19 +78,14 @@
             <version>1.10.0</version>
         </dependency>
         <dependency>
-            <groupId>com.wsscode</groupId>
-            <artifactId>pathom</artifactId>
-            <version>2.2.14</version>
-        </dependency>
-        <dependency>
             <groupId>edn-query-language</groupId>
             <artifactId>eql</artifactId>
-            <version>0.0.7</version>
+            <version>0.0.8</version>
         </dependency>
         <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>encore</artifactId>
-            <version>2.94.0</version>
+            <version>2.115.0</version>
         </dependency>
         <dependency>
             <groupId>cljsjs</groupId>
@@ -99,9 +93,9 @@
             <version>16.8.6-0</version>
         </dependency>
         <dependency>
-            <groupId>com.taoensso</groupId>
-            <artifactId>tufte</artifactId>
-            <version>2.0.1</version>
+            <groupId>gnl</groupId>
+            <artifactId>ghostwheel</artifactId>
+            <version>0.3.9</version>
         </dependency>
         <dependency>
             <groupId>com.cognitect</groupId>
@@ -112,11 +106,6 @@
             <groupId>org.clojure</groupId>
             <artifactId>clojurescript</artifactId>
             <version>1.10.520</version>
-        </dependency>
-        <dependency>
-            <groupId>gnl</groupId>
-            <artifactId>ghostwheel</artifactId>
-            <version>0.3.9</version>
         </dependency>
         <dependency>
             <groupId>cljsjs</groupId>
@@ -144,4 +133,5 @@
             <version>0.4.474</version>
         </dependency>
     </dependencies>
+
 </project>
