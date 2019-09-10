@@ -6,7 +6,7 @@
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.0-beta-14</version>
+    <version>3.0.0-beta-15</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -24,10 +24,10 @@
     </licenses>
 
     <scm>
-        <url>https://github.com/fulcrologic/fulcro3</url>
-        <connection>scm:git:git://github.com/fulcrologic/fulcro3.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro3.git</developerConnection>
-        <tag>9e75c6dd6b2346aefb12ba5c40affa051543e9f3</tag>
+        <url>https://github.com/fulcrologic/fulcro</url>
+        <connection>scm:git:git://github.com/fulcrologic/fulcro.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro.git</developerConnection>
+        <tag>b2529f92e910a6325decffe23f19a5910cb28930</tag>
     </scm>
 
     <distributionManagement>
@@ -46,7 +46,6 @@
                 <directory>src/main</directory>
             </resource>
         </resources>
-
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -79,19 +78,14 @@
             <version>1.10.0</version>
         </dependency>
         <dependency>
-            <groupId>com.wsscode</groupId>
-            <artifactId>pathom</artifactId>
-            <version>2.2.14</version>
-        </dependency>
-        <dependency>
             <groupId>edn-query-language</groupId>
             <artifactId>eql</artifactId>
-            <version>0.0.7</version>
+            <version>0.0.8</version>
         </dependency>
         <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>encore</artifactId>
-            <version>2.94.0</version>
+            <version>2.115.0</version>
         </dependency>
         <dependency>
             <groupId>cljsjs</groupId>
@@ -99,9 +93,9 @@
             <version>16.8.6-0</version>
         </dependency>
         <dependency>
-            <groupId>com.taoensso</groupId>
-            <artifactId>tufte</artifactId>
-            <version>2.0.1</version>
+            <groupId>gnl</groupId>
+            <artifactId>ghostwheel</artifactId>
+            <version>0.3.9</version>
         </dependency>
         <dependency>
             <groupId>com.cognitect</groupId>
@@ -112,11 +106,6 @@
             <groupId>org.clojure</groupId>
             <artifactId>clojurescript</artifactId>
             <version>1.10.520</version>
-        </dependency>
-        <dependency>
-            <groupId>gnl</groupId>
-            <artifactId>ghostwheel</artifactId>
-            <version>0.3.9</version>
         </dependency>
         <dependency>
             <groupId>cljsjs</groupId>
@@ -144,4 +133,5 @@
             <version>0.4.474</version>
         </dependency>
     </dependencies>
+
 </project>

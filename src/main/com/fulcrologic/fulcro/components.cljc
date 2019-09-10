@@ -674,8 +674,8 @@
    (when-let [app (any->app app-or-component)]
      (let [tx!     (ah/app-algorithm app :tx!)
            options (cond-> options
-                     (has-ident? app-or-component) (assoc :ref (get-ident app-or-component))
-                     (component-instance? app-or-component) (assoc :component app-or-component))]
+                     (and (nil? (:ref options)) (has-ident? app-or-component)) (assoc :ref (get-ident app-or-component))
+                     (and (nil? (:component options)) (component-instance? app-or-component)) (assoc :component app-or-component))]
        (tx! app tx options))))
   ([app-or-comp tx]
    (transact! app-or-comp tx {})))

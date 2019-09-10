@@ -1,3 +1,9 @@
+3.0.0-beta-15
+-------------
+- Fixed bug in explicit ref/component in transact with component.
+- Fixed incorrect spec in tx processing
+- Added back SSR initial state routines
+
 3.0.0-beta-14
 -------------
 - Fixed bug in fs/dirty-fields.

@@ -400,7 +400,8 @@
 (>defn add-send!
   "Generate a new send node and add it to the appropriate send queue. Returns the new send node."
   [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {::keys [id options] :as tx-node} ele-idx remote]
-  [:com.fulcrologic.fulcro.application/app ::tx-node ::idx :com.fulcrologic.fulcro.application/remote-name => ::send-node]
+  [:com.fulcrologic.fulcro.application/app ::tx-node ::idx :com.fulcrologic.fulcro.application/remote-name
+   => (s/nilable ::send-node)]
   (let [handler        (fn result-handler* [result]
                          (record-result! app id ele-idx remote result)
                          (remove-send! app remote id ele-idx)
