@@ -6,7 +6,7 @@
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.0-beta-15-SNAPSHOT</version>
+    <version>3.0.0-beta-15</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -24,10 +24,10 @@
     </licenses>
 
     <scm>
-        <url>https://github.com/fulcrologic/fulcro3</url>
-        <connection>scm:git:git://github.com/fulcrologic/fulcro3.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro3.git</developerConnection>
-        <tag>9e75c6dd6b2346aefb12ba5c40affa051543e9f3</tag>
+        <url>https://github.com/fulcrologic/fulcro</url>
+        <connection>scm:git:git://github.com/fulcrologic/fulcro.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro.git</developerConnection>
+        <tag>b2529f92e910a6325decffe23f19a5910cb28930</tag>
     </scm>
 
     <distributionManagement>
