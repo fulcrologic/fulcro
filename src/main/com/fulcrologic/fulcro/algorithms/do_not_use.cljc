@@ -7,11 +7,17 @@
   will even appear in the changelog."
   (:require
     [taoensso.timbre :as log]
+    [clojure.string :as str]
     [edn-query-language.core :as eql]
-    #?(:cljs [goog.object :as gobj])
-    [clojure.spec.alpha :as s])
-  #?(:clj
-     (:import (clojure.lang Atom))))
+    #?@(:cljs [[goog.object :as gobj]
+               [goog.crypt :as crypt]
+               [goog.crypt.base64 :as b64]])
+    [clojure.spec.alpha :as s]
+    [clojure.string :as str])
+  #?(:clj (:import
+            [clojure.lang Atom]
+            [java.util Base64]
+            [java.nio.charset StandardCharsets])))
 
 (defn atom? [a] (instance? Atom a))
 
@@ -113,3 +119,26 @@
                                  #{}
                                  (keys m))]
     (into regular-destructurings symbol-destructrings)))
+
+#?(:cljs
+   (defn char-code
+     "Convert char to int"
+     [c]
+     (cond
+       (number? c) c
+       (and (string? c) (== (.-length c) 1)) (.charCodeAt c 0)
+       :else (throw (js/Error. "Argument to char must be a character or number")))))
+
+(defn base64-encode
+  "Encode a string to UTF-8 and encode the result to base 64"
+  [str]
+  #?(:clj  (.encodeToString (Base64/getEncoder) (.getBytes str "UTF-8"))
+     :cljs (let [bytes (crypt/stringToUtf8ByteArray (clj->js str))] ;; First convert our JavaScript string from UCS-2/UTF-16 to UTF-8 bytes
+             (b64/encodeString (str/join "" (map char bytes)))))) ;; base64 encode that byte array to a string
+
+(defn base64-decode
+  [str]
+  #?(:clj  (String. (.decode (Base64/getDecoder) ^String str) (StandardCharsets/UTF_8))
+     :cljs (let [bytes (map char-code (vec (b64/decodeString str)))] ;; b64/decodeString produces essentially a byte array
+             (crypt/utf8ByteArrayToString (clj->js bytes))))) ;; Convert the byte array to a valid JavaScript string (either UCS-2 or UTF-16)
+
