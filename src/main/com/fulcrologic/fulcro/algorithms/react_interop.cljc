@@ -25,6 +25,26 @@
          (dom/convert-props props)
          children))))
 
+(defn react-input-factory
+  "Returns a factory for raw JS React class that acts like an input. Use this on custom raw React controls are
+  controlled via :value to make them behave properly with Fulcro.
+
+  ```
+  (def ui-thing (react-input-factory SomeInputComponent))
+
+  ...
+  (defsc X [_ _]
+    (ui-thing {:value 1}))
+  ```
+
+  The returned function will accept CLJS maps as props (not optional) and then any number of children. The CLJS props
+  will be converted to js for interop. You may pass js props as an optimization."
+  [js-component-class]
+  #?(:cljs
+     (let [factory (dom/wrap-form-element js-component-class)]
+       (fn [props & children]
+         (apply factory (clj->js props) children)))))
+
 (defn hoc-wrapper-factory
   "Creates a React factory `(fn [parent fulcro-props & children])` for a component that has had an HOC applied,
   and passes Fulcro's parent/props through to 'fulcro_hoc$parent' and 'fulcro_hoc_childprops' in the js props.

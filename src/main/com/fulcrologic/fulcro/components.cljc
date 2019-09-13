@@ -427,7 +427,7 @@
      (update-fn component f args))))
 
 (defn get-initial-state
-  "Get the initial state of a component. Needed because calling the protocol method from a defui component in clj will not work as expected."
+  "Get the initial state of a component. Needed because calling the protocol method from a defsc component in clj will not work as expected."
   ([class]
    (some-> (initial-state class {}) (with-meta {:computed true})))
   ([class params]
@@ -449,14 +449,15 @@
    {:pre [(component-instance? x)]}
    (if-let [m (props x)]
      (ident x m)
-     (log/warn "get-ident was invoked on component with nil props (this could mean it wasn't yet mounted): " x)))
+     (when #?(:clj false :cljs goog.DEBUG)
+       (log/warn "get-ident was invoked on " (component-name x) " with nil props (this could mean it wasn't yet mounted): " x))))
   ([class props]
    (if-let [id (ident class props)]
      (do
-       (when-not (eql/ident? id)
+       (when (and #?(:clj false :cljs goog.DEBUG) (not (eql/ident? id)))
          (log/warn "get-ident returned an invalid ident:" id (:displayName (component-options class))))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
-     (do
+     (when #?(:clj false :cljs goog.DEBUG)
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
        nil))))
 
@@ -470,7 +471,8 @@
   "Returns a string ID for the query of the given class with qualifier"
   [class qualifier]
   (if (nil? class)
-    (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query)" (ex-info "" {}))
+    (when #?(:clj false :cljs goog.DEBUG)
+      (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query)" (ex-info "" {})))
     (when-let [classname (component-name class)]
       (str classname (when qualifier (str "$" qualifier))))))
 
@@ -508,7 +510,7 @@
                        (is-factory? class-or-factory) (-> class-or-factory meta :class)
                        (component-instance? class-or-factory) (react-type class-or-factory)
                        :else class-or-factory)
-           ;; Hot code reload. Avoid classes that were caches on metadata using the registry.
+           ;; Hot code reload. Avoid classes that were cached on metadata using the registry.
            class     (if #?(:cljs goog.DEBUG :clj false)
                        (-> class class->registry-key registry-key->class)
                        class)
@@ -600,35 +602,51 @@
 
 (defn factory
   "Create a factory constructor from a component class created with
-   defui."
+   defsc."
   ([class] (factory class nil))
   ([class {:keys [keyfn qualifier] :as opts}]
-   (with-meta
-     (fn element-factory [props & children]
-       (let [key              (when-not (nil? keyfn) (keyfn props))
-             ref              (:ref props)
-             ref              (cond-> ref (keyword? ref) str)
-             app              *app*
-             props-middleware (ah/app-algorithm app :props-middleware)
-             ;; Our data-readers.clj makes #js == identity in CLJ
-             props            #js {:ref             ref
-                                   :fulcro$reactKey key
-                                   :fulcro$value    props
-                                   :fulcro$queryid  (query-id class qualifier)
-                                   :fulcro$app      *app*
-                                   :fulcro$shared   *shared*
-                                   :fulcro$parent   *parent*
-                                   :fulcro$depth    *depth*}
-             props            (if props-middleware
-                                (props-middleware class props)
-                                props)]
-         #?(:cljs
-            (when key
-              (gobj/set props "key" key)))
-         (create-element class props children)))
-     {:class     class
-      :queryid   (query-id class qualifier)
-      :qualifier qualifier})))
+   (let [qid (query-id class qualifier)]
+     (with-meta
+       (fn element-factory [props & children]
+         (let [key              (:react-key props)
+               key              (cond
+                                  key key
+                                  keyfn (keyfn props))
+               ref              (:ref props)
+               ref              (cond-> ref (keyword? ref) str)
+               props-middleware (some-> *app* (ah/app-algorithm :props-middleware))
+               ;; Our data-readers.clj makes #js == identity in CLJ
+               props            #js {:fulcro$value   props
+                                     :fulcro$queryid qid
+                                     :fulcro$app     *app*
+                                     :fulcro$shared  *shared*
+                                     :fulcro$parent  *parent*
+                                     :fulcro$depth   *depth*}
+               props            (if props-middleware
+                                  (props-middleware class props)
+                                  props)]
+           #?(:cljs
+              (do
+                (when key
+                  (gobj/set props "key" key))
+                (when ref
+                  (gobj/set props "ref" ref))
+                ;; dev time warnings/errors
+                (when goog.DEBUG
+                  (when (nil? *app*)
+                    (log/error "A Fulcro component was rendered outside of a parent context. This probably means you are using a library that has you pass rendering code to it as a lambda. Use `with-parent-context` to fix this."))
+                  (when-not (or (nil? key) (string? key) (number? key))
+                    (log/warn "React key for " (component-name class) " is not a simple scalar value. This could cause spurious component remounts."))
+
+                  (when (string? ref)
+                    (log/warn "String ref on " (component-name class) " should be a function."))
+
+                  (when (or (nil? props) (not (gobj/containsKey props "fulcro$value")))
+                    (log/error "Props middleware seems to have the corrupted props for " (component-name class))))))
+           (create-element class props children)))
+       {:class     class
+        :queryid   qid
+        :qualifier qualifier}))))
 
 (defn computed-factory
   "Similar to factory, but returns a function with the signature
@@ -714,7 +732,8 @@
             (util/join? raw-element) (normalize-query state (util/join-value raw-element))
             :else state))
         (catch #?(:clj Exception :cljs :default) e
-          (log/error e "Query normalization failed. Perhaps you tried to set a query with a syntax error?"))))
+          (when #?(:clj false :cljs goog.DEBUG)
+            (log/error e "Query normalization failed. Perhaps you tried to set a query with a syntax error?")))))
     state-map query))
 
 (defn link-query
@@ -761,7 +780,8 @@
       (cond-> state-map
         (contains? args :query) (setq*))
       (do
-        (log/error "Set query failed. There was no query ID. Use a class or factory for the second argument.")
+        (when #?(:clj false :cljs goog.DEBUG)
+          (log/error "Set query failed. There was no query ID. Use a class or factory for the second argument."))
         state-map))))
 
 (defn set-query!
@@ -781,7 +801,8 @@
         (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
         (when index-root! (index-root! app))
         (when schedule-render! (schedule-render! app {:force-root? true})))
-      (log/error "Unable to set query. Invalid arguments."))))
+      (when #?(:clj false :cljs goog.DEBUG)
+        (log/error "Unable to set query. Invalid arguments.")))))
 
 (defn get-indexes
   "Get the component indexes from a component instance or app. See also `ident->any`, `class->any`, etc."
@@ -872,7 +893,17 @@
    (defmacro with-parent-context
      "Wraps the given body with the correct internal bindings of the parent so that Fulcro internals
      will work when that body is embedded in unusual ways (e.g. as the body in a child-as-a-function
-     React pattern)."
+     React pattern).
+
+     ```
+     (defsc X [this props]
+       ...
+       ;; WRONG:
+       (some-react-thing {:child (fn [] (ui-fulcro-thing ...))})
+       ;; CORRECT:
+       (some-react-thing {:child (fn [] (with-parent-context this (ui-fulcro-thing ...)))})
+     ```
+     "
      [outer-parent & body]
      (if-not (:ns &env)
        `(do ~@body)
@@ -1015,7 +1046,7 @@
    (defn- build-ident
      "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
      in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
-     entry in defui without error checking."
+     entry in defsc without error checking."
      [env thissym propsarg {:keys [method template keyword]} is-legal-key?]
      (cond
        keyword (if (is-legal-key? keyword)
@@ -1083,7 +1114,7 @@
 
 #?(:clj
    (defn- build-raw-initial-state
-     "Given an initial state form that is a list (function-form), simple copy it into the form needed by defui."
+     "Given an initial state form that is a list (function-form), simple copy it into the form needed by defsc."
      [env method]
      (replace-and-validate-fn env 'build-raw-initial-state* [] 1 method)))
 
@@ -1159,10 +1190,10 @@
             (let [options# ~options-map]
               (defonce ~(vary-meta sym assoc :doc doc)
                 (fn [props#]
-                (cljs.core/this-as this#
-                  (if-let [init-state# (get options# :initLocalState)]
-                    (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this# (goog.object/get props# "fulcro$value"))))
-                    (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
+                  (cljs.core/this-as this#
+                    (if-let [init-state# (get options# :initLocalState)]
+                      (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this# (goog.object/get props# "fulcro$value"))))
+                      (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
                     nil)))
               (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
          `(do
