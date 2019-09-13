@@ -1,3 +1,8 @@
+3.0.0-beta-17
+-------------
+- Fixed order of mutation action processing so network results are in 
+targeted state position before ok/error actions are called.
+
 3.0.0-beta-16
 -------------
 - Added dev warning about bad react keys.

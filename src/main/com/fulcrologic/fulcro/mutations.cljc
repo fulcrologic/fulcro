@@ -115,11 +115,13 @@
 
   This function is the following composition of operations from this same namespace:
 
+```
   (-> env
     (update-errors-on-ui-component! ::mutation-error)
+    (integrate-mutation-return-value!)
     (trigger-global-error-action!)
-    (dispatch-ok-error-actions!)
-    (integrate-mutation-return-value!))
+    (dispatch-ok-error-actions!))
+```
 
   This function returns `env`, so it can be used as part of the chain in your own definition of a \"default\"
   mutation result action.
@@ -128,9 +130,9 @@
   [::env => ::env]
   (-> env
     (update-errors-on-ui-component! ::mutation-error)
+    (integrate-mutation-return-value!)
     (trigger-global-error-action!)
-    (dispatch-ok-error-actions!)
-    (integrate-mutation-return-value!)))
+    (dispatch-ok-error-actions!)))
 
 (defn mutation-declaration? [expr] (= Mutation (type expr)))
 
