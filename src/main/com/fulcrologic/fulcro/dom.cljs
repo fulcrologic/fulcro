@@ -137,7 +137,7 @@
             this (.-props this)
             (gobj/getValueByKeys event "target" "value"))))
 
-      (componentWillReceiveProps [this new-props]
+      (UNSAFE_componentWillReceiveProps [this new-props]
         (let [state-value   (gobj/getValueByKeys this "state" "value")
               this-node     (js/ReactDOM.findDOMNode this)
               value-node    (if (is-form-element? this-node)
