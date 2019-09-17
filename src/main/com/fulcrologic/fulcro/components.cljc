@@ -678,7 +678,7 @@
                 (when goog.DEBUG
                   (when (nil? *app*)
                     (log/error "A Fulcro component was rendered outside of a parent context. This probably means you are using a library that has you pass rendering code to it as a lambda. Use `with-parent-context` to fix this."))
-                  (when-not (or (nil? key) (string? key) (number? key))
+                  (when (or (map? key) (vector? key))
                     (log/warn "React key for " (component-name class) " is not a simple scalar value. This could cause spurious component remounts."))
 
                   (when (string? ref)
