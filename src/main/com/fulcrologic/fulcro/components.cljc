@@ -55,6 +55,13 @@
   (swap! component-registry assoc k component-class)
   component-class)
 
+(defn force-children
+  "Utility function that will force a lazy sequence of children (recursively) into realized
+  vectors (React cannot deal with lazy seqs in production mode)"
+  [x]
+  (cond->> x
+    (seq? x) (into [] (map force-children))))
+
 (defn newer-props
   "Returns whichever of the given Fulcro props were most recently generated according to `denormalization-time`."
   [props-a props-b]
@@ -189,8 +196,8 @@
   (isoget-in c [:props k]))
 
 (defn any->app
-  "Attempt to coerce `x` to a reconciler.  Legal inputs are a fulcro application, reconciler, a mounted component, a
-  map with a :reconciler key, or an atom holding any of the above."
+  "Attempt to coerce `x` to an app.  Legal inputs are a fulcro application, a mounted component,
+  or an atom holding any of the above."
   [x]
   (letfn [(fulcro-app? [x] (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom)))]
     (cond
@@ -598,7 +605,7 @@
          (reset! state-atom state))
        this)
      :cljs
-     (apply js/React.createElement class props children)))
+     (apply js/React.createElement class props (force-children children))))
 
 (defn factory
   "Create a factory constructor from a component class created with
@@ -887,7 +894,7 @@
      (let [[props children] (if (map? (first args))
                               [(first args) (rest args)]
                               [#js {} args])]
-       (apply js/React.createElement js/React.Fragment (clj->js props) children))))
+       (apply js/React.createElement js/React.Fragment (clj->js props) (force-children children)))))
 
 #?(:clj
    (defmacro with-parent-context
@@ -1279,10 +1286,4 @@
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 
-(defn force-children
-  "Utility function that will force a lazy sequence of children (recursively) into realized
-  vectors (React cannot deal with lazy seqs)"
-  [x]
-  (cond->> x
-    (seq? x) (into [] (map force-children))))
 
