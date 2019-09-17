@@ -63,7 +63,8 @@
     (seq? x) (into [] (map force-children))))
 
 (defn newer-props
-  "Returns whichever of the given Fulcro props were most recently generated according to `denormalization-time`."
+  "Returns whichever of the given Fulcro props were most recently generated according to `denormalization-time`. This
+  is part of props 'tunnelling', an optimization to get updated props to instances without going through the root."
   [props-a props-b]
   (cond
     (nil? props-a) props-b
@@ -121,8 +122,15 @@
 (declare props)
 
 (defn computed
-  "Add computed properties to props. Note will replace any pre-existing
-   computed properties."
+  "Add computed properties to props. This will *replace* any pre-existing computed properties. Computed props are
+  necessary when a parent component wishes to pass callbacks or other data to children that *have a query*. This
+  is not necessary for \"stateless\" components, though it will work properly for both.
+
+  Computed props are \"remembered\" so that a targeted update (which can only happen on a component with a query
+  and ident) can use new props from the database without \"losing\" the computed props that were originally passed
+  from the parent. If you pass things like callbacks through normal props, then targeted updates will seem to \"lose
+  track of\" them.
+  "
   [props computed-map]
   (when-not (nil? props)
     (if (vector? props)
@@ -146,12 +154,13 @@
          (get-in props ks))))))
 
 (defn get-extra-props
-  "Get any data (as a map) that extensions have associated with the given Fulcro component."
+  "Get any data (as a map) that props extensions have associated with the given Fulcro component. Extra props will
+  be empty unless you've installed props-middleware (on your app) that sets them."
   [this]
   (isoget-in this [:props :fulcro$extra_props] {}))
 
 (defn props
-  "Return a components props."
+  "Return a component's props."
   [component]
   (let [props-from-parent    (isoget-in component [:props :fulcro$value])
         computed-from-parent (get-computed props-from-parent)
@@ -172,9 +181,10 @@
      :cljs (or (gobj/get x "type") (type x))))
 
 (defn component-options
-  ([this & ks]
-   (let [c       (react-type this)
-         options (or (isoget this :fulcro$options) (isoget c :fulcro$options))]
+  "Returns the map of options that was specified (via `defsc`) for the component class."
+  ([instance-or-class & ks]
+   (let [c       (react-type instance-or-class)
+         options (or (isoget instance-or-class :fulcro$options) (isoget c :fulcro$options))]
      (if (seq options)
        (get-in options (vec ks))
        options))))
@@ -191,7 +201,7 @@
 (defn depth [this] (isoget-in this [:props :fulcro$depth]))
 
 (defn get-raw-react-prop
-  "GET a RAW react prop"
+  "GET a RAW react prop. Used internally."
   [c k]
   (isoget-in c [:props k]))
 
@@ -207,7 +217,9 @@
          :cljs (satisfies? IDeref x)) (any->app (deref x)))))
 
 (defn raw->newest-props
-  "Using raw react props/state returns the newest Fulcro props."
+  "Using raw react props/state returns the newest Fulcro props. This is part of \"props tunneling\", where component
+  local state is leveraged as a communication mechanism of updated props directly to a component that has an ident.
+  This function will return the correct version of props based on timestamps."
   [raw-props raw-state]
   #?(:clj  raw-props
      :cljs (let [next-props (gobj/get raw-props "fulcro$value")
@@ -216,7 +228,8 @@
 
 (defn shared
   "Return the global shared properties of the root. See :shared and
-   :shared-fn reconciler options."
+   :shared-fn app options. NOTE: Shared props only update on root render and by explicit calls to
+   `app/update-shared!`"
   ([component]
    (shared component []))
   ([component k-or-ks]
@@ -338,7 +351,21 @@
                 (apply render this args))
               (log/fatal "Cannot find app on component!"))))))]
   (defn configure-component!
-    "Configure the given `cls` to act as a react component."
+    "Configure the given `cls` (a function) to act as a react component within the Fulcro ecosystem.
+
+    cls - A js function (in clj, this is ignored)
+    fqkw - A keyword that shares the exact fully-qualified name of the component class
+    options - A component options map (no magic) containing things like `:query` and `:ident`.
+
+
+    NOTE: the `options` map expects proper function signatures for:
+
+    `:query` - (fn [this] ...)
+    `:ident` - (fn [this props] ...)
+    `:initial-state` - (fn [cls params] ...)
+
+    Returns (and registers) a new react class.
+    "
     [cls fqkw options]
     #?(:clj
        (let [name   (str/join "/" [(namespace fqkw) (name fqkw)])
@@ -390,11 +417,16 @@
          (gobj/set cls "fulcro$registryKey" fqkw)           ; done here instead of in extend (clj->js screws it up)
          (register-component! fqkw cls)))))
 
-(defn mounted? [this]
+(defn mounted?
+  "Returns true if the given component instance is mounted on the DOM."
+  [this]
   #?(:clj  false
      :cljs (gobj/get this "fulcro$mounted" false)))
 
 (defn set-state!
+  "Set React component-local state.  The `new-state` is actually merged with the existing state (as per React docs),
+  but is wrapped so that cljs maps are used (instead of js objs).  `callback` is an optional callback that will be
+  called as per the React docs on setState."
   ([component new-state callback]
    #?(:clj
       (when-let [state-atom (:state component)]
@@ -411,7 +443,8 @@
 
 (defn get-state
   "Get a component's local state. May provide a single key or a sequential
-   collection of keys for indexed access into the component's local state."
+   collection of keys for indexed access into the component's local state. NOTE: This is Fulcro's wrapped component
+   local state. The low-level React state is as described in the React docs (e.g. `(.-state this)`)."
   ([component]
    (get-state component []))
   ([component k-or-ks]
@@ -427,21 +460,22 @@
     "Update a component's local state. Similar to Clojure(Script)'s swap!
 
     This function affects a managed cljs map maintained in React state.  If you want to affect the low-level
-    js state itself use React's own `.setState` on the component."
+    js state itself use React's own `.setState` directly on the component."
     ([component f]
      (update-fn component f []))
     ([component f & args]
      (update-fn component f args))))
 
 (defn get-initial-state
-  "Get the initial state of a component. Needed because calling the protocol method from a defsc component in clj will not work as expected."
+  "Get the declared :initial-state value for a component."
   ([class]
    (some-> (initial-state class {}) (with-meta {:computed true})))
   ([class params]
    (some-> (initial-state class params) (with-meta {:computed true}))))
 
 (defn computed-initial-state?
-  "Returns true if the given initial state was computed from a call to get-initial-state."
+  "Returns true if the given initial state was returned from a call to get-initial-state. This is used by internal
+  algorithms when interpreting initial state shorthand in `defsc`."
   [s]
   (and (map? s) (some-> s meta :computed)))
 
@@ -468,14 +502,14 @@
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
        nil))))
 
-
 (defn is-factory?
+  "Returns true if the given argument is a component factory."
   [class-or-factory]
   (and (fn? class-or-factory)
     (-> class-or-factory meta (contains? :qualifier))))
 
 (defn query-id
-  "Returns a string ID for the query of the given class with qualifier"
+  "Returns a string ID for the query of the given class with qualifier."
   [class qualifier]
   (if (nil? class)
     (when #?(:clj false :cljs goog.DEBUG)
@@ -577,7 +611,9 @@
                         :else [isk isv])))]
     (into {} (keep value-of initial-state))))
 
-(defn wrapped-render [this real-render]
+(defn wrapped-render
+  "Run `real-render`, possibly through :render-middleware configured on your app."
+  [this real-render]
   #?(:clj
      (real-render)
      :cljs
@@ -707,14 +743,19 @@
 
 (declare normalize-query)
 
-(defn link-element [element]
+(defn link-element
+  "Part of internal implementation of dynamic queries."
+  [element]
   (prewalk (fn link-element-helper [ele]
              (let [{:keys [queryid]} (meta ele)]
                (if queryid queryid ele))) element))
 
 (defn normalize-query-elements
-  "Determines if there are query elements in the present query that need to be normalized as well. If so, it does so.
-  Returns the new state map."
+  "Part of internal implementation of dynamic queries.
+
+  Determines if there are query elements in the `query` that need to be normalized. If so, it does so.
+
+  Returns the new state map containing potentially-updated normalized queries."
   [state-map query]
   (reduce
     (fn normalize-query-elements-reducer [state ele]
@@ -744,8 +785,8 @@
     state-map query))
 
 (defn link-query
-  "Find all of the elements (only at the top level) of the given query and replace them
-  with their query ID"
+  "Part of dyn query implementation. Find all of the elements (only at the top level) of the given query and replace them
+  with their query ID."
   [query]
   (let [metadata (meta query)]
     (with-meta
@@ -754,7 +795,7 @@
 
 (defn normalize-query
   "Given a state map and a query, returns a state map with the query normalized into the database. Query fragments
-  that already appear in the state will not be added. "
+  that already appear in the state will not be added.  Part of dynamic query implementation."
   [state-map query]
   (let [new-state (normalize-query-elements state-map query)
         new-state (if (nil? (::queries new-state))
@@ -767,6 +808,7 @@
 
 (defn set-query*
   "Put a query in app state.
+
   NOTE: Indexes must be rebuilt after setting a query, so this function should primarily be used to build
   up an initial app state."
   [state-map class-or-factory {:keys [query] :as args}]
@@ -792,9 +834,12 @@
         state-map))))
 
 (defn set-query!
-  "Set a dynamic query. Alters the query, and then rebuilds internal indexes.
+  "Public API for setting a dynamic query on a component. This function alters the query and rebuilds internal indexes.
 
-  `x` is anything that any->app accepts."
+  * `x` : is anything that any->app accepts.
+  * `class-or-factory` : A component class or factory for that class (if using query qualifiers)
+  * `opts` : A map with `query` and optionally `params` (substitutions on queries)
+  "
   [x class-or-factory {:keys [query params] :as opts}]
   (let [app        (any->app x)
         state-atom (:com.fulcrologic.fulcro.application/state-atom app)
@@ -812,18 +857,18 @@
         (log/error "Unable to set query. Invalid arguments.")))))
 
 (defn get-indexes
-  "Get the component indexes from a component instance or app. See also `ident->any`, `class->any`, etc."
+  "Get all of the indexes from a component instance or app. See also `ident->any`, `class->any`, etc."
   [x]
   (let [app (any->app x)]
     (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/indexes)))
 
 (defn ident->components
-  "Return all components for a given ident. `x` is anything any->app accepts."
+  "Return all on-screen component instances that are rendering the data for a given ident. `x` is anything any->app accepts."
   [x ident]
   (some-> (get-indexes x) :ident->components (get ident)))
 
 (defn ident->any
-  "Return a components that uses the given ident. `x` is anything any->app accepts."
+  "Return some (random) on-screen components that uses the given ident. `x` is anything any->app accepts."
   [x ident]
   (first (ident->components x ident)))
 
@@ -836,14 +881,14 @@
   (some-> (get-indexes x) :prop->classes (get prop)))
 
 (defn class->all
-  "Get all components from the indexes that are instances of the component class.
+  "Get all of the on-screen component instances from the indexes that have the type of the component class.
   `x` can be anything `any->app` is ok with."
   [x class]
   (let [k (class->registry-key class)]
     (some-> (get-indexes x) :class->components (get k))))
 
 (defn class->any
-  "Get any component from the indexes that are instances of the component class.
+  "Get a (random) on-screen component instance from the indexes that has type of the given component class.
   `x` can be anything `any->app` is ok with."
   [x cls]
   (first (class->all x cls)))
@@ -927,7 +972,8 @@
 
 (defn ptransact!
   "
-  DEPRECATED: Generally use `result-action` in mutations to chain sequences instead.
+  DEPRECATED: Generally use `result-action` in mutations to chain sequences instead. This call is equivalent
+  to `transact!` with an `:optimistic? false` option.
 
   Like `transact!`, but ensures each call completes (in a full-stack, pessimistic manner) before the next call starts
   in any way. Note that two calls of this function have no guaranteed relationship to each other. They could end up
@@ -945,18 +991,18 @@
                                    :ref         ref})))
 
 (defn compressible-transact!
-  "Identical to `transact!`, but marks the history edge as compressible. This means that if more than one
+  "Identical to `transact!` with `:compressible? true` option. This means that if more than one
   adjacent history transition edge is compressible, only the more recent of the sequence of them is kept. This
   is useful for things like form input fields, where storing every keystoke in history is undesirable. This
   also compress the transactions in Fulcro Inspect.
 
   NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
   automatic network error recovery handling."
-  ([comp-or-reconciler tx]
-   (transact! comp-or-reconciler tx {:compressible? true}))
-  ([comp-or-reconciler ref tx]
-   (transact! comp-or-reconciler tx {:compressible? true
-                                     :ref           ref})))
+  ([app-ish tx]
+   (transact! app-ish tx {:compressible? true}))
+  ([app-ish ref tx]
+   (transact! app-ish tx {:compressible? true
+                          :ref           ref})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; DEFSC MACRO SUPPORT. Most of this could be in a diff ns, but then hot code reload while working on the macro
@@ -964,7 +1010,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 #?(:clj
-   (defn cljs? [env]
+   (defn cljs?
+     "A CLJ macro helper. `env` is the macro's `&env` value. Returns true when expanding a macro while compiling CLJS."
+     [env]
      (boolean (:ns env))))
 
 #?(:clj
@@ -992,6 +1040,7 @@
 
 #?(:clj
    (defn- children-by-prop
+     "Part of Defsc macro implementation. Calculates a map from join key to class (symbol)."
      [query]
      (into {}
        (keep #(if (and (map? %) (or (is-link? (ffirst %)) (keyword? (ffirst %))))
