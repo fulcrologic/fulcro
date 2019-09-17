@@ -82,7 +82,15 @@
               :table-2   {1 {:id    1
                              :stuff [:new :ident]}}
               :root/spot [:new :ident]
-              :new       {:ident {:data 1}}}))))
+              :new       {:ident {:data 1}}})))
+    (component "denormalized targeting"
+      (assertions
+        "Can move a top-level tree to another top-level key"
+        (targeting/process-target
+          {:old {:tree 1}}
+          :old
+          [:new])
+        => {:new {:tree 1}})))
   (component "to-many source targeting"
     (assertions
       "can move to-many refs to new edges"
@@ -102,6 +110,8 @@
                   :stuff [[:new 1] [:new 2]]}}
        :new   {1 {:id 1}
                2 {:id 2}}})))
+
+
 
 (specification "integrate-ident*"
   (let [state {:a    {:path [[:table 2]]}

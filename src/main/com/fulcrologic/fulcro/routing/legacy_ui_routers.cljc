@@ -181,8 +181,8 @@
 (defn -update-routing-queries
   "PRIVATE.
 
-  Given the reconciler, state, and a routing tree route: finds and sets all of the dynamic queries needed to
-  accomplish that route. Returns the updated state. reconciler can be nil, in which case UI refresh may not
+  Given the app, state, and a routing tree route: finds and sets all of the dynamic queries needed to
+  accomplish that route. Returns the updated state. app can be nil, in which case UI refresh may not
   happen, but that is useful for SSR."
   [state app {:keys [handler route-params]}]
   (let [routing-instructions (get-in state [routing-tree-key handler])]

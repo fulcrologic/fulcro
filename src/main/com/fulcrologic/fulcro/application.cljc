@@ -413,7 +413,7 @@
    This effectively forces React to do a full VDOM diff. Useful for things like UI refresh on hot code reload and
    changing locales where there are no real data changes, but the UI still needs to refresh.
 
-   Argument can be anything that any->reconciler accepts.
+   Argument can be anything that comp/any->app accepts.
 
    WARNING: This disables all Fulcro rendering optimizations, so it is much slower than other ways of refreshing the app.
    Use `schedule-render!` to request a normal optimized render."
