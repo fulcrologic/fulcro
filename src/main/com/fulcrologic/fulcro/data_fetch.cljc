@@ -216,7 +216,7 @@
   instructions on parsing queries in the developer's guide.
 
   Parameters:
-  - `app-or-comp` : A component instance, Fulcro application, or reconciler
+  - `app-or-comp` : A component instance or Fulcro application
   - `server-property-or-ident` : A keyword or ident that represents the root of the query to send to the server. If this is an ident
   you are loading a specific entity from the database into a local app db table. A custom target will be ignored.
   - `class-or-factory` : A component that implements IQuery, or a factory for it (if using dynamic queries). This will be combined with `server-property` into a join for the server query. Needed to normalize results.

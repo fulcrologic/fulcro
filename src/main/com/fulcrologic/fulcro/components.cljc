@@ -216,7 +216,7 @@
 
 (defn shared
   "Return the global shared properties of the root. See :shared and
-   :shared-fn reconciler options."
+   :shared-fn app options."
   ([component]
    (shared component []))
   ([component k-or-ks]
@@ -952,10 +952,10 @@
 
   NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
   automatic network error recovery handling."
-  ([comp-or-reconciler tx]
-   (transact! comp-or-reconciler tx {:compressible? true}))
-  ([comp-or-reconciler ref tx]
-   (transact! comp-or-reconciler tx {:compressible? true
+  ([app-ish tx]
+   (transact! app-ish tx {:compressible? true}))
+  ([app-ish ref tx]
+   (transact! app-ish tx {:compressible? true
                                      :ref           ref})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
