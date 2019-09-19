@@ -1,3 +1,9 @@
+3.0.0-beta-18
+-------------
+- Reduced noisy warning
+- Fixed bug in lazy expansion of children
+- Changed tests to run against production react js
+
 3.0.0-beta-17
 -------------
 - Fixed order of mutation action processing so network results are in 
