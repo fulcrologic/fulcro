@@ -2,8 +2,8 @@
   (:require
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
-    com.fulcrologic.fulcro.dom
     [com.fulcrologic.fulcro.dom-common :as cdom]
+    com.fulcrologic.fulcro.dom
     [clojure.string :as str]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom :refer [div p span]]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])
@@ -345,3 +345,38 @@
     "Combines existing className in props with :classes (removing :classes)"
     (cdom/interpret-classes {:className "x y" :classes [:.a (when false "b") "c"]}) => {:className "x y a c"}))
 
+(specification "Lazy Sequences of Children"
+  (component "Macro expansion"
+    (let [a (atom 0)
+          _ (dom/div :.x {}
+              (map (fn [_]
+                     (swap! a inc)
+                     (dom/div "Hi")) (range 0 5)))]
+      (assertions
+        "Forces children on element creation"
+        @a => 5)))
+  (component "Macro emitting function"
+    (let [a (atom 0)
+          _ (dom/div :.x (map (fn [_]
+                                (swap! a inc)
+                                (dom/div "Hi")) (range 0 5)))]
+      (assertions
+        "Forces children on element creation"
+        @a => 5)))
+  (component "Higher-order function"
+    (let [a (atom 0)
+          d dom/div
+          _ (d :.x (map (fn [_]
+                          (swap! a inc)
+                          (dom/div "Hi")) (range 0 5)))]
+      (assertions
+        "Forces children on element creation"
+        @a => 5))))
+
+(comment
+  (macroexpand-1 '(dom/div :.x (map (fn [_]
+                                      (swap! a inc)
+                                      (dom/div "Hi")) (range 0 5))
+                    (dom/div "Hi")
+                    (dom/div "Hi")
+                    (dom/div "Hi"))))
