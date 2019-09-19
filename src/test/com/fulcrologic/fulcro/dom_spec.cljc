@@ -372,11 +372,3 @@
       (assertions
         "Forces children on element creation"
         @a => 5))))
-
-(comment
-  (macroexpand-1 '(dom/div :.x (map (fn [_]
-                                      (swap! a inc)
-                                      (dom/div "Hi")) (range 0 5))
-                    (dom/div "Hi")
-                    (dom/div "Hi")
-                    (dom/div "Hi"))))

@@ -57,7 +57,7 @@
          children :children
          css      :css} conformed-args
         css-props           (cdom/add-kwprops-to-props {} css)
-        raw-children        children
+        raw-children        (mapv second children)
         children            (mapv (fn [[_ c]]
                                     (if (or (nil? c) (string? c))
                                       c
