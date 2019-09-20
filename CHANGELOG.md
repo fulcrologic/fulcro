@@ -1,4 +1,4 @@
-3.0.0-beta-18
+3.0.0-RC1
 -------------
 - Reduced noisy warning
 - Fixed bug in lazy expansion of children
