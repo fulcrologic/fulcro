@@ -1,3 +1,11 @@
+3.0.0-RC1
+-------------
+- Reduced noisy warning
+- Fixed bug in lazy expansion of children
+- Changed tests to run against production react js
+- Added try/catch at critical section of UISM, hoping to avoid user 
+handler from causing misbehaviors.
+
 3.0.0-beta-17
 -------------
 - Fixed order of mutation action processing so network results are in 

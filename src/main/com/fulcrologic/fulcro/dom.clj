@@ -57,6 +57,7 @@
          children :children
          css      :css} conformed-args
         css-props           (cdom/add-kwprops-to-props {} css)
+        raw-children        (mapv second children)
         children            (mapv (fn [[_ c]]
                                     (if (or (nil? c) (string? c))
                                       c
@@ -85,12 +86,12 @@
                                      children)))
 
       :runtime-map
-      `(com.fulcrologic.fulcro.dom/macro-create-element ~str-tag-name ~(into [attrs-value] children) ~css)
+      `(com.fulcrologic.fulcro.dom/macro-create-element ~str-tag-name ~(into [attrs-value] raw-children) ~css)
 
 
       (:symbol :expression)
       `(com.fulcrologic.fulcro.dom/macro-create-element
-         ~str-tag-name ~(into [attrs-value] children) ~css)
+         ~str-tag-name ~(into [attrs-value] raw-children) ~css)
 
       :nil
       `(~create-element
@@ -98,7 +99,7 @@
 
       ;; pure children
       `(com.fulcrologic.fulcro.dom/macro-create-element
-         ~str-tag-name ~(JSValue. (into [attrs-value] children)) ~css))))
+         ~str-tag-name ~(JSValue. (into [attrs-value] raw-children)) ~css))))
 
 (defn syntax-error
   "Format a DOM syntax error"

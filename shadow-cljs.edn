@@ -14,6 +14,10 @@
                        :ns-regexp        "-spec$"
                        :dev              {:compiler-options {:external-config {:ghostwheel {}}}}
                        :compiler-options {:static-fns false} ; required for mocking to work
+                       :js-options       {:resolve {"react-dom" {:target  :npm
+                                                                 :require "react-dom/cjs/react-dom.production.min.js"}
+                                                    "react"     {:target  :npm
+                                                                 :require "react/cjs/react.production.min.js"}}}
                        :devtools         {:http-port          9002
                                           :http-resource-root "public"
                                           :http-root          "resources/public/js/test"}}

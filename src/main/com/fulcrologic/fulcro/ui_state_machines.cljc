@@ -731,7 +731,11 @@
   (let [sm-env       (state-machine-env @state ref asm-id event-id event-data app)
         handler      (active-state-handler sm-env)
         valued-env   (apply-event-value sm-env params)
-        handled-env  (handler (assoc valued-env ::fulcro-app app))
+        handled-env  (try
+                       (handler (assoc valued-env ::fulcro-app app))
+                       (catch #?(:clj Exception :cljs :default) e
+                         (log/error e "Handler for event" event-id "threw an exception for ASM ID" asm-id)
+                         nil))
         final-env    (as-> (or handled-env valued-env) e
                        (clear-timeouts-on-event! e event-id)
                        (schedule-timeouts! app e))
