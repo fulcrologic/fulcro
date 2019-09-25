@@ -1,5 +1,9 @@
+3.0.0-RC2
+---------
+- Fixed indexing bug in dynamic routing. This was leading to missed refreshes.
+
 3.0.0-RC1
--------------
+---------
 - Reduced noisy warning
 - Fixed bug in lazy expansion of children
 - Changed tests to run against production react js

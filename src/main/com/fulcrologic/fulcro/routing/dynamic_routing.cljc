@@ -9,7 +9,8 @@
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [clojure.spec.alpha :as s]
-    #?(:clj [cljs.analyzer :as ana])))
+    #?(:clj [cljs.analyzer :as ana])
+    [com.fulcrologic.fulcro.algorithms.indexing :as indexing]))
 
 (declare route-immediate)
 
@@ -223,7 +224,7 @@
   router - The ident of the router, with metadata :component that is the class of the router.
   target - The ident of the target route, with metadata :component that is the class of the target."
   [{:keys [router target] :as params}]
-  (action [{:keys [state]}]
+  (action [{:keys [app state]}]
     (swap! state apply-route* params)))
 
 (defn mark-route-pending* [state-map {:keys [router target] :as params}]
@@ -236,21 +237,28 @@
               (apply-route* state-map (get-in state-map [::id router-id ::pending-route]))
               state-map)))]
   (defn ready-handler [env]
-    (-> env
-      (uism/store :path-segment (uism/retrieve env :pending-path-segment))
-      (uism/store :pending-path-segment [])
-      (uism/apply-action target-ready* (uism/retrieve env :target)))))
+    (let [new-env (-> env
+                    (uism/store :path-segment (uism/retrieve env :pending-path-segment))
+                    (uism/store :pending-path-segment [])
+                    (uism/apply-action target-ready* (uism/retrieve env :target)))
+          app     (::uism/app env) ]
+      (when app
+        (comp/transact! app [(indexing/reindex)]))
+      new-env)))
 
 (defn fail-handler [env] env)
 
-(defn route-handler [{::uism/keys [event-data] :as env}]
+(defn route-handler [{::uism/keys [app event-data] :as env}]
   (let [{:keys [router target error-timeout deferred-timeout path-segment] :or {error-timeout 5000 deferred-timeout 100}} event-data
         immediate? (immediate? target)]
     (-> (if immediate?
-          (-> env
-            (uism/store :path-segment path-segment)
-            (uism/apply-action apply-route* event-data)
-            (uism/activate :routed))
+          (let [new-env (-> env
+                          (uism/store :path-segment path-segment)
+                          (uism/apply-action apply-route* event-data)
+                          (uism/activate :routed))]
+            (when app
+              (comp/transact! app [(indexing/reindex)]))
+            new-env)
           (-> env
             (uism/store :pending-path-segment path-segment)
             (uism/apply-action mark-route-pending* event-data)
