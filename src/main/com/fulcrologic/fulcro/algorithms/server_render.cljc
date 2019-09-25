@@ -29,7 +29,7 @@ as in the case of encoded polylines."
      "Obtain the value of the INITIAL_APP_STATE set from server-side rendering. Use initial-state->script-tag on the server to embed the state."
      ([] (get-SSR-initial-state {}))
      ([opts]
-      (when-let [state-string (base64-decode (.-INITIAL_APP_STATE js/window))]
+      (when-let [state-string (some-> js/window .-INITIAL_APP_STATE base64-decode)]
         (transit/transit-str->clj state-string opts)))))
 
 (defn build-initial-state
