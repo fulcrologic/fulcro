@@ -45,7 +45,7 @@
       (fn [_ _] (route-immediate ident)))))
 
 (defn will-enter
-  "Universal CLJC version of will-enter.  Don't use the protocol method in CLJ."
+  "Universal CLJC version of will-enter."
   [class app params]
   (when-let [will-enter (get-will-enter class)]
     (will-enter app params)))
@@ -464,7 +464,8 @@
         router     relative-class-or-instance
         root-query (comp/get-query router state-map)
         ast        (eql/query->ast root-query)
-        root       (ast-node-for-live-router app ast)
+        root       (or (ast-node-for-live-router app ast)
+                     (-> ast :children first))
         result     (atom [])]
     (loop [{:keys [component] :as node} root]
       (when (and component (router? component))
