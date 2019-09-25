@@ -36,7 +36,8 @@ as in the case of encoded polylines."
   "This function normalizes the given state-tree using the root-component's query into standard client db format,
    it then walks the query and adds any missing data from union branches that are not the 'default' branch
    on the union itself. E.g. A union with initial state can only point to one thing, but you need the other branches
-   in the normalized application database. Assumes all components (except possibly root-class) that need initial state use InitialAppState.
+   in the normalized application database. Assumes all components (except possibly root-class) that need initial state
+   use `:initial-state`.
 
    Useful for building a pre-populated db for server-side rendering.
 

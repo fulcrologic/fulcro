@@ -241,7 +241,7 @@
                     (uism/store :path-segment (uism/retrieve env :pending-path-segment))
                     (uism/store :pending-path-segment [])
                     (uism/apply-action target-ready* (uism/retrieve env :target)))
-          app     (::uism/app env) ]
+          app     (::uism/app env)]
       (when app
         (comp/transact! app [(indexing/reindex)]))
       new-env)))
@@ -410,7 +410,7 @@
                  router-ident      (comp/get-ident component {})
                  router-id         (-> router-ident second)
                  target-ident      (will-enter target app params)
-                 completing-action (or (some-> target-ident meta :fn) identity)
+                 completing-action (or (some-> target-ident meta :fn) (constantly true))
                  event-data        (merge
                                      {:error-timeout 5000 :deferred-timeout 100}
                                      timeouts

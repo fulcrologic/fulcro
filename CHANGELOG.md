@@ -1,3 +1,8 @@
+3.0.0-RC3
+---------
+- Fixed bug in dynamic routing due to missed timer cancels
+- Improvements in CLJ handling of apps.
+
 3.0.0-RC2
 ---------
 - Fixed indexing bug in dynamic routing. This was leading to missed refreshes.
