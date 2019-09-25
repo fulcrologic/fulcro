@@ -4,6 +4,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [ghostwheel.core :as gw :refer [>defn]]
     [clojure.set :as set]
     [edn-query-language.core :as eql]
@@ -124,3 +125,11 @@
   ([this]
    (let [old-ident (comp/get-ident this)]
      (drop-component! this old-ident))))
+
+(defmutation reindex
+  "Mutation: re-index the application (typically after a dynamic query change)."
+  [_]
+  (action [{:keys [app]}]
+    (if app
+      (index-root! app)
+      (log/error "Unable to re-index root. App was not set in the mutation env."))))
