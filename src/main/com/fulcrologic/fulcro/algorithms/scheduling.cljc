@@ -2,15 +2,23 @@
   "Algorithms for delaying some action by a particular amount of time."
   (:require
     [ghostwheel.core :refer [>fdef =>]]
-    [clojure.core.async :as async]))
+    [clojure.core.async :as async]
+    [taoensso.timbre :as log]))
 
 (defn defer
   "Schedule f to run in `tm` ms."
   [f tm]
   #?(:cljs (js/setTimeout f tm)
-     :clj  (async/go
-             (async/<! (async/timeout (+ 100 tm)))
-             (f))))
+     :clj  (let [active (atom true)
+                 cancel (fn [] (reset! active false))]
+             (async/go
+               (async/<! (async/timeout tm))
+               (when (and @active f)
+                 (try
+                   (f)
+                   (catch Exception e
+                     (log/error e "Deferred function crash")))))
+             cancel)))
 
 (defn schedule!
   "Schedule the processing of a specific action in the runtime atom. This is a no-op if the item is already scheduled.

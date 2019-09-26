@@ -1,3 +1,8 @@
+3.0.0
+-----
+- Fixed bug in dynamic routing due to missed timer cancels
+- Improvements to dyn router/uism to work better from CLJ for SSR.
+
 3.0.0-RC2
 ---------
 - Fixed indexing bug in dynamic routing. This was leading to missed refreshes.

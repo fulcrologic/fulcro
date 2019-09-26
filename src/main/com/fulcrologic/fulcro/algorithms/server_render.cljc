@@ -29,14 +29,15 @@ as in the case of encoded polylines."
      "Obtain the value of the INITIAL_APP_STATE set from server-side rendering. Use initial-state->script-tag on the server to embed the state."
      ([] (get-SSR-initial-state {}))
      ([opts]
-      (when-let [state-string (base64-decode (.-INITIAL_APP_STATE js/window))]
+      (when-let [state-string (some-> js/window .-INITIAL_APP_STATE base64-decode)]
         (transit/transit-str->clj state-string opts)))))
 
 (defn build-initial-state
   "This function normalizes the given state-tree using the root-component's query into standard client db format,
    it then walks the query and adds any missing data from union branches that are not the 'default' branch
    on the union itself. E.g. A union with initial state can only point to one thing, but you need the other branches
-   in the normalized application database. Assumes all components (except possibly root-class) that need initial state use InitialAppState.
+   in the normalized application database. Assumes all components (except possibly root-class) that need initial state
+   use `:initial-state`.
 
    Useful for building a pre-populated db for server-side rendering.
 

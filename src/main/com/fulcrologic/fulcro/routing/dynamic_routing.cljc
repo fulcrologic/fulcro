@@ -45,7 +45,7 @@
       (fn [_ _] (route-immediate ident)))))
 
 (defn will-enter
-  "Universal CLJC version of will-enter.  Don't use the protocol method in CLJ."
+  "Universal CLJC version of will-enter."
   [class app params]
   (when-let [will-enter (get-will-enter class)]
     (will-enter app params)))
@@ -241,7 +241,7 @@
                     (uism/store :path-segment (uism/retrieve env :pending-path-segment))
                     (uism/store :pending-path-segment [])
                     (uism/apply-action target-ready* (uism/retrieve env :target)))
-          app     (::uism/app env) ]
+          app     (::uism/app env)]
       (when app
         (comp/transact! app [(indexing/reindex)]))
       new-env)))
@@ -300,7 +300,7 @@
                 :ready! {::uism/target-state :routed
                          ::uism/handler      ready-handler}}}
 
-    :routed   {::uism/handler route-handler}}})
+    :routed   {::uism/events {:route! {::uism/handler route-handler}}}}})
 
 ;; TODO: This algorithm is repeated in more than one place in slightly different forms...refactor it.
 (defn proposed-new-path [this-or-app relative-class-or-instance new-route]
@@ -410,7 +410,7 @@
                  router-ident      (comp/get-ident component {})
                  router-id         (-> router-ident second)
                  target-ident      (will-enter target app params)
-                 completing-action (or (some-> target-ident meta :fn) identity)
+                 completing-action (or (some-> target-ident meta :fn) (constantly true))
                  event-data        (merge
                                      {:error-timeout 5000 :deferred-timeout 100}
                                      timeouts
@@ -464,7 +464,8 @@
         router     relative-class-or-instance
         root-query (comp/get-query router state-map)
         ast        (eql/query->ast root-query)
-        root       (ast-node-for-live-router app ast)
+        root       (or (ast-node-for-live-router app ast)
+                     (-> ast :children first))
         result     (atom [])]
     (loop [{:keys [component] :as node} root]
       (when (and component (router? component))
