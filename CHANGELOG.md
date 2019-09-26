@@ -1,7 +1,7 @@
-3.0.0-RC3
----------
+3.0.0
+-----
 - Fixed bug in dynamic routing due to missed timer cancels
-- Improvements in CLJ handling of apps.
+- Improvements to dyn router/uism to work better from CLJ for SSR.
 
 3.0.0-RC2
 ---------
