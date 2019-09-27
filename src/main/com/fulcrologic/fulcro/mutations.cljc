@@ -67,8 +67,8 @@
   [::env => ::env]
   (let [{:keys [app result]} env]
     (enc/when-let [global-error-action (ah/app-algorithm app :global-error-action)
-                   remote-error? (ah/app-algorithm app :remote-error?)
-                   _ (remote-error? result)]
+                   remote-error?       (ah/app-algorithm app :remote-error?)
+                   _                   (remote-error? result)]
       (global-error-action env))
     env))
 
@@ -92,6 +92,17 @@
         (ok-action env)))
     env))
 
+(>defn rewrite-tempids!
+  "Rewrites tempids in state and places a tempid->realid map into env for further use by the mutation actions."
+  [env]
+  [::env => ::env]
+  (let [{:keys [app state result]} env
+        {:keys [body transaction]} result
+        remote-error? (ah/app-algorithm app :remote-error?)
+        rid->tid      (tempid/result->tempid->realid body)]
+    (tempid/resolve-tempids! app body)
+    (assoc env :tempid->realid rid->tid)))
+
 (>defn integrate-mutation-return-value!
   "If there is a successful result from the remote mutation in `env` this function will merge it with app state
   (if there was a mutation join query), and will also rewrite any tempid remaps that were returned
@@ -106,8 +117,7 @@
         {:keys [body transaction]} result
         remote-error? (ah/app-algorithm app :remote-error?)]
     (when-not (remote-error? result)
-      (swap! state merge/merge-mutation-joins transaction body)
-      (tempid/resolve-tempids! app body))
+      (swap! state merge/merge-mutation-joins transaction body))
     env))
 
 (>defn default-result-action!
@@ -131,6 +141,7 @@
   (-> env
     (update-errors-on-ui-component! ::mutation-error)
     (integrate-mutation-return-value!)
+    (rewrite-tempids!)
     (trigger-global-error-action!)
     (dispatch-ok-error-actions!)))
 
