@@ -14,12 +14,6 @@ image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["Circ
 Fulcro is a library for building data-driven full-stack applications for the web. It uses React and is written in
 Clojure and Clojurescript.
 
-Fulcro 3 is currently in Beta (August 2019).
-
-Official release candidates of version 3 will begin as soon as beta releases have been tested against enough code to give
-us high confidence that the library is usable in production. We hope to have an official release of 3.0 by the
-end of summer 2019, including updated documentation, videos, and sample application(s).
-
 == Version Differences
 
 Fulcro has undergone a number of face-lifts over its lifetime.
@@ -38,10 +32,9 @@ transaction processing system.
 
 == Trying it Out
 
-The documentation is being update in the http://book.fulcrologic.com/fulcro3[*new* revision of the Developer's Guide]. The
-docstrings in the namespaces have mostly been updated as well.
+The documentation for this version is in the http://book.fulcrologic.com/fulcro3[*new* revision of the Developer's Guide].
 
-There is a https://github.com/fulcrologic/fulcro-template[template project] in progress which you can use as a starting point.
+There is also a https://github.com/fulcrologic/fulcro-template[template project] in progress which you can use as a starting point.
 
 == Copyright and License
 
