@@ -26,6 +26,7 @@
     "parinfer-codemirror": "^1.4.2",
     "react-grid-layout": "^0.16.6",
     "react-icons": "^2.2.7",
+    "transit-js": "0.8.861",
     "reakit": "^0.11.2"
   }
 }

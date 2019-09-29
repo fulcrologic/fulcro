@@ -3,9 +3,9 @@
    and can be extended to support additional application-specific data types."
   #?(:clj
      (:refer-clojure :exclude [ref]))
-  (:require [cognitect.transit :as t]
-            #?(:cljs [com.cognitect.transit :as ct])
-            [com.fulcrologic.fulcro.algorithms.tempid :as tempid #?@(:cljs [:refer [TempId]])])
+  (:require
+    [cognitect.transit :as t]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid #?@(:cljs [:refer [TempId]])])
   #?(:clj
      (:import [com.cognitect.transit
                TransitFactory WriteHandler ReadHandler]
@@ -95,18 +95,22 @@
   "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering.
 
   - `data`: Arbitrary data
-  - `opts`: (optional) Options to send when creating a `writer`. Always preserves metadata."
+  - `opts`: (optional) Options to send when creating a `writer`. Always preserves metadata.
+
+  WARNING: metadata encoding will not work in CLJS if you don't use the latest transit-js. If using
+  shadow-cljs, this means placing that in your package.json file (not relying on the jar version)."
   ([data] (transit-clj->str data {}))
   ([data opts]
    (let [opts (assoc opts :transform t/write-meta)]
      #?(:cljs (t/write (writer opts) data)
-       :clj
-             (with-open [out (java.io.ByteArrayOutputStream.)]
-               (t/write (writer out opts) data)
-               (.toString out "UTF-8"))))))
+        :clj
+              (with-open [out (java.io.ByteArrayOutputStream.)]
+                (t/write (writer out opts) data)
+                (.toString out "UTF-8"))))))
 
 (defn transit-str->clj
-  "Use transit to decode a string into a clj data structure. Useful for decoding initial app state when starting from a server-side rendering."
+  "Use transit to decode a string into a clj data structure. Useful for decoding initial app state
+   when starting from a server-side rendering."
   ([str] (transit-str->clj str {}))
   ([str opts]
    #?(:cljs (t/read (reader opts) str)
