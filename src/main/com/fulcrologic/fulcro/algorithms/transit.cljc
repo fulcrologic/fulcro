@@ -95,14 +95,15 @@
   "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering.
 
   - `data`: Arbitrary data
-  - `opts`: (optional) Options to send when creating a `writer`."
+  - `opts`: (optional) Options to send when creating a `writer`. Always preserves metadata."
   ([data] (transit-clj->str data {}))
   ([data opts]
-   #?(:cljs (t/write (writer opts) data)
-      :clj
-            (with-open [out (java.io.ByteArrayOutputStream.)]
-              (t/write (writer out opts) data)
-              (.toString out "UTF-8")))))
+   (let [opts (assoc opts :transform t/write-meta)]
+     #?(:cljs (t/write (writer opts) data)
+       :clj
+             (with-open [out (java.io.ByteArrayOutputStream.)]
+               (t/write (writer out opts) data)
+               (.toString out "UTF-8"))))))
 
 (defn transit-str->clj
   "Use transit to decode a string into a clj data structure. Useful for decoding initial app state when starting from a server-side rendering."

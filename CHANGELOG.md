@@ -1,3 +1,7 @@
+3.0.2
+-----
+- Added metadata encoding for SSR state.
+
 3.0.1
 -----
 - Added `:tempid->realid` to mutation env for ok/error actions.
