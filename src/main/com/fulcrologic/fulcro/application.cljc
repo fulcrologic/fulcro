@@ -386,8 +386,8 @@
                                         ::root-class root)
                                       (update-shared! app)
                                       (indexing/index-root! app)
-                                      (schedule-render! app {:force-root? true
-                                                             :hydrate?    hydrate?})))))]
+                                      (render! app {:force-root? true
+                                                    :hydrate?    hydrate?})))))]
         (if (mounted? app)
           (reset-mountpoint!)
           (do
