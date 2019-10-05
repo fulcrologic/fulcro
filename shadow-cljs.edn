@@ -7,7 +7,7 @@
                        :asset-path "/js/todomvc"
                        :dev        {:compiler-options {:external-config {:ghostwheel {}}}}
                        :modules    {:main {:entries [fulcro-todomvc.main]}}
-                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
+                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.websocket-preload]}}
 
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
