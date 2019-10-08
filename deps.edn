@@ -23,7 +23,7 @@
                        :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-529"}}}
 
            :dev       {:extra-paths ["src/dev" "resources" "src/todomvc"]
-                       :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.8.40"}
+                       :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.8.58"}
                                      com.wsscode/pathom                {:mvn/version "2.2.24"}
                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.0.1"}
                                      binaryage/devtools                {:mvn/version "0.9.10"}
