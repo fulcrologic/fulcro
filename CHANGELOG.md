@@ -2,7 +2,7 @@
 -----
 - Fixed data fetch to use transaction on merge instead of original query.
 - Added metadata encoding for SSR state.
-- Fixed initial mount to be compatible with React Native.
+- Made initial mount syncrhonouse to be compatible with React Native.
 
 3.0.1
 -----
