@@ -1,3 +1,8 @@
+3.0.3
+-------
+- Minor clean-ups around Inspect.
+- Added js annotations on items that were causing warnings.
+
 3.0.2-1
 -------
 - Re-release with accidental line deletion that affected Inspect fixed.

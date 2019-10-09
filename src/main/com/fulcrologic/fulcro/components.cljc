@@ -453,7 +453,7 @@
      (get-in cst (if (sequential? k-or-ks) k-or-ks [k-or-ks])))))
 
 (let [update-fn (fn [component f args]
-                  #?(:cljs (.setState component
+                  #?(:cljs (.setState ^js component
                              (fn [prev-state props]
                                #js {"fulcro$state" (apply f (gobj/get prev-state "fulcro$state") args)}))))]
   (defn update-state!
