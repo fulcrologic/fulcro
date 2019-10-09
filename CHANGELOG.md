@@ -1,3 +1,7 @@
+3.0.2-1
+-------
+- Re-release with accidental line deletion that affected Inspect fixed.
+
 3.0.2
 -----
 - Fixed data fetch to use transaction on merge instead of original query.
