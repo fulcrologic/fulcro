@@ -289,6 +289,8 @@
 (defn install [_]
   #?(:cljs
      (do
+       (js/document.documentElement.setAttribute "__fulcro-inspect-remote-installed__" true)
+
        (when-not @started?*
          (log/info "Installing Fulcro 3.x Inspect" {})
 
