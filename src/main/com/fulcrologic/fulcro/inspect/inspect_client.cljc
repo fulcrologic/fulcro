@@ -7,13 +7,11 @@
     #?@(:cljs [[goog.object :as gobj]
                [com.fulcrologic.fulcro.inspect.diff :as diff]
                [com.fulcrologic.fulcro.inspect.transit :as encode]
-               [com.fulcrologic.fulcro.inspect.inspect-ws :as ws]
                [cljs.core.async :as async]])
     [taoensso.encore :as encore]
     [taoensso.timbre :as log]))
 
 #?(:cljs (goog-define INSPECT false))
-#?(:cljs (goog-define SERVER_PORT "8237"))
 
 (declare handle-devtool-message)
 (defonce started?* (atom false))
@@ -113,18 +111,7 @@
            (start-send-message-loop)))
        false)))
 
-(defn start-ws-messaging! []
-  #?(:cljs
-     (try
-       (let [socket (ws/websockets (str "http://localhost:" SERVER_PORT) (fn [msg]
-                                                                           (handle-devtool-message msg)))]
-         (ws/start socket)
-         (async/go-loop []
-           (when-let [[type data] (async/<! send-ch)]
-             (ws/push socket {:type type :data data :timestamp (js/Date.)})
-             (recur))))
-       (catch :default e
-         (js/console.error e "Unable to start inspect.")))))
+
 
 (defn transact-inspector!
   ([tx]
@@ -297,13 +284,6 @@
          (reset! started?* true)
 
          (listen-local-messages)))))
-
-(defn install-ws []
-  #?(:cljs
-     (when-not @started?*
-       (log/info "Installing Fulcro 3.x Inspect over Websockets targeting port " SERVER_PORT)
-       (reset! started?* true)
-       (start-ws-messaging!))))
 
 (defn app-started!
   "Register the application with Inspect, if it is available."

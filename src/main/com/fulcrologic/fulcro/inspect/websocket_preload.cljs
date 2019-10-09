@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.inspect.websocket-preload
   (:require
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]))
+    [com.fulcrologic.fulcro.inspect.inspect-ws :as ws]))
 
-(inspect/install-ws)
+(ws/install-ws)
 
 

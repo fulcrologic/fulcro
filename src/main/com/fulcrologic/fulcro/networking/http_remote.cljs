@@ -42,16 +42,16 @@
 (s/def ::abort! fn?)
 (s/def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
 
-(def xhrio-error-states {(.-NO_ERROR ErrorCode)        :none
-                         (.-EXCEPTION ErrorCode)       :exception
-                         (.-HTTP_ERROR ErrorCode)      :http-error
-                         (.-ABORT ErrorCode)           :abort
-                         (.-ACCESS_DENIED ErrorCode)   :access-denied
-                         (.-FILE_NOT_FOUND ErrorCode)  :not-found
-                         (.-FF_SILENT_ERROR ErrorCode) :silent
-                         (.-CUSTOM_ERROR ErrorCode)    :custom
-                         (.-OFFLINE ErrorCode)         :offline
-                         (.-TIMEOUT ErrorCode)         :timeout})
+(def xhrio-error-states {(.-NO_ERROR ^js ErrorCode)        :none
+                         (.-EXCEPTION ^js ErrorCode)       :exception
+                         (.-HTTP_ERROR ^js ErrorCode)      :http-error
+                         (.-ABORT ^js ErrorCode)           :abort
+                         (.-ACCESS_DENIED ^js ErrorCode)   :access-denied
+                         (.-FILE_NOT_FOUND ^js ErrorCode)  :not-found
+                         (.-FF_SILENT_ERROR ^js ErrorCode) :silent
+                         (.-CUSTOM_ERROR ^js ErrorCode)    :custom
+                         (.-OFFLINE ^js ErrorCode)         :offline
+                         (.-TIMEOUT ^js ErrorCode)         :timeout})
 
 (defn make-xhrio [] (XhrIo.))
 (defn xhrio-dispose [^js xhrio] (.dispose xhrio))
@@ -326,12 +326,12 @@
                                 (swap! active-requests update abort-id (fnil conj #{}) xhrio))
                               (when progress-handler
                                 (xhrio-enable-progress-events xhrio)
-                                (events/listen xhrio (.-DOWNLOAD_PROGRESS EventType) #(progress-routine :receiving %))
-                                (events/listen xhrio (.-UPLOAD_PROGRESS EventType) #(progress-routine :sending %)))
-                              (events/listen xhrio (.-SUCCESS EventType) (with-cleanup ok-routine))
-                              (events/listen xhrio (.-ABORT EventType) (with-cleanup #(ok-handler {:status-text   "Cancelled"
+                                (events/listen xhrio (.-DOWNLOAD_PROGRESS ^js EventType) #(progress-routine :receiving %))
+                                (events/listen xhrio (.-UPLOAD_PROGRESS ^js EventType) #(progress-routine :sending %)))
+                              (events/listen xhrio (.-SUCCESS ^js EventType) (with-cleanup ok-routine))
+                              (events/listen xhrio (.-ABORT ^js EventType) (with-cleanup #(ok-handler {:status-text   "Cancelled"
                                                                                                    ::txn/aborted? true})))
-                              (events/listen xhrio (.-ERROR EventType) (with-cleanup error-routine))
+                              (events/listen xhrio (.-ERROR ^js EventType) (with-cleanup error-routine))
                               (xhrio-send xhrio url http-verb body headers))
                             (error-handler {:error :abort :error-text "Transmission was aborted because the request middleware threw an exception"}))))
      :abort!          (fn abort! [this id]
