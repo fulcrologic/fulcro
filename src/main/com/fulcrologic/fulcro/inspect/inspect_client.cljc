@@ -270,7 +270,7 @@
        :fulcro.inspect.client/check-client-version
        (post-message :fulcro.inspect.client/client-version {:version "2.2.5"})
 
-       (log/error "Unknown message" type))))
+       (log/debug "Unknown message" type))))
 
 
 (defn install [_]

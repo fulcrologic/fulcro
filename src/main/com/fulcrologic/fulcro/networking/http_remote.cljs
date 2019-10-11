@@ -304,10 +304,11 @@
                                                    (result-handler (merge error-result {:status-code 500}))
                                                    (catch :default e
                                                      (log/error e "Error handler for remote" url "failed with an exception."))))]
-                          (if-let [real-request (try (request-middleware {:headers {} :body edn :url url :method :post})
-                                                     (catch :default e
-                                                       (log/error "Send aborted due to middleware failure " e)
-                                                       nil))]
+                          (if-let [real-request (try
+                                                  (request-middleware {:headers {} :body edn :url url :method :post})
+                                                  (catch :default e
+                                                    (log/error e "Send aborted due to middleware failure ")
+                                                    nil))]
                             (let [abort-id             (or
                                                          (-> send-node ::txn/options ::txn/abort-id)
                                                          (-> send-node ::txn/options :abort-id))
@@ -330,10 +331,10 @@
                                 (events/listen xhrio (.-UPLOAD_PROGRESS ^js EventType) #(progress-routine :sending %)))
                               (events/listen xhrio (.-SUCCESS ^js EventType) (with-cleanup ok-routine))
                               (events/listen xhrio (.-ABORT ^js EventType) (with-cleanup #(ok-handler {:status-text   "Cancelled"
-                                                                                                   ::txn/aborted? true})))
+                                                                                                       ::txn/aborted? true})))
                               (events/listen xhrio (.-ERROR ^js EventType) (with-cleanup error-routine))
                               (xhrio-send xhrio url http-verb body headers))
-                            (error-handler {:error :abort :error-text "Transmission was aborted because the request middleware threw an exception"}))))
+                            (error-handler {:error :abort :error-text "Transmission was aborted because the request middleware returned nil or threw an exception"}))))
      :abort!          (fn abort! [this id]
                         (if-let [xhrios (get @(:active-requests this) id)]
                           (doseq [xhrio xhrios]

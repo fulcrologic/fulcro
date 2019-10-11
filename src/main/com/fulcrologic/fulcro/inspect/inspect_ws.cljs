@@ -14,6 +14,8 @@
   (stop [this])
   (push [this message]))
 
+(declare restart-ws)
+
 (defrecord Websockets [ws-url ws-in ws-out message-received]
   WS
   (start [this]
@@ -43,7 +45,8 @@
           (log/debug "Disconnected")
           (message-received {:type :close})
           (stop this)
-          (log/warn "WS-CLOSE" e)))
+          (log/warn "WS-CLOSE" e)
+          (restart-ws)))
 
       (.on ws "event"
         (fn [e]
@@ -83,3 +86,7 @@
     (log/info "Installing Fulcro 3.x Inspect over Websockets targeting port " SERVER_PORT)
     (reset! inspect/started?* true)
     (start-ws-messaging!)))
+
+(defn restart-ws []
+  (log/info "Restarting Fulcro 3.x Inspect over Websockets targeting port " SERVER_PORT)
+  (start-ws-messaging!))
