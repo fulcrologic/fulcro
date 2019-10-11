@@ -145,17 +145,19 @@
    (let [base-handlers {}
          handlers      (if (map? addl-transit-handlers) (merge base-handlers addl-transit-handlers) base-handlers)
          reader        (t/reader {:handlers handlers})]
-     (fn fulcro-response-handler [{:keys [body] :as response}]
+     (fn fulcro-response-handler [{:keys [body error] :as response}]
        (handler
          (try
-           (let [new-body (if (str/blank? body)
-                            {}
-                            (ct/read reader body))
-                 response (assoc response :body new-body)]
-             response)
-           (catch js/Object e
-             (log/error "Transit decode failed!" e)
-             response)))))))
+           (if (= :network-error error)
+             response
+             (let [new-body (if (str/blank? body)
+                              {}
+                              (ct/read reader body))
+                   response (assoc response :body new-body)]
+               response))
+           (catch :default e
+             (log/warn "Transit decode failed!")
+             (assoc response :status-code 417 :status-text "body was either not transit or you have not installed the correct transit read/write handlers."))))))))
 
 (defn extract-response
   "Generate a response map from the status of the given xhrio object, which could be in a complete or error state."

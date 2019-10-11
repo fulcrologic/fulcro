@@ -1,3 +1,7 @@
+3.0.5
+-----
+- Changed http remote response middleware to not attempt transit decode on network errors
+
 3.0.4
 -----
 - Added restart logic to inspect-over-ws
