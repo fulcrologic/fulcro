@@ -269,6 +269,9 @@
                                          (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
                                            query-transform-default (assoc :update-query query-transform-default))
                                          config)
+         config        (cond-> config
+                         (and (:update-query config) query-transform-default)
+                         (assoc :update-query (comp query-transform-default (:update-query config))))
          load-sym      (or load-mutation `internal-load!)
          mutation-args (load-params* app server-property-or-ident class-or-factory config)
          abort-id      (:abort-id mutation-args)]
