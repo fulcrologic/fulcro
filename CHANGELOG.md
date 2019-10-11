@@ -1,3 +1,8 @@
+3.0.4
+-----
+- Added restart logic to inspect-over-ws
+- Cleaned up HTTP remote error reporting
+
 3.0.3
 -------
 - Minor clean-ups around Inspect.
