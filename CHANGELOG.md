@@ -1,6 +1,4 @@
-3.0.5
------
-- Changed http remote response middleware to not attempt transit decode on network errors
+See git commit history for further change log entries. This file is no longer maintained.
 
 3.0.4
 -----
