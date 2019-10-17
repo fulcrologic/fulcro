@@ -1,3 +1,5 @@
+See git commit history for further change log entries. This file is no longer maintained.
+
 3.0.4
 -----
 - Added restart logic to inspect-over-ws
