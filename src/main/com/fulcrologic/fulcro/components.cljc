@@ -170,8 +170,9 @@
 (defn children
   "Get the sequence of react children of the given component."
   [component]
-  #?(:clj  (get-in component [:children])
-     :cljs (gobj/getValueByKeys component "props" "children")))
+  (let [cs #?(:clj  (get-in component [:children])
+              :cljs (gobj/getValueByKeys component "props" "children"))]
+    (if (or (coll? cs) #?(:cljs (array? cs))) cs [cs])))
 
 (defn react-type
   "Returns the component type, regardless of whether the component has been
