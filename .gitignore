@@ -56,3 +56,4 @@ docs/.jekyll-metadata
 .cpcache
 .shadow-cljs
 resources/public/workspaces
+!.idea/runConfigurations
