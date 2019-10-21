@@ -20,7 +20,10 @@
 (declare asm-value trigger-state-machine-event! apply-action)
 (def mutation-delegate (m/->Mutation `mutation-delegate))
 
-(defn set-js-timeout! [f tm] (sched/defer f tm))
+(defn set-js-timeout!
+  "Schedules a `js/setTimeout` after the given time period `tm` (in milli-seconds)."
+  [f tm]
+  (sched/defer f tm))
 
 (defn clear-js-timeout! [timer]
   #?(:clj  (when timer (timer))
@@ -93,16 +96,34 @@
 ;; ================================================================================
 
 (def registry (atom {}))
-(defn register-state-machine! [id definition] (swap! registry assoc id definition))
+
+(defn register-state-machine!
+  "Register a state machine with the given ID and definition to the app registry.
+
+   Returns the updated app registry. "
+  [id definition]
+  (swap! registry assoc id definition))
 
 
-(>defn get-state-machine [id] [::state-machine-id => (s/nilable ::state-machine-definition)] (get @registry id))
+(>defn get-state-machine
+  "Returns the state machine associated with the given ID in the app registry."
+  [id]
+  [::state-machine-id => (s/nilable ::state-machine-definition)]
+  (get @registry id))
 
-(>defn lookup-state-machine [env]
+(>defn lookup-state-machine
+  "Fetches the state machine, if it exists in the given environment.
+
+  Returns `nil` if not found."
+  [env]
   [::env => (s/nilable ::state-machine-definition)]
   (some->> (asm-value env [::state-machine-id]) (get @registry)))
 
 (>defn lookup-state-machine-field
+  "Lookup the specific field from the state machine.
+
+  Returns `nil` if the associated field isn't found.
+  "
   [env ks]
   [::env (s/or :k keyword? :kpath vector?) => any?]
   (if (vector? ks)
@@ -178,6 +199,7 @@
   (get-in env (asm-path env ks)))
 
 (>defn valid-state?
+  "Check whether the state machine is in a valid state or not."
   [env state-id]
   [::env ::state-id => boolean?]
   (let [states (set/union #{::exit ::started} (-> (lookup-state-machine-field env ::states) keys set))]
@@ -212,6 +234,10 @@
    (get-in env (asm-path env [::local-storage k]) dflt)))
 
 (>defn actor->ident
+  "Get the ident of the actor, given the environment and it's name.
+
+  Returns `nil` if it's not found.
+  "
   [env actor-name]
   [::env ::actor-name => (s/nilable eql/ident?)]
   (when-let [lookup (get-in env (asm-path env ::actor->ident))]
