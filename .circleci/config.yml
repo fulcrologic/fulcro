@@ -23,7 +23,7 @@ jobs:
       - checkout
       - restore_cache:
           key: clj-{{ checksum "deps.edn" }}
-      - run: clojure -A:dev:test:clj-tests -J-Dghostwheel.enabled=true
+      - run: clojure -A:dev:test:clj-tests -J-Dguardrails.enabled=true -J-Dguardrails.config=guardrails-test.edn
       - save_cache:
           paths:
             - ~/.m2

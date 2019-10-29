@@ -18,7 +18,7 @@
     [clojure.set :as set]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
-    [ghostwheel.core :as gw :refer [>defn >defn- =>]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn >defn- =>]]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))

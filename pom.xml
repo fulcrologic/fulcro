@@ -78,6 +78,11 @@
             <version>1.10.0</version>
         </dependency>
         <dependency>
+            <groupId>com.fulcrologic</groupId>
+            <artifactId>guardrails</artifactId>
+            <version>0.0.7</version>
+        </dependency>
+        <dependency>
             <groupId>edn-query-language</groupId>
             <artifactId>eql</artifactId>
             <version>0.0.8</version>
@@ -91,11 +96,6 @@
             <groupId>cljsjs</groupId>
             <artifactId>react-dom</artifactId>
             <version>16.8.6-0</version>
-        </dependency>
-        <dependency>
-            <groupId>gnl</groupId>
-            <artifactId>ghostwheel</artifactId>
-            <version>0.3.9</version>
         </dependency>
         <dependency>
             <groupId>com.cognitect</groupId>

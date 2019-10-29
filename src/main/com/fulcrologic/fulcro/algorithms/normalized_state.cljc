@@ -7,7 +7,7 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
-    [ghostwheel.core :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :refer [>defn =>]]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]

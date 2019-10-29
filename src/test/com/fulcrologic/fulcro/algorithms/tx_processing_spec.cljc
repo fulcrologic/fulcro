@@ -6,7 +6,7 @@
     [clojure.spec.alpha :as s]
     [clojure.pprint :refer [pprint]]
     [com.fulcrologic.fulcro.algorithms.tempid :refer [uuid]]
-    [ghostwheel.core :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :refer [>defn =>]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]

@@ -12,7 +12,7 @@
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
     com.fulcrologic.fulcro.specs
-    [ghostwheel.core :refer [>defn => |]]
+    [com.fulcrologic.guardrails.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))

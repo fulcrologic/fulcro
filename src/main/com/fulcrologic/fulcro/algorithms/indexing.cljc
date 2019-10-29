@@ -5,7 +5,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [ghostwheel.core :as gw :refer [>defn]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn]]
     [clojure.set :as set]
     [edn-query-language.core :as eql]
     [taoensso.encore :as encore]

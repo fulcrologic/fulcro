@@ -10,7 +10,7 @@
     [clojure.java.io :as io]
     [clojure.edn :as edn]
     [clojure.walk :as walk]
-    [ghostwheel.core :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :refer [>defn =>]]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [clojure.spec.alpha :as s]))

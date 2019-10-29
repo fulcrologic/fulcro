@@ -1,0 +1,5 @@
+{:defn-macro nil
+ :throw?     false
+ :emit-spec? false
+ :expound    {:show-valid-values? true
+              :print-specs?       true}}

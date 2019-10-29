@@ -17,7 +17,7 @@
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
     com.fulcrologic.fulcro.specs
-    [ghostwheel.core :refer [>defn => |]]
+    [com.fulcrologic.guardrails.core :refer [>defn => |]]
     #?@(:cljs [[goog.object :as gobj]
                [goog.dom :as gdom]])
     [taoensso.timbre :as log])

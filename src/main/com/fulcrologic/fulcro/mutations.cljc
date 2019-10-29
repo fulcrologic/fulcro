@@ -4,7 +4,7 @@
     #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom.events :as evt]
-    [ghostwheel.core :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :refer [>defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [taoensso.encore :as enc]
