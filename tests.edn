@@ -5,6 +5,4 @@
                  :skip-meta    [:integration]
                  :source-paths ["src/main"]}]
      :reporter [fulcro-spec.reporters.terminal/fulcro-report]
-     :plugins  [:kaocha.plugin/randomize
-                :kaocha.plugin/filter
-                :kaocha.plugin/capture-output]}
+     :plugins  []}

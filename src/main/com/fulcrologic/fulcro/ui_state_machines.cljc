@@ -5,7 +5,7 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [ghostwheel.core :as gw :refer [>defn => | ? <-]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn => | ? <-]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.application :as app]

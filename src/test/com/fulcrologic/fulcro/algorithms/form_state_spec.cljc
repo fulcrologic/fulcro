@@ -60,7 +60,7 @@
     (let [data-tree       {:db/id          1
                            ::person-name   "Joe"
                            ::phone-numbers [{:db/id   2 ::phone-number "555-1212"
-                                             ::locale {:db/id 5 ::country "US"}}]}
+                                             ::locale {:db/id 5 ::country :US}}]}
           configured-form (fs/add-form-config Person data-tree)
           form-config     (get configured-form ::fs/config)]
       (assertions

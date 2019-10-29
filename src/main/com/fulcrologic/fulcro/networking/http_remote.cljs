@@ -7,7 +7,7 @@
     [com.fulcrologic.fulcro.algorithms.transit :as t]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [edn-query-language.core :as eql]
-    [ghostwheel.core :as gw :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn =>]]
     [goog.events :as events]
     [taoensso.timbre :as log])
   (:import [goog.net XhrIo EventType ErrorCode]))

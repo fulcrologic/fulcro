@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.routing.dynamic-routing
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
-    [ghostwheel.core :refer [>fdef => ?]]
+    [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.application :as app]

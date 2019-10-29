@@ -3,7 +3,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [clojure.set :as set]
-    [ghostwheel.core :as gw :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn =>]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]))
 
