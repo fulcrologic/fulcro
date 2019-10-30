@@ -6,7 +6,7 @@
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
     <packaging>jar</packaging>
-    <version>3.0.6</version>
+    <version>3.0.7-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -80,7 +80,7 @@
         <dependency>
             <groupId>com.fulcrologic</groupId>
             <artifactId>guardrails</artifactId>
-            <version>0.0.7</version>
+            <version>0.0.9</version>
         </dependency>
         <dependency>
             <groupId>edn-query-language</groupId>
