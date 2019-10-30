@@ -14,7 +14,7 @@
                        :ns-regexp        "-spec$"
                        :compiler-options {:static-fns      false
                                           :external-config {:guardrails {:throw? true :emit-spec? true}}}
-                       #_#_:js-options       {:resolve {"react-dom" {:target  :npm
+                       :js-options       {:resolve {"react-dom" {:target  :npm
                                                                  :require "react-dom/cjs/react-dom.production.min.js"}
                                                     "react"     {:target  :npm
                                                                  :require "react/cjs/react.production.min.js"}}}
