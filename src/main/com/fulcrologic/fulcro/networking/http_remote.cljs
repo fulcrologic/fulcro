@@ -7,40 +7,40 @@
     [com.fulcrologic.fulcro.algorithms.transit :as t]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [edn-query-language.core :as eql]
-    [com.fulcrologic.guardrails.core :as gw :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn => >def]]
     [goog.events :as events]
     [taoensso.timbre :as log])
   (:import [goog.net XhrIo EventType ErrorCode]))
 
-(s/def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
-(s/def ::url string?)
-(s/def ::headers (s/map-of string? string?))
-(s/def ::body any?)
-(s/def ::request (s/keys :req-un [::method ::body ::url ::headers]))
-(s/def ::error #{:none :exception :http-error :network-error :abort
+(>def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
+(>def ::url string?)
+(>def ::headers (s/map-of string? string?))
+(>def ::body any?)
+(>def ::request (s/keys :req-un [::method ::body ::url ::headers]))
+(>def ::error #{:none :exception :http-error :network-error :abort
                  :middleware-failure :access-denied :not-found :silent :custom :offline
                  :timeout})
-(s/def ::error-text string?)
-(s/def ::status-code pos-int?)
-(s/def ::status-text string?)
-(s/def ::outgoing-request ::request)
-(s/def ::transaction vector?)
-(s/def ::progress-phase #{:sending :receiving :complete :failed})
-(s/def ::progress-event any?)
-(s/def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
+(>def ::error-text string?)
+(>def ::status-code pos-int?)
+(>def ::status-text string?)
+(>def ::outgoing-request ::request)
+(>def ::transaction vector?)
+(>def ::progress-phase #{:sending :receiving :complete :failed})
+(>def ::progress-event any?)
+(>def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
                     :opt-un [::progress-phase ::progress-event]))
-(s/def ::xhrio-event any?)
-(s/def ::xhrio any?)
+(>def ::xhrio-event any?)
+(>def ::xhrio any?)
 
-(s/def ::response-middleware fn?)
-(s/def ::request-middleware fn?)
-(s/def ::active-requests (s/and
+(>def ::response-middleware fn?)
+(>def ::request-middleware fn?)
+(>def ::active-requests (s/and
                            #(map? (deref %))
                            #(every? set? (vals (deref %)))))
 
-(s/def ::transmit! fn?)
-(s/def ::abort! fn?)
-(s/def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
+(>def ::transmit! fn?)
+(>def ::abort! fn?)
+(>def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
 
 (def xhrio-error-states {(.-NO_ERROR ^js ErrorCode)        :none
                          (.-EXCEPTION ^js ErrorCode)       :exception

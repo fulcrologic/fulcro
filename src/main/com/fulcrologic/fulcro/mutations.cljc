@@ -13,12 +13,13 @@
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.guardrails.core :refer [>def]]
     [clojure.string :as str])
   #?(:clj
      (:import (clojure.lang IFn))))
 
-(s/def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
-(s/def ::returning comp/component-class?)
+(>def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
+(>def ::returning comp/component-class?)
 
 #?(:clj
    (deftype Mutation [sym]

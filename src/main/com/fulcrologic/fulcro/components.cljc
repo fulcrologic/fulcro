@@ -14,6 +14,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.guardrails.core :refer [>def]]
     [clojure.set :as set])
   #?(:clj
      (:import
@@ -95,7 +96,7 @@
   #?(:clj  (boolean (and (map? x) (::component-class? x)))
      :cljs (boolean (gobj/containsKey x "fulcro$class"))))
 
-(s/def ::component-class component-class?)
+(>def ::component-class component-class?)
 
 (defn component-name
   "Returns a string version of the given react component's name. Works on component instances and classes."
