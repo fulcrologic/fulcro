@@ -3,11 +3,11 @@
   (:require
     [clojure.spec.alpha :as s]
     [clojure.set :as set]
-    [com.fulcrologic.guardrails.core :as gw :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn => >def]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]))
 
-(s/def ::target vector?)
+(>def ::target vector?)
 
 (>defn multiple-targets
   "Specifies a target that should place edges in the graph at multiple locations.

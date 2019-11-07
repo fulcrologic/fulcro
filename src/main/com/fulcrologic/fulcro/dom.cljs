@@ -36,19 +36,30 @@
   [x]
   (and (object? x) (= element-marker (gobj/get x "$$typeof"))))
 
-(s/def ::dom-element-args
-  (s/cat
-    :css (s/? keyword?)
-    :attrs (s/? (s/or
-                  :nil nil?
-                  :map #(and (map? %) (not (element? %)))
-                  :js-object #(and (object? %) (not (element? %)))))
-    :children (s/* (s/or
-                     :string string?
-                     :number number?
-                     :collection #(or (vector? %) (seq? %) (array? %))
-                     :nil nil?
-                     :element element?))))
+(defn parse-args
+  "Runtime parsing of DOM tag arguments. Returns a map with keys :css, :attrs, and :children."
+  [args]
+  (letfn [(parse-css [[args result :as pair]]
+            (let [arg (first args)]
+              (if (keyword? arg)
+                [(next args) (assoc result :css arg)]
+                pair)))
+          (parse-attrs [[args result :as pair]]
+            (let [arg (first args)]
+              (if (or
+                    (nil? arg)
+                    (and (map? arg) (not (element? arg)))
+                    (and (object? arg) (not (element? arg))))
+                [(next args) (assoc result :attrs (first args))]
+                pair)))
+          (parse-children [[args result]]
+            [nil (cond-> result
+                   (seq args) (assoc :children args))])]
+    (-> [args {}]
+      (parse-css)
+      (parse-attrs)
+      (parse-children)
+      second)))
 
 (defn render
   "Equivalent to React.render"

@@ -125,7 +125,7 @@
 (defn- gen-client-dom-fn [create-element-symbol tag]
   `(defn ~tag ~(cdom/gen-docstring tag true)
      [& ~'args]
-     (let [conformed-args# (util/conform! :com.fulcrologic.fulcro.dom/dom-element-args ~'args) ; see CLJS file for spec
+     (let [conformed-args# (com.fulcrologic.fulcro.dom/parse-args ~'args) ; see CLJS file for spec
            {attrs#    :attrs
             children# :children
             css#      :css} conformed-args#
