@@ -18,8 +18,8 @@
 (>def ::body any?)
 (>def ::request (s/keys :req-un [::method ::body ::url ::headers]))
 (>def ::error #{:none :exception :http-error :network-error :abort
-                 :middleware-failure :access-denied :not-found :silent :custom :offline
-                 :timeout})
+                :middleware-failure :access-denied :not-found :silent :custom :offline
+                :timeout})
 (>def ::error-text string?)
 (>def ::status-code pos-int?)
 (>def ::status-text string?)
@@ -28,15 +28,15 @@
 (>def ::progress-phase #{:sending :receiving :complete :failed})
 (>def ::progress-event any?)
 (>def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
-                    :opt-un [::progress-phase ::progress-event]))
+                   :opt-un [::progress-phase ::progress-event]))
 (>def ::xhrio-event any?)
 (>def ::xhrio any?)
 
 (>def ::response-middleware fn?)
 (>def ::request-middleware fn?)
 (>def ::active-requests (s/and
-                           #(map? (deref %))
-                           #(every? set? (vals (deref %)))))
+                          #(map? (deref %))
+                          #(every? set? (vals (deref %)))))
 
 (>def ::transmit! fn?)
 (>def ::abort! fn?)
@@ -170,16 +170,16 @@
        (handler
          (let [{:keys [response-type]} outgoing-request]
            (if (= :default response-type)
-         (try
-           (if (= :network-error error)
-             response
-             (let [new-body (if (str/blank? body)
-                              {}
-                              (ct/read reader body))
-                   response (assoc response :body new-body)]
-               response))
-           (catch :default e
-             (log/warn "Transit decode failed!")
+             (try
+               (if (= :network-error error)
+                 response
+                 (let [new-body (if (str/blank? body)
+                                  {}
+                                  (ct/read reader body))
+                       response (assoc response :body new-body)]
+                   response))
+               (catch :default e
+                 (log/warn "Transit decode failed!")
                  (assoc response :status-code 417 :status-text "body was either not transit or you have not installed the correct transit read/write handlers.")))
              response)))))))
 
