@@ -4,7 +4,7 @@
     #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom.events :as evt]
-    [com.fulcrologic.guardrails.core :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :refer [>def >defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [taoensso.encore :as enc]
@@ -13,12 +13,11 @@
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.guardrails.core :refer [>def]]
     [clojure.string :as str])
   #?(:clj
      (:import (clojure.lang IFn))))
 
-(>def ::env (s/keys :req-un [::state :com.fulcrologic.fulcro.application/app]))
+(>def ::env (s/keys :req-un [:com.fulcrologic.fulcro.application/app]))
 (>def ::returning comp/component-class?)
 
 #?(:clj
@@ -305,6 +304,20 @@
    Returns an updated `env`, which can be used as the return value from a remote section of a mutation."
   [env params]
   (assoc-in env [:ast :params] params))
+
+(>defn with-response-type
+  "Modify the AST in env so that the request is sent such that an alternate low-level XHRIO response type is used.
+  Only works with HTTP remotes. See goog.net.XhrIO.  Supported response types are :default, :array-buffer,
+  :text, and :document."
+  [env response-type]
+  [::env :com.fulcrologic.fulcro.networking.http-remote/response-type => ::env]
+  (assoc-in env [:ast :params :com.fulcrologic.fulcro.networking.http-remote/response-type] response-type))
+
+(>defn with-server-side-mutation
+  [env mutation-symbol]
+  [::env qualified-symbol? => ::env]
+  "Alter the remote mutation name to be `mutation-symbol` instead of the client-side's mutation name."
+  (update env :ast assoc :key mutation-symbol :dispatch-key mutation-symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; DEFMUTATION MACRO: This code could live in another ns, but then hot code reload won't work right on the macro itself.

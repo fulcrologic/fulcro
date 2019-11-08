@@ -121,7 +121,9 @@
                                                   (update-handler combined-result))))
                            ::result-handler (fn [{:keys [body] :as combined-result}]
                                               (doseq [{::keys [ast result-handler]} to-send]
-                                                (let [new-body (select-keys body (top-keys ast))
+                                                (let [new-body (if (map? (log/spy :info body))
+                                                                 (select-keys body (top-keys ast))
+                                                                 body)
                                                       result   (assoc combined-result :body new-body)]
                                                   (inspect/ilet [{:keys [status-code body]} result]
                                                     (if (= 200 status-code)
