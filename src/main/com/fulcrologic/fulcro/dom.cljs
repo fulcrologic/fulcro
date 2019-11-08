@@ -36,6 +36,14 @@
   [x]
   (and (object? x) (= element-marker (gobj/get x "$$typeof"))))
 
+(defn child->typed-child [child]
+  (cond
+    (string? child) [:string child]
+    (number? child) [:number child]
+    (or (vector? child) (seq? child) (array? child)) [:collection child]
+    (nil? child) [:nil child]
+    (element? child) [:element child]))
+
 (defn parse-args
   "Runtime parsing of DOM tag arguments. Returns a map with keys :css, :attrs, and :children."
   [args]
@@ -45,16 +53,16 @@
                 [(next args) (assoc result :css arg)]
                 pair)))
           (parse-attrs [[args result :as pair]]
-            (let [arg (first args)]
-              (if (or
-                    (nil? arg)
-                    (and (map? arg) (not (element? arg)))
-                    (and (object? arg) (not (element? arg))))
-                [(next args) (assoc result :attrs (first args))]
-                pair)))
+            (let [has-arg? (seq args)
+                  arg      (first args)]
+              (cond
+                (and has-arg? (nil? arg)) [(next args) (assoc result :attrs [:nil nil])]
+                (and (object? arg) (not (element? arg))) [(next args) (assoc result :attrs [:js-object arg])]
+                (and (map? arg) (not (element? arg))) [(next args) (assoc result :attrs [:map arg])]
+                :else pair)))
           (parse-children [[args result]]
             [nil (cond-> result
-                   (seq args) (assoc :children args))])]
+                   (seq args) (assoc :children (mapv child->typed-child args)))])]
     (-> [args {}]
       (parse-css)
       (parse-attrs)
