@@ -369,34 +369,3 @@
                             (xhrio-abort xhrio))
                           (log/info "Unable to abort. No active request with abort id:" id)))}))
 
-(defn gc-file-url
-  "Tells the browser to GC the space associated with an in-memory file URL"
-  [url]
-  (js/window.URL.revokeObjectURL url))
-
-(defn raw-response->file-url
-  "Convert an array-buffer network result (i.e. in a mutation result-action env) into a file URL that can be
-  used live in the browser.
-
-  `result` - The network result (e.g. the :result key from a mutation env)
-  `mime-type` - The MIME type you want to associate with the file URL.
-
-  NOTE: You should use gc-file-url to release resources when finished."
-  [{:keys [body]} mime-type]
-  (let [wrapped-blob (js/Blob. (clj->js [body]) #js {:type mime-type})
-        fileURL      (js/URL.createObjectURL wrapped-blob)]
-    fileURL))
-
-(defn save-file-url-as!
-  "Given a file URL and a target filename: generates a DOM link and clicks on it, which should initiate a download in
-   the browser.
-
-   ALPHA: Not tested in all browsers. Known to work in Chrome.
-   "
-  [file-url target-filename]
-  (let [link (js/document.createElement "a")]
-    (set! (.-target link) "_blank")
-    (set! (.-href link) file-url)
-    (set! (.-download link) target-filename)
-    (.click link)))
-
