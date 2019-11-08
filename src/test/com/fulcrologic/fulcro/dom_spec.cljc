@@ -1,8 +1,10 @@
 (ns com.fulcrologic.fulcro.dom-spec
   (:require
+    [clojure.spec.alpha :as s]
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.dom-common :as cdom]
+    [com.fulcrologic.guardrails.core :refer [>def]]
     com.fulcrologic.fulcro.dom
     [clojure.string :as str]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom :refer [div p span]]
@@ -373,47 +375,52 @@
         "Forces children on element creation"
         @a => 5))))
 
+(>def ::dom-element-args
+  (s/cat
+    :css (s/? keyword?)
+    :attrs (s/? (s/or
+                  :nil nil?
+                  :map #(and (map? %) (not (dom/element? %)))
+                  :js-object #(and (object? %) (not (dom/element? %)))))
+    :children (s/* (s/or
+                     :string string?
+                     :number number?
+                     :collection #(or (vector? %) (seq? %) (array? %))
+                     :nil nil?
+                     :element dom/element?))))
+
+#?(:cljs
+   (defn old-parse [args]
+     (util/conform! ::dom-element-args args)))
 
 #?(:cljs
    (specification "parse-args"
-     (assertions
-       "No arguments"
-       (dom/parse-args []) => {:attrs nil}
-       "nil attrs"
-       (dom/parse-args [nil]) => {:attrs nil}
-       "keyword css only"
-       (dom/parse-args [:.boo.bah]) => {:attrs nil
-                                        :css   :.boo.bah}
-       "keyword css + attrs"
-       (dom/parse-args [:.boo.bah nil]) => {:attrs nil
-                                            :css   :.boo.bah}
-       (dom/parse-args [:.boo.bah {:x 1}]) => {:attrs {:x 1}
-                                               :css   :.boo.bah}
-       (->
-         (dom/parse-args [:.boo.bah #js {:x 1}])
-         :attrs
-         (gobj/get "x")) => 1
-       "kw + children"
-       (:attrs (dom/parse-args [:.boo.bah (dom/b) (dom/b)])) => nil
-       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
-         :children
-         count) => 2
-       "kw + nil attr + children"
-       (:attrs (dom/parse-args [:.boo.bah nil (dom/b) (dom/b)])) => nil
-       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
-         :children
-         count) => 2
-       "kw + attr + children"
-       (:attrs (dom/parse-args [:.boo.bah {:x 1} (dom/b) (dom/b)])) => {:x 1}
-       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
-         :children
-         count) => 2
-       "attr + children"
-       (:attrs (dom/parse-args [{:x 1} (dom/b) (dom/b)])) => {:x 1}
-       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
-         :children
-         count) => 2
-       "string child w/no attrs"
-       (dom/parse-args ["hello"]) => {:children ["hello"]}
-       "string child w/attrs"
-       (dom/parse-args [{:x 1} "hello"]) => {:attrs {:x 1} :children ["hello"]})))
+     (let [an-element (dom/div)
+           js-props   #js {:x 1}]
+       (assertions
+         "No arguments"
+         (dom/parse-args []) => (old-parse [])
+         "nil attrs"
+         (dom/parse-args [nil]) => (old-parse [nil])
+         (dom/parse-args [nil "Hello"]) => (old-parse [nil "Hello"])
+         "keyword css only"
+         (dom/parse-args [:.boo.bah]) => (old-parse [:.boo.bah])
+         "keyword css + attrs"
+         (dom/parse-args [:.boo.bah nil]) => (old-parse [:.boo.bah nil])
+         (dom/parse-args [:.boo.bah {:x 1}]) => (old-parse [:.boo.bah {:x 1}])
+         "with js attrs"
+         (dom/parse-args [:.boo.bah js-props]) => (old-parse [:.boo.bah js-props])
+         "kw + children"
+         (dom/parse-args [:.boo.bah an-element an-element]) => (old-parse [:.boo.bah an-element an-element])
+         "kw + nil attr + children"
+         (dom/parse-args [:.boo.bah nil an-element an-element]) => (old-parse [:.boo.bah nil an-element an-element])
+         "kw + attr + children"
+         (dom/parse-args [:.boo.bah {:x 1} an-element an-element]) => (old-parse [:.boo.bah {:x 1} an-element an-element])
+         "attr + children"
+         (dom/parse-args [{:x 1} an-element an-element]) => (old-parse [{:x 1} an-element an-element])
+         "attr + array of children"
+         (dom/parse-args [{:x 1} [an-element an-element]]) => (old-parse [{:x 1} [an-element an-element]])
+         "string child w/no attrs"
+         (dom/parse-args ["hello"]) => (old-parse ["hello"])
+         "string child w/attrs"
+         (dom/parse-args [{:x 1} "hello"]) => (old-parse [{:x 1} "hello"])))))
