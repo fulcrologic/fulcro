@@ -375,19 +375,20 @@
         "Forces children on element creation"
         @a => 5))))
 
-(>def ::dom-element-args
-  (s/cat
-    :css (s/? keyword?)
-    :attrs (s/? (s/or
-                  :nil nil?
-                  :map #(and (map? %) (not (dom/element? %)))
-                  :js-object #(and (object? %) (not (dom/element? %)))))
-    :children (s/* (s/or
-                     :string string?
-                     :number number?
-                     :collection #(or (vector? %) (seq? %) (array? %))
+#?(:cljs
+   (>def ::dom-element-args
+     (s/cat
+       :css (s/? keyword?)
+       :attrs (s/? (s/or
                      :nil nil?
-                     :element dom/element?))))
+                     :map #(and (map? %) (not (dom/element? %)))
+                     :js-object #(and (object? %) (not (dom/element? %)))))
+       :children (s/* (s/or
+                        :string string?
+                        :number number?
+                        :collection #(or (vector? %) (seq? %) (array? %))
+                        :nil nil?
+                        :element dom/element?)))))
 
 #?(:cljs
    (defn old-parse [args]
