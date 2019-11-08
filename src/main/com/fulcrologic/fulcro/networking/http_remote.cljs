@@ -383,7 +383,6 @@
 
   NOTE: You should use gc-file-url to release resources when finished."
   [{:keys [body]} mime-type]
-  (js/console.log body)
   (let [wrapped-blob (js/Blob. (clj->js [body]) #js {:type mime-type})
         fileURL      (js/URL.createObjectURL wrapped-blob)]
     fileURL))
