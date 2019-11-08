@@ -41,10 +41,10 @@
          (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
          (when (comp/mounted? c)
            (.setState ^js c (fn [s] #js {"fulcro$value" new-props}))))
-       (do
-         (log/info "Failed to do optimized update. Component" (-> c comp/react-type (comp/class->registry-key))
-           "queries for data that changed, but does not have an ident. If that is your application root,"
-           "consider moving that changing state to a child component.")
+       (let [root (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/app-root)]
+         (when (not= c root)
+           (log/info "Failed to do optimized update. Component" (-> c comp/react-type (comp/class->registry-key))
+             "queries for data that changed, but does not have an ident."))
          (throw (ex-info "Targeted update failed" {}))))))
 
 (defn render-components-with-ident!

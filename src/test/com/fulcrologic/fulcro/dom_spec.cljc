@@ -372,3 +372,48 @@
       (assertions
         "Forces children on element creation"
         @a => 5))))
+
+
+#?(:cljs
+   (specification "parse-args"
+     (assertions
+       "No arguments"
+       (dom/parse-args []) => {:attrs nil}
+       "nil attrs"
+       (dom/parse-args [nil]) => {:attrs nil}
+       "keyword css only"
+       (dom/parse-args [:.boo.bah]) => {:attrs nil
+                                        :css   :.boo.bah}
+       "keyword css + attrs"
+       (dom/parse-args [:.boo.bah nil]) => {:attrs nil
+                                            :css   :.boo.bah}
+       (dom/parse-args [:.boo.bah {:x 1}]) => {:attrs {:x 1}
+                                               :css   :.boo.bah}
+       (->
+         (dom/parse-args [:.boo.bah #js {:x 1}])
+         :attrs
+         (gobj/get "x")) => 1
+       "kw + children"
+       (:attrs (dom/parse-args [:.boo.bah (dom/b) (dom/b)])) => nil
+       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
+         :children
+         count) => 2
+       "kw + nil attr + children"
+       (:attrs (dom/parse-args [:.boo.bah nil (dom/b) (dom/b)])) => nil
+       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
+         :children
+         count) => 2
+       "kw + attr + children"
+       (:attrs (dom/parse-args [:.boo.bah {:x 1} (dom/b) (dom/b)])) => {:x 1}
+       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
+         :children
+         count) => 2
+       "attr + children"
+       (:attrs (dom/parse-args [{:x 1} (dom/b) (dom/b)])) => {:x 1}
+       (-> (dom/parse-args [:.boo.bah (dom/b) (dom/b)])
+         :children
+         count) => 2
+       "string child w/no attrs"
+       (dom/parse-args ["hello"]) => {:children ["hello"]}
+       "string child w/attrs"
+       (dom/parse-args [{:x 1} "hello"]) => {:attrs {:x 1} :children ["hello"]})))

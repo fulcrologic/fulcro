@@ -27,7 +27,7 @@ version requires you to change a few i18n things if you were using it, and adds 
 optimizations.
 3.0:: This version. A nearly complete rewrite of the internals.  Simplifies a lot of things, makes others
 more extensible, and preserves the shape of the API; however, it is not 100% API compatible with prior versions.  In
-particular in the course of fixing some long-standing issues subtle semantic differences were desirable/unavoidable in the
+particular, in the course of fixing some long-standing issues, subtle semantic differences were desirable/unavoidable in the
 transaction processing system.
 
 == Trying it Out

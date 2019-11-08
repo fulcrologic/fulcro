@@ -7,40 +7,40 @@
     [com.fulcrologic.fulcro.algorithms.transit :as t]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [edn-query-language.core :as eql]
-    [com.fulcrologic.guardrails.core :as gw :refer [>defn =>]]
+    [com.fulcrologic.guardrails.core :as gw :refer [>defn => >def]]
     [goog.events :as events]
     [taoensso.timbre :as log])
   (:import [goog.net XhrIo EventType ErrorCode]))
 
-(s/def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
-(s/def ::url string?)
-(s/def ::headers (s/map-of string? string?))
-(s/def ::body any?)
-(s/def ::request (s/keys :req-un [::method ::body ::url ::headers]))
-(s/def ::error #{:none :exception :http-error :network-error :abort
-                 :middleware-failure :access-denied :not-found :silent :custom :offline
-                 :timeout})
-(s/def ::error-text string?)
-(s/def ::status-code pos-int?)
-(s/def ::status-text string?)
-(s/def ::outgoing-request ::request)
-(s/def ::transaction vector?)
-(s/def ::progress-phase #{:sending :receiving :complete :failed})
-(s/def ::progress-event any?)
-(s/def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
-                    :opt-un [::progress-phase ::progress-event]))
-(s/def ::xhrio-event any?)
-(s/def ::xhrio any?)
+(>def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
+(>def ::url string?)
+(>def ::headers (s/map-of string? string?))
+(>def ::body any?)
+(>def ::request (s/keys :req-un [::method ::body ::url ::headers]))
+(>def ::error #{:none :exception :http-error :network-error :abort
+                :middleware-failure :access-denied :not-found :silent :custom :offline
+                :timeout})
+(>def ::error-text string?)
+(>def ::status-code pos-int?)
+(>def ::status-text string?)
+(>def ::outgoing-request ::request)
+(>def ::transaction vector?)
+(>def ::progress-phase #{:sending :receiving :complete :failed})
+(>def ::progress-event any?)
+(>def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
+                   :opt-un [::progress-phase ::progress-event]))
+(>def ::xhrio-event any?)
+(>def ::xhrio any?)
 
-(s/def ::response-middleware fn?)
-(s/def ::request-middleware fn?)
-(s/def ::active-requests (s/and
-                           #(map? (deref %))
-                           #(every? set? (vals (deref %)))))
+(>def ::response-middleware fn?)
+(>def ::request-middleware fn?)
+(>def ::active-requests (s/and
+                          #(map? (deref %))
+                          #(every? set? (vals (deref %)))))
 
-(s/def ::transmit! fn?)
-(s/def ::abort! fn?)
-(s/def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
+(>def ::transmit! fn?)
+(>def ::abort! fn?)
+(>def ::fulcro-remote (s/keys :req-un [::transmit!] :opt-un [::abort!]))
 
 (def xhrio-error-states {(.-NO_ERROR ^js ErrorCode)        :none
                          (.-EXCEPTION ^js ErrorCode)       :exception
@@ -67,7 +67,7 @@
         error  (if (and (= 0 status) (= error :http-error)) :network-error error)]
     error))
 (defn xhrio-error-text [^js xhrio] (.getLastError xhrio))
-(defn xhrio-response-text [^js xhrio] (.getResponseText xhrio))
+(defn xhrio-response [^js xhrio] (.getResponse xhrio))
 (defn xhrio-response-headers [^js xhrio] (js->clj (.getResponseHeaders xhrio)))
 
 (defn xhrio-progress
@@ -104,6 +104,26 @@
        100
        (js/Math.floor (+ base (* x slope)))))))
 
+(def response-types {:default      ""
+                     :array-buffer "arraybuffer"
+                     :blob         "blob"
+                     :document     "document"
+                     :text         "text"})
+(def legal-response-types (set (keys response-types)))
+(>def ::response-type legal-response-types)
+
+(defn desired-response-type [{:keys [body]}]
+  (let [nodes (some-> body eql/query->ast :children)
+        cnt   (count nodes)
+        alt   (some #(-> % :params ::response-type) nodes)]
+    (when (and alt (not= 1 cnt))
+      (log/error "Attempt to request alternate response from HTTP remote from multiple items in a single transaction. This could mean more than one transaction got combined into a single request."))
+    (if (and alt (= 1 cnt) (contains? legal-response-types alt))
+      (let [node         (update-in (first nodes) [:params] dissoc ::response-type)
+            updated-body [(eql/ast->query node)]]
+        [updated-body alt])
+      [body :default])))
+
 (defn wrap-fulcro-request
   "Client Remote Middleware to add transit encoding for normal Fulcro requests. Sets the content type and transforms an EDN
   body to a transit+json encoded body. addl-transit-handlers is a map from data type to transit handler (like
@@ -115,9 +135,10 @@
                             addl-transit-handlers (assoc :handlers addl-transit-handlers)
                             transit-transformation (assoc :transform transit-transformation)))]
      (fn [{:keys [headers body] :as request}]
-       (let [body    (ct/write writer body)
+       (let [[body response-type] (desired-response-type request)
+             body    (ct/write writer body)
              headers (assoc headers "Content-Type" "application/transit+json")]
-         (handler (merge request {:body body :headers headers :method :post}))))))
+         (handler (merge request {:body body :headers headers :method :post :response-type response-type}))))))
   ([handler addl-transit-handlers] (wrap-fulcro-request handler addl-transit-handlers nil))
   ([handler] (wrap-fulcro-request handler nil nil))
   ([] (wrap-fulcro-request identity nil nil)))
@@ -145,19 +166,22 @@
    (let [base-handlers {}
          handlers      (if (map? addl-transit-handlers) (merge base-handlers addl-transit-handlers) base-handlers)
          reader        (t/reader {:handlers handlers})]
-     (fn fulcro-response-handler [{:keys [body error] :as response}]
+     (fn fulcro-response-handler [{:keys [body error outgoing-request] :as response}]
        (handler
-         (try
-           (if (= :network-error error)
-             response
-             (let [new-body (if (str/blank? body)
-                              {}
-                              (ct/read reader body))
-                   response (assoc response :body new-body)]
-               response))
-           (catch :default e
-             (log/warn "Transit decode failed!")
-             (assoc response :status-code 417 :status-text "body was either not transit or you have not installed the correct transit read/write handlers."))))))))
+         (let [{:keys [response-type]} outgoing-request]
+           (if (= :default response-type)
+             (try
+               (if (= :network-error error)
+                 response
+                 (let [new-body (if (str/blank? body)
+                                  {}
+                                  (ct/read reader body))
+                       response (assoc response :body new-body)]
+                   response))
+               (catch :default e
+                 (log/warn "Transit decode failed!")
+                 (assoc response :status-code 417 :status-text "body was either not transit or you have not installed the correct transit read/write handlers.")))
+             response)))))))
 
 (defn extract-response
   "Generate a response map from the status of the given xhrio object, which could be in a complete or error state."
@@ -167,7 +191,7 @@
     {:transaction      tx
      :outgoing-request request
      :headers          (xhrio-response-headers xhrio)
-     :body             (xhrio-response-text xhrio)
+     :body             (xhrio-response xhrio)
      :status-code      (xhrio-status-code xhrio)
      :status-text      (xhrio-status-text xhrio)
      :error            (xhrio-error-code xhrio)
@@ -315,7 +339,7 @@
                                                          (-> send-node ::txn/options ::txn/abort-id)
                                                          (-> send-node ::txn/options :abort-id))
                                   xhrio                (make-xhrio)
-                                  {:keys [body headers url method]} real-request
+                                  {:keys [body headers url method response-type]} real-request
                                   http-verb            (-> (or method :post) name str/upper-case)
                                   extract-response     #(extract-response body real-request xhrio)
                                   extract-response-mw  (response-extractor* response-middleware edn real-request xhrio)
@@ -327,6 +351,8 @@
                               (when abort-id
                                 (log/info "Registering abort-id" abort-id)
                                 (swap! active-requests update abort-id (fnil conj #{}) xhrio))
+                              (when (and (legal-response-types response-type) (not= :default response-type))
+                                (.setResponseType ^js xhrio (get response-types response-type)))
                               (when progress-handler
                                 (xhrio-enable-progress-events xhrio)
                                 (events/listen xhrio (.-DOWNLOAD_PROGRESS ^js EventType) #(progress-routine :receiving %))
@@ -342,3 +368,4 @@
                           (doseq [xhrio xhrios]
                             (xhrio-abort xhrio))
                           (log/info "Unable to abort. No active request with abort id:" id)))}))
+

@@ -5,7 +5,7 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [com.fulcrologic.guardrails.core :as gw :refer [>defn => | ? <-]]
+    [com.fulcrologic.guardrails.core :refer [>defn => | ? <- >def]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.application :as app]
@@ -26,64 +26,64 @@
   #?(:clj  (when timer (timer))
      :cljs (js/clearTimeout timer)))
 
-(s/def ::atom (s/with-gen atom? #(s/gen #{(atom {}) (atom #{}) (atom nil)})))
+(>def ::atom (s/with-gen atom? #(s/gen #{(atom {}) (atom #{}) (atom nil)})))
 
 ;; Active State Machine and ENV specs
-(s/def ::state-map map?)
-(s/def ::refresh-vector (s/with-gen (s/coll-of eql/ident? :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
-(s/def ::fulcro-app app/fulcro-app?)
-(s/def ::source-actor-ident eql/ident?)
-(s/def ::actor-name keyword?)
-(s/def ::actor->component-name (s/map-of ::actor-name keyword?))
-(s/def ::actor->ident (s/map-of ::actor-name eql/ident?))
-(s/def ::ident->actor (s/map-of eql/ident? ::actor-name))
-(s/def ::active-state keyword?)                             ; The state the active instance is currently in
-(s/def ::state-machine-id (s/with-gen symbol? #(s/gen #{'the-state-machine}))) ; The symbol of the state machine's definition
-(s/def ::asm-id any?)                                       ; The ID of the active instance in fulcro state
-(s/def ::local-storage (s/map-of keyword? any?))
-(s/def ::timeout pos-int?)
-(s/def ::timer-id (s/with-gen any? #(s/gen #{:timer-1 42})))
-(s/def ::cancel-fn (s/with-gen (s/or :f fn? :s set?) #(s/gen #{#{:event! :other!}})))
-(s/def ::cancel-on (s/with-gen (fn fn-or-set* [i] (let [f (-> i meta :cancel-on)]
+(>def ::state-map map?)
+(>def ::refresh-vector (s/with-gen (s/coll-of eql/ident? :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
+(>def ::fulcro-app app/fulcro-app?)
+(>def ::source-actor-ident eql/ident?)
+(>def ::actor-name keyword?)
+(>def ::actor->component-name (s/map-of ::actor-name keyword?))
+(>def ::actor->ident (s/map-of ::actor-name eql/ident?))
+(>def ::ident->actor (s/map-of eql/ident? ::actor-name))
+(>def ::active-state keyword?)                             ; The state the active instance is currently in
+(>def ::state-machine-id (s/with-gen symbol? #(s/gen #{'the-state-machine}))) ; The symbol of the state machine's definition
+(>def ::asm-id any?)                                       ; The ID of the active instance in fulcro state
+(>def ::local-storage (s/map-of keyword? any?))
+(>def ::timeout pos-int?)
+(>def ::timer-id (s/with-gen any? #(s/gen #{:timer-1 42})))
+(>def ::cancel-fn (s/with-gen (s/or :f fn? :s set?) #(s/gen #{#{:event! :other!}})))
+(>def ::cancel-on (s/with-gen (fn fn-or-set* [i] (let [f (-> i meta :cancel-on)]
                                                     (or (fn? f) (set? f)))) #(s/gen #{(with-meta {} {:cancel-on (fn [e] true)})})))
-(s/def ::js-timer (s/with-gen #(-> % meta :timer boolean) #(s/gen #{(with-meta {} {:timer {}})})))
-(s/def ::timeout-descriptor (s/keys :req [::js-timer ::timeout ::event-id ::timer-id ::cancel-on] :opt [::event-data]))
-(s/def ::queued-timeouts (s/coll-of ::timeout-descriptor))
-(s/def ::active-timers (s/map-of ::timer-id ::timeout-descriptor))
-(s/def ::asm (s/keys :req [::asm-id ::state-machine-id ::active-state ::actor->ident ::actor->component-name
+(>def ::js-timer (s/with-gen #(-> % meta :timer boolean) #(s/gen #{(with-meta {} {:timer {}})})))
+(>def ::timeout-descriptor (s/keys :req [::js-timer ::timeout ::event-id ::timer-id ::cancel-on] :opt [::event-data]))
+(>def ::queued-timeouts (s/coll-of ::timeout-descriptor))
+(>def ::active-timers (s/map-of ::timer-id ::timeout-descriptor))
+(>def ::asm (s/keys :req [::asm-id ::state-machine-id ::active-state ::actor->ident ::actor->component-name
                            ::ident->actor ::active-timers ::local-storage]))
-(s/def ::state-id keyword?)
-(s/def ::event-data map?)
-(s/def ::event-id keyword?)
-(s/def ::app map?)
-(s/def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
-(s/def ::queued-triggers (s/coll-of ::trigger-descriptor))
-(s/def ::env (s/keys :req [::state-map ::asm-id]
+(>def ::state-id keyword?)
+(>def ::event-data map?)
+(>def ::event-id keyword?)
+(>def ::app map?)
+(>def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
+(>def ::queued-triggers (s/coll-of ::trigger-descriptor))
+(>def ::env (s/keys :req [::state-map ::asm-id]
                :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
                      ::app ::queued-mutations ::queued-loads ::queued-timeouts]))
 
 (>defn fake-handler [env] [::env => ::env] env)
 
 ;; State Machine Definition Specs
-(s/def ::actor-names (s/coll-of ::actor-name :kind set?))
-(s/def ::event-predicate (s/with-gen fn? #(s/gen #{(fn [_] false) (fn [_] true)})))
-(s/def ::handler (s/with-gen fn? #(s/gen #{fake-handler})))
-(s/def ::target-state ::state-id)
-(s/def ::event-processing (s/keys :opt [::handler ::event-predicate ::target-state]))
-(s/def ::events (s/map-of ::event-id ::event-processing))
-(s/def ::state (s/with-gen
+(>def ::actor-names (s/coll-of ::actor-name :kind set?))
+(>def ::event-predicate (s/with-gen fn? #(s/gen #{(fn [_] false) (fn [_] true)})))
+(>def ::handler (s/with-gen fn? #(s/gen #{fake-handler})))
+(>def ::target-state ::state-id)
+(>def ::event-processing (s/keys :opt [::handler ::event-predicate ::target-state]))
+(>def ::events (s/map-of ::event-id ::event-processing))
+(>def ::state (s/with-gen
                  (s/or
                    :handler (s/keys :req [::handler])
                    :events (s/keys :req [::events]))
                  #(s/gen #{{::handler fake-handler}})))
-(s/def ::states (s/with-gen (s/map-of ::state-id ::state) #(s/gen #{{:initial {::handler fake-handler}}})))
-(s/def ::alias keyword?)
-(s/def ::aliases (s/map-of ::alias (s/tuple ::actor-name keyword?)))
-(s/def ::plugin (s/with-gen any? #(s/gen #{(fn [aliases] nil)})))
-(s/def ::plugins (s/map-of keyword? ::plugin))
-(s/def ::event-names (s/coll-of keyword? :kind set?))
-(s/def ::target-state keyword?)
-(s/def ::state-machine-definition (s/with-gen
+(>def ::states (s/with-gen (s/map-of ::state-id ::state) #(s/gen #{{:initial {::handler fake-handler}}})))
+(>def ::alias keyword?)
+(>def ::aliases (s/map-of ::alias (s/tuple ::actor-name keyword?)))
+(>def ::plugin (s/with-gen any? #(s/gen #{(fn [aliases] nil)})))
+(>def ::plugins (s/map-of keyword? ::plugin))
+(>def ::event-names (s/coll-of keyword? :kind set?))
+(>def ::target-state keyword?)
+(>def ::state-machine-definition (s/with-gen
                                     (s/keys :req [::states] :opt [::actor-names ::aliases ::plugins ::event-names])
                                     #(s/gen #{{::actor-names #{:a}
                                                ::states      {:initial {::handler (fn [env] env)}}}})))
@@ -701,9 +701,9 @@
       env
       (keys active-timers))))
 
-(s/def :fulcro/app ::fulcro-app)
-(s/def :fulcro/state ::atom)
-(s/def ::mutation-env (s/keys :req-un [:fulcro/state :fulcro/app]))
+(>def :fulcro/app ::fulcro-app)
+(>def :fulcro/state ::atom)
+(>def ::mutation-env (s/keys :req-un [:fulcro/state :fulcro/app]))
 
 (>defn trigger-queued-events!
   [mutation-env queued-triggers refresh-list]
@@ -877,21 +877,21 @@
 ;; I/O Integration: remote mutations
 ;; ================================================================================
 
-(s/def ::target-actor ::actor-name)
-(s/def ::target-alias ::alias)
-(s/def ::ok-event ::event-id)
-(s/def ::error-event ::event-id)
-(s/def ::ok-data map?)
-(s/def ::error-data map?)
-(s/def ::mutation (s/with-gen symbol? #(s/gen #{`do-something})))
+(>def ::target-actor ::actor-name)
+(>def ::target-alias ::alias)
+(>def ::ok-event ::event-id)
+(>def ::error-event ::event-id)
+(>def ::ok-data map?)
+(>def ::error-data map?)
+(>def ::mutation (s/with-gen symbol? #(s/gen #{`do-something})))
 (def spec-mutation (m/->Mutation `spec-mutation))
-(s/def ::mutation-decl (s/with-gen m/mutation-declaration? #(s/gen #{spec-mutation})))
-(s/def ::mutation-context ::actor-name)
-(s/def ::mutation-descriptor (s/keys :req [::mutation-context ::mutation]
+(>def ::mutation-decl (s/with-gen m/mutation-declaration? #(s/gen #{spec-mutation})))
+(>def ::mutation-context ::actor-name)
+(>def ::mutation-descriptor (s/keys :req [::mutation-context ::mutation]
                                :opt [::targeting/target ::ok-event ::ok-data ::error-event ::error-data
                                      ::m/returning ::mutation-remote]))
-(s/def ::mutation-remote keyword?)
-(s/def ::queued-mutations (s/coll-of ::mutation-descriptor))
+(>def ::mutation-remote keyword?)
+(>def ::queued-mutations (s/coll-of ::mutation-descriptor))
 
 (>defn compute-target
   "Compute a raw Fulcro target based on the possible options.
@@ -996,10 +996,10 @@
 ;; I/O: Load integration
 ;; ================================================================================
 
-(s/def ::load-options map?)
-(s/def ::query-key (s/or :key keyword? :ident eql/ident?))
-(s/def ::load (s/keys :opt [::query-key ::comp/component-class ::load-options]))
-(s/def ::queued-loads (s/coll-of ::load))
+(>def ::load-options map?)
+(>def ::query-key (s/or :key keyword? :ident eql/ident?))
+(>def ::load (s/keys :opt [::query-key ::comp/component-class ::load-options]))
+(>def ::queued-loads (s/coll-of ::load))
 
 (>defn convert-load-options
   "INTERNAL: Convert SM load options into Fulcro load options."
