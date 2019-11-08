@@ -387,3 +387,16 @@
         fileURL      (js/URL.createObjectURL wrapped-blob)]
     fileURL))
 
+(defn save-file-url-as!
+  "Given a file URL and a target filename: generates a DOM link and clicks on it, which should initiate a download in
+   the browser.
+
+   ALPHA: Not tested in all browsers. Known to work in Chrome.
+   "
+  [file-url target-filename]
+  (let [link (js/document.createElement "a")]
+    (set! (.-target link) "_blank")
+    (set! (.-href link) file-url)
+    (set! (.-download link) target-filename)
+    (.click link)))
+
