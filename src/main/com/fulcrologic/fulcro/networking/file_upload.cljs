@@ -69,10 +69,22 @@
   "Adds support for attaching uploads to the parameters of any mutation.
 
    `transit-options` - A map of options to be included when converting the mutation and params for transmission. See
-                       `transit/transit-clj->str`.
+                       `transit/transit-clj->str`. Use this to extend the transit support. This is necessary because
+                       the regular request middleware will not be used to send transactions that include file uploads,
+                       so any extensions to transit must be done in both places.
 
    NOTE: This middleware acts as the end of the chain when it detects the need for a file upload, and rewrites the body,
-   method, and clears any content-type header."
+   method, and clears any content-type header. As such, it should be used in the middleware so that it will be executed
+   first:
+
+   ```
+   (def client-middleware
+     (->
+       (net/wrap-fulcro-request)
+       (file-upload/wrap-file-upload)
+       ...))
+   ```
+   "
   ([handler]
    (wrap-file-upload handler {}))
   ([handler transit-options]
