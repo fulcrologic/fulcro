@@ -369,3 +369,20 @@
                             (xhrio-abort xhrio))
                           (log/info "Unable to abort. No active request with abort id:" id)))}))
 
+(defn overall-progress
+  "Returns a number between 0 and 100 for the overall progress.  Use in a `progress-action` section of your mutation
+  when using the http-remote to monitor network progress."
+  [mutation-env]
+  (some-> mutation-env :progress :overall-progress))
+
+(defn receive-progress
+  "Returns a number between 0 and 100 for the receive progress.  Use in a `progress-action` section of your mutation
+  when using the http-remote to monitor network progress."
+  [mutation-env]
+  (some-> mutation-env :progress :receive-progress))
+
+(defn send-progress
+  "Returns a number between 0 and 100 for the send progress.  Use in a `progress-action` section of your mutation
+  when using the http-remote to monitor network progress."
+  [mutation-env]
+  (some-> mutation-env :progress :send-progress))
