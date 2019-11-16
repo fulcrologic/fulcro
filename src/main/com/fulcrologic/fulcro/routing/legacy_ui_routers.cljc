@@ -527,7 +527,7 @@
           {
            ;; REQUIRED for router:
            :router-id :top-router
-           :ident (fn [this props] [(:table props) (:id props)]
+           :ident (fn [] [(:table props) (:id props)] ; this/props avail from arg of defsc
            :router-targets  {:A A :B B :C C}
            :default-route A
 
