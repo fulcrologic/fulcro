@@ -19,6 +19,7 @@
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => |]]
     #?@(:cljs [[goog.object :as gobj]
+               [goog.functions :refer [debounce]]
                [goog.dom :as gdom]])
     [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
@@ -128,12 +129,16 @@
            ::to-refresh #{}
            ::only-refresh #{}))))))
 
-(defn schedule-render!
-  "Schedule a render on the next animation frame."
-  ([app]
-   (schedule-render! app {:force-root? false}))
-  ([app options]
-   (sched/schedule-animation! app ::render-scheduled? #(render! app options))))
+(let [go! #?(:cljs (debounce (fn [app options]
+                               (sched/schedule-animation! app ::render-scheduled? #(render! app options))) 16)
+             :clj (fn [app options]
+                    (sched/schedule-animation! app ::render-scheduled? #(render! app options))))]
+  (defn schedule-render!
+    "Schedule a render on the next animation frame."
+    ([app]
+     (schedule-render! app {:force-root? false}))
+    ([app options]
+     (go! app options))))
 
 (defn default-tx!
   "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options

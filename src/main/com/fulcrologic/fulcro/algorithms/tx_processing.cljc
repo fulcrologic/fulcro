@@ -270,7 +270,7 @@
    (schedule! app ::activation-scheduled? activate-submissions! tm))
   ([app]
    [:com.fulcrologic.fulcro.application/app => any?]
-   (schedule-activation! app 10)))
+   (schedule-activation! app 0)))
 
 (>defn schedule-queue-processing!
   "Schedule a processing of the active queue, which will advance the active transactions by a step.
@@ -280,7 +280,7 @@
    (schedule! app ::queue-processing-scheduled? process-queue! tm))
   ([app]
    [:com.fulcrologic.fulcro.application/app => any?]
-   (schedule-queue-processing! app 10)))
+   (schedule-queue-processing! app 0)))
 
 (>defn schedule-sends!
   "Schedule actual network activity. If `tm` is not supplied (in ms) it defaults to 0ms."
