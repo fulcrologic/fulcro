@@ -103,7 +103,7 @@
    [::app map? => any?]
    (tick! app)
    (let [{:keys [::runtime-atom ::state-atom]} app
-         render!             (ah/app-algorithm app :optimized-render!)
+         optimized-render!   (ah/app-algorithm app :optimized-render!)
          shared-props        (get @runtime-atom ::shared-props)
          root-props-changed? (root-props-changed? app)]
      (binding [fdn/*denormalize-time* (basis-t app)
@@ -112,22 +112,12 @@
                comp/*query-state*     @state-atom]
        (when (or force-root? root-props-changed?)
          (update-shared! app))
-       (render! app (merge options {:root-props-changed? root-props-changed?})))
+       (optimized-render! app (merge options {:root-props-changed? root-props-changed?})))
 
-     (swap! runtime-atom assoc ::last-rendered-state @state-atom)
-
-     (let [limited-refresh? (seq (::only-refresh @runtime-atom))
-           refresh?         (seq (::to-refresh @runtime-atom))]
-       ;; limited refresh can cause missed refreshes. Clear only the limited ones, and schedule one more update.
-       ;; If more limited refreshes arrive before that scheduled update, then they will run and block the requested
-       ;; refreshes again, and cause this to try again.
-       (if (and refresh? limited-refresh?)
-         (do
-           (swap! runtime-atom assoc ::only-refresh #{})
-           (schedule-render! app))
-         (swap! runtime-atom assoc
-           ::to-refresh #{}
-           ::only-refresh #{}))))))
+     (swap! runtime-atom assoc
+       ::last-rendered-state @state-atom
+       :com.fulcrologic.fulcro.application/only-refresh #{}
+       :com.fulcrologic.fulcro.application/to-refresh #{}))))
 
 (let [go! #?(:cljs (debounce (fn [app options]
                                (sched/schedule-animation! app ::render-scheduled? #(render! app options))) 16)
