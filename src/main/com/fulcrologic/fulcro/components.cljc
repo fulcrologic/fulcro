@@ -1246,7 +1246,7 @@
          `(do
             (declare ~sym)
             (let [options# ~options-map]
-              (defonce ~(vary-meta sym assoc :doc doc)
+              (defonce ~(vary-meta sym assoc :doc doc :jsdoc ["@constructor"])
                 (fn [props#]
                   (cljs.core/this-as this#
                     (if-let [init-state# (get options# :initLocalState)]
