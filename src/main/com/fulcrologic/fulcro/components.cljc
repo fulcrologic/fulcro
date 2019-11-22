@@ -1280,7 +1280,7 @@
       ;; initial-state template is magic..see dev guide. Lambda version is normal.
       :initial-state {:x :param/x} ; OR (fn [params] {:x (:x params)}) ; nothing is in scope
       ;; pre-merge, use a lamba to modify new merged data with component needs
-      :pre-merge (fn [{:keys [...]}] (merge {:ui/default-value :start} tree))
+      :pre-merge (fn [{:keys [data-tree current-normalized state-map query]}] (merge {:ui/default-value :start} data-tree))
 
       ; React Lifecycle Methods
       :initLocalState            (fn [this props] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
