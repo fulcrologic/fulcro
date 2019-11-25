@@ -40,7 +40,7 @@
    (schedule! app scheduled-key action 0)))
 
 (let [raf #?(:clj #(defer % 16)
-             :cljs (if js/requestAnimationFrame
+             :cljs (if (exists? js/requestAnimationFrame)
                      js/requestAnimationFrame
                      #(defer % 16)))]
   (defn schedule-animation!
