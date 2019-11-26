@@ -321,7 +321,7 @@
           (not= modified-state-map state-map) => true
           reset-state-map => state-map))))
 
-  (specification "entity->pristine*"
+  (specification "entity->pristine*" :focus
     (behavior "is a state map operation that recursively updates any entity pristine form state so that the form is no longer dirty"
       (let [modified-state-map  (-> state-map
                                   (assoc-in [:phone/id 3 ::phone-number] "111")
@@ -334,6 +334,13 @@
           "committing transitions dirty -> clean"
           (fs/dirty? modified-ui-tree) => true
           (fs/dirty? committed-ui-tree) => false
+          "The pristine form state has the new data"
+          (get-in committed-state-map [::fs/forms-by-ident {:table :person/id, :row 1} ::fs/pristine-state])
+          => {::person-name   "Bobby" ::phone-numbers [[:phone/id 2] [:phone/id 3]]}
+
+          (get-in committed-state-map [::fs/forms-by-ident {:table :phone/id, :row 3} ::fs/pristine-state])
+          => {::phone-number "111"}
+
           "the clean version has the updated data"
           (get-in committed-ui-tree [::person-name]) => "Bobby"
           (get-in committed-ui-tree [::phone-numbers 1 ::phone-number]) => "111"
