@@ -53,7 +53,7 @@
                                  ;; The only-refresh is used to make sure the list re-renders, as
                                  ;; it does a calculated rendering of the "all checked" checkbox.
                                  (let [tx (if complete [(api/todo-uncheck {:id id})] [(api/todo-check {:id id})])]
-                                   (comp/transact! this tx {:only-refresh [:list/items]})))})
+                                   (comp/transact! this tx {:only-refresh [(comp/get-ident this)]})))})
         (dom/label {:onDoubleClick (fn []
                                      (mut/toggle! this :ui/editing)
                                      (mut/set-string! this :ui/edit-text :value label))} label)
