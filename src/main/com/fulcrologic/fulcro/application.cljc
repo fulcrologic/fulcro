@@ -344,7 +344,7 @@
                          (merge/merge-alternate-union-elements root))
                        initial-tree)
         db           (util/deep-merge initial-db db-from-ui)]
-    (reset! (::state-atom app) db)))
+    (reset! (::state-atom app) db)) )
 
 (defn mount!
   "Mount the app.  If called on an already-mounted app this will have the effect of re-installing the root node so that
@@ -367,31 +367,35 @@
   ([app root node]
    (mount! app root node {:initialize-state? true}))
   ([app root node {:keys [initialize-state? hydrate?]}]
+
    #?(:cljs
-      (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
-            reset-mountpoint! (fn []
-                                (let [dom-node     (if (string? node) (gdom/getElement node) node)
-                                      root-factory (comp/factory root)]
-                                  (if (nil? dom-node)
-                                    (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
-                                    (do
-                                      (swap! (::runtime-atom app) assoc
-                                        ::mount-node dom-node
-                                        ::root-factory root-factory
-                                        ::root-class root)
-                                      (update-shared! app)
-                                      (indexing/index-root! app)
-                                      (render! app {:force-root? true
-                                                    :hydrate?    hydrate?})))))]
-        (if (mounted? app)
-          (reset-mountpoint!)
-          (do
-            (inspect/app-started! app)
-            (when initialize-state?
-              (initialize-state! app root))
+      (if (comp/has-ident? root)
+        (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
+    are tempted to do things like `merge!` against Root then that component should *not* be considered Root., make another layer in your UI.")
+        (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
+              reset-mountpoint! (fn []
+                                  (let [dom-node     (if (string? node) (gdom/getElement node) node)
+                                        root-factory (comp/factory root)]
+                                    (if (nil? dom-node)
+                                      (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
+                                      (do
+                                        (swap! (::runtime-atom app) assoc
+                                          ::mount-node dom-node
+                                          ::root-factory root-factory
+                                          ::root-class root)
+                                        (update-shared! app)
+                                        (indexing/index-root! app)
+                                        (render! app {:force-root? true
+                                                      :hydrate?    hydrate?})))))]
+          (if (mounted? app)
             (reset-mountpoint!)
-            (when-let [cdm (-> app ::config :client-did-mount)]
-              (cdm app))))))))
+            (do
+              (inspect/app-started! app)
+              (when initialize-state?
+                (initialize-state! app root))
+              (reset-mountpoint!)
+              (when-let [cdm (-> app ::config :client-did-mount)]
+                (cdm app)))))))))
 
 (defn app-root
   "Returns the current app root, if mounted."
