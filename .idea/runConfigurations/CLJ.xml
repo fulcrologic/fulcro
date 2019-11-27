@@ -3,7 +3,7 @@
     <module name="fulcro" />
     <setting name="replType" value="NREPL" />
     <setting name="execution" value="INTELLIJ" />
-    <setting name="jvmArgs" value="-Dtest -Dghostwheel.enabled=true" />
+    <setting name="jvmArgs" value="-Dtest -Dguardrails.enabled" />
     <setting name="parameters" value="" />
     <setting name="workingDir" value="$PROJECT_DIR$" />
     <setting name="profiles" value="" />
