@@ -344,7 +344,7 @@
                          (merge/merge-alternate-union-elements root))
                        initial-tree)
         db           (util/deep-merge initial-db db-from-ui)]
-    (reset! (::state-atom app) db)) )
+    (reset! (::state-atom app) db)))
 
 (defn mount!
   "Mount the app.  If called on an already-mounted app this will have the effect of re-installing the root node so that
@@ -367,11 +367,10 @@
   ([app root node]
    (mount! app root node {:initialize-state? true}))
   ([app root node {:keys [initialize-state? hydrate?]}]
-
    #?(:cljs
       (if (comp/has-ident? root)
         (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
-    are tempted to do things like `merge!` against Root then that component should *not* be considered Root., make another layer in your UI.")
+    are tempted to do things like `merge!` against Root then that component should *not* be considered Root: make another layer in your UI.")
         (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
               reset-mountpoint! (fn []
                                   (let [dom-node     (if (string? node) (gdom/getElement node) node)
