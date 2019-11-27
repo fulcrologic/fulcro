@@ -12,6 +12,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     #?@(:clj  [[cljs.analyzer :as ana]]
         :cljs [[cljsjs.react]
+               [goog.async.Deferred]
                [cljs.loader :as loader]])
     [taoensso.timbre :as log]))
 
@@ -335,7 +336,7 @@
                 (let [current-pending-route (get @state-atom ::pending-route)]
                   (when (and pending-route-handler (= current-pending-route pending-route-handler))
                     ; if the load succeeds, finish will be called to finish the route instruction
-                    (let [deferred-result (loader/load route-to-load)
+                    (let [deferred-result ^Deferred (loader/load route-to-load)
                           ;; see if the route is no longer needed (pending has changed)
                           next-delay      (min 10000 (* 2 (max 1000 delay)))]
                       ; if the load fails, retry
@@ -527,7 +528,7 @@
           {
            ;; REQUIRED for router:
            :router-id :top-router
-           :ident (fn [this props] [(:table props) (:id props)]
+           :ident (fn [] [(:table props) (:id props)] ; this/props avail from arg of defsc
            :router-targets  {:A A :B B :C C}
            :default-route A
 

@@ -368,7 +368,10 @@
                      2 {::id 2}}}))
 
 (specification "merge-component!"
-  (let [app (app/fulcro-app)]
+  (let [rendered (atom false)
+        ;; needed because mocking cannot mock something you've closed over already
+        app      (assoc-in (app/fulcro-app {})
+                   [::app/algorithms :com.fulcrologic.fulcro.algorithm/schedule-render!] (fn [& args] (reset! rendered true)))]
     (when-mocking
       (merge/merge-component s c d & np) => (do
                                               (assertions
@@ -376,13 +379,12 @@
                                                 c => MPerson
                                                 d => {}
                                                 "includes the correct named parameters"
-                                                np => [:replace [:x]]
-                                                ))
-      (sched/schedule-animation! a k act) => (assertions
-                                               "schedules a refresh"
-                                               true => true)
+                                                np => [:replace [:x]]))
 
-      (merge/merge-component! app MPerson {} :replace [:x]))))
+      (merge/merge-component! app MPerson {} :replace [:x])
+      (assertions
+        "schedules a render"
+        @rendered => true))))
 
 (def table-1 {:type :table :id 1 :rows [1 2 3]})
 (defsc Table [_ _]

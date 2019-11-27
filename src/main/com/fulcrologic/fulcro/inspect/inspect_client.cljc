@@ -289,18 +289,19 @@
   "Register the application with Inspect, if it is available."
   [app]
   #?(:cljs
-     (let [networking (remotes app)
-           state*     (state-atom app)
-           app-uuid   (fulcro-app-id app)]
-       (swap! apps* assoc app-uuid app)
-       (update-state-history app @state*)
-       (swap! state* assoc app-uuid-key app-uuid)
-       (post-message :fulcro.inspect.client/init-app {app-uuid-key                         app-uuid
-                                                      :fulcro.inspect.core/app-id          (app-id app)
-                                                      :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) (keys networking))
-                                                      :fulcro.inspect.client/initial-state @state*
-                                                      :fulcro.inspect.client/state-hash    (hash @state*)})
-       (add-watch state* app-uuid #(db-changed! app %3 %4)))))
+     (when (and (or goog.DEBUG INSPECT) (not= "disabled" INSPECT))
+       (let [networking (remotes app)
+             state*     (state-atom app)
+             app-uuid   (fulcro-app-id app)]
+         (swap! apps* assoc app-uuid app)
+         (update-state-history app @state*)
+         (swap! state* assoc app-uuid-key app-uuid)
+         (post-message :fulcro.inspect.client/init-app {app-uuid-key                         app-uuid
+                                                        :fulcro.inspect.core/app-id          (app-id app)
+                                                        :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) (keys networking))
+                                                        :fulcro.inspect.client/initial-state @state*
+                                                        :fulcro.inspect.client/state-hash    (hash @state*)})
+         (add-watch state* app-uuid #(db-changed! app %3 %4))))))
 
 (defn optimistic-action-finished!
   "Notify inspect that a transaction finished.
@@ -340,7 +341,7 @@
   "
   [& body]
   (when (cljs? &env)
-    `(when (or ~'goog.DEBUG INSPECT)
+    `(when (and (or ~'goog.DEBUG INSPECT) (not= "disabled" INSPECT))
        (try
          ~@body
          (catch :default ~'e)))))

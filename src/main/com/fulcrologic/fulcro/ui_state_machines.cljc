@@ -78,7 +78,8 @@
                  #(s/gen #{{::handler fake-handler}})))
 (>def ::states (s/with-gen (s/map-of ::state-id ::state) #(s/gen #{{:initial {::handler fake-handler}}})))
 (>def ::alias keyword?)
-(>def ::aliases (s/map-of ::alias (s/tuple ::actor-name keyword?)))
+(>def ::aliases (s/map-of keyword? (s/every keyword? :kind vector?
+                                     :min-count 1)))
 (>def ::plugin (s/with-gen any? #(s/gen #{(fn [aliases] nil)})))
 (>def ::plugins (s/map-of keyword? ::plugin))
 (>def ::event-names (s/coll-of keyword? :kind set?))

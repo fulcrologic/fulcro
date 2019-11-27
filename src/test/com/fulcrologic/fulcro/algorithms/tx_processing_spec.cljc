@@ -130,9 +130,7 @@
       (sched/defer f tm) => (do
                               (assertions
                                 "only calls defer once per timeout"
-                                (deref deferred-fn) => nil
-                                "schedules for the provided time"
-                                tm => 5)
+                                (deref deferred-fn) => nil )
                               (reset! deferred-fn f))
 
       (sched/schedule! app k action 5)
@@ -355,9 +353,8 @@
 
     (when-mocking!
       (sched/schedule! app k action tm) =1x=> (assertions
-                                                "defaults to 10ms"
-                                                k => ::txn/activation-scheduled?
-                                                tm => 10)
+                                                "schedules"
+                                                k => ::txn/activation-scheduled?)
 
       (txn/schedule-activation! app))))
 
@@ -374,9 +371,8 @@
 
     (when-mocking!
       (sched/schedule! app k action tm) =1x=> (assertions
-                                                "defaults to 10ms"
-                                                k => ::txn/queue-processing-scheduled?
-                                                tm => 10)
+                                                "schedules"
+                                                k => ::txn/queue-processing-scheduled?)
 
       (txn/schedule-queue-processing! app))))
 
@@ -393,9 +389,8 @@
 
     (when-mocking!
       (sched/schedule! app k action tm) =1x=> (assertions
-                                                "defaults to 0ms"
-                                                k => ::txn/sends-scheduled?
-                                                tm => 0)
+                                                "schedules"
+                                                k => ::txn/sends-scheduled?)
 
       (txn/schedule-sends! app))))
 

@@ -19,6 +19,7 @@
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => |]]
     #?@(:cljs [[goog.object :as gobj]
+               [goog.functions :refer [debounce]]
                [goog.dom :as gdom]])
     [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
@@ -102,7 +103,7 @@
    [::app map? => any?]
    (tick! app)
    (let [{:keys [::runtime-atom ::state-atom]} app
-         render!             (ah/app-algorithm app :optimized-render!)
+         optimized-render!   (ah/app-algorithm app :optimized-render!)
          shared-props        (get @runtime-atom ::shared-props)
          root-props-changed? (root-props-changed? app)]
      (binding [fdn/*denormalize-time* (basis-t app)
@@ -111,29 +112,23 @@
                comp/*query-state*     @state-atom]
        (when (or force-root? root-props-changed?)
          (update-shared! app))
-       (render! app (merge options {:root-props-changed? root-props-changed?})))
+       (optimized-render! app (merge options {:root-props-changed? root-props-changed?})))
 
-     (swap! runtime-atom assoc ::last-rendered-state @state-atom)
+     (swap! runtime-atom assoc
+       ::last-rendered-state @state-atom
+       :com.fulcrologic.fulcro.application/only-refresh #{}
+       :com.fulcrologic.fulcro.application/to-refresh #{}))))
 
-     (let [limited-refresh? (seq (::only-refresh @runtime-atom))
-           refresh?         (seq (::to-refresh @runtime-atom))]
-       ;; limited refresh can cause missed refreshes. Clear only the limited ones, and schedule one more update.
-       ;; If more limited refreshes arrive before that scheduled update, then they will run and block the requested
-       ;; refreshes again, and cause this to try again.
-       (if (and refresh? limited-refresh?)
-         (do
-           (swap! runtime-atom assoc ::only-refresh #{})
-           (schedule-render! app))
-         (swap! runtime-atom assoc
-           ::to-refresh #{}
-           ::only-refresh #{}))))))
-
-(defn schedule-render!
-  "Schedule a render on the next animation frame."
-  ([app]
-   (schedule-render! app {:force-root? false}))
-  ([app options]
-   (sched/schedule-animation! app ::render-scheduled? #(render! app options))))
+(let [go! #?(:cljs (debounce (fn [app options]
+                               (sched/schedule-animation! app ::render-scheduled? #(render! app options))) 16)
+             :clj (fn [app options]
+                    (sched/schedule-animation! app ::render-scheduled? #(render! app options))))]
+  (defn schedule-render!
+    "Schedule a render on the next animation frame."
+    ([app]
+     (schedule-render! app {:force-root? false}))
+    ([app options]
+     (go! app options))))
 
 (defn default-tx!
   "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options
@@ -349,7 +344,7 @@
                          (merge/merge-alternate-union-elements root))
                        initial-tree)
         db           (util/deep-merge initial-db db-from-ui)]
-    (reset! (::state-atom app) db)))
+    (reset! (::state-atom app) db)) )
 
 (defn mount!
   "Mount the app.  If called on an already-mounted app this will have the effect of re-installing the root node so that
@@ -372,31 +367,35 @@
   ([app root node]
    (mount! app root node {:initialize-state? true}))
   ([app root node {:keys [initialize-state? hydrate?]}]
+
    #?(:cljs
-      (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
-            reset-mountpoint! (fn []
-                                (let [dom-node     (if (string? node) (gdom/getElement node) node)
-                                      root-factory (comp/factory root)]
-                                  (if (nil? dom-node)
-                                    (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
-                                    (do
-                                      (swap! (::runtime-atom app) assoc
-                                        ::mount-node dom-node
-                                        ::root-factory root-factory
-                                        ::root-class root)
-                                      (update-shared! app)
-                                      (indexing/index-root! app)
-                                      (render! app {:force-root? true
-                                                    :hydrate?    hydrate?})))))]
-        (if (mounted? app)
-          (reset-mountpoint!)
-          (do
-            (inspect/app-started! app)
-            (when initialize-state?
-              (initialize-state! app root))
+      (if (comp/has-ident? root)
+        (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
+    are tempted to do things like `merge!` against Root then that component should *not* be considered Root., make another layer in your UI.")
+        (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
+              reset-mountpoint! (fn []
+                                  (let [dom-node     (if (string? node) (gdom/getElement node) node)
+                                        root-factory (comp/factory root)]
+                                    (if (nil? dom-node)
+                                      (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
+                                      (do
+                                        (swap! (::runtime-atom app) assoc
+                                          ::mount-node dom-node
+                                          ::root-factory root-factory
+                                          ::root-class root)
+                                        (update-shared! app)
+                                        (indexing/index-root! app)
+                                        (render! app {:force-root? true
+                                                      :hydrate?    hydrate?})))))]
+          (if (mounted? app)
             (reset-mountpoint!)
-            (when-let [cdm (-> app ::config :client-did-mount)]
-              (cdm app))))))))
+            (do
+              (inspect/app-started! app)
+              (when initialize-state?
+                (initialize-state! app root))
+              (reset-mountpoint!)
+              (when-let [cdm (-> app ::config :client-did-mount)]
+                (cdm app)))))))))
 
 (defn app-root
   "Returns the current app root, if mounted."
