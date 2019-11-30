@@ -171,7 +171,7 @@
 (defn children
   "Get the sequence of react children of the given component."
   [component]
-  (let [cs #?(:clj  (get-in component [:children])
+  (let [cs #?(:clj (get-in component [:children])
               :cljs (gobj/getValueByKeys component "props" "children"))]
     (if (or (coll? cs) #?(:cljs (array? cs))) cs [cs])))
 
@@ -1337,4 +1337,7 @@
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 
+(defn external-config
+  [app-ish k]
+  (some-> app-ish (any->app) (get-in [:com.fulcrologic.fulcro.application/config :external-config k])))
 
