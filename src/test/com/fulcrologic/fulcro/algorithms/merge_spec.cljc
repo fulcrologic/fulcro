@@ -249,6 +249,45 @@
    :query [::col-id
            {::load-items (comp/get-query UiLoadedItem)}]})
 
+(defsc UiPreMergePlaceholderChild
+  [_ _]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (let [id (or (:id data-tree)
+                             (:id current-normalized)
+                             (random-uuid))]
+                  (merge
+                    {:id id}
+                    current-normalized
+                    data-tree)))
+   :ident     :id
+   :query     [:id :child/value]})
+
+(defsc UiPreMergePlaceholderRoot
+  [_ _]
+  {:pre-merge (fn [{:keys [current-normalized data-tree]}]
+                (let [id (or (:id data-tree)
+                             (:id current-normalized)
+                             (random-uuid))]
+                  (merge
+                    {:child/value 321
+                     :id          id
+                     :child       {:id id}}
+                    current-normalized
+                    data-tree)))
+   :ident     :id
+   :query     [:id
+               {:child (comp/get-query UiPreMergePlaceholderChild)}]})
+
+(specification "merge*"
+  (assertions
+    "keep data defined by root merge component."
+    (merge/merge* {} [{[:id 42] (comp/get-query UiPreMergePlaceholderRoot)}]
+      {[:id 42] {:id 42}}
+      {:remove-missing? true})
+    => {:id {42 {:id          42
+                 :child/value 321
+                 :child       [:id 42]}}}))
+
 (specification "merge-component"
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
         sally            {:id :sally :name "Sally" :numbers [[:phone/id 3]]}
