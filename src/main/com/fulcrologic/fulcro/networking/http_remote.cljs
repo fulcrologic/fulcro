@@ -307,8 +307,9 @@
   [(s/keys :opt-un [::url ::request-middleware ::response-middleware]) => ::fulcro-remote]
   (merge options
     {:active-requests (atom {})
-     :transmit!       (fn transmit! [{:keys [active-requests]} {:keys [::txn/ast ::txn/result-handler ::txn/update-handler] :as send-node}]
+     :transmit!       (fn transmit! [{:keys [active-requests]} {::txn/keys [ast ast-without-transform result-handler update-handler] :as send-node}]
                         (let [edn              (eql/ast->query ast)
+                              merge-edn        (eql/ast->query ast-without-transform)
                               ok-handler       (fn [result]
                                                  (try
                                                    (result-handler result)
@@ -342,7 +343,7 @@
                                   {:keys [body headers url method response-type]} real-request
                                   http-verb            (-> (or method :post) name str/upper-case)
                                   extract-response     #(extract-response body real-request xhrio)
-                                  extract-response-mw  (response-extractor* response-middleware edn real-request xhrio)
+                                  extract-response-mw  (response-extractor* response-middleware merge-edn real-request xhrio)
                                   gc-network-resources (cleanup-routine* abort-id active-requests xhrio)
                                   progress-routine     (progress-routine* extract-response progress-handler)
                                   ok-routine           (ok-routine* progress-routine extract-response-mw ok-handler error-handler)

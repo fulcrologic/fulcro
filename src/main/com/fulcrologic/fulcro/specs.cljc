@@ -46,6 +46,7 @@
 
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler fn?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler fn?)
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform :edn-query-language.ast/node)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/active? boolean?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/parallel? boolean?)
 
@@ -53,6 +54,7 @@
                                                                    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/idx
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/ast
+                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/active?]

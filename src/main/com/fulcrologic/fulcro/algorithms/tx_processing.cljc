@@ -145,6 +145,7 @@
   (enc/if-let [remote          (get (app->remotes app) remote-name)
                transmit!       (get remote :transmit!)
                query-transform (ah/app-algorithm app :global-eql-transform)
+               send-node       (assoc send-node ::ast-without-transform (::ast send-node))
                send-node       (if query-transform
                                  (update send-node ::ast query-transform)
                                  send-node)]
@@ -412,7 +413,7 @@
         update-handler (fn progress-handler* [result]
                          (record-result! app id ele-idx remote result ::progress)
                          (schedule-queue-processing! app 0))
-        {:keys [::dispatch ::original-ast-node ::state-before-action]} (get-in tx-node [::elements ele-idx])
+        {::keys [dispatch original-ast-node state-before-action]} (get-in tx-node [::elements ele-idx])
         env            (build-env app tx-node {:ast                 original-ast-node
                                                :state-before-action state-before-action})
         remote-fn      (get dispatch remote)
@@ -513,7 +514,7 @@
   to it.
 
   Returns the tx-element with the remote marked complete."
-  [app tx-node {:keys [::results ::dispatch ::original-ast-node] :as tx-element} remote]
+  [app tx-node {::keys [results dispatch original-ast-node] :as tx-element} remote]
   [:com.fulcrologic.fulcro.application/app ::tx-node ::tx-element keyword? => ::tx-element]
   (schedule-queue-processing! app 0)
   (let [result  (get results remote)
