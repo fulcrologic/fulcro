@@ -1,6 +1,6 @@
 {:paths   ["src/main"]
 
- :deps    {edn-query-language/eql     {:mvn/version "0.0.8"}
+ :deps    {edn-query-language/eql     {:mvn/version "0.0.9"}
            cljsjs/react               {:mvn/version "16.8.6-0"}
            cljsjs/react-dom           {:mvn/version "16.8.6-0"}
            cljsjs/react-dom-server    {:mvn/version "16.8.6-0"}
@@ -26,7 +26,7 @@
            :dev       {:extra-paths ["src/dev" "resources" "src/todomvc"]
                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.8.69"}
                                      com.wsscode/pathom                {:mvn/version "2.2.24"}
-                                     com.fulcrologic/fulcro-websockets {:mvn/version "3.0.1"}
+                                     com.fulcrologic/fulcro-websockets {:mvn/version "3.0.5"}
                                      binaryage/devtools                {:mvn/version "0.9.10"}
                                      ring/ring-core                    {:mvn/version "1.7.1"}
                                      org.immutant/web                  {:mvn/version "2.1.10"}
