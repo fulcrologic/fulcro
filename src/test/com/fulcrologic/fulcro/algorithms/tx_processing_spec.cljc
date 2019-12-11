@@ -130,7 +130,7 @@
       (sched/defer f tm) => (do
                               (assertions
                                 "only calls defer once per timeout"
-                                (deref deferred-fn) => nil )
+                                (deref deferred-fn) => nil)
                               (reset! deferred-fn f))
 
       (sched/schedule! app k action 5)
@@ -619,7 +619,8 @@
     (txn/schedule-queue-processing! a t) => nil
 
     (let [app         (mock-app)
-          mock-result {:status-code 200 :value 20}
+          mock-result {:status-code  200 :value 20
+                       :original-eql `[(f)]}
           actual-env  (atom nil)
           mock-action (fn [env] (reset! actual-env env))
           tx-node     (-> (txn/tx-node `[(f {})])
@@ -633,7 +634,7 @@
         "Calls the :result-action handler"
         (nil? (deref actual-env)) => false
         "Passes the result on the :result key of env"
-        (= mock-result (-> actual-env deref :result)) => true
+        (-> actual-env deref :result) => mock-result
         "Marks the element as complete"
         (::txn/complete? updated-ele) => #{:remote})))
 

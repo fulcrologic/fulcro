@@ -253,8 +253,8 @@
   [_ _]
   {:pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (let [id (or (:id data-tree)
-                             (:id current-normalized)
-                             (random-uuid))]
+                           (:id current-normalized)
+                           #?(:clj (java.util.UUID/randomUUID) :cljs (random-uuid)))]
                   (merge
                     {:id id}
                     current-normalized
@@ -266,8 +266,8 @@
   [_ _]
   {:pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (let [id (or (:id data-tree)
-                             (:id current-normalized)
-                             (random-uuid))]
+                           (:id current-normalized)
+                           #?(:clj (java.util.UUID/randomUUID) :cljs (random-uuid)))]
                   (merge
                     {:child/value 321
                      :id          id
