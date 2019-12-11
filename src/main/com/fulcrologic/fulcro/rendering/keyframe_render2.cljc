@@ -41,7 +41,7 @@
      (kr/render! app options)
      (try
        (render-stale-components! app options)
-       (catch :default e
+       (catch #?(:clj Exception :cljs :default) e
          (log/info "Optimized render failed. Falling back to root render.")
          (kr/render! app options))))))
 

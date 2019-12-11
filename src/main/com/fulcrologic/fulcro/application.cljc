@@ -270,11 +270,13 @@
             load-mutation
             root-class
             shared
+            external-config
             shared-fn] :as options}]
    {::id           (tempid/uuid)
     ::state-atom   (atom (or initial-db {}))
     ::config       {:load-marker-default     load-marker-default
                     :client-did-mount        (or client-did-mount (:started-callback options))
+                    :external-config         external-config
                     :query-transform-default query-transform-default
                     :load-mutation           load-mutation}
     ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    default-tx!

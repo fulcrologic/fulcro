@@ -287,7 +287,7 @@
                                       props)
                     normalized-data (fnorm/tree->db component-query marked-props false (pre-merge-transform tree options))
                     refs            (meta normalized-data)]
-                (merge-tree (merge-ident result-tree ident normalized-data) refs)))]
+                (merge-ident (merge-tree result-tree refs) ident normalized-data)))]
       (reduce step tree refs))))
 
 (defn merge*

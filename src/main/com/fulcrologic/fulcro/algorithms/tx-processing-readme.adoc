@@ -1,24 +1,81 @@
 == Optimizing Sends
 
-The internals of the tx processing splits the original transactions so that there is one tx-node per element of the
-top-level transaction. Loads use an `internal-load` mutation, so they are always a single top-level tx.
-
+The internals of the tx processing splits the original transactions so that there is one tx-node per element of the top-level transaction.
+Loads use an `internal-load` mutation, so they are always a single top-level tx.
 
 To Do:
 
-- There should be a function that takes the nodes with the same ID that are queued and re-combines them. This is
-  the current combine-sends, but the logic needs to not do reordering or even return what to send.
+- There should be a function that takes the nodes with the same ID that are queued and re-combines them.
+This is the current combine-sends, but the logic needs to not do reordering or even return what to send.
 - The next step of processing the send queue should be optional write reordering
-- The next step should then be potentially creating a multi-send send node so that the entire queue can be sent on
-one network request.
-
+- The next step should then be potentially creating a multi-send send node so that the entire queue can be sent on one network request.
 
 So, desired send processing:
 
-1. restore transaction semantics: fn of send-queue -> send-queue.  Combines send nodes with a common tx ID into a single send node so
-   that as much of the original tx will be sent as a unit as is possible.
-2. Reorder the queue: Pluggable and optional. Put writes first, enable customization like "tx priorities"
-3. Merge the queue (optional, requires enabling on client and server): For a given remote it is possible for us to encode
-   a "multi-send", where the send nodes from (1/2) are combined into a data structure that allows the lower-level
-   networking to send the entire queue in one network round-trip.  Something like a vector of maps?
+1. restore transaction semantics: fn of send-queue -> send-queue.
+Combines send nodes with a common tx ID into a single send node so that as much of the original tx will be sent as a unit as is possible.
+2. Reorder the queue: Pluggable and optional.
+Put writes first, enable customization like "tx priorities"
+3. Merge the queue (optional, requires enabling on client and server): For a given remote it is possible for us to encode a "multi-send", where the send nodes from (1/2) are combined into a data structure that allows the lower-level networking to send the entire queue in one network round-trip.
+Something like a vector of maps?
    `[{::id id ::tx tx} {::id id2 ::tx tx}]`, where the server returns `{id result id2 result ...}`.
+
+[source,clojure]
+-----
+(defmutation f [_]
+  (action ..opt...)
+  (result-action [env] ...)
+  (rmt1 ...))
+
+(defmutation g [_]
+  (action [env]
+    (transact! this [(i)]))
+  (result-action [env] ...) ; has a default
+  (rmt2 [env]
+    (-> env
+      (m/with-target env [:x])
+      (m/returning env Person))))
+
+;; could execute either true/false on optimistic?:
+(transact! this [(f) (g)] {:optimistic? true})
+;; f + g opt + f on rmt1 + g one rmt2 (all at once)
+
+;; opt false is same as ptransact!
+(ptransact! this [(f) (g)])
+;; f opt + f net, then on net result: g opt g net
+-----
+
+[ditaa]
+-----
+                    |
+                    | Into submission queue
+                    v
+            +-------+ +-------+
+sub q       |(f) (g)| |       |  ...
+            | UUID  | |       |
+            +--+----+ +---+---+
+               |          |
+               +----+-----+
+                    | (user releases thread)
+                    | Activation (dispatch of f and g, which returns maps like {:action ...})
+                    v
+            +-----------------------+
+            | +-------+ +-------+   +<---------------+
+active Q    | | (f)   | | (g)   |  ... (tx nodes)    | RUN A Q STEP
+            | | RA    | |       |   |                | Run through active queue and process
+            | +-------+ +-------+   +----------------+ Also dispatches results to result-action
+            +-----------------------+
+            ^  |          |
+            |  +----+-----+
+     net    |       |
+   result   +--+    | (possible re-combining of tx)
+               |    v
+            +--+----+ +-------+
+Send Q Rmt1 |(f)    | |       |  ...
+            +-------+ +-------+
+
+            +-------+ +-------+
+Send Q Rmt2 |    (g)| |       |  ...
+            +-------+ +-------+
+
+-----
