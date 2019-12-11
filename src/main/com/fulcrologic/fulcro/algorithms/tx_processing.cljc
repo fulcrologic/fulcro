@@ -517,10 +517,13 @@
   [app tx-node {::keys [results dispatch original-ast-node] :as tx-element} remote]
   [:com.fulcrologic.fulcro.application/app ::tx-node ::tx-element keyword? => ::tx-element]
   (schedule-queue-processing! app 0)
-  (let [result  (get results remote)
+  (let [result  (cond-> (get results remote)
+                  original-ast-node (assoc :original-eql (eql/ast->query original-ast-node)))
         handler (get dispatch :result-action)]
     (when handler
-      (let [env (build-env app tx-node {:dispatch dispatch :result result})]
+      (let [env (build-env app tx-node {:dispatch     dispatch
+                                        :original-ast original-ast-node
+                                        :result       result})]
         (try
           (handler env)
           (catch #?(:cljs :default :clj Exception) e

@@ -188,8 +188,7 @@
   [tx request xhrio]
   [any? ::request ::xhrio => ::response]
   (try
-    {:transaction      tx
-     :outgoing-request request
+    {:outgoing-request request
      :headers          (xhrio-response-headers xhrio)
      :body             (xhrio-response xhrio)
      :status-code      (xhrio-status-code xhrio)
@@ -198,8 +197,7 @@
      :error-text       (xhrio-error-text xhrio)}
     (catch :default e
       (log/error "Unable to extract response from XhrIO Object" e)
-      {:transaction      tx
-       :outgoing-request request
+      {:outgoing-request request
        :body             ""
        :headers          {}
        :status-code      0
@@ -292,15 +290,25 @@
 
   `response-middleware` is a function that returns a function `(fn [response] mod-response)` and
   defaults to `wrap-fulcro-response` which decodes the raw response and transforms it back to a response that Fulcro can merge.
-  The response will be a map containing the `:transaction`, which is the
-  original Fulcro EDN request; `:outgoing-request` which is the exact request sent on the network; `:body`, which
+
+  The response will be a map containing the `:outgoing-request` which is the exact request sent on the network; `:body`, which
   is the raw data of the response. Additionally, there will be one or more of the following to indicate low-level
   details of the result: `:status-code`, `:status-text`, `:error-code` (one of :none, :exception, :http-error, :abort, or :timeout),
   and `:error-text`.  Middleware is allowed to morph any of this to suit its needs.
 
-  A result with a 200 status code will result in a merge using the resulting response's `:transaction` as the query,
-  and the `:body` as the EDN to merge. If the status code is anything else then the details of the response will be
-  used when triggering the built-in error handling (e.g. fallbacks, global error handler, etc.)."
+  DEPRECATED: If the response middleware includes a `:transaction` key in the response with EQL, then that EQL will be
+  used in the resulting Fulcro merge steps. This can seriously screw up built-in behaviors. You are much better off ensuring
+  that your query matches the shape of the desired response in most cases.
+
+  The definition of `remote-error?` in the application will deterimine if happy-path or error handling will
+  be applied to the response.  The default setting in Fulcro will cause
+  a result with a 200 status code to cause whatever happy-path logic is configured for that specific
+  response's processing.
+  For example, see `m/default-result-action!` for mutations, and `df/internal-load` for loads. The `:body` key
+  will be considered the response to use, and the optional `:transaction` key an override to the EQL query used
+  for any merges.
+
+  See the top-level application configuration and Developer's Guide for more details."
   [{:keys [url request-middleware response-middleware] :or {url                 "/api"
                                                             response-middleware (wrap-fulcro-response)
                                                             request-middleware  (wrap-fulcro-request)} :as options}]
@@ -310,6 +318,7 @@
      :transmit!       (fn transmit! [{:keys [active-requests]} {::txn/keys [ast ast-without-transform result-handler update-handler] :as send-node}]
                         (let [edn              (eql/ast->query ast)
                               merge-edn        (eql/ast->query ast-without-transform)
+                              _                (log/spy :info merge-edn)
                               ok-handler       (fn [result]
                                                  (try
                                                    (result-handler result)

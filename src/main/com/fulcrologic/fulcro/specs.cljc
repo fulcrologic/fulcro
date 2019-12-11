@@ -54,11 +54,11 @@
                                                                    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/idx
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/ast
-                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
-                                                                   :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options]))
+                                                                   :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options
+                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform]))
 
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
