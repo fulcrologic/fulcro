@@ -96,10 +96,9 @@
   "Rewrites tempids in state and places a tempid->realid map into env for further use by the mutation actions."
   [env]
   [::env => ::env]
-  (let [{:keys [app state result]} env
-        {:keys [body transaction]} result
-        remote-error? (ah/app-algorithm app :remote-error?)
-        rid->tid      (tempid/result->tempid->realid body)]
+  (let [{:keys [app result]} env
+        {:keys [body]} result
+        rid->tid (tempid/result->tempid->realid body)]
     (tempid/resolve-tempids! app body)
     (assoc env :tempid->realid rid->tid)))
 
@@ -114,10 +113,11 @@
   [env]
   [::env => ::env]
   (let [{:keys [app state result]} env
-        {:keys [body transaction]} result
+        {:keys [body transaction original-eql]} result
+        eql           (or transaction original-eql)
         remote-error? (ah/app-algorithm app :remote-error?)]
     (when-not (remote-error? result)
-      (swap! state merge/merge-mutation-joins transaction body))
+      (swap! state merge/merge-mutation-joins eql body))
     env))
 
 (>defn default-result-action!

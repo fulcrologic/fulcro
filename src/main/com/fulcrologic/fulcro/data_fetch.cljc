@@ -148,8 +148,8 @@
       (do
         (log/debug "Skipping default merge and calling user-supplied ok-action.")
         (ok-action env))
-      (let [{:keys [body transaction]} result
-            query (or transaction query)
+      (let [{:keys [body transaction original-eql]} result
+            query (or transaction query original-eql)
             {:com.fulcrologic.fulcro.application/keys [state-atom]} app]
         (log/debug "Doing merge and targeting steps: " body query)
         (swap! state-atom (fn [s]

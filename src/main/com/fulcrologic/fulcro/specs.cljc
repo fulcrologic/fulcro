@@ -46,6 +46,7 @@
 
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler fn?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler fn?)
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform :edn-query-language.ast/node)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/active? boolean?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/parallel? boolean?)
 
@@ -56,7 +57,8 @@
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
-                                                                   :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options]))
+                                                                   :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options
+                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform]))
 
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
