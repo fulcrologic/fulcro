@@ -200,13 +200,11 @@
 
 (defn- component-pre-merge [class query state data options]
   (if (comp/has-pre-merge? class)
-    (let [entity        (some->> (comp/get-ident class data) (get-in state))
-          unmarked-data (sweep-merge {} data)
-          ;; TODO: Documentation. Pre-merge should re-mark data if it cares about overwrites
-          result        (comp/pre-merge class {:state-map          state
-                                               :current-normalized entity
-                                               :data-tree          unmarked-data
-                                               :query              query})]
+    (let [entity (some->> (comp/get-ident class data) (get-in state))
+          result (comp/pre-merge class {:state-map          state
+                                        :current-normalized entity
+                                        :data-tree          data
+                                        :query              query})]
       result)
     data))
 
