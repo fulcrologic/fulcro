@@ -450,7 +450,8 @@
   (let [{:keys [::app/runtime-atom] :as app} (mock-app)
         tx-node (-> (txn/tx-node [(f {})])
                   (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
-                  (assoc-in [::txn/elements 0 ::txn/desired-ast-node] (eql/expr->ast (f)))
+                  (assoc-in [::txn/elements 0 ::txn/desired-ast-nodes :remote] (eql/expr->ast (f)))
+                  (assoc-in [::txn/elements 0 ::txn/transmitted-ast-nodes :remote] (eql/expr->ast (f)))
                   (assoc ::txn/id (uuid 1))
                   (txn/dispatch-elements {} (fn [e] (m/mutate e))))
         {:keys [::txn/result-handler ::txn/update-handler]

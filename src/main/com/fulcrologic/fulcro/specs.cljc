@@ -23,10 +23,11 @@
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/complete? set?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/results (s/map-of keyword? any?))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/progress (s/map-of keyword? any?))
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/transmitted-ast-nodes (s/map-of keyword? :edn-query-language.ast/node))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch map?) ; a tree is also a node
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/ast :edn-query-language.ast/node)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/ast)
-(>def :com.fulcrologic.fulcro.algorithms.tx-processing/desired-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/ast)
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/desired-ast-nodes (s/map-of keyword? :edn-query-language.ast/node))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element (s/keys
                                                                     :req [:com.fulcrologic.fulcro.algorithms.tx-processing/idx
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node
@@ -34,7 +35,8 @@
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/complete?
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/results
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch]
-                                                                    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/desired-ast-node
+                                                                    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/desired-ast-nodes
+                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/transmitted-ast-nodes
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/progress]))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/elements (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element :kind vector?))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node
@@ -48,19 +50,18 @@
 
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler fn?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler fn?)
-(>def :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform :edn-query-language.ast/node)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/active? boolean?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/parallel? boolean?)
 
-(>def :com.fulcrologic.fulcro.algorithms.tx-processing/send-node (s/keys
-                                                                   :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
-                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/idx
-                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/ast
-                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
-                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
-                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
-                                                                   :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options
-                                                                         :com.fulcrologic.fulcro.algorithms.tx-processing/ast-without-transform]))
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/send-node
+  (s/keys
+    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
+          :com.fulcrologic.fulcro.algorithms.tx-processing/idx
+          :com.fulcrologic.fulcro.algorithms.tx-processing/ast
+          :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
+          :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
+          :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
+    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options]))
 
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node :kind vector?))

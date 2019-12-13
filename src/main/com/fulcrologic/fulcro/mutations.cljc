@@ -112,9 +112,19 @@
   Returns env."
   [env]
   [::env => ::env]
-  (let [{:keys [app state result]} env
-        {:keys [body transaction original-eql]} result
-        eql           (or transaction original-eql)
+
+  (let [{:keys [app state result mutation-ast transmitted-ast]} env
+        ;; transaction should only be present if the net middleware rewrote the tx
+        {:keys [body transaction]} result
+        mark-query    (if transmitted-ast
+                        (if (= :root (:type transmitted-ast))
+                          (eql/ast->query transmitted-ast)
+                          [(eql/ast->expr transmitted-ast)])
+                        transaction)
+        body          (if (and body mark-query)
+                        (merge/mark-missing body mark-query)
+                        body)
+        eql           (or transaction [(eql/ast->expr mutation-ast)])
         remote-error? (ah/app-algorithm app :remote-error?)]
     (when-not (remote-error? result)
       (swap! state merge/merge-mutation-joins eql body))

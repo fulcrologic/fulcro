@@ -142,3 +142,9 @@
      :cljs (let [bytes (map char-code (vec (b64/decodeString str)))] ;; b64/decodeString produces essentially a byte array
              (crypt/utf8ByteArrayToString (clj->js bytes))))) ;; Convert the byte array to a valid JavaScript string (either UCS-2 or UTF-16)
 
+(defn ast->query
+  "Workaround for bug in EQL 0.0.9 and earlier"
+  [ast]
+  (if (= :root (:type ast))
+    (eql/ast->query ast)
+    [(eql/ast->expr ast)]))

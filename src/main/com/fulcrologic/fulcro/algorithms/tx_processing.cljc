@@ -102,9 +102,7 @@
         [to-send to-defer] (split-with #(= id-to-send (::id %)) send-queue)
         tx                (reduce
                             (fn [acc {:keys [::ast]}]
-                              (let [tx (if (= :root (:type ast))
-                                         (eql/ast->query ast)
-                                         [(eql/ast->query ast)])]
+                              (let [tx (futil/ast->query ast)]
                                 (into acc tx)))
                             []
                             to-send)
@@ -142,15 +140,10 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote          (get (app->remotes app) remote-name)
-               transmit!       (get remote :transmit!)
-               query-transform (ah/app-algorithm app :global-eql-transform)
-               send-node       (assoc send-node ::ast-without-transform (::ast send-node))
-               send-node       (if query-transform
-                                 (update send-node ::ast query-transform)
-                                 send-node)]
+  (enc/if-let [remote    (get (app->remotes app) remote-name)
+               transmit! (get remote :transmit!)]
     (try
-      (inspect/ilet [tx (eql/ast->query (::ast send-node))]
+      (inspect/ilet [tx (futil/ast->query (::ast send-node))]
         (inspect/send-started! app remote-name (::id send-node) tx))
       (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
@@ -320,7 +313,7 @@
                                    (action env))
                                  (catch #?(:cljs :default :clj Exception) e
                                    (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
-                               (ilet [tx (eql/ast->query original-ast-node)]
+                               (ilet [tx (futil/ast->query original-ast-node)]
                                  (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                                :state-before state-before
                                                                                :tx           tx})))
@@ -349,7 +342,7 @@
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
                                  (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
-                             (ilet [tx (eql/ast->query original-ast-node)]
+                             (ilet [tx (futil/ast->query original-ast-node)]
                                (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                              :state-before state-before
                                                                              :tx           tx})))
@@ -401,24 +394,35 @@
    (record-result! app txn-id ele-idx remote result ::results)))
 
 (>defn compute-desired-ast-node
-  "Add the ::desired-ast-node to the tx-element based on the dispatch for the `remote` of the original mutation."
+  "Add the ::desired-ast-nodes and ::transmitted-ast-nodes for `remote` to the tx-element based on the dispatch for the `remote` of the original mutation."
   [app remote tx-node tx-element]
   [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::tx-node ::tx-element => ::tx-element]
   (let [{::keys [dispatch original-ast-node state-before-action]} tx-element
-        env           (build-env app tx-node {:ast                 original-ast-node
-                                              :state-before-action state-before-action})
-        remote-fn     (get dispatch remote)
-        remote-desire (when remote-fn (remote-fn env))
-        ast           (cond
-                        (or (false? remote-desire) (nil? remote-desire)) nil
-                        (true? remote-desire) original-ast-node
-                        (and (map? remote-desire) (contains? remote-desire :ast)) (:ast remote-desire)
-                        (and (map? remote-desire) (contains? remote-desire :type)) remote-desire
-                        :else (do
-                                (log/error "Remote dispatch for" remote "returned an invalid value." remote-desire)
-                                remote-desire))]
+        env             (build-env app tx-node {:ast                 original-ast-node
+                                                :state-before-action state-before-action})
+        remote-fn       (get dispatch remote)
+        remote-desire   (when remote-fn (remote-fn env))
+        desired-ast     (cond
+                          (or (false? remote-desire) (nil? remote-desire)) nil
+                          (true? remote-desire) original-ast-node
+                          (and (map? remote-desire) (contains? remote-desire :ast)) (:ast remote-desire)
+                          (and (map? remote-desire) (contains? remote-desire :type)) remote-desire
+                          :else (do
+                                  (log/error "Remote dispatch for" remote "returned an invalid value." remote-desire)
+                                  remote-desire))
+        ;; The EQL transform from fulcro app config ONLY affects the network layer (the AST we put on the send node).
+        ;; The response gets dispatched on network return, but the original query
+        ;; is needed at the top app layer so that :pre-merge can use the complete query
+        ;; as opposed to the pruned one.
+        query-transform (ah/app-algorithm app :global-eql-transform)
+        ast             (if (and desired-ast query-transform)
+                          (query-transform desired-ast)
+                          desired-ast)]
+    (log/debug "Desired tx from tx:" (eql/ast->expr desired-ast))
+    (log/debug "Desired tx at network layer:" (eql/ast->expr ast))
     (cond-> tx-element
-      ast (assoc ::desired-ast-node ast))))
+      desired-ast (assoc-in [::desired-ast-nodes remote] desired-ast)
+      ast (assoc-in [::transmitted-ast-nodes remote] ast))))
 
 (>defn add-send!
   "Generate a new send node and add it to the appropriate send queue. Returns the new send node."
@@ -428,7 +432,7 @@
   (let [update-handler (fn progress-handler* [result]
                          (record-result! app id ele-idx remote result ::progress)
                          (schedule-queue-processing! app 0))
-        ast            (get-in tx-node [::elements ele-idx ::desired-ast-node])
+        ast            (get-in tx-node [::elements ele-idx ::transmitted-ast-nodes remote])
         handler        (fn result-handler* [result]
                          (record-result! app id ele-idx remote result)
                          (remove-send! app remote id ele-idx)
@@ -525,19 +529,17 @@
   to it.
 
   Returns the tx-element with the remote marked complete."
-  [app tx-node {::keys [results dispatch desired-ast-node original-ast-node] :as tx-element} remote]
+  [app tx-node {::keys [results dispatch desired-ast-nodes transmitted-ast-nodes original-ast-node] :as tx-element} remote]
   [:com.fulcrologic.fulcro.application/app ::tx-node ::tx-element keyword? => ::tx-element]
   (schedule-queue-processing! app 0)
-  (let [ast-node (or desired-ast-node original-ast-node)
-        eql      (eql/ast->query {:type     :root
-                                  :children [ast-node]})
-        result   (cond-> (get results remote)
-                   ast-node (assoc :original-eql eql))
-        handler  (get dispatch :result-action)]
+  (let [result  (get results remote)
+        handler (get dispatch :result-action)]
     (when handler
-      (let [env (build-env app tx-node {:dispatch     dispatch
-                                        :original-ast ast-node
-                                        :result       result})]
+      (let [env (build-env app tx-node {:dispatch        dispatch
+                                        :transacted-ast  original-ast-node
+                                        :mutation-ast    (get desired-ast-nodes remote)
+                                        :transmitted-ast (get transmitted-ast-nodes remote)
+                                        :result          result})]
         (try
           (handler env)
           (catch #?(:cljs :default :clj Exception) e

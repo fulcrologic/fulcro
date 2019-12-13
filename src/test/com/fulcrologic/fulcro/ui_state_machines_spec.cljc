@@ -1,6 +1,7 @@
 (ns com.fulcrologic.fulcro.ui-state-machines-spec
   (:require
     [clojure.spec.alpha :as s]
+    [com.fulcrologic.guardrails.core :refer [>defn]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.application :as app]
