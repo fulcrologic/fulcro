@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [load])
   (:require
     [clojure.walk :refer [walk prewalk]]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -139,8 +140,8 @@
        - Processes desired targets
        - Runs the post-mutation (if defined)
        - Runs the post-action (if defined)"
-  [{:keys [app result] :as env} {:keys [query ok-action post-mutation post-mutation-params
-                                        post-action target marker source-key] :as params}]
+  [{:keys [app result transmitted-ast] :as env} {:keys [query ok-action post-mutation post-mutation-params
+                                                        post-action target marker source-key] :as params}]
   (remove-load-marker! app marker)
 
   (let [env (assoc env :load-params params)]
@@ -148,18 +149,19 @@
       (do
         (log/debug "Skipping default merge and calling user-supplied ok-action.")
         (ok-action env))
-      (let [{:keys [body transaction original-eql]} result
-            query (or transaction query original-eql)
+      (let [{:keys [body transaction]} result
+            query      (or transaction query)
+            mark-query (or transaction (futil/ast->query transmitted-ast))
+            body       (merge/mark-missing body mark-query)
             {:com.fulcrologic.fulcro.application/keys [state-atom]} app]
-        (log/debug "Doing merge and targeting steps: " body query)
         (swap! state-atom (fn [s]
-                            (cond-> (merge/merge* s query body {:remove-missing? true})
+                            (cond-> (merge/merge* s query body)
                               target (targeting/process-target source-key target))))
         (when (symbol? post-mutation)
           (log/debug "Doing post mutation " post-mutation)
           (comp/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
         (when (fn? post-action)
-          (log/debug "Doing post action ")
+          (log/debug "Doing post action")
           (post-action env))))))
 
 (defn load-failed!

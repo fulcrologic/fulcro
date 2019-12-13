@@ -198,19 +198,15 @@
     target
     source))
 
-(defn- component-pre-merge [class query state data {:keys [remove-missing?]}]
+(defn- component-pre-merge [class query state data options]
   (if (comp/has-pre-merge? class)
-    (let [entity          (some->> (comp/get-ident class data) (get-in state))
-          unmarked-data   (if remove-missing?
-                            (sweep-merge {} data)
-                            data)
-          unmarked-result (comp/pre-merge class {:state-map          state
-                                                 :current-normalized entity
-                                                 :data-tree          unmarked-data
-                                                 :query              query})
-          result          (if remove-missing?
-                            (mark-missing unmarked-result query)
-                            unmarked-result)]
+    (let [entity        (some->> (comp/get-ident class data) (get-in state))
+          unmarked-data (sweep-merge {} data)
+          ;; TODO: Documentation. Pre-merge should re-mark data if it cares about overwrites
+          result        (comp/pre-merge class {:state-map          state
+                                               :current-normalized entity
+                                               :data-tree          unmarked-data
+                                               :query              query})]
       result)
     data))
 
@@ -227,27 +223,22 @@
 (defn merge-mutation-joins
   "Merge all of the mutations that were joined with a query.
 
-  The options, if supplied, can include:
-
-  * `:remove-missing?`: (default false) If true then any items that appear in the `query` but not in the
-  `data-tree` will be removed from `state` (if present)."
+  The options currently do nothing. If you want mark/sweep, pre-mark the data-tree with `merge/mark-missing`,
+  and this function will sweep the result."
   ([state query data-tree]
    (merge-mutation-joins state query data-tree {}))
-  ([state query data-tree {:keys [remove-missing?] :as options}]
+  ([state query data-tree options]
    (if (map? data-tree)
      (reduce (fn [updated-state query-element]
                (let [k       (and (util/mutation-join? query-element) (util/join-key query-element))
                      subtree (get data-tree k)]
                  (if (and k subtree)
-                   (let [subquery         (util/join-value query-element)
-                         target           (-> (meta subquery) ::targeting/target)
-                         idnt             ::temporary-key
-                         norm-query       [{idnt subquery}]
-                         norm-tree        {idnt subtree}
-                         norm-tree-marked (if remove-missing?
-                                            (mark-missing norm-tree norm-query)
-                                            norm-tree)
-                         db               (fnorm/tree->db norm-query norm-tree-marked true (pre-merge-transform state options))]
+                   (let [subquery   (util/join-value query-element)
+                         target     (-> (meta subquery) ::targeting/target)
+                         idnt       ::temporary-key
+                         norm-query [{idnt subquery}]
+                         norm-tree  {idnt subtree}
+                         db         (fnorm/tree->db norm-query norm-tree true (pre-merge-transform state options))]
                      (cond-> (sweep-merge updated-state db)
                        target (targeting/process-target idnt target)
                        (not target) (dissoc db idnt)))
@@ -274,7 +265,7 @@
   "Merge the given `refs` (a map from ident to props), query (a query that contains ident-joins), and tree:
 
   returns a new tree with the data merged into the proper ident-based tables."
-  [tree query refs {:keys [remove-missing?] :as options}]
+  [tree query refs options]
   (let [ident-joins (into {} (comp
                                (map #(cond-> % (seq? %) first))
                                (filter #(and (util/join? %)
@@ -282,10 +273,7 @@
                       query)]
     (letfn [(step [result-tree [ident props]]
               (let [component-query (get ident-joins ident '[*])
-                    marked-props    (if remove-missing?
-                                      (mark-missing props component-query)
-                                      props)
-                    normalized-data (fnorm/tree->db component-query marked-props false (pre-merge-transform tree options))
+                    normalized-data (fnorm/tree->db component-query props false (pre-merge-transform tree options))
                     refs            (meta normalized-data)]
                 (merge-ident (merge-tree result-tree refs) ident normalized-data)))]
       (reduce step tree refs))))
@@ -303,16 +291,14 @@
   - `query` - The query that was used to obtain the query-result. This query will be treated relative to the root of the database.
   - `tree` - The query-result to merge (a map).
 
-  The options is a map containing:
-
-  * `:remove-missing?` If true (default false) then anything appearing in the `query` but not the `result-tree`
-  will be removed from `state-map`.
+  The options is currently doing nothing. If you want to sweep unreturned data use `merge/mark-missing` on your data tree
+  before calling this.
 
   See `merge-component` and `merge-component!` for possibly more appropriate functions for your task.
 
   Returns the new normalized database."
   ([state-map query result-tree] (merge* state-map query result-tree {}))
-  ([state-map query result-tree {:keys [remove-missing?] :as options}]
+  ([state-map query result-tree options]
    (let [[idts result-tree] (sift-idents result-tree)
          normalized-result (fnorm/tree->db query result-tree true (pre-merge-transform state-map options))]
      (-> state-map
@@ -363,10 +349,8 @@
   query - A query, derived from components, that can be used to normalized a tree of data.
   data-tree - A tree of data that matches the nested shape of query.
 
-  The options is a map containing:
-
-  * `:remove-missing?` If true (default false) then anything appearing in the `query` but not the `result-tree`
-  will be removed from `state-map`.
+  The options map currently does nothing. If you want to remove unreturned data use `merge/mark-missing` on the
+  data tree before merging and a sweep will automatically be done.
 
   NOTE: This function assumes you are merging against the root of the tree. See
   `merge-component` and `merge-component!` for relative merging.
