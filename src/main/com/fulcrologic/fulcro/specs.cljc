@@ -26,6 +26,7 @@
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch map?) ; a tree is also a node
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/ast :edn-query-language.ast/node)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/ast)
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/desired-ast-node :com.fulcrologic.fulcro.algorithms.tx-processing/ast)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element (s/keys
                                                                     :req [:com.fulcrologic.fulcro.algorithms.tx-processing/idx
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/original-ast-node
@@ -33,7 +34,8 @@
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/complete?
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/results
                                                                           :com.fulcrologic.fulcro.algorithms.tx-processing/dispatch]
-                                                                    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/progress]))
+                                                                    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/desired-ast-node
+                                                                          :com.fulcrologic.fulcro.algorithms.tx-processing/progress]))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/elements (s/coll-of :com.fulcrologic.fulcro.algorithms.tx-processing/tx-element :kind vector?))
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/tx-node
   (s/keys :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id

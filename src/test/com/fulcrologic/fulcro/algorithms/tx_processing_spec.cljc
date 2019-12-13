@@ -448,8 +448,9 @@
 
 (specification "add-send!"
   (let [{:keys [::app/runtime-atom] :as app} (mock-app)
-        tx-node (-> (txn/tx-node `[(f {})])
+        tx-node (-> (txn/tx-node [(f {})])
                   (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
+                  (assoc-in [::txn/elements 0 ::txn/desired-ast-node] (eql/expr->ast (f)))
                   (assoc ::txn/id (uuid 1))
                   (txn/dispatch-elements {} (fn [e] (m/mutate e))))
         {:keys [::txn/result-handler ::txn/update-handler]
@@ -480,7 +481,20 @@
                                             "Schedules a scan for news sends"
                                             (int? tm) => true)
 
-          (result-handler {}))))))
+          (result-handler {})))))
+  (behavior "Immediately calls result handler if there is no AST"
+    (let [{:keys [::app/runtime-atom] :as app} (mock-app)
+          tx-node (-> (txn/tx-node [(f {})])
+                    (assoc-in [::txn/elements 0 ::txn/started?] #{:remote})
+                    (assoc ::txn/id (uuid 1))
+                    (txn/dispatch-elements {} (fn [e] (m/mutate e))))]
+      (when-mocking!
+        (txn/record-result! app id ele-idx remote result) =1x=> nil
+        (txn/remove-send! app remote id ele-idx) =1x=> nil
+        (txn/schedule-sends! app when) =1x=> nil
+        (txn/schedule-queue-processing! app when) =1x=> nil
+
+        (txn/add-send! app tx-node 0 :remote)))))
 
 (specification "queue-element-sends!"
   (let [{:keys [::app/runtime-atom] :as app} (mock-app)

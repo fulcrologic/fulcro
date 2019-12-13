@@ -400,32 +400,40 @@
    [:com.fulcrologic.fulcro.application/app ::id int? keyword? any? => any?]
    (record-result! app txn-id ele-idx remote result ::results)))
 
+(>defn compute-desired-ast-node
+  "Add the ::desired-ast-node to the tx-element based on the dispatch for the `remote` of the original mutation."
+  [app remote tx-node tx-element]
+  [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::tx-node ::tx-element => ::tx-element]
+  (let [{::keys [dispatch original-ast-node state-before-action]} tx-element
+        env           (build-env app tx-node {:ast                 original-ast-node
+                                              :state-before-action state-before-action})
+        remote-fn     (get dispatch remote)
+        remote-desire (when remote-fn (remote-fn env))
+        ast           (cond
+                        (or (false? remote-desire) (nil? remote-desire)) nil
+                        (true? remote-desire) original-ast-node
+                        (and (map? remote-desire) (contains? remote-desire :ast)) (:ast remote-desire)
+                        (and (map? remote-desire) (contains? remote-desire :type)) remote-desire
+                        :else (do
+                                (log/error "Remote dispatch for" remote "returned an invalid value." remote-desire)
+                                remote-desire))]
+    (cond-> tx-element
+      ast (assoc ::desired-ast-node ast))))
+
 (>defn add-send!
   "Generate a new send node and add it to the appropriate send queue. Returns the new send node."
   [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {::keys [id options] :as tx-node} ele-idx remote]
   [:com.fulcrologic.fulcro.application/app ::tx-node ::idx :com.fulcrologic.fulcro.application/remote-name
    => (s/nilable ::send-node)]
-  (let [handler        (fn result-handler* [result]
+  (let [update-handler (fn progress-handler* [result]
+                         (record-result! app id ele-idx remote result ::progress)
+                         (schedule-queue-processing! app 0))
+        ast            (get-in tx-node [::elements ele-idx ::desired-ast-node])
+        handler        (fn result-handler* [result]
                          (record-result! app id ele-idx remote result)
                          (remove-send! app remote id ele-idx)
                          (schedule-sends! app 1)
                          (schedule-queue-processing! app 0))
-        update-handler (fn progress-handler* [result]
-                         (record-result! app id ele-idx remote result ::progress)
-                         (schedule-queue-processing! app 0))
-        {::keys [dispatch original-ast-node state-before-action]} (get-in tx-node [::elements ele-idx])
-        env            (build-env app tx-node {:ast                 original-ast-node
-                                               :state-before-action state-before-action})
-        remote-fn      (get dispatch remote)
-        remote-desire  (when remote-fn (remote-fn env))
-        ast            (cond
-                         (or (false? remote-desire) (nil? remote-desire)) nil
-                         (true? remote-desire) original-ast-node
-                         (and (map? remote-desire) (contains? remote-desire :ast)) (:ast remote-desire)
-                         (and (map? remote-desire) (contains? remote-desire :type)) remote-desire
-                         :else (do
-                                 (log/error "Remote dispatch for" remote "returned an invalid value." remote-desire)
-                                 remote-desire))
         send-node      {::id             id
                         ::idx            ele-idx
                         ::ast            ast
@@ -438,7 +446,8 @@
         (swap! runtime-atom update-in [::send-queues remote] (fnil conj []) send-node)
         send-node)
       (do
-        (handler {:status-code 500 :body "The remote AST was empty!"})
+        (log/debug "Mutation" (some-> tx-node ::elements (get ele-idx) ::original-ast-node eql/ast->expr) "returned false or nil. Skipping send.")
+        (handler {:status-code 200 :body {}})
         nil))))
 
 (>defn queue-element-sends!
@@ -451,9 +460,11 @@
       (fn [node remote]
         (if (contains? (get-in node [::elements idx ::started?] #{}) remote)
           node
-          (do
-            (add-send! app node idx remote)
-            (update-in node [::elements idx ::started?] conj remote))))
+          (let [updated-node (-> node
+                               (update-in [::elements idx] (fn [tx-element] (compute-desired-ast-node app remote node tx-element)))
+                               (update-in [::elements idx ::started?] conj remote))]
+            (add-send! app updated-node idx remote)
+            updated-node)))
       tx-node
       to-dispatch)))
 
@@ -514,17 +525,18 @@
   to it.
 
   Returns the tx-element with the remote marked complete."
-  [app tx-node {::keys [results dispatch original-ast-node] :as tx-element} remote]
+  [app tx-node {::keys [results dispatch desired-ast-node original-ast-node] :as tx-element} remote]
   [:com.fulcrologic.fulcro.application/app ::tx-node ::tx-element keyword? => ::tx-element]
   (schedule-queue-processing! app 0)
-  (let [eql     (eql/ast->query {:type     :root
-                                 :children [original-ast-node]})
-        result  (cond-> (get results remote)
-                  original-ast-node (assoc :original-eql eql))
-        handler (get dispatch :result-action)]
+  (let [ast-node (or desired-ast-node original-ast-node)
+        eql      (eql/ast->query {:type     :root
+                                  :children [ast-node]})
+        result   (cond-> (get results remote)
+                   ast-node (assoc :original-eql eql))
+        handler  (get dispatch :result-action)]
     (when handler
       (let [env (build-env app tx-node {:dispatch     dispatch
-                                        :original-ast original-ast-node
+                                        :original-ast ast-node
                                         :result       result})]
         (try
           (handler env)
