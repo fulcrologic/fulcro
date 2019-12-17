@@ -16,6 +16,7 @@
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
+    [clojure.string :as str]
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => |]]
     #?@(:cljs [[goog.object :as gobj]
@@ -190,19 +191,27 @@
   are never sent to the server:
 
   - Props whose namespace is `ui`
-  - The form-state configuration join
+  - Any prop or join that is namespaced to com.fulcrologic.fulcro*
+  - Any ident (as a prop or join) whose table name is namespaced ui or com.fulcrologic.fulcro*
 
   Takes an AST and returns the modified AST.
   "
   [ast]
   (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
     (df/elide-ast-nodes ast (fn [k]
-                              (when-let [ns (some-> k kw-namespace)]
+                              (let [ns       (some-> k kw-namespace)
+                                    ident-ns (when (eql/ident? k) (some-> (first k) kw-namespace))]
                                 (or
-                                  (= k ::fs/config)
                                   (and
                                     (string? ns)
-                                    (= "ui" ns))))))))
+                                    (or
+                                      (= "ui" ns)
+                                      (str/starts-with? ns "com.fulcrologic.fulcro")))
+                                  (and
+                                    (string? ident-ns)
+                                    (or
+                                      (= "ui" ident-ns)
+                                      (str/starts-with? ident-ns "com.fulcrologic.fulcro")))))))))
 
 (defn fulcro-app
   "Create a new Fulcro application.
