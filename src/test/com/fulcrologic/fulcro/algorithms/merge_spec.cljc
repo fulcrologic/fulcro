@@ -286,7 +286,17 @@
       {:remove-missing? true})
     => {:id {42 {:id          42
                  :child/value 321
-                 :child       [:id 42]}}}))
+                 :child       [:id 42]}}}
+
+    "merge parent and children new data"
+    (merge/merge* {} [{[:id 42] (comp/get-query UiPreMergePlaceholderRoot)}]
+      {[:id 42] {:id    42
+                 :child {:id          42
+                         :child/value 123}}}
+      {:remove-missing? true})
+    => {:id {42 {:id          42
+                 :child       [:id 42]
+                 :child/value 123}}}))
 
 (specification "merge-component"
   (let [component-tree   (person :tony "Tony" [(phone-number 1 "555-1212") (phone-number 2 "123-4555")])
