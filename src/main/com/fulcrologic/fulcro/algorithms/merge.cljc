@@ -273,7 +273,9 @@
               (let [component-query (get ident-joins ident '[*])
                     normalized-data (fnorm/tree->db component-query props false (pre-merge-transform tree options))
                     refs            (meta normalized-data)]
-                (merge-ident (merge-tree result-tree refs) ident normalized-data)))]
+                (-> result-tree
+                    (merge-ident ident normalized-data)
+                    (merge-tree refs))))]
       (reduce step tree refs))))
 
 (defn merge*
