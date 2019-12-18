@@ -313,7 +313,7 @@
                                    (action env))
                                  (catch #?(:cljs :default :clj Exception) e
                                    (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
-                               (ilet [tx (futil/ast->query original-ast-node)]
+                               (ilet [tx (eql/ast->expr original-ast-node)]
                                  (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                                :state-before state-before
                                                                                :tx           tx})))
@@ -342,7 +342,7 @@
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
                                  (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
-                             (ilet [tx (futil/ast->query original-ast-node)]
+                             (ilet [tx (eql/ast->expr original-ast-node)]
                                (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                              :state-before state-before
                                                                              :tx           tx})))
