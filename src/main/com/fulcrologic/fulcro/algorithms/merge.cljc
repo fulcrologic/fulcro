@@ -53,7 +53,7 @@
   [data]
   (or
     (not (coll? data))
-    (empty? data)
+    (and (vector? data) (empty? data))
     (and (coll? data)
       (-> data meta :fulcro/leaf boolean))))
 
@@ -62,30 +62,24 @@
   [union-query]
   (->> union-query vals flatten set vec))
 
-(defn mark-missing
-  "Recursively walk the query and response marking anything that was *asked for* in the query but is *not* in the response as missing.
-  The sweep-merge process (which happens later in the plumbing) uses these markers as indicators to remove any existing
-  data in the target of the merge (i.e. your state database).
-
-  The naive approach to data merging (even recursive) would fail to remove such data.
-
-  Returns the result with missing markers in place (which are then used/removed in a later stage).
-
-  See the Developer Guide section on Fulcro's merge process for more information."
+(defn mark-missing-impl
   [result query]
-  (let [missing-entity ::not-found]
+  (let [missing-entity {}]
     (reduce (fn [result element]
-              (let [element      (cond
-                                   (list? element) (first element)
-                                   :else element)
-                    result-key   (cond
-                                   (keyword? element) element
-                                   (util/join? element) (util/join-key element)
-                                   :else nil)
-                    result-value (get result result-key)]
+              (let [element        (cond
+                                     (list? element) (first element)
+                                     :else element)
+                    join?          (util/join? element)
+                    jk             (when join? (util/join-key element))
+                    result-key     (cond
+                                     (keyword? element) element
+                                     join? jk
+                                     :else nil)
+                    result-value   (get result result-key)
+                    ident-element? (eql/ident? element)]
                 (cond
-                  (or (and (eql/ident? result-key) (= '_ (second result-key)))
-                    (and (eql/ident? element) (= '_ (second element))))
+                  (or (and ident-element? (= '_ (second element)))
+                    (and (eql/ident? result-key) (= '_ (second result-key))))
                   result
 
                   (is-ui-query-fragment? result-key)
@@ -96,16 +90,17 @@
                   (assoc result element ::not-found)
 
                   ; recursion
-                  (and (util/join? element) (or (number? (util/join-value element)) (= '... (util/join-value element))))
-                  (let [k       (util/join-key element)
-                        result' (get result k)]
+                  (and join? (or
+                               (number? (util/join-value element))
+                               (= '... (util/join-value element))))
+                  (let [result' (get result jk)]
                     (cond
-                      (nil? result') (assoc result k ::not-found) ; TODO: Is this right? Or, should it just be `result`?
-                      (vector? result') (assoc result k (mapv (fn [item] (mark-missing item query)) result'))
-                      :otherwise (assoc result k (mark-missing result' query))))
+                      (nil? result') (assoc result jk ::not-found)
+                      (vector? result') (assoc result jk (mapv (fn [item] (mark-missing-impl item query)) result'))
+                      :otherwise (assoc result jk (mark-missing-impl result' query))))
 
                   ; pure ident query
-                  (and (eql/ident? element) (nil? (get result element)))
+                  (and ident-element? (nil? (get result element)))
                   (assoc result element missing-entity)
 
                   ; union (a join with a map as a target query)
@@ -115,37 +110,56 @@
                         to-many?   (vector? v)
                         wide-query (union->query (util/join-value element))]
                     (cond
-                      to-one? (assoc result result-key (mark-missing v wide-query))
-                      to-many? (assoc result result-key (mapv (fn [i] (mark-missing i wide-query)) v))
+                      to-one? (assoc result result-key (mark-missing-impl v wide-query))
+                      to-many? (assoc result result-key (mapv (fn [i] (mark-missing-impl i wide-query)) v))
                       (= ::not-found v) (assoc result result-key ::not-found)
                       :else result))
 
                   ; ident-based join to nothing (removing table entries)
-                  (and (util/join? element) (eql/ident? (util/join-key element)) (nil? (get result (util/join-key element))))
-                  (let [mock-missing-object (mark-missing {} (util/join-value element))]
-                    (assoc result (util/join-key element) (merge mock-missing-object missing-entity)))
+                  (and join?
+                    (eql/ident? jk)
+                    (nil? (get result jk)))
+                  (let [mock-missing-object (mark-missing-impl {} (util/join-value element))
+                        v                   (merge mock-missing-object missing-entity) ]
+                    (assoc result jk v))
 
                   ; join to nothing
-                  (and (util/join? element) (= ::not-found (get result (util/join-key element) ::not-found)))
-                  (assoc result (util/join-key element) ::not-found)
+                  (and join? (= ::not-found (get result jk ::not-found)))
+                  (assoc result jk ::not-found)
 
                   ; to-many join
-                  (and (util/join? element) (vector? (get result (util/join-key element))))
-                  (assoc result (util/join-key element) (mapv (fn [item] (mark-missing item (util/join-value element))) (get result (util/join-key element))))
+                  (and join? (vector? (get result jk)))
+                  (assoc result jk (mapv (fn [item] (mark-missing-impl item (util/join-value element))) (get result jk)))
 
                   ; to-one join
-                  (and (util/join? element) (map? (get result (util/join-key element))))
-                  (assoc result (util/join-key element) (mark-missing (get result (util/join-key element)) (util/join-value element)))
+                  (and join? (map? (get result jk)))
+                  (assoc result jk (mark-missing-impl (get result jk) (util/join-value element)))
 
                   ; join, but with a broken result (scalar instead of a map or vector)
-                  (and (util/join? element) (vector? (util/join-value element)) (not (or (map? result-value) (vector? result-value))))
-                  (assoc result result-key (mark-missing {} (util/join-value element)))
+                  (and join? (vector? (util/join-value element)) (not (or (map? result-value) (vector? result-value))))
+                  (assoc result result-key (mark-missing-impl {} (util/join-value element)))
 
                   ; prop we found, but not a further join...mark it as a leaf so sweep can stop early on it
                   result-key
                   (update result result-key as-leaf)
 
                   :else result))) result query)))
+
+(defn mark-missing [result query]
+  "Recursively walk the query and response marking anything that was *asked for* in the query but is *not* in the response as missing.
+  The sweep-merge process (which happens later in the plumbing) uses these markers as indicators to remove any existing
+  data in the target of the merge (i.e. your state database).
+
+  The naive approach to data merging (even recursive) would fail to remove such data.
+
+  Returns the result with missing markers in place (which are then used/removed in a later stage).
+
+  See the Developer Guide section on Fulcro's merge process for more information."
+  (try
+    (mark-missing-impl result query)
+    (catch #?(:clj Exception :cljs :default) e
+      (log/error e "Unable to mark missing on result. Returning unmarked result")
+      result)))
 
 (defn- sweep-one
   "Remove not-found keys from m (non-recursive). `m` can be a map (sweep the values) or vector (run sweep-one on each entry)."
@@ -274,8 +288,8 @@
                     normalized-data (fnorm/tree->db component-query props false (pre-merge-transform tree options))
                     refs            (meta normalized-data)]
                 (-> result-tree
-                    (merge-ident ident normalized-data)
-                    (merge-tree refs))))]
+                  (merge-ident ident normalized-data)
+                  (merge-tree refs))))]
       (reduce step tree refs))))
 
 (defn merge*
