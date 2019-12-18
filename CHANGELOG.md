@@ -1,4 +1,14 @@
-See git commit history for further change log entries. This file is no longer maintained.
+See git commit history for further change log entries. 
+This file is only updated if there are breaking changes.
+
+3.1.0
+-----
+- POSSIBLE BREAKING CHANGE: The low-level http remote no longer sends
+a `:transaction` key to response middleware. That key was 
+renamed to `:original-transaction`.  The `:transaction` key is
+what middleware *still* uses to modify the transaction that will
+be used in the merge layer. This will only affect you if you're using
+custom client response middleware that modified things a the low level.
 
 3.0.4
 -----

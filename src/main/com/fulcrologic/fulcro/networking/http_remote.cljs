@@ -28,8 +28,8 @@
 (>def ::transaction vector?)
 (>def ::progress-phase #{:sending :receiving :complete :failed})
 (>def ::progress-event any?)
-(>def ::response (s/keys :req-un [::transaction ::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
-                   :opt-un [::progress-phase ::progress-event]))
+(>def ::response (s/keys :req-un [::outgoing-request ::body ::status-code ::status-text ::error ::error-text]
+                   :opt-un [::transaction ::progress-phase ::progress-event]))
 (>def ::xhrio-event any?)
 (>def ::xhrio any?)
 
@@ -189,22 +189,24 @@
   [tx request xhrio]
   [any? ::request ::xhrio => ::response]
   (try
-    {:outgoing-request request
-     :headers          (xhrio-response-headers xhrio)
-     :body             (xhrio-response xhrio)
-     :status-code      (xhrio-status-code xhrio)
-     :status-text      (xhrio-status-text xhrio)
-     :error            (xhrio-error-code xhrio)
-     :error-text       (xhrio-error-text xhrio)}
+    {:outgoing-request     request
+     :original-transaction tx
+     :headers              (xhrio-response-headers xhrio)
+     :body                 (xhrio-response xhrio)
+     :status-code          (xhrio-status-code xhrio)
+     :status-text          (xhrio-status-text xhrio)
+     :error                (xhrio-error-code xhrio)
+     :error-text           (xhrio-error-text xhrio)}
     (catch :default e
       (log/error "Unable to extract response from XhrIO Object" e)
-      {:outgoing-request request
-       :body             ""
-       :headers          {}
-       :status-code      0
-       :status-text      "Internal Exception"
-       :error            :exception
-       :error-text       "Internal Exception from XHRIO"})))
+      {:outgoing-request     request
+       :original-transaction tx
+       :body                 ""
+       :headers              {}
+       :status-code          0
+       :status-text          "Internal Exception"
+       :error                :exception
+       :error-text           "Internal Exception from XHRIO"})))
 
 (defn was-network-error?
   "Returns true if the given response looks like a low-level network error."
@@ -358,7 +360,6 @@
                                   error-routine        (error-routine* extract-response-mw ok-routine progress-routine error-handler)
                                   with-cleanup         (fn [f] (fn [evt] (try (f evt) (finally (gc-network-resources)))))]
                               (when abort-id
-                                (log/info "Registering abort-id" abort-id)
                                 (swap! active-requests update abort-id (fnil conj #{}) xhrio))
                               (when (and (legal-response-types response-type) (not= :default response-type))
                                 (.setResponseType ^js xhrio (get response-types response-type)))

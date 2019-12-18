@@ -1,7 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.merge-spec
   (:require
-    #?(:clj  [clojure.test :refer :all]
-       :cljs [clojure.test :refer [deftest]])
+    [clojure.test :refer [deftest are]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [fulcro-spec.core :refer [assertions specification component when-mocking behavior provided]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -523,3 +522,267 @@
         new-state => {:top-key [:user/id 2]
                       :user/id {1 {:user/id 1 :user/name "Tom"}
                                 2 {:user/id 2 :user/name "Joe"}}}))))
+
+(specification "mark-missing"
+  (behavior "correctly marks missing properties"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+      [:a :b]
+      {:a 1}
+      {:a 1 :b ::merge/not-found}))
+
+  (behavior "joins -> one"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+      [:a {:b [:c]}]
+      {:a 1}
+      {:a 1 :b ::merge/not-found}
+
+      [{:b [:c]}]
+      {:b {}}
+      {:b {:c ::merge/not-found}}
+
+      [{:b [:c]}]
+      {:b {:c 0}}
+      {:b {:c 0}}
+
+      [{:b [:c :d]}]
+      {:b {:c 1}}
+      {:b {:c 1 :d ::merge/not-found}}))
+
+  (behavior "join -> many"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+
+      [{:a [:b :c]}]
+      {:a [{:b 1 :c 2} {:b 1}]}
+      {:a [{:b 1 :c 2} {:b 1 :c ::merge/not-found}]}))
+
+  (behavior "idents and ident joins"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+      [{[:a 1] [:x]}]
+      {[:a 1] {}}
+      {[:a 1] {:x ::merge/not-found}}
+
+      [{[:b 1] [:x]}]
+      {[:b 1] {:x 2}}
+      {[:b 1] {:x 2}}
+
+      [{[:c 1] [:x]}]
+      {}
+      {[:c 1] {:x ::merge/not-found}}
+
+      [{[:c 1] ['*]}]
+      {}
+      {[:c 1] {}}
+
+
+      [{[:e 1] [:x :y :z]}]
+      {[:e 1] {}}
+      {[:e 1] {:x ::merge/not-found
+               :y ::merge/not-found
+               :z ::merge/not-found}}
+
+      [[:d 1]]
+      {}
+      {[:d 1] {}}))
+
+  (behavior "Ignores root link idents"
+    (assertions
+      "when the subquery exists"
+      (merge/mark-missing {} [{[:a '_] [:x]}]) => {}
+      "when it is a pure link"
+      (merge/mark-missing {} [[:a '_]]) => {}))
+
+  (behavior "parameterized"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+      '[:z (:y {})]
+      {:z 1}
+      {:z 1 :y ::merge/not-found}
+
+      '[:z (:y {})]
+      {:z 1 :y 0}
+      {:z 1 :y 0}
+
+      '[:z ({:y [:x]} {})]
+      {:z 1 :y {}}
+      {:z 1 :y {:x ::merge/not-found}}))
+
+  (behavior "nested"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+      [{:b [:c {:d [:e]}]}]
+      {:b {:c 1}}
+      {:b {:c 1 :d ::merge/not-found}}
+
+      [{:b [:c {:d [:e]}]}]
+      {:b {:c 1 :d {}}}
+      {:b {:c 1 :d {:e ::merge/not-found}}}))
+
+  (behavior "upgrades value to maps if necessary"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+      [{:l [:m]}]
+      {:l 0}
+      {:l {:m ::merge/not-found}}
+
+      [{:b [:c]}]
+      {:b nil}
+      {:b {:c ::merge/not-found}}))
+
+  (behavior "unions"
+    (assertions
+      "singletons"
+      (merge/mark-missing {:j {:c {}}} [{:j {:a [:c] :b [:d]}}]) => {:j {:c {} :d ::merge/not-found}}
+
+      "singleton with no result"
+      (merge/mark-missing {} [{:j {:a [:c] :b [:d]}}]) => {:j ::merge/not-found}
+
+      "list to-many with 1"
+      (merge/mark-missing {:j [{:c "c"}]} [{:j {:a [:c] :b [:d]}}]) => {:j [{:c "c" :d ::merge/not-found}]}
+
+      "list to-many with 2"
+      (merge/mark-missing {:items [{:id 0 :image "img1"} {:id 1 :text "text1"}]} [{:items {:photo [:id :image] :text [:id :text]}}]) => {:items [{:id 0 :image "img1" :text ::merge/not-found} {:id 1 :image ::merge/not-found :text "text1"}]}
+
+      "list to-many with no results"
+      (merge/mark-missing {:j []} [{:j {:a [:c] :b [:d]}}]) => {:j []}))
+
+  (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+
+      [:a :ui/b :c]
+      {:a {}
+       :c {}}
+      {:a {}
+       :c {}}
+
+      [{:j [:ui/b :c]}]
+      {:j {:c 5}}
+      {:j {:c 5}}
+
+      [{:j [{:ui/b [:d]} :c]}]
+      {:j {:c 5}}
+      {:j {:c 5}}))
+
+  (behavior "mutations!"
+    (are [query ?missing-result exp]
+      (= exp (merge/mark-missing ?missing-result query))
+
+      '[(f) {:j [:a]}]
+      {'f {}
+       :j {}}
+      {'f {}
+       :j {:a ::merge/not-found}}
+
+      '[(app/add-q {:p 1}) {:j1 [:p1]} {:j2 [:p2]}]
+      {'app/add-q {:tempids {}}
+       :j1        {}
+       :j2        [{:p2 2} {}]}
+      {'app/add-q {:tempids {}}
+       :j1        {:p1 ::merge/not-found}
+       :j2        [{:p2 2} {:p2 ::merge/not-found}]}))
+
+  (behavior "correctly walks recursive queries to mark missing data"
+    (behavior "when the recursive target is a singleton"
+      (are [query ?missing-result exp]
+        (= exp (merge/mark-missing ?missing-result query))
+        [:a {:b '...}]
+        {:a 1 :b {:a 2}}
+        {:a 1 :b {:a 2 :b ::merge/not-found}}
+
+        [:a {:b '...}]
+        {:a 1 :b {:a 2 :b {:a 3}}}
+        {:a 1 :b {:a 2 :b {:a 3 :b ::merge/not-found}}}
+
+        [:a {:b 9}]
+        {:a 1 :b {:a 2 :b {:a 3 :b {:a 4}}}}
+        {:a 1 :b {:a 2 :b {:a 3 :b {:a 4 :b ::merge/not-found}}}}))
+    (behavior "when the recursive target is to-many"
+      (are [query ?missing-result exp]
+        (= exp (merge/mark-missing ?missing-result query))
+        [:a {:b '...}]
+        {:a 1 :b [{:a 2 :b [{:a 3}]}
+                  {:a 4}]}
+        {:a 1 :b [{:a 2 :b [{:a 3 :b ::merge/not-found}]}
+                  {:a 4 :b ::merge/not-found}]})))
+  (behavior "marks leaf data based on the query where"
+    (letfn [(has-leaves [leaf-paths] (fn [result] (every? #(#'merge/leaf? (get-in result %)) leaf-paths)))]
+      (assertions
+        "plain data is always a leaf"
+        (merge/mark-missing {:a 1 :b {:x 5}} [:a {:b [:x]}]) =fn=> (has-leaves [[:b :x] [:a] [:missing]])
+        "data structures are properly marked in singleton results"
+        (merge/mark-missing {:b {:x {:data 1}}} [{:b [:x :y]}]) =fn=> (has-leaves [[:b :x]])
+        "data structures are properly marked in to-many results"
+        (merge/mark-missing {:b [{:x {:data 1}} {:x {:data 2}}]} [{:b [:x]}]) =fn=> (has-leaves [[:b 0 :x] [:b 1 :x]])
+        (merge/mark-missing {:b []} [:a {:b [:x]}]) =fn=> (has-leaves [[:b]])
+        "unions are followed"
+        (merge/mark-missing {:a [{:x {:data 1}} {:y {:data 2}}]} [{:a {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a 0 :x] [:a 1 :y]])
+        "unions leaves data in place when the result is empty"
+        (merge/mark-missing {:a 1} [:a {:z {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a]])))))
+
+(specification "Sweep one"
+  (assertions
+    "removes not-found values from maps"
+    (#'merge/sweep-one {:a 1 :b ::merge/not-found}) => {:a 1}
+    "removes tempids from maps"
+    (#'merge/sweep-one {:tempids {3 4}}) => {}
+    "is not recursive"
+    (#'merge/sweep-one {:a 1 :b {:c ::merge/not-found}}) => {:a 1 :b {:c ::merge/not-found}}
+    "maps over vectors not recursive"
+    (#'merge/sweep-one [{:a 1 :b ::merge/not-found}]) => [{:a 1}]
+    "retains metadata"
+    (-> (#'merge/sweep-one (with-meta {:a 1 :b ::merge/not-found} {:meta :data}))
+      meta) => {:meta :data}
+    (-> (#'merge/sweep-one [(with-meta {:a 1 :b ::merge/not-found} {:meta :data})])
+      first meta) => {:meta :data}
+    (-> (#'merge/sweep-one (with-meta [{:a 1 :b ::merge/not-found}] {:meta :data}))
+      meta) => {:meta :data}))
+
+(specification "Sweep merge"
+  (assertions
+    "recursively merges maps"
+    (merge/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c 5}) => {:a 2 :c 5}
+    (merge/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:x 1}}) => {:a 2 :c {:b 2 :x 1}}
+    "stops recursive merging if the source element is marked as a leaf"
+    (merge/sweep-merge {:a 1 :c {:d {:x 2} :e 4}} {:a 2 :c (#'merge/as-leaf {:d {:x 1}})}) => {:a 2 :c {:d {:x 1}}}
+    "sweeps tempids from maps"
+    (merge/sweep-merge {:a 1 :c {:b 2}} {:a 2 :tempids {} :c {:b ::merge/not-found}}) => {:a 2 :c {}}
+    "Merging into a sub-map should remove the explicitly marked keys"
+    (merge/sweep-merge {:a 1 :c {:x 1 :b 42}} {:a 2 :c ::merge/not-found}) => {:a 2}
+    (merge/sweep-merge {:a 1 :c {:x 1 :b 42}} {:a 2 :c {:b ::merge/not-found}}) => {:a 2 :c {:x 1}}
+    (merge/sweep-merge {:a 1 :c {:x 1 :b 42}} {:a 2 :c {:x ::merge/not-found}}) => {:a 2 :c {:b 42}}
+    "Merging from an empty map should leave the original unmodified"
+    (merge/sweep-merge {:a 1 :c {:x 1 :b 42}} {:a 2 :c {}}) => {:a 2 :c {:x 1 :b 42}}
+    "removes values that are marked as not found"
+    (merge/sweep-merge {:a 1 :c {:b 2}} {:a 2 :c {:b ::merge/not-found}}) => {:a 2 :c {}}
+    (merge/sweep-merge {:a 1 :c 2} {:a 2 :c [{:x 1 :b ::merge/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (merge/sweep-merge {:a 1 :c {:data-fetch :loading}} {:a 2 :c [{:x 1 :b ::merge/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (merge/sweep-merge {:a 1 :c nil} {:a 2 :c [{:x 1 :b ::merge/not-found}]}) => {:a 2 :c [{:x 1}]}
+    (merge/sweep-merge {:a 1 :b {:c {}}} {:a 2 :b {:c [{:x 1 :b ::merge/not-found}]}})
+    => {:a 2 :b {:c [{:x 1}]}}
+    "clears normalized table entries that has an id of not found"
+    (merge/sweep-merge {:table {1 {:a 2}}} {:table {::merge/not-found {:db/id ::merge/not-found}}}) => {:table {1 {:a 2}}}
+    "clears idents whose ids were not found"
+    (merge/sweep-merge {} {:table {1 {:db/id 1 :the-thing [:table-1 ::merge/not-found]}}
+                           :thing [:table-2 ::merge/not-found]}) => {:table {1 {:db/id 1}}}
+    "sweeps not-found values from normalized table merges"
+    (merge/sweep-merge {:subpanel  [:dashboard :panel]
+                        :dashboard {:panel {:view-mode :detail :surveys {:ui/fetch-state {:post-mutation 's}}}}
+                        }
+      {:subpanel  [:dashboard :panel]
+       :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
+       :s         {
+                   1 {:db/id 1, :survey/launch-date ::merge/not-found}
+                   2 {:db/id 2, :survey/launch-date "2012-12-22"}
+                   }}) => {:subpanel  [:dashboard :panel]
+                           :dashboard {:panel {:view-mode :detail :surveys [[:s 1] [:s 2]]}}
+                           :s         {
+                                       1 {:db/id 1}
+                                       2 {:db/id 2 :survey/launch-date "2012-12-22"}
+                                       }}
+    "overwrites target (non-map) value if incoming value is a map"
+    (merge/sweep-merge {:a 1 :c 2} {:a 2 :c {:b 1}}) => {:a 2 :c {:b 1}}))
+
