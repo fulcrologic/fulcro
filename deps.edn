@@ -9,7 +9,7 @@
            com.taoensso/encore        {:mvn/version "2.115.0"}
            com.cognitect/transit-clj  {:mvn/version "0.8.313"}
            com.cognitect/transit-cljs {:mvn/version "0.8.256"}
-           com.fulcrologic/guardrails {:mvn/version "0.0.9"}
+           com.fulcrologic/guardrails {:mvn/version "0.0.10"}
            org.clojure/clojure        {:mvn/version "1.10.0" :scope "provided"}
            org.clojure/clojurescript  {:mvn/version "1.10.520" :scope "provided"}
            org.clojure/core.async     {:mvn/version "0.4.474"}}
