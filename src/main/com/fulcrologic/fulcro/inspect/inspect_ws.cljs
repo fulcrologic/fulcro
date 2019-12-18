@@ -9,6 +9,7 @@
     [taoensso.timbre :as log]))
 
 (goog-define SERVER_PORT "8237")
+(goog-define SERVER_HOST "localhost")
 
 (defprotocol WS
   (start [this])
@@ -72,8 +73,9 @@
 
 (defn start-ws-messaging! []
   (try
-    (let [socket (websockets (str "http://localhost:" SERVER_PORT) (fn [msg]
-                                                                     (inspect/handle-devtool-message msg)))]
+    (let [socket (websockets (str "http://" SERVER_HOST ":" SERVER_PORT)
+                   (fn [msg]
+                     (inspect/handle-devtool-message msg)))]
       (start socket)
       (async/go-loop []
         (when-let [[type data] (async/<! inspect/send-ch)]
