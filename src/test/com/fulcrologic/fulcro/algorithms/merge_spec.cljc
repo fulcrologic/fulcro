@@ -1,7 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.merge-spec
   (:require
-    #?(:clj  [clojure.test :refer :all]
-       :cljs [clojure.test :refer [deftest]])
+    [clojure.test :refer [deftest are]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [fulcro-spec.core :refer [assertions specification component when-mocking behavior provided]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -527,14 +526,14 @@
 (specification "mark-missing"
   (behavior "correctly marks missing properties"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
       [:a :b]
       {:a 1}
       {:a 1 :b ::merge/not-found}))
 
   (behavior "joins -> one"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
       [:a {:b [:c]}]
       {:a 1}
       {:a 1 :b ::merge/not-found}
@@ -553,7 +552,7 @@
 
   (behavior "join -> many"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
 
       [{:a [:b :c]}]
       {:a [{:b 1 :c 2} {:b 1}]}
@@ -561,7 +560,7 @@
 
   (behavior "idents and ident joins"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
       [{[:a 1] [:x]}]
       {[:a 1] {}}
       {[:a 1] {:x ::merge/not-found}}
@@ -592,13 +591,13 @@
   (behavior "Ignores root link idents"
     (assertions
       "when the subquery exists"
-      (merge/mark-missing-impl {} [{[:a '_] [:x]}]) => {}
+      (merge/mark-missing {} [{[:a '_] [:x]}]) => {}
       "when it is a pure link"
-      (merge/mark-missing-impl {} [[:a '_]]) => {}))
+      (merge/mark-missing {} [[:a '_]]) => {}))
 
   (behavior "parameterized"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
       '[:z (:y {})]
       {:z 1}
       {:z 1 :y ::merge/not-found}
@@ -613,7 +612,7 @@
 
   (behavior "nested"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
       [{:b [:c {:d [:e]}]}]
       {:b {:c 1}}
       {:b {:c 1 :d ::merge/not-found}}
@@ -624,7 +623,7 @@
 
   (behavior "upgrades value to maps if necessary"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
       [{:l [:m]}]
       {:l 0}
       {:l {:m ::merge/not-found}}
@@ -636,23 +635,23 @@
   (behavior "unions"
     (assertions
       "singletons"
-      (merge/mark-missing-impl {:j {:c {}}} [{:j {:a [:c] :b [:d]}}]) => {:j {:c {} :d ::merge/not-found}}
+      (merge/mark-missing {:j {:c {}}} [{:j {:a [:c] :b [:d]}}]) => {:j {:c {} :d ::merge/not-found}}
 
       "singleton with no result"
-      (merge/mark-missing-impl {} [{:j {:a [:c] :b [:d]}}]) => {:j ::merge/not-found}
+      (merge/mark-missing {} [{:j {:a [:c] :b [:d]}}]) => {:j ::merge/not-found}
 
       "list to-many with 1"
-      (merge/mark-missing-impl {:j [{:c "c"}]} [{:j {:a [:c] :b [:d]}}]) => {:j [{:c "c" :d ::merge/not-found}]}
+      (merge/mark-missing {:j [{:c "c"}]} [{:j {:a [:c] :b [:d]}}]) => {:j [{:c "c" :d ::merge/not-found}]}
 
       "list to-many with 2"
-      (merge/mark-missing-impl {:items [{:id 0 :image "img1"} {:id 1 :text "text1"}]} [{:items {:photo [:id :image] :text [:id :text]}}]) => {:items [{:id 0 :image "img1" :text ::merge/not-found} {:id 1 :image ::merge/not-found :text "text1"}]}
+      (merge/mark-missing {:items [{:id 0 :image "img1"} {:id 1 :text "text1"}]} [{:items {:photo [:id :image] :text [:id :text]}}]) => {:items [{:id 0 :image "img1" :text ::merge/not-found} {:id 1 :image ::merge/not-found :text "text1"}]}
 
       "list to-many with no results"
-      (merge/mark-missing-impl {:j []} [{:j {:a [:c] :b [:d]}}]) => {:j []}))
+      (merge/mark-missing {:j []} [{:j {:a [:c] :b [:d]}}]) => {:j []}))
 
   (behavior "if the query has a ui.*/ attribute, it should not be marked as missing"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
 
       [:a :ui/b :c]
       {:a {}
@@ -670,7 +669,7 @@
 
   (behavior "mutations!"
     (are [query ?missing-result exp]
-      (= exp (merge/mark-missing-impl ?missing-result query))
+      (= exp (merge/mark-missing ?missing-result query))
 
       '[(f) {:j [:a]}]
       {'f {}
@@ -689,7 +688,7 @@
   (behavior "correctly walks recursive queries to mark missing data"
     (behavior "when the recursive target is a singleton"
       (are [query ?missing-result exp]
-        (= exp (merge/mark-missing-impl ?missing-result query))
+        (= exp (merge/mark-missing ?missing-result query))
         [:a {:b '...}]
         {:a 1 :b {:a 2}}
         {:a 1 :b {:a 2 :b ::merge/not-found}}
@@ -703,7 +702,7 @@
         {:a 1 :b {:a 2 :b {:a 3 :b {:a 4 :b ::merge/not-found}}}}))
     (behavior "when the recursive target is to-many"
       (are [query ?missing-result exp]
-        (= exp (merge/mark-missing-impl ?missing-result query))
+        (= exp (merge/mark-missing ?missing-result query))
         [:a {:b '...}]
         {:a 1 :b [{:a 2 :b [{:a 3}]}
                   {:a 4}]}
@@ -713,16 +712,16 @@
     (letfn [(has-leaves [leaf-paths] (fn [result] (every? #(#'merge/leaf? (get-in result %)) leaf-paths)))]
       (assertions
         "plain data is always a leaf"
-        (merge/mark-missing-impl {:a 1 :b {:x 5}} [:a {:b [:x]}]) =fn=> (has-leaves [[:b :x] [:a] [:missing]])
+        (merge/mark-missing {:a 1 :b {:x 5}} [:a {:b [:x]}]) =fn=> (has-leaves [[:b :x] [:a] [:missing]])
         "data structures are properly marked in singleton results"
-        (merge/mark-missing-impl {:b {:x {:data 1}}} [{:b [:x :y]}]) =fn=> (has-leaves [[:b :x]])
+        (merge/mark-missing {:b {:x {:data 1}}} [{:b [:x :y]}]) =fn=> (has-leaves [[:b :x]])
         "data structures are properly marked in to-many results"
-        (merge/mark-missing-impl {:b [{:x {:data 1}} {:x {:data 2}}]} [{:b [:x]}]) =fn=> (has-leaves [[:b 0 :x] [:b 1 :x]])
-        (merge/mark-missing-impl {:b []} [:a {:b [:x]}]) =fn=> (has-leaves [[:b]])
+        (merge/mark-missing {:b [{:x {:data 1}} {:x {:data 2}}]} [{:b [:x]}]) =fn=> (has-leaves [[:b 0 :x] [:b 1 :x]])
+        (merge/mark-missing {:b []} [:a {:b [:x]}]) =fn=> (has-leaves [[:b]])
         "unions are followed"
-        (merge/mark-missing-impl {:a [{:x {:data 1}} {:y {:data 2}}]} [{:a {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a 0 :x] [:a 1 :y]])
+        (merge/mark-missing {:a [{:x {:data 1}} {:y {:data 2}}]} [{:a {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a 0 :x] [:a 1 :y]])
         "unions leaves data in place when the result is empty"
-        (merge/mark-missing-impl {:a 1} [:a {:z {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a]])))))
+        (merge/mark-missing {:a 1} [:a {:z {:b [:x] :c [:y]}}]) =fn=> (has-leaves [[:a]])))))
 
 (specification "Sweep one"
   (assertions
