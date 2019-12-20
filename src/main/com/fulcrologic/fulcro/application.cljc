@@ -22,6 +22,7 @@
     #?@(:cljs [[goog.object :as gobj]
                [goog.functions :refer [debounce]]
                [goog.dom :as gdom]])
+    [taoensso.encore :as enc]
     [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
 
@@ -113,7 +114,9 @@
                comp/*query-state*     @state-atom]
        (when (or force-root? root-props-changed?)
          (update-shared! app))
-       (optimized-render! app (merge options {:root-props-changed? root-props-changed?})))
+       (if optimized-render!
+         (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
+         (log/debug "Render skipped. No optimized render is configured.")))
 
      (swap! runtime-atom assoc
        ::last-rendered-state @state-atom
@@ -259,6 +262,8 @@
      to `js/ReactDOM.render`.
    * `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
      to `js/ReactDOM.hydrate`.
+   * `:unmount-root!` - The function to call in order to unmount the root of your application. Defaults
+     to `js/ReactDOM.unmountComponentAtNode`.
    * `:root-class` - The component class that will be the root. This can be specified just with `mount!`, but
    giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`."
   ([] (fulcro-app {}))
@@ -269,6 +274,7 @@
             optimized-render!
             render-root!
             hydrate-root!
+            unmount-root!
             render-middleware
             initial-db
             client-did-mount
@@ -293,6 +299,7 @@
                     :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
                     :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
                     :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
+                    :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
                     :com.fulcrologic.fulcro.algorithm/render!                render!
                     :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
                     :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
@@ -369,6 +376,8 @@
 
   `options` can include:
 
+  - `:disable-client-did-mount?` (default false) - When false a true mount (as opposed to redundant) call of this function will
+  invoke the application's `:client-did-mount` callback.
   - `:initialize-state?` (default true) - If NOT mounted already: Pulls the initial state tree from root component,
   normalizes it, and installs it as the application's state.  If there was data supplied as an initial-db, then this
   new initial state will be *merged* with that initial-db.
@@ -377,35 +386,70 @@
   "
   ([app root node]
    (mount! app root node {:initialize-state? true}))
-  ([app root node {:keys [initialize-state? hydrate?]}]
-   #?(:cljs
-      (if (comp/has-ident? root)
-        (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
+  ([app root node {:keys [initialize-state? hydrate? disable-client-did-mount?]}]
+   (if (comp/has-ident? root)
+     (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
     are tempted to do things like `merge!` against Root then that component should *not* be considered Root: make another layer in your UI.")
-        (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
-              reset-mountpoint! (fn []
-                                  (let [dom-node     (if (string? node) (gdom/getElement node) node)
-                                        root-factory (comp/factory root)]
-                                    (if (nil? dom-node)
-                                      (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
-                                      (do
-                                        (swap! (::runtime-atom app) assoc
-                                          ::mount-node dom-node
-                                          ::root-factory root-factory
-                                          ::root-class root)
-                                        (update-shared! app)
-                                        (indexing/index-root! app)
-                                        (render! app {:force-root? true
-                                                      :hydrate?    hydrate?})))))]
-          (if (mounted? app)
-            (reset-mountpoint!)
-            (do
-              (inspect/app-started! app)
-              (when initialize-state?
-                (initialize-state! app root))
-              (reset-mountpoint!)
-              (when-let [cdm (-> app ::config :client-did-mount)]
-                (cdm app)))))))))
+     (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
+           reset-mountpoint! (fn []
+                               (let [dom-node     (if (string? node) #?(:cljs (gdom/getElement node)) node)
+                                     root-factory (comp/factory root)]
+                                 (if (nil? dom-node)
+                                   (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
+                                   (do
+                                     (swap! (::runtime-atom app) assoc
+                                       ::mount-node dom-node
+                                       ::root-factory root-factory
+                                       ::root-class root)
+                                     (update-shared! app)
+                                     (indexing/index-root! app)
+                                     (render! app {:force-root? true
+                                                   :hydrate?    hydrate?})))))]
+       (if (mounted? app)
+         (reset-mountpoint!)
+         (do
+           (inspect/app-started! app)
+           (when initialize-state?
+             (initialize-state! app root))
+           (reset-mountpoint!)
+           (when-let [cdm (-> app ::config :client-did-mount)]
+             (when-not disable-client-did-mount?
+               (cdm app)))))))))
+
+(defn unmount!
+  "Removes the app from its mount point. If you want to re-mount a running app, then you should pass
+   `:initialize-state? false` when you re-mount it and also consider the `:disable-client-did-mount?` option."
+  [app]
+  (enc/if-let [unmount (or (ah/app-algorithm app :unmount-root!) #?(:cljs (some-> js/ReactDOM .-unmountComponentAtNode)))
+               node    (some-> app ::runtime-atom deref ::mount-node)]
+    (do
+      (unmount node)
+      (swap! (::runtime-atom app) dissoc ::mount-node ::app-root)
+      true)
+    (do
+      (log/warn "Cannot umount application because either the umount function is missing or the node was not recorded. Perhaps it wasn't mounted?")
+      false)))
+
+(defn remount!
+  "Remount the currently-mounted root onto a new DOM node. This is a convenience for umount/mount.
+   The options map is sent to `mount!`, and defaults to:
+
+   ```
+   {:initialize-state? false
+    :hydrate? false
+    :disable-client-did-mount? true}
+   ```
+   "
+  ([app new-node]
+   (remount! app new-node {:initialize-state?         false
+                           :hydrate?                  false
+                           :disable-client-did-mount? true}))
+  ([app new-node options]
+   (let [{::keys [root-class]} (some-> app ::runtime-atom deref)]
+     (unmount! app)
+     (mount! app root-class new-node (merge {:initialize-state?         false
+                                             :hydrate?                  false
+                                             :disable-client-did-mount? true} options)))))
 
 (defn app-root
   "Returns the current app root, if mounted."
