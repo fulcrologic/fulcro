@@ -14,13 +14,15 @@
 
 (declare route-immediate)
 
-(defn route-segment [class]
+(defn route-segment
   "Returns a vector that describes the sub-path that a given route target represents. String elements represent
   explicit path elements, and keywords represent variable values (which are always pulled as strings)."
+  [class]
   (comp/component-options class :route-segment))
 
-(defn get-route-cancelled [class]
+(defn get-route-cancelled
   "Returns the function that should be called if this target was in a deferred state and a different routing choice was made. Is given the same route parameters that were sent to `will-enter`."
+  [class]
   (comp/component-options class :route-cancelled))
 
 (defn route-cancelled
@@ -29,7 +31,7 @@
   (when-let [f (get-route-cancelled class)]
     (f route-params)))
 
-(defn get-will-enter [class]
+(defn get-will-enter
   "Returns the function that is called before a route target is activated (if the route segment of interest has changed and the
   target of the result is this target).  MUST return (r/route-immediate ident) or (r/route-deferred ident) to indicate
   what ident should be used in app state to connect the router's join.  If deferred, the router must cause a call to
@@ -39,6 +41,7 @@
   `params` will be a map from any keywords found in `route-segment` to the string value of that path element.
 
   WARNING: This method MUST be side-effect free."
+  [class]
   (if-let [will-enter (comp/component-options class :will-enter)]
     will-enter
     (let [ident (comp/get-ident class {})]
@@ -53,10 +56,12 @@
 (defn route-target? [component] (boolean (comp/component-options component :route-segment)))
 
 ;; NON-static protocol for interacting as a route target
-(defn get-will-leave [this] "Returns the function of a route target to be called with
+(defn get-will-leave
+  "Returns the function of a route target to be called with
   the current component and props. If it returns `true` then the routing operation will continue.  If it returns `false`
   then whatever new route was requested will be completely abandoned.  It is the responsibility of this method to give
   UI feedback as to why the route change was aborted."
+  [this]
   (or (comp/component-options this :will-leave) (constantly true)))
 
 (defn will-leave [c props]
@@ -65,7 +70,9 @@
 
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
 
-(defn get-targets [router] "Returns a set of classes to which this router routes."
+(defn get-targets
+  "Returns a set of classes to which this router routes."
+  [router]
   (set (comp/component-options router :router-targets)))
 
 (defn route-immediate [ident] (with-meta ident {:immediate true}))
