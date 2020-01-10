@@ -390,7 +390,12 @@
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
   of string components to pass through to the nearest child router as the new path. The first argument is any live component
   or the app.  The `timeouts` are as in `change-route`.
-  It is safe to call this from within a mutation."
+  It is safe to call this from within a mutation.
+
+  When possible (i.e. no circular references to components) you can maintain better code navigation by
+  generating `new-route` via `path-to`.  This will allow readers of your code to quickly jump to the actual
+  components that implement the targets when reading the code.
+  "
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts]
