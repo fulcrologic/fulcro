@@ -1,7 +1,8 @@
 (ns com.fulcrologic.fulcro.inspect.transit
   (:require [cognitect.transit :as t]
             [com.cognitect.transit.types :as ty]
-            [com.fulcrologic.fulcro.algorithms.transit :as ft]))
+            [com.fulcrologic.fulcro.algorithms.transit :as ft]
+            [taoensso.timbre :as log]))
 
 (deftype ErrorHandler []
   Object
@@ -12,7 +13,12 @@
 (deftype DefaultHandler []
   Object
   (tag [this v] "unknown")
-  (rep [this v] (pr-str v)))
+  (rep [this v] (try
+                  (str v)
+                  (catch :default e
+                    (when goog.DEBUG
+                      (log/warn "Transit was unable to encode a value."))
+                    "UNENCODED VALUE"))))
 
 (def write-handlers
   {cljs.core/ExceptionInfo (ErrorHandler.)

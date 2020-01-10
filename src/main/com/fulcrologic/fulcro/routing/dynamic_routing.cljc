@@ -14,13 +14,15 @@
 
 (declare route-immediate)
 
-(defn route-segment [class]
+(defn route-segment
   "Returns a vector that describes the sub-path that a given route target represents. String elements represent
   explicit path elements, and keywords represent variable values (which are always pulled as strings)."
+  [class]
   (comp/component-options class :route-segment))
 
-(defn get-route-cancelled [class]
+(defn get-route-cancelled
   "Returns the function that should be called if this target was in a deferred state and a different routing choice was made. Is given the same route parameters that were sent to `will-enter`."
+  [class]
   (comp/component-options class :route-cancelled))
 
 (defn route-cancelled
@@ -29,7 +31,7 @@
   (when-let [f (get-route-cancelled class)]
     (f route-params)))
 
-(defn get-will-enter [class]
+(defn get-will-enter
   "Returns the function that is called before a route target is activated (if the route segment of interest has changed and the
   target of the result is this target).  MUST return (r/route-immediate ident) or (r/route-deferred ident) to indicate
   what ident should be used in app state to connect the router's join.  If deferred, the router must cause a call to
@@ -39,6 +41,7 @@
   `params` will be a map from any keywords found in `route-segment` to the string value of that path element.
 
   WARNING: This method MUST be side-effect free."
+  [class]
   (if-let [will-enter (comp/component-options class :will-enter)]
     will-enter
     (let [ident (comp/get-ident class {})]
@@ -53,10 +56,12 @@
 (defn route-target? [component] (boolean (comp/component-options component :route-segment)))
 
 ;; NON-static protocol for interacting as a route target
-(defn get-will-leave [this] "Returns the function of a route target to be called with
+(defn get-will-leave
+  "Returns the function of a route target to be called with
   the current component and props. If it returns `true` then the routing operation will continue.  If it returns `false`
   then whatever new route was requested will be completely abandoned.  It is the responsibility of this method to give
   UI feedback as to why the route change was aborted."
+  [this]
   (or (comp/component-options this :will-leave) (constantly true)))
 
 (defn will-leave [c props]
@@ -65,7 +70,9 @@
 
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
 
-(defn get-targets [router] "Returns a set of classes to which this router routes."
+(defn get-targets
+  "Returns a set of classes to which this router routes."
+  [router]
   (set (comp/component-options router :router-targets)))
 
 (defn route-immediate [ident] (with-meta ident {:immediate true}))
@@ -383,7 +390,12 @@
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
   of string components to pass through to the nearest child router as the new path. The first argument is any live component
   or the app.  The `timeouts` are as in `change-route`.
-  It is safe to call this from within a mutation."
+  It is safe to call this from within a mutation.
+
+  When possible (i.e. no circular references to components) you can maintain better code navigation by
+  generating `new-route` via `path-to`.  This will allow readers of your code to quickly jump to the actual
+  components that implement the targets when reading the code.
+  "
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts]
@@ -624,3 +636,75 @@
                                          ::uism/actor->ident     {:router (uism/with-actor-class router-ident r)}}))) routers)]
     (comp/transact! app tx)))
 
+(defn into-path
+  "Returns the given `prefix` with the TargetClass segment appended onto it, replacing the final elements with the
+   given (optional) path args.
+
+  ```
+  (defsc X [_ _]
+    {:route-segment [\"a\" :b]})
+
+  (into [\"f\" \"g\"] X \"22\") ; => [\"f\" \"g\" \"a\" \"22\"]
+  ```
+  "
+  [prefix TargetClass & path-args]
+  (let [nargs           (count path-args)
+        path            (some-> TargetClass comp/component-options :route-segment)
+        static-elements (- (count path) nargs)]
+    (into prefix (concat (take static-elements path) path-args))))
+
+(defn subpath
+  "Returns the route segment of the given TargetClass with the trailing elements replaced by path-args.
+
+  ```
+  (defsc X [_ _]
+    {:route-segment [\"a\" :b]})
+
+  (subpath X \"22\") ; => [\"a\" \"22\"]
+  ```
+  "
+  [TargetClass & path-args]
+  (apply into-path [] TargetClass path-args))
+
+(defn path-to
+  "Convert a sequence of router targets and parameters into a vector of strings that represents the target route. Parameters
+  can be sequenced inline:
+
+  ```
+  (defsc A [_ _]
+    {:route-segment [\"a\" :a-param]})
+
+  (defsc B [_ _]
+    {:route-segment [\"b\" :b-param]})
+
+  (route-segment A a-param1 B b-param ...)
+  ```
+
+  where the parameters for a target immediately follow the component that requires them. Alternatively
+  one can specify all of the parameters at the end as a single map using the parameter names that are used in
+  the component `:route-segment` itself:
+
+  ```
+  (defsc A [_ _]
+    {:route-segment [\"a\" :a-param]})
+
+  (route-segment A B C D {:a-param 1})
+  ```
+  "
+  ([& targets-and-params]
+   (let [segments (seq (partition-by #(and
+                                        #?(:clj true :cljs (fn? %))
+                                        (or
+                                          (comp/component? %)
+                                          (comp/component-class? %))) targets-and-params))]
+     (if (and (= 2 (count segments)) (map? (first (second segments))))
+       (let [path   (mapcat #(comp/component-options % :route-segment) (first segments))
+             params (first (second segments))]
+         (mapv (fn [i] (get params i i)) path))
+       (reduce
+         (fn [path [classes params]]
+           (-> path
+             (into (mapcat #(comp/component-options % :route-segment) (butlast classes)))
+             (into (apply subpath (last classes) params))))
+         []
+         (partition-all 2 segments))))))
