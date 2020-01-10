@@ -11,7 +11,7 @@
 
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
-                       :ns-regexp        "-spec$"
+                       :ns-regexp        "-(test|spec)$"
                        :compiler-options {:static-fns      false
                                           :external-config {:guardrails {:throw? true :emit-spec? true}}}
                        :js-options       {:resolve {"react-dom" {:target  :npm
@@ -27,5 +27,5 @@
                        :compiler-options {:static-fns      false ; required for mocking to work
                                           :external-config {:guardrails {:throw? true :emit-spec? true}}}
                        :output-to        "target/ci.js"
-                       :ns-regexp        "-spec$"}}}
+                       :ns-regexp        "-(test|spec)$"}}}
 

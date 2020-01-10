@@ -631,3 +631,75 @@
                                          ::uism/actor->ident     {:router (uism/with-actor-class router-ident r)}}))) routers)]
     (comp/transact! app tx)))
 
+(defn into-path
+  "Returns the given `prefix` with the TargetClass segment appended onto it, replacing the final elements with the
+   given (optional) path args.
+
+  ```
+  (defsc X [_ _]
+    {:route-segment [\"a\" :b]})
+
+  (into [\"f\" \"g\"] X \"22\") ; => [\"f\" \"g\" \"a\" \"22\"]
+  ```
+  "
+  [prefix TargetClass & path-args]
+  (let [nargs           (count path-args)
+        path            (some-> TargetClass comp/component-options :route-segment)
+        static-elements (- (count path) nargs)]
+    (into prefix (concat (take static-elements path) path-args))))
+
+(defn subpath
+  "Returns the route segment of the given TargetClass with the trailing elements replaced by path-args.
+
+  ```
+  (defsc X [_ _]
+    {:route-segment [\"a\" :b]})
+
+  (subpath X \"22\") ; => [\"a\" \"22\"]
+  ```
+  "
+  [TargetClass & path-args]
+  (apply into-path [] TargetClass path-args))
+
+(defn path-to
+  "Convert a sequence of router targets and parameters into a vector of strings that represents the target route. Parameters
+  can be sequenced inline:
+
+  ```
+  (defsc A [_ _]
+    {:route-segment [\"a\" :a-param]})
+
+  (defsc B [_ _]
+    {:route-segment [\"b\" :b-param]})
+
+  (route-segment A a-param1 B b-param ...)
+  ```
+
+  where the parameters for a target immediately follow the component that requires them. Alternatively
+  one can specify all of the parameters at the end as a single map using the parameter names that are used in
+  the component `:route-segment` itself:
+
+  ```
+  (defsc A [_ _]
+    {:route-segment [\"a\" :a-param]})
+
+  (route-segment A B C D {:a-param 1})
+  ```
+  "
+  ([& targets-and-params]
+   (let [segments (seq (partition-by #(and
+                                        #?(:clj true :cljs (fn? %))
+                                        (or
+                                          (comp/component? %)
+                                          (comp/component-class? %))) targets-and-params))]
+     (if (and (= 2 (count segments)) (map? (first (second segments))))
+       (let [path   (mapcat #(comp/component-options % :route-segment) (first segments))
+             params (first (second segments))]
+         (mapv (fn [i] (get params i i)) path))
+       (reduce
+         (fn [path [classes params]]
+           (-> path
+             (into (mapcat #(comp/component-options % :route-segment) (butlast classes)))
+             (into (apply subpath (last classes) params))))
+         []
+         (partition-all 2 segments))))))

@@ -104,3 +104,36 @@
                    :route  ["settings"]}})
 
 
+(defsc A [_ _]
+  {:route-segment ["a" :a/param]})
+
+(defsc B [_ _]
+  {:route-segment ["b"]})
+
+(defsc C [_ _]
+  {:route-segment ["c" :c/param]})
+
+(deftest into-path-test
+  (assertions
+    "Returns the route segment of a plain target"
+    (dr/into-path ["x"] B) => ["x" "b"]
+    "Returns the route segment of a parameterized target with the parameters changed to match the args"
+    (dr/into-path ["y"] A "hello") => ["y" "a" "hello"]))
+
+(deftest subpath-test
+  (assertions
+    "Returns the route segment of a plain target"
+    (dr/subpath B) => ["b"]
+    "Returns the route segment of a parameterized target with the parameters changed to match the args"
+    (dr/subpath A "hello") => ["a" "hello"]))
+
+(deftest path-to-test
+  (assertions
+    "Puts together multiple plain targets"
+    (dr/path-to B B) => ["b" "b"]
+    "Can replace parameters on a parameterized subpath"
+    (dr/path-to A "hello" B) => ["a" "hello" "b"]
+    (dr/path-to A "hello" B C "there") => ["a" "hello" "b" "c" "there"]
+    "Can replace parameters via a map at the end"
+    (dr/path-to A B C {:a/param "hello" :c/param "there"}) => ["a" "hello" "b" "c" "there"]))
+
