@@ -408,9 +408,10 @@
        (if (mounted? app)
          (reset-mountpoint!)
          (do
-           (inspect/app-started! app)
+           (swap! (::state-atom app) assoc :fulcro.inspect.core/app-id (comp/component-name root))
            (when initialize-state?
              (initialize-state! app root))
+           (inspect/app-started! app)
            (reset-mountpoint!)
            (when-let [cdm (-> app ::config :client-did-mount)]
              (when-not disable-client-did-mount?
