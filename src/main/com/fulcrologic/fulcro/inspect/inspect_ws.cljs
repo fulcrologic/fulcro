@@ -6,7 +6,8 @@
     [goog.object :as gobj]
     [com.fulcrologic.fulcro.inspect.transit :as encode]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [taoensso.encore :as enc]))
 
 (goog-define SERVER_PORT "8237")
 (goog-define SERVER_HOST "localhost")
@@ -28,7 +29,8 @@
           (log/debug "Client Connected")
           (go (loop []
                 (when-some [msg (<! ws-out)]
-                  (.emit ws "event" (encode/write msg))
+                  (.emit ws "event" (clj->js {:uuid    (str (-> msg :data :fulcro.inspect.core/app-uuid))
+                                              :message (encode/write msg)}))
                   (recur)))
 
             (async/close! ws-in)
