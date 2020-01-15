@@ -162,7 +162,23 @@
               value-node    (if (is-form-element? this-node)
                               this-node
                               (gdom/findNode this-node #(is-form-element? %)))
-              element-value (gobj/get value-node "value")]
+              element-value (gobj/get value-node "value")
+
+              ;; delete keys for props that went away
+              ;; ... setState is always a shallow merge and the only way to "delete" keys is to set to nil
+              deleted-keys  (reduce
+                              (fn [missing prev-k]
+                                (if-not (gobj/get new-props prev-k)
+                                  (conj missing prev-k)
+                                  missing))
+                              [] (gobj/getKeys (.-props this)))
+              new-props     (if (not-empty deleted-keys)
+                              (let [n-props #js {}]
+                                (gobj/extend n-props new-props)
+                                (doseq [del-key deleted-keys]
+                                  (gobj/set n-props del-key nil))
+                                n-props)
+                              new-props)]
           (when goog.DEBUG
             (when (and state-value element-value (not= (type state-value) (type element-value)))
               (log/warn "There is a mismatch for the data type of the value on an input with value " element-value
