@@ -155,23 +155,50 @@
           (update-state
             this (.-props this)
             (gobj/getValueByKeys event "target" "value"))))
+      (componentDidUpdate [this prev-props prev-state snapshot]
+        (let [state-value    (gobj/getValueByKeys this "state" "value")
+              this-node      (js/ReactDOM.findDOMNode this)
+              value-node     (if (is-form-element? this-node)
+                               this-node
+                               (gdom/findNode this-node #(is-form-element? %)))
+              element-value  (gobj/get value-node "value")
 
-      (UNSAFE_componentWillReceiveProps [this new-props]
-        (let [state-value   (gobj/getValueByKeys this "state" "value")
-              this-node     (js/ReactDOM.findDOMNode this)
-              value-node    (if (is-form-element? this-node)
-                              this-node
-                              (gdom/findNode this-node #(is-form-element? %)))
-              element-value (gobj/get value-node "value")]
+              props          (.-props this)
+
+              ;; diff the old and new props to determine if any changed or were added/removed
+              ;; value and onChange are elided because they always change when the field is updated
+              diff           (clojure.data/diff (js->clj prev-props) (js->clj props))
+              old            (-> (first diff)
+                               (dissoc "value")
+                               (dissoc "onChange"))
+              new            (-> (second diff)
+                               (dissoc "value")
+                               (dissoc "onChange"))
+              props-changed? (or (not-empty new) (not-empty old))
+
+              next-props     (if props-changed?
+                               (let [new-props #js {}]
+                                 (gobj/extend new-props props)
+                                 new-props)
+                               props)]
+
+          ;; delete keys for props that went away
+          ;; ... setState is always a merge and the only way to "delete" keys is to set to nil
+          (when props-changed?
+            (doseq [old-k (gobj/getKeys prev-props)]
+              (when-not (gobj/get next-props old-k)
+                (gobj/set next-props old-k nil))))
+
           (when goog.DEBUG
             (when (and state-value element-value (not= (type state-value) (type element-value)))
               (log/warn "There is a mismatch for the data type of the value on an input with value " element-value
                 ". This will cause the input to miss refreshes. In general you should force the :value of an input to
                 be a string since that is how values are stored on most real DOM elements.")))
-          (if (not= state-value element-value)
-            (update-state this new-props element-value)
-            (update-state this new-props (gobj/get new-props "value")))))
-
+          (cond
+            (not= state-value element-value)
+            (update-state this next-props element-value)
+            props-changed?
+            (update-state this next-props (gobj/get next-props "value")))))
       (render [this]
         (js/React.createElement element (.-state this))))
     (let [real-factory (js/React.createFactory ctor)]
