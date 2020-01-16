@@ -1,7 +1,6 @@
-(ns com.fulcrologic.fulcro.inspect.inspect-ws
+(ns ^:no-doc com.fulcrologic.fulcro.inspect.inspect-ws
   (:require
     ["socket.io-client" :as io-client]
-    cljsjs.socket-io-client
     [cljs.core.async :as async :refer [go]]
     [goog.object :as gobj]
     [com.fulcrologic.fulcro.inspect.transit :as encode]

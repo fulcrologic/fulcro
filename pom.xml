@@ -118,11 +118,6 @@
             <version>16.8.6-0</version>
         </dependency>
         <dependency>
-            <groupId>cljsjs</groupId>
-            <artifactId>socket-io-client</artifactId>
-            <version>2.1.1-0</version>
-        </dependency>
-        <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>core.async</artifactId>
             <version>0.4.474</version>

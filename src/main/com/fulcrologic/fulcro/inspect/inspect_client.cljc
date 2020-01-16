@@ -1,4 +1,4 @@
-(ns com.fulcrologic.fulcro.inspect.inspect-client
+(ns ^:no-doc com.fulcrologic.fulcro.inspect.inspect-client
   "Functions used by Fulcro to talk to Fulcro Inspect."
   #?(:cljs (:require-macros com.fulcrologic.fulcro.inspect.inspect-client))
   (:require
