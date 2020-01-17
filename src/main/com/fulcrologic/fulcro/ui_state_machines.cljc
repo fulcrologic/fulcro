@@ -37,21 +37,21 @@
 (>def ::actor->component-name (s/map-of ::actor-name keyword?))
 (>def ::actor->ident (s/map-of ::actor-name eql/ident?))
 (>def ::ident->actor (s/map-of eql/ident? ::actor-name))
-(>def ::active-state keyword?)                             ; The state the active instance is currently in
+(>def ::active-state keyword?)                              ; The state the active instance is currently in
 (>def ::state-machine-id (s/with-gen symbol? #(s/gen #{'the-state-machine}))) ; The symbol of the state machine's definition
-(>def ::asm-id any?)                                       ; The ID of the active instance in fulcro state
+(>def ::asm-id any?)                                        ; The ID of the active instance in fulcro state
 (>def ::local-storage (s/map-of keyword? any?))
 (>def ::timeout pos-int?)
 (>def ::timer-id (s/with-gen any? #(s/gen #{:timer-1 42})))
 (>def ::cancel-fn (s/with-gen (s/or :f fn? :s set?) #(s/gen #{#{:event! :other!}})))
 (>def ::cancel-on (s/with-gen (fn fn-or-set* [i] (let [f (-> i meta :cancel-on)]
-                                                    (or (fn? f) (set? f)))) #(s/gen #{(with-meta {} {:cancel-on (fn [e] true)})})))
+                                                   (or (fn? f) (set? f)))) #(s/gen #{(with-meta {} {:cancel-on (fn [e] true)})})))
 (>def ::js-timer (s/with-gen #(-> % meta :timer boolean) #(s/gen #{(with-meta {} {:timer {}})})))
 (>def ::timeout-descriptor (s/keys :req [::js-timer ::timeout ::event-id ::timer-id ::cancel-on] :opt [::event-data]))
 (>def ::queued-timeouts (s/coll-of ::timeout-descriptor))
 (>def ::active-timers (s/map-of ::timer-id ::timeout-descriptor))
 (>def ::asm (s/keys :req [::asm-id ::state-machine-id ::active-state ::actor->ident ::actor->component-name
-                           ::ident->actor ::active-timers ::local-storage]))
+                          ::ident->actor ::active-timers ::local-storage]))
 (>def ::state-id keyword?)
 (>def ::event-data map?)
 (>def ::event-id keyword?)
@@ -59,8 +59,8 @@
 (>def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
 (>def ::queued-triggers (s/coll-of ::trigger-descriptor))
 (>def ::env (s/keys :req [::state-map ::asm-id]
-               :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
-                     ::app ::queued-mutations ::queued-loads ::queued-timeouts]))
+              :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
+                    ::app ::queued-mutations ::queued-loads ::queued-timeouts]))
 
 (>defn fake-handler [env] [::env => ::env] env)
 
@@ -72,10 +72,10 @@
 (>def ::event-processing (s/keys :opt [::handler ::event-predicate ::target-state]))
 (>def ::events (s/map-of ::event-id ::event-processing))
 (>def ::state (s/with-gen
-                 (s/or
-                   :handler (s/keys :req [::handler])
-                   :events (s/keys :req [::events]))
-                 #(s/gen #{{::handler fake-handler}})))
+                (s/or
+                  :handler (s/keys :req [::handler])
+                  :events (s/keys :req [::events]))
+                #(s/gen #{{::handler fake-handler}})))
 (>def ::states (s/with-gen (s/map-of ::state-id ::state) #(s/gen #{{:initial {::handler fake-handler}}})))
 (>def ::alias keyword?)
 (>def ::aliases (s/map-of keyword? (s/every keyword? :kind vector?
@@ -85,9 +85,9 @@
 (>def ::event-names (s/coll-of keyword? :kind set?))
 (>def ::target-state keyword?)
 (>def ::state-machine-definition (s/with-gen
-                                    (s/keys :req [::states] :opt [::actor-names ::aliases ::plugins ::event-names])
-                                    #(s/gen #{{::actor-names #{:a}
-                                               ::states      {:initial {::handler (fn [env] env)}}}})))
+                                   (s/keys :req [::states] :opt [::actor-names ::aliases ::plugins ::event-names])
+                                   #(s/gen #{{::actor-names #{:a}
+                                              ::states      {:initial {::handler (fn [env] env)}}}})))
 
 ;; ================================================================================
 ;; State Machine Registry
@@ -118,21 +118,26 @@
   "Mutation: Trigger an event on an active state machine"
   [{::keys [event-id event-data asm-id] :as params}]
   (action [{:keys [app] :as env}]
-    (when (nil? event-id)
-      (log/error "Invalid (nil) event ID"))
-    (log/debug "Triggering" event-id "on" asm-id "with" event-data)
-    (trigger-state-machine-event! env params)
-    (app/schedule-render! app)
+    (let [{::keys [transact-options]} event-data
+          event-data (dissoc event-data ::transact-options)]
+      (when (nil? event-id)
+        (log/error "Invalid (nil) event ID"))
+      (log/debug "Triggering" event-id "on" asm-id "with" event-data)
+      (trigger-state-machine-event! env params)
+      (app/schedule-render! app (or transact-options {})))
     true))
 
 (defn trigger!
-  "Trigger an event on an active state machine. Safe to use in mutation bodies."
+  "Trigger an event on an active state machine. Safe to use in mutation bodies. The special key ::uism/transact-options can
+  be used in `extra-data` to indicate a map of options to send to fulcro's `transact!` and rendering sublayer (for example
+  to control rendering refresh)."
   ([this active-state-machine-id event-id] (trigger! this active-state-machine-id event-id {}))
   ([this active-state-machine-id event-id extra-data]
-   (comp/transact! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
-                                                       ::event-id   event-id
-                                                       ::event-data extra-data})])))
-
+   (let [{::keys [transact-options]} extra-data]
+     (comp/transact! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
+                                                         ::event-id   event-id
+                                                         ::event-data extra-data})]
+       (or transact-options {})))))
 
 (>defn asm-ident "Returns the ident of the active state machine with the given ID"
   [asm-id]
@@ -889,8 +894,8 @@
 (>def ::mutation-decl (s/with-gen m/mutation-declaration? #(s/gen #{spec-mutation})))
 (>def ::mutation-context ::actor-name)
 (>def ::mutation-descriptor (s/keys :req [::mutation-context ::mutation]
-                               :opt [::targeting/target ::ok-event ::ok-data ::error-event ::error-data
-                                     ::m/returning ::mutation-remote]))
+                              :opt [::targeting/target ::ok-event ::ok-data ::error-event ::error-data
+                                    ::m/returning ::mutation-remote]))
 (>def ::mutation-remote keyword?)
 (>def ::queued-mutations (s/coll-of ::mutation-descriptor))
 
