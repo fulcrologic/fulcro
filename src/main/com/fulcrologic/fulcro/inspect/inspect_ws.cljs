@@ -2,6 +2,7 @@
   (:require
     [cljs.core.async :as async :refer [>! <!] :refer-macros [go go-loop]]
     [goog.object :as gobj]
+    [clojure.pprint :refer [pprint]]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [taoensso.timbre :as log]
     [taoensso.sente :as sente]
@@ -10,91 +11,32 @@
 (goog-define SERVER_PORT "8237")
 (goog-define SERVER_HOST "localhost")
 
-(defprotocol WS
-  (start [this])
-  (stop [this])
-  (push [this message]))
-
-(declare restart-ws)
-
-(defn- connect-client! [{:keys [message-processor sente-env]}]
-  (let [{:keys [ch-recv]} sente-env]
-    (log/debug "Client Connected")
-    (go-loop []
-      (when-some [msg (<! ch-recv)]
-        (message-processor (:data msg))
-        (recur)))))
-
-(defn- disconnect-client! [{:as this :keys [message-processor]}]
-  (log/debug "Disconnected")
-  (message-processor {:type :close})
-  (stop this)
-  (log/warn "WS-CLOSE")
-  (restart-ws))
-
-(defn- handle-inspect-message [{:keys [message-processor]} {:as msg :keys [data]}]
-  (log/debug "event" msg)
-  (some-> data
-    :fulcro-inspect-devtool-message
-    message-processor))
-
-(defn- forward-client-message-to-server [{:keys [sente-env]} msg]
-  (let [{:keys [send-fn]} sente-env]
-    (send-fn [:fulcro.inspect/event
-              {:uuid    (str (-> msg :data :fulcro.inspect.core/app-uuid))
-               :message msg}])))
-
-(defrecord Websockets [sente-env message-processor]
-  WS
-  (start [this]
-    (log/debug "Starting websockets")
-    (let [{:keys [ch-recv state]} sente-env]
-      (add-watch state ::connections
-        (fn [_ _ old new]
-          (cond
-            (and (:open? new) (not (:open? old)))
-            #_=> (connect-client! this)
-            (and (:open? old) (not (:open? new)))
-            #_=> (disconnect-client! this)
-            :else :noop)))
-      (go-loop []
-        (when-some [msg (<! ch-recv)]
-          (handle-inspect-message this msg))
-        (recur)))
-    :ok)
-  (push [this message] (forward-client-message-to-server this message))
-  (stop [this]
-    ;;TODO
-    :WIP))
-
-(defonce
-  ^{:private true :doc "{:keys [chsk ch-recv send-fn state]}"}
-  sente-socket-client
-  (sente/make-channel-socket-client! "/chsk"
-    {:type   :auto
-     :host   SERVER_HOST
-     :port   SERVER_PORT
-     :packer (tp/make-packer {})}))
-
-(defn websockets
-  "Create a websockets object that. Call `ws/start` on it to connect. Incoming
-  messages will be sent to `message-processor`, and outgoing messages can be sent
-  with `ws/push`."
-  [message-processor]
-  (map->Websockets
-    {:sente-env         sente-socket-client
-     :message-processor message-processor}))
+(defonce sente-socket-client (atom nil))
 
 (defn start-ws-messaging! []
-  (try
-    (let [ws (websockets inspect/handle-devtool-message)]
-      (start ws)
-      (go-loop []
-        (when-let [[type data] (<! inspect/send-ch)]
-          (push ws {:type type :data data :timestamp (js/Date.)})
-          (recur))))
-    (catch :default e
-      (log/error e "Unable to start inspect."))))
+  (when-not @sente-socket-client
+    (reset! sente-socket-client
+      (let [{:keys [ch-recv state send-fn] :as result} (sente/make-channel-socket-client! "/chsk" "no-token-desired"
+                                                         {:type   :auto
+                                                          :host   (str SERVER_HOST ":" SERVER_PORT)
+                                                          :packer (tp/make-packer {})})]
+        (log/debug "Starting websockets")
+        (go-loop []
+          (when-let [[type data :as msg] (<! inspect/send-ch)]
+            (log/info "Inspect wants to send" (with-out-str (pprint msg)))
+            (send-fn [:inspect/message {:type type :data data :timestamp (js/Date.)}] 10000 (fn [resp] (log/info "Inspect responded with" (with-out-str (pprint resp)))))
+            (recur)))
+        (go-loop []
+          (if (-> state deref :open?)
+            (when-some [msg (<! ch-recv)]
+              (log/info "Incoming message from electron:" (with-out-str (pprint msg)))
+              ; Send message to inspect's hanlder on this side...i.e. get current app state
+              (inspect/handle-devtool-message msg))
+            (do
+              (log/info "Send attempted before channel ready...waiting")
+              (async/<! (async/timeout 1000))))
+          (recur))
+        result))))
 
 (defn install-ws []
   (when-not @inspect/started?*
@@ -102,6 +44,3 @@
     (reset! inspect/started?* true)
     (start-ws-messaging!)))
 
-(defn restart-ws []
-  (log/info "Restarting Fulcro 3.x Inspect over Websockets targeting port " SERVER_PORT)
-  (start-ws-messaging!))
