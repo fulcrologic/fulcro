@@ -30,7 +30,7 @@
           (if (-> state deref :open?)
             (when-some [msg (<! ch-recv)]
               (log/info "Incoming message from electron:" (with-out-str (pprint msg)))
-              ; Send message to inspect's hanlder on this side...i.e. get current app state
+              ; Send message to inspect's handler on this side...i.e. get current app state
               (inspect/handle-devtool-message msg))
             (do
               (log/info "Send attempted before channel ready...waiting")
