@@ -312,7 +312,8 @@
                                  (when action
                                    (action env))
                                  (catch #?(:cljs :default :clj Exception) e
-                                   (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
+                                   (let [mutation-symbol (:dispatch-key original-ast-node)]
+                                     (log/error e "The `action` section of mutation" mutation-symbol "threw an exception."))))
                                (ilet [tx (eql/ast->expr original-ast-node)]
                                  (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                                :state-before state-before
