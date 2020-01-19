@@ -21,7 +21,8 @@
     (reset! sente-socket-client
       (sente/make-channel-socket-client! "/chsk" "no-token-desired"
         {:type           :auto
-         :host           (str SERVER_HOST ":" SERVER_PORT)
+         :host           SERVER_HOST
+         :port           SERVER_PORT
          :packer         (tp/make-packer {:read  inspect.transit/read-handlers
                                           :write inspect.transit/write-handlers})
          :wrap-recv-evs? false

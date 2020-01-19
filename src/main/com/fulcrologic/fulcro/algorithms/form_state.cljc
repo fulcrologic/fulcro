@@ -447,8 +447,8 @@
                                                         (tempid/tempid? (second current-value)))]
                                     (if (or new-entity? has-tempids? (not= old-value current-value))
                                       (let [old-value (strip-tempid-idents old-value)]
-                                      (if as-delta?
-                                        [k {:before old-value :after current-value}]
+                                        (if as-delta?
+                                          [k {:before old-value :after current-value}]
                                           [k current-value]))
                                       nil)))
                                 subform-keys))
