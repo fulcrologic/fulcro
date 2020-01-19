@@ -119,7 +119,7 @@
 (defn- update-state
   "Updates the state of the wrapped input element."
   [component next-props value]
-  (let [on-change  (gobj/getValueByKeys component "state" "onChange")
+  (let [on-change  (gobj/getValueByKeys component "state" "cached-props" "onChange")
         next-state #js {}
         inputRef   (gobj/get next-props "inputRef")]
     (gobj/extend next-state next-props #js {:onChange on-change})
@@ -127,7 +127,7 @@
     (when inputRef
       (gobj/remove next-state "inputRef")
       (gobj/set next-state "ref" inputRef))
-    (.setState component next-state)))
+    (.setState component #js {"cached-props" next-state})))
 
 (defonce form-elements? #{"input" "select" "option" "textarea"})
 
@@ -143,7 +143,7 @@
                      (->> #js {:onChange (goog/bind (gobj/get this "onChange") this)}
                        (gobj/extend state props))
                      (gobj/remove state "inputRef")
-                     state))
+                     #js {"cached-props" state}))
                  (.apply js/React.Component this (js-arguments))))]
     (set! (.-displayName ctor) (str "wrapped-" element))
     (goog.inherits ctor js/React.Component)
@@ -157,7 +157,7 @@
             (gobj/getValueByKeys event "target" "value"))))
 
       (UNSAFE_componentWillReceiveProps [this new-props]
-        (let [state-value   (gobj/getValueByKeys this "state" "value")
+        (let [state-value   (gobj/getValueByKeys this "state" "cached-props" "value")
               this-node     (js/ReactDOM.findDOMNode this)
               value-node    (if (is-form-element? this-node)
                               this-node
@@ -173,7 +173,7 @@
             (update-state this new-props (gobj/get new-props "value")))))
 
       (render [this]
-        (js/React.createElement element (.-state this))))
+        (js/React.createElement element (gobj/getValueByKeys this "state" "cached-props"))))
     (let [real-factory (js/React.createFactory ctor)]
       (fn [props & children]
         (if-let [r (gobj/get props "ref")]

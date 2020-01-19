@@ -27,7 +27,6 @@
     "react-grid-layout": "^0.16.6",
     "react-icons": "^2.2.7",
     "reakit": "^0.11.2",
-    "socket.io-client": "^2.3.0",
     "transit-js": "0.8.861"
   }
 }

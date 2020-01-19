@@ -1,4 +1,4 @@
-(ns com.fulcrologic.fulcro.inspect.transit
+(ns ^:no-doc com.fulcrologic.fulcro.inspect.transit
   (:require [cognitect.transit :as t]
             [com.cognitect.transit.types :as ty]
             [com.fulcrologic.fulcro.algorithms.transit :as ft]

@@ -3,6 +3,7 @@
   (:require
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
@@ -98,6 +99,9 @@
 (defn router-for-pending-target [state-map target]
   (let [routers   (some-> state-map ::id vals)
         router-id (reduce (fn [_ r]
+                            (when (and #?(:clj true :cljs goog.DEBUG) (nil? (::id r)))
+                              (log/error "There is a router in state that is missing an ID. This indicates that"
+                                "you forgot to compose it into your initial state! It will fail to operate properly."))
                             (when (= target (some-> r ::pending-route :target))
                               (reduced (::id r))))
                     nil
@@ -430,9 +434,13 @@
                                       :router       (vary-meta router-ident assoc :component component)
                                       :target       (vary-meta target-ident assoc :component target :params params)})]
              (if-not (uism/get-active-state app router-id)
-               (uism/begin! app-or-comp RouterStateMachine router-id
-                 {:router (uism/with-actor-class router-ident component)}
-                 event-data)
+               (do
+                 (let [state-map (comp/component->state-map app-or-comp)]
+                   (when-not (-> state-map ::id (get router-id))
+                     (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
+                 (uism/begin! app-or-comp RouterStateMachine router-id
+                   {:router (uism/with-actor-class router-ident component)}
+                   event-data))
                (uism/trigger! app router-id :route! event-data))
              (completing-action)
              (when (seq remaining-path)

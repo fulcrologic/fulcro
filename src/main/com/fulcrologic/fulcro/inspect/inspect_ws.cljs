@@ -1,90 +1,59 @@
-(ns com.fulcrologic.fulcro.inspect.inspect-ws
+(ns ^:no-doc com.fulcrologic.fulcro.inspect.inspect-ws
   (:require
-    ["socket.io-client" :as io-client]
-    cljsjs.socket-io-client
-    [cljs.core.async :as async :refer [go]]
-    [goog.object :as gobj]
-    [com.fulcrologic.fulcro.inspect.transit :as encode]
+    [cljs.core.async :as async :refer [>! <!] :refer-macros [go go-loop]]
+    [clojure.pprint :refer [pprint]]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
-    [taoensso.timbre :as log]
-    [taoensso.encore :as enc]))
+    [com.fulcrologic.fulcro.inspect.transit :as inspect.transit]
+    [com.fulcrologic.fulcro.networking.transit-packer :as tp]
+    [taoensso.encore :as enc]
+    [taoensso.sente :as sente]
+    [taoensso.timbre :as log]))
 
 (goog-define SERVER_PORT "8237")
 (goog-define SERVER_HOST "localhost")
 
-(defprotocol WS
-  (start [this])
-  (stop [this])
-  (push [this message]))
+(defonce sente-socket-client (atom nil))
 
-(declare restart-ws)
-
-(defrecord Websockets [ws-url ws-in ws-out message-received]
-  WS
-  (start [this]
-    (log/debug "Starting websockets")
-    (let [ws (io-client ws-url)]
-      (.on ws "connect"
-        (fn []
-          (log/debug "Client Connected")
-          (go (loop []
-                (when-some [msg (<! ws-out)]
-                  (.emit ws "event" (clj->js {:uuid    (str (-> msg :data :fulcro.inspect.core/app-uuid))
-                                              :message (encode/write msg)}))
-                  (recur)))
-
-            (async/close! ws-in)
-            (.close ws))
-
-          (go (loop []
-                (when-some [msg (<! ws-in)]
-                  (message-received msg)
-                  (recur)))
-
-            (async/close! ws-out)
-            (.close ws))))
-
-      (.on ws "disconnect"
-        (fn [e]
-          (log/debug "Disconnected")
-          (message-received {:type :close})
-          (stop this)
-          (log/warn "WS-CLOSE" e)
-          (restart-ws)))
-
-      (.on ws "event"
-        (fn [e]
-          (log/debug "event" e)
-          (when-let [msg (some-> e (gobj/get "fulcro-inspect-devtool-message") encode/read)]
-            (go (async/>! ws-in msg)))))
-      :ok))
-  (push [this message] (go (async/>! ws-out message)))
-  (stop [this]
-    (async/close! ws-in)
-    (async/close! ws-out)))
-
-(defn websockets
-  "Create a websockets object that. Call `ws/start` on it to connect. Incoming
-  messages will be sent to `message-processor`, and outgoing messages can be sent
-  with `ws/push`."
-  [url message-processor]
-  (map->Websockets {:ws-url           url
-                    :ws-in            (async/chan 10)
-                    :ws-out           (async/chan 10)
-                    :message-received message-processor}))
+(def backoff-ms #(enc/exp-backoff % {:max 15000}))
 
 (defn start-ws-messaging! []
-  (try
-    (let [socket (websockets (str "http://" SERVER_HOST ":" SERVER_PORT)
-                   (fn [msg]
-                     (inspect/handle-devtool-message msg)))]
-      (start socket)
-      (async/go-loop []
-        (when-let [[type data] (async/<! inspect/send-ch)]
-          (push socket {:type type :data data :timestamp (js/Date.)})
-          (recur))))
-    (catch :default e
-      (log/error e "Unable to start inspect."))))
+  (when-not @sente-socket-client
+    (reset! sente-socket-client
+      (sente/make-channel-socket-client! "/chsk" "no-token-desired"
+        {:type           :auto
+         :host           SERVER_HOST
+         :port           SERVER_PORT
+         :packer         (tp/make-packer {:read  inspect.transit/read-handlers
+                                          :write inspect.transit/write-handlers})
+         :wrap-recv-evs? false
+         :backoff-ms-fn  backoff-ms}))
+    (log/debug "Starting websockets")
+    (let [{:keys [state send-fn]} @sente-socket-client]
+      (go-loop [attempt 1]
+        (let [open? (:open? @state)]
+          (if open?
+            (when-let [[type data] (<! inspect/send-ch)]
+              (log/debug "Forwarding to server: type =" type)
+              (log/trace "Forwarding to server: data =" data)
+              (send-fn [:fulcro.inspect/message {:type type :data data :timestamp (js/Date.)}]))
+            (do
+              (log/trace (str "Waiting for channel to be ready"))
+              (async/<! (async/timeout (backoff-ms attempt)))))
+          (recur (if open? 1 (inc attempt))))))
+    (let [{:keys [state ch-recv]} @sente-socket-client]
+      (go-loop [attempt 1]
+        (let [open? (:open? @state)]
+          (if open?
+            (do (enc/when-let [[event-type message] (:event (<! ch-recv))
+                               _ (= :fulcro.inspect/event event-type)
+                               {:as msg :keys [type data]} message]
+                  (log/debug "Forwarding from electron: type =" type)
+                  (log/trace "Forwarding from electron: data =" data)
+                  (inspect/handle-devtool-message msg)))
+            (do
+              (log/trace (str "Waiting for channel to be ready"))
+              (async/<! (async/timeout (backoff-ms attempt)))))
+          (recur (if open? 1 (inc attempt))))))))
 
 (defn install-ws []
   (when-not @inspect/started?*
@@ -92,6 +61,3 @@
     (reset! inspect/started?* true)
     (start-ws-messaging!)))
 
-(defn restart-ws []
-  (log/info "Restarting Fulcro 3.x Inspect over Websockets targeting port " SERVER_PORT)
-  (start-ws-messaging!))

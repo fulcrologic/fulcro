@@ -144,7 +144,7 @@
 
 (defn http-server []
   (let [result (web/run middleware {:host "0.0.0.0"
-                                    :port 3000})]
+                                    :port 8080})]
     (reset! server result)
     (fn [] (web/stop result))))
 
