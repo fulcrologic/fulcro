@@ -5,6 +5,7 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
+    [clojure.walk :as walk]
     [com.fulcrologic.guardrails.core :refer [>defn => | ? <- >def]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
@@ -15,7 +16,8 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util :refer [atom?]]
-    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]))
+    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
 
 (declare asm-value trigger-state-machine-event! apply-action)
 (def mutation-delegate (m/->Mutation `mutation-delegate))
@@ -945,11 +947,19 @@
                                           target (m/with-target target))))
        :result-action               m/default-result-action!
        :ok-action                   (fn [env]
-                                      (log/debug "Remote mutation " mutation "success")
-                                      (mtrigger! env actor-ident asm-id ok-event ok-data))
+                                      (log/debug "Remote mutation " mutation "ok")
+                                      (let [tid->rid    (tempid/result->tempid->realid (:body (:result env)))
+                                            actor-ident (tempid/resolve-tempids actor-ident tid->rid)
+                                            ok-data     (tempid/resolve-tempids ok-data tid->rid)
+                                            asm-id      (tempid/resolve-tempids asm-id tid->rid)]
+                                        (mtrigger! env actor-ident asm-id ok-event ok-data)))
        :error-action                (fn [env]
                                       (log/debug "Remote mutation " mutation "error")
-                                      (mtrigger! env actor-ident asm-id error-event error-data))})))
+                                      (let [tid->rid    (tempid/result->tempid->realid (:body (:result env)))
+                                            actor-ident (tempid/resolve-tempids actor-ident tid->rid)
+                                            error-data  (tempid/resolve-tempids error-data tid->rid)
+                                            asm-id      (tempid/resolve-tempids asm-id tid->rid)]
+                                        (mtrigger! env actor-ident asm-id error-event error-data)))})))
 
 (>defn trigger-remote-mutation
   "Run the given REMOTE mutation (a symbol or mutation declaration) in the context of the state machine.

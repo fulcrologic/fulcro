@@ -372,6 +372,17 @@
       (reduce (fn [s id]
                 (update-forms s xform id)) sm subform-idents))))
 
+(defn- strip-tempid-idents
+  "Remote tempid idents from to-one or to-many values"
+  [v]
+  (cond
+    (and (eql/ident? v) (tempid/tempid? (second v)))
+    nil
+
+    (and (vector? v) (every? eql/ident? v)) (vec (keep strip-tempid-idents v))
+
+    :else v))
+
 (>defn dirty-fields
   "Obtains all of the dirty fields for the given (denormalized) ui-entity, recursively. This works against UI props
   because submission mutations should close over the data as parameters to a mutation. In other words, your form
@@ -435,9 +446,10 @@
                                                         (some #(tempid/tempid? (second %)) current-value)
                                                         (tempid/tempid? (second current-value)))]
                                     (if (or new-entity? has-tempids? (not= old-value current-value))
+                                      (let [old-value (strip-tempid-idents old-value)]
                                       (if as-delta?
                                         [k {:before old-value :after current-value}]
-                                        [k current-value])
+                                          [k current-value]))
                                       nil)))
                                 subform-keys))
          local-dirty-fields (if (empty? delta-with-refs) {} {id delta-with-refs})
