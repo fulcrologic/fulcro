@@ -236,7 +236,10 @@
      as an element of your own custom implementation.
    * `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
      before they are placed on the network layer.
-   * `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time.
+   * `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time. WARNING: Due to
+     the async nature of js and React this function is not guaranteed to be called after the application is
+     completely on the DOM.  If you need that guarantee then consider using `:componentDidMount` on your application's
+     root component.
    * `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
      a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
    * `:shared` - A (static) map of data that should be visible in all components through `comp/shared`.
