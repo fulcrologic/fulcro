@@ -456,7 +456,9 @@
                                              :disable-client-did-mount? true} options)))))
 
 (defn app-root
-  "Returns the current app root, if mounted."
+  "Returns the current app root, if mounted. WARNING: The `:client-did-mount` in the app settings will *not* see a value
+   from this function due to the async nature of React. If you need to call this at app startup use the `:componentDidMount`
+   lifecycle method of your root component (at which point this will return the same thing as `this` in that method)."
   [app]
   (-> app ::runtime-atom deref ::app-root))
 
