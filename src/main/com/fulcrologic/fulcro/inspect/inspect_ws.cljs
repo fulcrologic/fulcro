@@ -4,10 +4,21 @@
     [clojure.pprint :refer [pprint]]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.inspect.transit :as inspect.transit]
-    [com.fulcrologic.fulcro.networking.transit-packer :as tp]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid :refer [TempId]]
+    [com.fulcrologic.fulcro.algorithms.transit :as ot]
+    [taoensso.sente.packers.transit :as st]
     [taoensso.encore :as enc]
     [taoensso.sente :as sente]
     [taoensso.timbre :as log]))
+
+(defn make-packer
+  "Returns a json packer for use with sente."
+  [{:keys [read write]}]
+  (st/->TransitPacker :json
+    {:handlers (cond-> {TempId (ot/->TempIdHandler)}
+                 write (merge write))}
+    {:handlers (cond-> {tempid/tag (fn [id] (tempid/tempid id))}
+                 read (merge read))}))
 
 (goog-define SERVER_PORT "8237")
 (goog-define SERVER_HOST "localhost")
@@ -23,8 +34,8 @@
         {:type           :auto
          :host           SERVER_HOST
          :port           SERVER_PORT
-         :packer         (tp/make-packer {:read  inspect.transit/read-handlers
-                                          :write inspect.transit/write-handlers})
+         :packer         (make-packer {:read  inspect.transit/read-handlers
+                                       :write inspect.transit/write-handlers})
          :wrap-recv-evs? false
          :backoff-ms-fn  backoff-ms}))
     (log/debug "Starting websockets")
