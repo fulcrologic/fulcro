@@ -314,7 +314,10 @@
     :routed   {::uism/events {:route! {::uism/handler route-handler}}}}})
 
 ;; TODO: This algorithm is repeated in more than one place in slightly different forms...refactor it.
-(defn proposed-new-path [this-or-app relative-class-or-instance new-route]
+(defn proposed-new-path
+  "Internal algorithm: Returns a sequence of idents of the targets that the `new-route` goes through by analyzing the current
+  application query and state."
+  [this-or-app relative-class-or-instance new-route]
   (let [app        (comp/any->app this-or-app)
         state-map  (app/current-state app)
         router     relative-class-or-instance
@@ -390,81 +393,6 @@
           (route-cancelled component params))))
     @result))
 
-(defn change-route-relative
-  "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
-  of string components to pass through to the nearest child router as the new path. The first argument is any live component
-  or the app.  The `timeouts` are as in `change-route`.
-  It is safe to call this from within a mutation.
-
-  When possible (i.e. no circular references to components) you can maintain better code navigation by
-  generating `new-route` via `path-to`.  This will allow readers of your code to quickly jump to the actual
-  components that implement the targets when reading the code.
-  "
-  ([this-or-app relative-class-or-instance new-route]
-   (change-route-relative this-or-app relative-class-or-instance new-route {}))
-  ([app-or-comp relative-class-or-instance new-route timeouts]
-   (when (and #?(:clj true :cljs goog.DEBUG) (not (seq (proposed-new-path app-or-comp relative-class-or-instance new-route))))
-     (log/error "Could not find route targets for new-route" new-route))
-   (if (signal-router-leaving app-or-comp relative-class-or-instance new-route)
-     (let [app        (comp/any->app app-or-comp)
-           state-map  (app/current-state app)
-           router     relative-class-or-instance
-           root-query (comp/get-query router state-map)
-           ast        (eql/query->ast root-query)
-           root       (ast-node-for-route ast new-route)]
-       (loop [{:keys [component]} root path new-route]
-         (when (and component (router? component))
-           (let [{:keys [target matching-prefix]} (route-target component path)
-                 target-ast        (some-> target (comp/get-query state-map) eql/query->ast)
-                 prefix-length     (count matching-prefix)
-                 remaining-path    (vec (drop prefix-length path))
-                 segment           (route-segment target)
-                 params            (reduce
-                                     (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
-                                     {}
-                                     (map (fn [a b] [a b]) segment matching-prefix))
-                 router-ident      (comp/get-ident component {})
-                 router-id         (-> router-ident second)
-                 target-ident      (will-enter target app params)
-                 completing-action (or (some-> target-ident meta :fn) (constantly true))
-                 event-data        (merge
-                                     {:error-timeout 5000 :deferred-timeout 100}
-                                     timeouts
-                                     {:path-segment matching-prefix
-                                      :router       (vary-meta router-ident assoc :component component)
-                                      :target       (vary-meta target-ident assoc :component target :params params)})]
-             (if-not (uism/get-active-state app router-id)
-               (do
-                 (let [state-map (comp/component->state-map app-or-comp)]
-                   (when-not (-> state-map ::id (get router-id))
-                     (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
-                 (uism/begin! app-or-comp RouterStateMachine router-id
-                   {:router (uism/with-actor-class router-ident component)}
-                   event-data))
-               (uism/trigger! app router-id :route! event-data))
-             (completing-action)
-             (when (seq remaining-path)
-               (recur (ast-node-for-route target-ast remaining-path) remaining-path))))))
-     (log/debug "Route request cancelled by on-screen target."))))
-
-(defn change-route
-  "Trigger a route change.
-
-  this - The component (or app) that is causing the route change.
-  new-route - A vector of URI components to pass to the router.
-  timeouts - A map of timeouts that affect UI during deferred routes: {:error-timeout ms :deferred-timeout ms}
-
-  The error timeout is how long to wait  (default 5000ms) before showing the error-ui of a route (which must be defined on the
-  router that is having problems).  The deferred-timeout (default 100ms) is how long to wait before showing the loading-ui of
-  a deferred router (to prevent flicker).
-  "
-  ([this new-route]
-   (change-route this new-route {}))
-  ([this new-route timeouts]
-   (let [app  (comp/any->app this)
-         root (app/root-class app)]
-     (change-route-relative app root new-route timeouts))))
-
 (defn current-route
   "Returns the current active route, starting from the relative Fulcro class or instance.
 
@@ -499,6 +427,90 @@
           (when next-router
             (recur next-router)))))
     @result))
+
+(defn change-route-relative
+  "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
+  of string components to pass through to the nearest child router as the new path. The first argument is any live component
+  or the app.  The `timeouts` are as in `change-route`.
+  It is safe to call this from within a mutation.
+
+  When possible (i.e. no circular references to components) you can maintain better code navigation by
+  generating `new-route` via `path-to`.  This will allow readers of your code to quickly jump to the actual
+  components that implement the targets when reading the code.
+  "
+  ([this-or-app relative-class-or-instance new-route]
+   (change-route-relative this-or-app relative-class-or-instance new-route {}))
+  ([app-or-comp relative-class-or-instance new-route timeouts]
+   (let [old-route (current-route app-or-comp relative-class-or-instance)
+         new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route)]
+     (cond
+       (= old-route new-route)
+       (log/debug "Request to change route, but path is the current route. Ignoring change request.")
+
+       (and #?(:clj true :cljs goog.DEBUG) (not (seq new-path)))
+       (log/error "Could not find route targets for new-route" new-route)
+
+       :otherwise
+       (if (signal-router-leaving app-or-comp relative-class-or-instance new-route)
+         (let [app        (comp/any->app app-or-comp)
+               state-map  (app/current-state app)
+               router     relative-class-or-instance
+               root-query (comp/get-query router state-map)
+               ast        (eql/query->ast root-query)
+               root       (ast-node-for-route ast new-route)
+               old-route  (current-route app relative-class-or-instance)]
+           (loop [{:keys [component]} root path new-route]
+             (when (and component (router? component))
+               (let [{:keys [target matching-prefix]} (route-target component path)
+                     target-ast        (some-> target (comp/get-query state-map) eql/query->ast)
+                     prefix-length     (count matching-prefix)
+                     remaining-path    (vec (drop prefix-length path))
+                     segment           (route-segment target)
+                     params            (reduce
+                                         (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
+                                         {}
+                                         (map (fn [a b] [a b]) segment matching-prefix))
+                     router-ident      (comp/get-ident component {})
+                     router-id         (-> router-ident second)
+                     target-ident      (will-enter target app params)
+                     completing-action (or (some-> target-ident meta :fn) (constantly true))
+                     event-data        (merge
+                                         {:error-timeout 5000 :deferred-timeout 100}
+                                         timeouts
+                                         {:path-segment matching-prefix
+                                          :router       (vary-meta router-ident assoc :component component)
+                                          :target       (vary-meta target-ident assoc :component target :params params)})]
+                 (if-not (uism/get-active-state app router-id)
+                   (do
+                     (let [state-map (comp/component->state-map app-or-comp)]
+                       (when-not (-> state-map ::id (get router-id))
+                         (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
+                     (uism/begin! app-or-comp RouterStateMachine router-id
+                       {:router (uism/with-actor-class router-ident component)}
+                       event-data))
+                   (uism/trigger! app router-id :route! event-data))
+                 (completing-action)
+                 (when (seq remaining-path)
+                   (recur (ast-node-for-route target-ast remaining-path) remaining-path))))))
+         (log/debug "Route request cancelled by on-screen target."))))))
+
+(defn change-route
+  "Trigger a route change.
+
+  this - The component (or app) that is causing the route change.
+  new-route - A vector of URI components to pass to the router.
+  timeouts - A map of timeouts that affect UI during deferred routes: {:error-timeout ms :deferred-timeout ms}
+
+  The error timeout is how long to wait  (default 5000ms) before showing the error-ui of a route (which must be defined on the
+  router that is having problems).  The deferred-timeout (default 100ms) is how long to wait before showing the loading-ui of
+  a deferred router (to prevent flicker).
+  "
+  ([this new-route]
+   (change-route this new-route {}))
+  ([this new-route timeouts]
+   (let [app  (comp/any->app this)
+         root (app/root-class app)]
+     (change-route-relative app root new-route timeouts))))
 
 #?(:clj
    (defn compile-error [env form message]
