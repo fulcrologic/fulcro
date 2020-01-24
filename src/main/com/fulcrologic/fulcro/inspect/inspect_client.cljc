@@ -182,11 +182,13 @@
          (doseq [app (vals @apps*)]
            (let [state        (app-state app)
                  remote-names (remotes app)]
-             (post-message :fulcro.inspect.client/init-app {app-uuid-key                         (app-uuid app)
-                                                            :fulcro.inspect.core/app-id          (app-id app)
-                                                            :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) remote-names)
-                                                            :fulcro.inspect.client/initial-state state
-                                                            :fulcro.inspect.client/state-hash    (hash state)}))))
+             (post-message :fulcro.inspect.client/init-app
+               {app-uuid-key                         (app-uuid app)
+                :fulcro.inspect.core/app-id          (app-id app)
+                :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str)
+                                                       (keys remote-names))
+                :fulcro.inspect.client/initial-state state
+                :fulcro.inspect.client/state-hash    (hash state)}))))
 
        :fulcro.inspect.client/reset-app-state
        (let [{:keys                     [target-state]
