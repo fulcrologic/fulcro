@@ -25,7 +25,7 @@
 
 (defonce sente-socket-client (atom nil))
 
-(def backoff-ms #(enc/exp-backoff % {:max 15000}))
+(def backoff-ms #(enc/exp-backoff % {:max 1000}))
 
 (defn start-ws-messaging! []
   (when-not @sente-socket-client
