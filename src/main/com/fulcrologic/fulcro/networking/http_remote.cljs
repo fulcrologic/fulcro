@@ -312,10 +312,11 @@
   for any merges.
 
   See the top-level application configuration and Developer's Guide for more details."
-  [{:keys [url request-middleware response-middleware] :or {url                 "/api"
-                                                            response-middleware (wrap-fulcro-response)
-                                                            request-middleware  (wrap-fulcro-request)} :as options}]
-  [(s/keys :opt-un [::url ::request-middleware ::response-middleware]) => ::fulcro-remote]
+  [{:keys [url request-middleware response-middleware xhrio] :or {url                 "/api"
+                                                                  response-middleware (wrap-fulcro-response)
+                                                                  request-middleware  (wrap-fulcro-request)
+                                                                  xhrio               (make-xhrio)} :as options}]
+  [(s/keys :opt-un [::url ::request-middleware ::response-middleware ::xhrio]) => ::fulcro-remote]
   (merge options
     {:active-requests (atom {})
      :transmit!       (fn transmit! [{:keys [active-requests]} {::txn/keys [ast result-handler update-handler] :as send-node}]
@@ -349,7 +350,6 @@
                             (let [abort-id             (or
                                                          (-> send-node ::txn/options ::txn/abort-id)
                                                          (-> send-node ::txn/options :abort-id))
-                                  xhrio                (make-xhrio)
                                   {:keys [body headers url method response-type]} real-request
                                   http-verb            (-> (or method :post) name str/upper-case)
                                   extract-response     #(extract-response body real-request xhrio)
