@@ -32,6 +32,7 @@
                    :opt-un [::transaction ::progress-phase ::progress-event]))
 (>def ::xhrio-event any?)
 (>def ::xhrio any?)
+(>def ::make-xhrio fn?)
 
 (>def ::response-middleware fn?)
 (>def ::request-middleware fn?)
@@ -312,10 +313,11 @@
   for any merges.
 
   See the top-level application configuration and Developer's Guide for more details."
-  [{:keys [url request-middleware response-middleware] :or {url                 "/api"
-                                                            response-middleware (wrap-fulcro-response)
-                                                            request-middleware  (wrap-fulcro-request)} :as options}]
-  [(s/keys :opt-un [::url ::request-middleware ::response-middleware]) => ::fulcro-remote]
+  [{:keys [url request-middleware response-middleware make-xhrio] :or {url                 "/api"
+                                                                       response-middleware (wrap-fulcro-response)
+                                                                       request-middleware  (wrap-fulcro-request)
+                                                                       make-xhrio          make-xhrio} :as options}]
+  [(s/keys :opt-un [::url ::request-middleware ::response-middleware ::make-xhrio]) => ::fulcro-remote]
   (merge options
     {:active-requests (atom {})
      :transmit!       (fn transmit! [{:keys [active-requests]} {::txn/keys [ast result-handler update-handler] :as send-node}]
