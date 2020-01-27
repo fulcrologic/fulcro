@@ -498,15 +498,15 @@
       (when-mocking!
         (uism/actor->ident e actor) =1x=> [:actor 1]
         (df/load! r ident class params) =1x=> (do
-                                               (reset! load-called? true)
-                                               (assertions
-                                                 "Sends a real load to fulcro containing: the proper actor ident"
-                                                 ident => [:actor 1]
-                                                 "the correct component class"
-                                                 class => AClass
-                                                 "The params with specified load options"
-                                                 params => {:marker false})
-                                               true)
+                                                (reset! load-called? true)
+                                                (assertions
+                                                  "Sends a real load to fulcro containing: the proper actor ident"
+                                                  ident => [:actor 1]
+                                                  "the correct component class"
+                                                  class => AClass
+                                                  "The params with specified load options"
+                                                  params => {:marker false})
+                                                true)
         (uism/queue-actor-load! app env :dialog AClass {:marker false}))))
 
   #?(:cljs
@@ -602,9 +602,9 @@
                                                                   (= mutation-env menv) => true
                                                                   p => trigger)
                                                                 [[:table 1]])
-        (app/schedule-render! app) => (assertions
-                                        "Queues the actors for UI refresh"
-                                        (nil? app) => false)
+        (app/schedule-render! app options) => (assertions
+                                                "Queues the actors for UI refresh"
+                                                (nil? app) => false)
 
         (action menv))))
 
@@ -794,12 +794,12 @@
         (uism/compute-target test-env {::uism/target-actor :dialog}) => [:dialog 1]
         "can combine plain targets with actor targets"
         (uism/compute-target test-env {::targeting/target [:a 1] ::uism/target-actor :dialog}) => [[:a 1] [:dialog 1]]
-        (targeting/multiple-targets? (uism/compute-target test-env {::targeting/target [:a 1]
-                                                              ::uism/target-actor      :dialog}))
+        (targeting/multiple-targets? (uism/compute-target test-env {::targeting/target  [:a 1]
+                                                                    ::uism/target-actor :dialog}))
         => true
 
         "can combine actor targets with a multiple-target"
-        (uism/compute-target test-env {::targeting/target          (targeting/multiple-targets [:a 1] [:b 2])
+        (uism/compute-target test-env {::targeting/target  (targeting/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-actor :dialog})
         => [[:a 1] [:b 2] [:dialog 1]]))
     (behavior "Resolves aliases"
@@ -807,11 +807,11 @@
         (uism/compute-target test-env {::uism/target-alias :x}) => [:dialog 1 :foo]
         "can combine plain targets with alias targets"
         (uism/compute-target test-env {::targeting/target [:a 1] ::uism/target-alias :x}) => [[:a 1] [:dialog 1 :foo]]
-        (targeting/multiple-targets? (uism/compute-target test-env {::targeting/target [:a 1]
-                                                              ::uism/target-alias      :x}))
+        (targeting/multiple-targets? (uism/compute-target test-env {::targeting/target  [:a 1]
+                                                                    ::uism/target-alias :x}))
         => true
 
         "can combine alias targets with a multiple-target"
-        (uism/compute-target test-env {::targeting/target          (targeting/multiple-targets [:a 1] [:b 2])
+        (uism/compute-target test-env {::targeting/target  (targeting/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-alias :x})
         => [[:a 1] [:b 2] [:dialog 1 :foo]]))))
