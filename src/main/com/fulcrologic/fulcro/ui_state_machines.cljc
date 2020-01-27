@@ -120,21 +120,26 @@
   "Mutation: Trigger an event on an active state machine"
   [{::keys [event-id event-data asm-id] :as params}]
   (action [{:keys [app] :as env}]
-    (when (nil? event-id)
-      (log/error "Invalid (nil) event ID"))
-    (log/debug "Triggering" event-id "on" asm-id "with" event-data)
-    (trigger-state-machine-event! env params)
-    (app/schedule-render! app)
+    (let [{::keys [transact-options]} event-data
+          event-data (dissoc event-data ::transact-options)]
+      (when (nil? event-id)
+        (log/error "Invalid (nil) event ID"))
+      (log/debug "Triggering" event-id "on" asm-id "with" event-data)
+      (trigger-state-machine-event! env params)
+      (app/schedule-render! app (or transact-options {})))
     true))
 
 (defn trigger!
-  "Trigger an event on an active state machine. Safe to use in mutation bodies."
+  "Trigger an event on an active state machine. Safe to use in mutation bodies. The special key ::uism/transact-options can
+  be used in `extra-data` to indicate a map of options to send to fulcro's `transact!` and rendering sublayer (for example
+  to control rendering refresh)."
   ([this active-state-machine-id event-id] (trigger! this active-state-machine-id event-id {}))
   ([this active-state-machine-id event-id extra-data]
-   (comp/transact! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
-                                                       ::event-id   event-id
-                                                       ::event-data extra-data})])))
-
+   (let [{::keys [transact-options]} extra-data]
+     (comp/transact! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
+                                                         ::event-id   event-id
+                                                         ::event-data extra-data})]
+       (or transact-options {})))))
 
 (>defn asm-ident "Returns the ident of the active state machine with the given ID"
   [asm-id]
