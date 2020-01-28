@@ -27,11 +27,12 @@
 
 (def backoff-ms #(enc/exp-backoff % {:max 1000}))
 
-(defn start-ws-messaging! []
+(defn start-ws-messaging!
+  [& [{:keys [channel-type] :or {channel-type :auto}}]]
   (when-not @sente-socket-client
     (reset! sente-socket-client
       (sente/make-channel-socket-client! "/chsk" "no-token-desired"
-        {:type           :auto
+        {:type           channel-type
          :host           SERVER_HOST
          :port           SERVER_PORT
          :packer         (make-packer {:read  inspect.transit/read-handlers
