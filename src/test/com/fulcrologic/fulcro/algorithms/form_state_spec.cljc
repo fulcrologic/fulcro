@@ -315,16 +315,25 @@
       (let [modified-state-map (-> state-map
                                  (assoc-in [:phone/id 3 ::phone-number] "111")
                                  (assoc-in [:locale/by-id 22 ::country] :UK)
+                                 (assoc-in [:person/id 1 ::person-age] 42)
                                  (assoc-in [:person/id 1 ::person-name] "Bobby"))
-            reset-state-map    (fs/pristine->entity* modified-state-map [:person/id 1])]
+            reset-state-map    (fs/pristine->entity* modified-state-map [:person/id 1])
+            actual-person      (get-in reset-state-map [:person/id 1])
+            expected-person    (get-in state-map [:person/id 1])]
         (assertions
+          "The modified flag returns to normal"
           (not= modified-state-map state-map) => true
-          reset-state-map => state-map))))
+          "Fields that were missing are properly removed"
+          (contains? actual-person ::person-age) => false
+          "Recursive fields have returned to their original value"
+          (get-in reset-state-map [:phone/id 3 ::phone-number]) => "555-1212"
+          "Top-level Fields that changed have returned to their original values"
+          (::person-name actual-person) => (::person-name expected-person)))))
 
-  (specification "entity->pristine*" :focus
+  (specification "entity->pristine*"
     (behavior "is a state map operation that recursively updates any entity pristine form state so that the form is no longer dirty"
       (let [modified-state-map  (-> state-map
-                                  (assoc-in [:phone/id 3 ::phone-number] "111")
+                                  (update-in [:phone/id 3] dissoc ::phone-number)
                                   (assoc-in [:locale/by-id 22 ::country] :UK)
                                   (assoc-in [:person/id 1 ::person-name] "Bobby"))
             modified-ui-tree    (person-ui-tree modified-state-map 1)
@@ -336,12 +345,15 @@
           (fs/dirty? committed-ui-tree) => false
           "The pristine form state has the new data"
           (get-in committed-state-map [::fs/forms-by-ident {:table :person/id, :row 1} ::fs/pristine-state])
-          => {::person-name   "Bobby" ::phone-numbers [[:phone/id 2] [:phone/id 3]]}
+          => {::person-name "Bobby" ::phone-numbers [[:phone/id 2] [:phone/id 3]]}
 
-          (get-in committed-state-map [::fs/forms-by-ident {:table :phone/id, :row 3} ::fs/pristine-state])
-          => {::phone-number "111"}
+          (get-in committed-state-map [::fs/forms-by-ident {:table :locale/by-id, :row 22} ::fs/pristine-state])
+          => {::country :UK}
+
+          "Removes things from the clean version that disappeared"
+          (contains? (get-in committed-state-map [::fs/forms-by-ident {:table :phone/id, :row 3} ::fs/pristine-state])
+            ::phone-number) => false
 
           "the clean version has the updated data"
           (get-in committed-ui-tree [::person-name]) => "Bobby"
-          (get-in committed-ui-tree [::phone-numbers 1 ::phone-number]) => "111"
           (get-in committed-ui-tree [::phone-numbers 0 ::locale ::country]) => :UK)))))

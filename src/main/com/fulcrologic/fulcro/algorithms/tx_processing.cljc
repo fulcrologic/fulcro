@@ -669,5 +669,6 @@
     (swap! runtime-atom assoc ::active-queue new-queue)
     (when (seq explicit-refresh)
       (swap! runtime-atom update :com.fulcrologic.fulcro.application/to-refresh accumulate explicit-refresh))
+    (log/debug "Scheduling a render")
     (schedule-render! app)
     nil))

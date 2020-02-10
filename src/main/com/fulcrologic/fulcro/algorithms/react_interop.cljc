@@ -43,7 +43,9 @@
   #?(:cljs
      (let [factory (dom/wrap-form-element js-component-class)]
        (fn [props & children]
-         (apply factory (clj->js props) children)))))
+         (apply factory (clj->js props) children)))
+     :default
+     (fn [props & children])))
 
 (defn hoc-wrapper-factory
   "Creates a React factory `(fn [parent fulcro-props & children])` for a component that has had an HOC applied,
