@@ -315,7 +315,8 @@
       (let [modified-state-map (-> state-map
                                  (assoc-in [:phone/id 3 ::phone-number] "111")
                                  (assoc-in [:locale/by-id 22 ::country] :UK)
-                                 (assoc-in [:person/id 1 ::person-name] "Bobby"))
+                                 (assoc-in [:person/id 1 ::person-name] "Bobby")
+                                 (assoc-in [:person/id 1 ::person-age] 42))
             reset-state-map    (fs/pristine->entity* modified-state-map [:person/id 1])]
         (assertions
           (not= modified-state-map state-map) => true
