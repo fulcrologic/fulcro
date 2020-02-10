@@ -7,6 +7,7 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [com.fulcrologic.guardrails.core :refer [>def >defn >defn- =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
@@ -477,3 +478,16 @@
   (let [app (comp/any->app app)]
     (merge-alternate-unions (partial merge-component! app) root-component)))
 
+(>defn merge-elide-keys
+  "replace a subset of m1's keys ks with m2's, eliding any missing"
+  ([m1 m2 ks]
+   [map? map? set? => map?]
+   (persistent!
+     (reduce-kv
+       (fn [out k v]
+         (if (not (contains? ks k))
+           (assoc! out k v)
+           (if (contains? m2 k)
+             (assoc! out k (k m2))
+             out)))
+       (transient {}) m1))))

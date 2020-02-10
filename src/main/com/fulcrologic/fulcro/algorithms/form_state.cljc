@@ -20,6 +20,7 @@
     [edn-query-language.core :as eql]
     [com.fulcrologic.guardrails.core :refer [>def >defn >defn- =>]]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.algorithms.merge :refer [merge-elide-keys]]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
@@ -552,11 +553,7 @@
   [map? eql/ident? => map?]
   (update-forms state-map
     (fn reset-form-step [e {:keys [::pristine-state ::fields] :as config}]
-      (let [new-e (merge e pristine-state)
-            elide-keys (clojure.set/difference fields (keys pristine-state))
-            new-e (apply dissoc new-e elide-keys)]
-        [new-e config]))
-    entity-ident))
+      [(merge-elide-keys e pristine-state fields) config]) entity-ident))
 
 (>defn entity->pristine*
   "Overwrite the pristine state (form state's copy) of the entity. This is meant to be used from a mutation
