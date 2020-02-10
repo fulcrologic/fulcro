@@ -550,8 +550,8 @@
   Only affects declared fields and sub-forms."
   [state-map entity-ident]
   [map? eql/ident? => map?]
-  (update-forms state-map (fn reset-form-step [e {:keys [::pristine-state] :as config}]
-                            [(merge e pristine-state) config]) entity-ident))
+  (update-forms state-map (fn reset-form-step [e {::keys [fields pristine-state] :as config}]
+                            [(as-> e e (apply dissoc e fields) (merge e pristine-state)) config]) entity-ident))
 
 (>defn entity->pristine*
   "Overwrite the pristine state (form state's copy) of the entity. This is meant to be used from a mutation
