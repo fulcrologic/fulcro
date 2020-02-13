@@ -285,19 +285,22 @@
 
   Parameters
   - `component`: The component (**instance**, not class). This component MUST have an Ident.
-  - `field`: A field on the component's query that you wish to load.
+  - `field`: A field on the component's query that you wish to load. If `field` is a *vector* of keywords then
+  this function will load all of the fields specified.
   - `options` : A map of load options. See `load`.
 
   WARNING: If you're using dynamic queries, you won't really know what factory your parent is using,
   nor can you pass it as a parameter to this function. Therefore, it is not recommended to use load-field from within
   a component that has a dynamic query unless you can base it on the original static query.
   "
-  [component field options]
+  [component field-or-fields options]
   (let [app          (comp/any->app component)
         {:keys [parallel update-query]} options
         ident        (comp/get-ident component)
         update-query (fn [q]
-                       (cond-> (eql/focus-subquery q [field])
+                       (cond-> (eql/focus-subquery q (if (vector? field-or-fields)
+                                                       field-or-fields
+                                                       [field-or-fields]))
                          update-query (update-query)))
         params       (load-params* app ident component (assoc options
                                                          :update-query update-query
