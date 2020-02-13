@@ -522,7 +522,11 @@
 (defn denormalize-query
   "Takes a state map that may contain normalized queries and a query ID. Returns the stored query or nil."
   [state-map ID]
-  (let [get-stored-query (fn [id] (get-in state-map [::queries id :query]))]
+  (let [get-stored-query (fn [id]
+                           (let [{:keys [query component-key]} (get-in state-map [::queries id])
+                                 component (registry-key->class component-key)]
+                             (when-not component (get-in state-map [::queries id]))
+                             (some-> query (vary-meta assoc :component component :queryid id))))]
     (when-let [normalized-query (get-stored-query ID)]
       (prewalk (fn [ele]
                  (if-let [q (and (string? ele) (get-stored-query ele))]
@@ -769,10 +773,12 @@
                                             union-meta                  (-> union-alternates meta)
                                             normalized-union-alternates (-> (into {} (map link-element union-alternates))
                                                                           (with-meta union-meta))
-                                            union-query-id              (-> union-alternates meta :queryid)]
+                                            union-query-id              (-> union-alternates meta :queryid)
+                                            union-component-key (-> union-alternates meta :component class->registry-key)]
                                         (assert union-query-id "Union query has an ID. Did you use extended get-query?")
                                         (util/deep-merge
                                           {::queries {union-query-id {:query normalized-union-alternates
+                                                                      :component-key union-component-key
                                                                       :id    union-query-id}}}
                                           (reduce (fn normalize-union-reducer [s [_ subquery]]
                                                     (normalize-query s subquery)) state union-alternates)))
@@ -799,13 +805,16 @@
   "Given a state map and a query, returns a state map with the query normalized into the database. Query fragments
   that already appear in the state will not be added.  Part of dynamic query implementation."
   [state-map query]
-  (let [new-state (normalize-query-elements state-map query)
-        new-state (if (nil? (::queries new-state))
-                    (assoc new-state ::queries {})
-                    new-state)
-        top-query (link-query query)]
-    (if-let [queryid (some-> query meta :queryid)]
-      (util/deep-merge {::queries {queryid {:query top-query :id queryid}}} new-state)
+  (let [queryid       (some-> query meta :queryid)
+        component-key (class->registry-key (some-> query meta :component))
+        query'        (vary-meta query dissoc :queryid :component)
+        new-state     (normalize-query-elements state-map query')
+        new-state     (if (nil? (::queries new-state))
+                        (assoc new-state ::queries {})
+                        new-state)
+        top-query     (link-query query')]
+    (if (and queryid component-key)
+      (util/deep-merge {::queries {queryid {:query top-query :id queryid :component-key component-key}}} new-state)
       new-state)))
 
 (defn set-query*

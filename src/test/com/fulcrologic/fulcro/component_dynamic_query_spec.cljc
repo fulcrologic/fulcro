@@ -1,6 +1,7 @@
 (ns com.fulcrologic.fulcro.component-dynamic-query-spec
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [taoensso.timbre :as log]
     [fulcro-spec.core :refer [specification behavior component assertions when-mocking]]
     #?(:cljs [goog.object :as gobj])))
 
@@ -79,27 +80,34 @@
         child-id         (comp/query-id Child nil)
         root-id          (comp/query-id Root nil)
         union-id         (comp/query-id Union nil)
-        existing-query   {:id    union-child-a-id
-                          :query [:OTHER]}]
+        existing-query   {:id            union-child-a-id
+                          :component-key ::UnionChildA
+                          :query         [:OTHER]}]
     (assertions
       "Adds simple single-level queries into app state under a reserved key"
       (comp/normalize-query {} (comp/get-query ui-a {})) => {::comp/queries {union-child-a-id
-                                                                             {:id    union-child-a-id
-                                                                              :query [:L]}}}
+                                                                             {:id            union-child-a-id
+                                                                              :component-key ::UnionChildA
+                                                                              :query         [:L]}}}
       "Single-level queries are not added if a query is already set in state"
       (comp/normalize-query {::comp/queries {union-child-a-id existing-query}} (comp/get-query ui-a {})) => {::comp/queries {union-child-a-id existing-query}}
       "More complicated queries normalize correctly"
       (comp/normalize-query {} (comp/get-query ui-root {}))
-      => {::comp/queries {root-id          {:id    root-id
-                                            :query [:a {:join child-id} {:union union-id}]}
-                          union-id         {:id    union-id
-                                            :query {:u1 union-child-a-id :u2 union-child-b-id}}
-                          union-child-b-id {:id    union-child-b-id
-                                            :query [:M]}
-                          union-child-a-id {:id    union-child-a-id
-                                            :query [:L]}
-                          child-id         {:query [:x]
-                                            :id    child-id}}}
+      => {::comp/queries {root-id          {:id            root-id
+                                            :component-key ::Root
+                                            :query         [:a {:join child-id} {:union union-id}]}
+                          union-id         {:id            union-id
+                                            :component-key ::Union
+                                            :query         {:u1 union-child-a-id :u2 union-child-b-id}}
+                          union-child-b-id {:id            union-child-b-id
+                                            :component-key ::UnionChildB
+                                            :query         [:M]}
+                          union-child-a-id {:id            union-child-a-id
+                                            :component-key ::UnionChildA
+                                            :query         [:L]}
+                          child-id         {:query         [:x]
+                                            :component-key ::Child
+                                            :id            child-id}}}
       "Can normalize parameterized union queries."
       (comp/get-query ui-rootp (comp/normalize-query {} (comp/get-query ui-rootp {})))
       => '[:a ({:join [:x]} {:join-params 2}) ({:union {:u1 [(:L {:child-params 1})] :u2 [:M]}} {:union-params 3})])))
