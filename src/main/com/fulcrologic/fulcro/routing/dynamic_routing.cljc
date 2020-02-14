@@ -311,7 +311,9 @@
                 :ready! {::uism/target-state :routed
                          ::uism/handler      ready-handler}}}
 
-    :routed   {::uism/events {:route! {::uism/handler route-handler}}}}})
+    :routed   {::uism/events {:waiting! {::uism/handler identity} ; in case we fail to cancel timer
+                              :timeout! {::uism/handler identity}
+                              :route!   {::uism/handler route-handler}}}}})
 
 ;; TODO: This algorithm is repeated in more than one place in slightly different forms...refactor it.
 (defn proposed-new-path
