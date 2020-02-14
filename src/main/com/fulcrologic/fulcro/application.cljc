@@ -411,7 +411,7 @@
        (if (mounted? app)
          (reset-mountpoint!)
          (do
-           (swap! (::state-atom app) assoc :fulcro.inspect.core/app-id (comp/component-name root))
+           (swap! (::state-atom app) #(merge {:fulcro.inspect.core/app-id (comp/component-name root)} %))
            (when initialize-state?
              (initialize-state! app root))
            (inspect/app-started! app)
