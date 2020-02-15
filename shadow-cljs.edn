@@ -2,12 +2,20 @@
  :nrepl    {:port 9000}
  :dev-http {9001 "resources/public"}
  :jvm-opts ["-Xmx2G"]
- :builds   {:todomvc  {:target     :browser
+ :builds   {
+            :todomvc  {:target     :browser
                        :output-dir "resources/public/js/todomvc"
                        :asset-path "/js/todomvc"
                        :dev        {:compiler-options {:external-config {:guardrails {}}}}
                        :modules    {:main {:entries [fulcro-todomvc.main]}}
-                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.websocket-preload]}}
+                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
+
+            :roots  {:target     :browser
+                       :output-dir "resources/public/js/multiroot"
+                       :asset-path "/js/multiroot"
+                       :dev        {:compiler-options {:external-config {:guardrails {}}}}
+                       :modules    {:main {:entries [roots.sample]}}
+                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
 
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
