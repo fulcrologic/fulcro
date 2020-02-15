@@ -1,45 +1,48 @@
 (ns roots.multiple-roots-renderer
   "Like kf2, but supports free-floating roots."
+  #?(:cljs (:require-macros [roots.multiple-roots-renderer]))
   (:require
     [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.application :as app]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.application :as app]))
 
-;; A map from component registry key to the mounted floating root(s) that have that class
-(defonce known-roots
-  (atom {}))
-
 (defn register-root!
   "Register a mounted react component as a new root that should be managed."
   [react-instance]
-  (let [class (comp/react-type react-instance)
-        k     (comp/class->registry-key class)]
-    (log/debug "Adding root of type " k)
-    (swap! known-roots update k (fnil conj #{}) react-instance)))
+  (if (map? comp/*app*)
+    (let [class (comp/react-type react-instance)
+          k     (comp/class->registry-key class)]
+      (log/debug "Adding root of type " k)
+      (swap! (::app/runtime-atom comp/*app*) update-in [::known-roots k] (fnil conj #{}) react-instance))
+    (log/error "Register-root cannot find app in *app*. You need with-parent-context?")))
 
 (defn deregister-root!
   "Deregister a mounted root that should no longer be managed."
   [react-instance]
-  (let [class (comp/react-type react-instance)
-        k     (comp/class->registry-key class)]
-    (log/debug "Dropping root of type " k)
-    (swap! known-roots update k disj react-instance)))
+  (if (map? comp/*app*)
+    (let [class (comp/react-type react-instance)
+          k     (comp/class->registry-key class)]
+      (log/debug "Adding root of type " k)
+      (swap! (::app/runtime-atom comp/*app*) update-in [::known-roots k] disj react-instance))
+    (log/error "Deregister-root cannot find app in *app*. You need with-parent-context?")))
 
 (defn render-roots! [app options]
-  (let [state-map (app/current-state app)]
+  (let [state-map   (app/current-state app)
+        known-roots (some-> app ::app/runtime-atom deref ::known-roots)]
     (kr/render! app options)
-    (doseq [k (keys @known-roots)
+    (doseq [k (keys known-roots)
             :let [cls        (comp/registry-key->class k)
                   query      (comp/get-query cls state-map)
                   root-props (fdn/db->tree query state-map state-map)]]
-      (doseq [root (get @known-roots k)]
+      (doseq [root (get known-roots k)]
         (when (comp/mounted? root)
           (log/debug "Refreshing mounted root for " k)
-          (.setState ^js root (fn [s] #js {"fulcro$value" root-props})))))))
+          #?(:cljs (.setState ^js root (fn [s] #js {"fulcro$value" root-props}))))))))
 
 (defn render-stale-components!
   "This function tracks the state of the app at the time of prior render in the app's runtime-atom. It
@@ -79,3 +82,26 @@
            (log/info "Optimized render failed. Falling back to root render.")
            (render-roots! app options)))))))
 
+#?(:clj
+   (defmacro defroot [sym UIRootClass]
+     `(comp/defsc ~sym [this# _#]
+        {:shouldComponentUpdate (fn [] false)}
+        (let [query#     (comp/get-query ~UIRootClass)
+              state-map# (app/current-state this#)
+              props#     (fdn/db->tree query# state-map# state-map#)]
+          ((comp/factory ~UIRootClass) props#)))))
+
+(defn floating-root-factory [UIClass]
+  (let [constructor     (fn [])
+        ui-factory      (comp/factory UIClass)
+        render          (fn []
+                          (this-as this
+                            (let [state-map (app/current-state this)
+                                  query     (comp/get-query UIClass state-map)
+                                  props     (fdn/db->tree query state-map state-map)]
+                              ((comp/factory UIClass) props))))
+        wrapper-class   (comp/configure-component! constructor ::wrapper
+                          {:shouldComponentUpdate (fn [] false)
+                           :render                render})
+        wrapper-factory (comp/factory wrapper-class)]
+    wrapper-factory))

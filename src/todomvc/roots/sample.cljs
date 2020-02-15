@@ -1,6 +1,8 @@
 (ns roots.sample
   (:require
-    [roots.multiple-roots-renderer :as mroot]
+    [roots.multiple-roots-renderer :as mroot :refer [defroot]]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.dom :as dom]
@@ -28,7 +30,9 @@
   (dom/div
     (mapv ui-other-child alt-child)))
 
-(def ui-alt-root (comp/factory AltRoot))
+;; TODO: compact into a single factory-like function on AltRoot
+(defroot AltRootWrapper AltRoot)
+(def ui-alt-root (comp/factory AltRootWrapper))
 
 (defsc Child [this {:child/keys [id name] :as props}]
   {:query         [:child/id :child/name]
@@ -44,7 +48,7 @@
                                 {:only-refresh [(comp/get-ident this)]})))})
     (dom/div
       (dom/h4 "Alternate root: ")
-      (ui-alt-root {}))))
+      (ui-alt-root))))
 
 (def ui-child (comp/factory Child {:keyfn :child/id}))
 
@@ -55,7 +59,7 @@
                     (merge
                       (comp/get-initial-state AltRoot {})
                       {:children [(comp/get-initial-state Child {:id 1 :name "Joe"})
-                               (comp/get-initial-state Child {:id 2 :name "Sally"})]}))}
+                                  (comp/get-initial-state Child {:id 2 :name "Sally"})]}))}
   (dom/div
     (mapv ui-child children)))
 
