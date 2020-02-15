@@ -48,14 +48,16 @@
 
 (def ui-child (comp/factory Child {:keyfn :child/id}))
 
-(defsc Root [this {:keys [child] :as props}]
+(defsc Root [this {:keys [children] :as props}]
   {:query         (fn [_]
-                    (into [{:child (comp/get-query Child)}] (comp/get-query AltRoot)))
+                    (into [{:children (comp/get-query Child)}] (comp/get-query AltRoot)))
    :initial-state (fn [_]
-                    (log/spy :info (merge
-                                     (comp/get-initial-state AltRoot {})
-                                     {:child (comp/get-initial-state Child {:id 1 :name "Joe"})})))}
-  (ui-child child))
+                    (merge
+                      (comp/get-initial-state AltRoot {})
+                      {:children [(comp/get-initial-state Child {:id 1 :name "Joe"})
+                               (comp/get-initial-state Child {:id 2 :name "Sally"})]}))}
+  (dom/div
+    (mapv ui-child children)))
 
 (defonce app (app/fulcro-app {:optimized-render! mroot/render!}))
 
