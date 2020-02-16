@@ -1,13 +1,13 @@
 (ns roots.sample
   (:require
-    [roots.multiple-roots-renderer :as mroot :refer [defroot]]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mroot]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.mutations :as m]))
+
+(declare AltRootPlainClass)
 
 (defsc OtherChild [this {:keys [:other/id :other/n] :as props}]
   {:query         [:other/id :other/n]
@@ -28,17 +28,17 @@
    :initial-state         {:alt-child [{:id 1 :n 22}
                                        {:id 2 :n 44}]}}
   (dom/div
+    (dom/h4 "ALTERNATE ROOT")
     (mapv ui-other-child alt-child)))
 
-;; TODO: compact into a single factory-like function on AltRoot
-(defroot AltRootWrapper AltRoot)
-(def ui-alt-root (comp/factory AltRootWrapper))
+(def ui-alt-root (mroot/floating-root-factory AltRoot))
 
 (defsc Child [this {:child/keys [id name] :as props}]
   {:query         [:child/id :child/name]
    :ident         :child/id
    :initial-state {:child/id :param/id :child/name :param/name}}
   (dom/div
+    (dom/h2 "Regular Tree")
     (dom/label "Child: ")
     (dom/input {:value    (or name "")
                 :onChange (fn [evt]
@@ -47,8 +47,7 @@
                                 [(m/set-props {:child/name v})]
                                 {:only-refresh [(comp/get-ident this)]})))})
     (dom/div
-      (dom/h4 "Alternate root: ")
-      (ui-alt-root))))
+      (dom/create-element AltRootPlainClass))))
 
 (def ui-child (comp/factory Child {:keyfn :child/id}))
 
@@ -64,6 +63,7 @@
     (mapv ui-child children)))
 
 (defonce app (app/fulcro-app {:optimized-render! mroot/render!}))
+(def AltRootPlainClass (mroot/floating-root-react-class AltRoot app))
 
 (defn start []
   (app/mount! app Root "app"))
