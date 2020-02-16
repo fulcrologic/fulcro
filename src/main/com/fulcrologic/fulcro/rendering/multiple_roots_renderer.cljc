@@ -66,14 +66,27 @@
     [com.fulcrologic.fulcro.application :as app]))
 
 (defn register-root!
-  "Register a mounted react component as a new root that should be managed."
-  [react-instance]
-  (if (map? comp/*app*)
-    (let [class (comp/react-type react-instance)
-          k     (comp/class->registry-key class)]
-      (log/debug "Adding root of type " k)
-      (swap! (::app/runtime-atom comp/*app*) update-in [::known-roots k] (fnil conj #{}) react-instance))
-    (log/error "Register-root cannot find app in *app*. You need with-parent-context?")))
+  "Register a mounted react component as a new root that should be managed. The
+  options map can contain:
+
+  - `:initialize?`: Should the initial state be pushed into the app state (if not already present)? Defaults
+  to true, which causes it to happen once (on initial mount)."
+  ([react-instance]
+   (register-root! react-instance {:initialize? true}))
+  ([react-instance {:keys [initialize?]}]
+   (if (map? comp/*app*)
+     (let [class        (comp/react-type react-instance)
+           k            (comp/class->registry-key class)
+           known-roots  (some-> comp/*app* ::app/runtime-atom deref ::known-roots)
+           initialized? (contains? known-roots k)]
+       (when (and initialize? (not initialized?))
+         (log/debug "Initializing state for alt root " k)
+         (app/initialize-state! comp/*app* class)
+         ;; We've already rendered this frame, so if we need initialized, we need a refresh
+         (app/schedule-render! comp/*app* {:force-root? true}))
+       (log/debug "Adding root of type " k)
+       (swap! (::app/runtime-atom comp/*app*) update-in [::known-roots k] (fnil conj #{}) react-instance))
+     (log/error "Register-root cannot find app in *app*. You need with-parent-context?"))))
 
 (defn deregister-root!
   "Deregister a mounted root that should no longer be managed."

@@ -47,18 +47,16 @@
                                 [(m/set-props {:child/name v})]
                                 {:only-refresh [(comp/get-ident this)]})))})
     (dom/div
-      (dom/create-element AltRootPlainClass))))
+      (if (= 1 id)
+        (ui-alt-root)
+        (dom/create-element AltRootPlainClass)))))
 
 (def ui-child (comp/factory Child {:keyfn :child/id}))
 
 (defsc Root [this {:keys [children] :as props}]
-  {:query         (fn [_]
-                    (into [{:children (comp/get-query Child)}] (comp/get-query AltRoot)))
-   :initial-state (fn [_]
-                    (merge
-                      (comp/get-initial-state AltRoot {})
-                      {:children [(comp/get-initial-state Child {:id 1 :name "Joe"})
-                                  (comp/get-initial-state Child {:id 2 :name "Sally"})]}))}
+  {:query         [{:children (comp/get-query Child)}]
+   :initial-state {:children [{:id 1 :name "Joe"}
+                              {:id 2 :name "Sally"}]}}
   (dom/div
     (mapv ui-child children)))
 
