@@ -80,7 +80,6 @@
            known-roots  (some-> comp/*app* ::app/runtime-atom deref ::known-roots)
            initialized? (contains? known-roots k)]
        (when (and initialize? (not initialized?))
-         (log/debug "Initializing state for alt root " k)
          (app/initialize-state! comp/*app* class)
          ;; We've already rendered this frame, so if we need initialized, we need a refresh
          (app/schedule-render! comp/*app* {:force-root? true}))
@@ -108,7 +107,6 @@
                   root-props (fdn/db->tree query state-map state-map)]]
       (doseq [root (get known-roots k)]
         (when (comp/mounted? root)
-          (log/debug "Refreshing mounted root for " k)
           #?(:cljs (.setState ^js root (fn [s] #js {"fulcro$value" root-props}))))))))
 
 (defn render-stale-components!
