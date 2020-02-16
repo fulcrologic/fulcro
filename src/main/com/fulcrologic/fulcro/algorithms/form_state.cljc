@@ -20,6 +20,7 @@
     [edn-query-language.core :as eql]
     [com.fulcrologic.guardrails.core :refer [>def >defn >defn- =>]]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
@@ -606,3 +607,20 @@
       (if field
         (swap! state clear-complete* entity-ident field)
         (swap! state clear-complete* entity-ident)))))
+
+(defn completed-form-props
+  "Calculates and returns the (ui) props of the given form-class based upon marking the form in the given state-map
+  complete, and then using the query of the form-class to pull the props. This function is useful in mutations and
+  other back-end logic that has access to the Fulcro database, but needs to call other support functions in this
+  namespace where the form props are required.
+
+  - `state-map`: The Fulcro normalized database
+  - `form-class`: The form component class (an instance is also acceptable)
+  - `form-ident`: The ident of the form instance to pull props for.
+
+  Returns a tree of UI props where all fields have been marked complete.
+  "
+  [state-map form-class form-ident]
+  (-> state-map
+    (mark-complete* form-ident)
+    (fns/ui->props form-class form-ident)))
