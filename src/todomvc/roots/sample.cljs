@@ -5,9 +5,10 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.mutations :as m]))
+    [com.fulcrologic.fulcro.mutations :as m]
+    [taoensso.timbre :as log]))
 
-(declare AltRootPlainClass)
+(declare AltRootPlainClass app)
 
 (defsc OtherChild [this {:keys [:other/id :other/n] :as props}]
   {:query         [:other/id :other/n]
@@ -20,13 +21,14 @@
 
 (def ui-other-child (comp/factory OtherChild {:keyfn :other/id}))
 
-(defsc AltRoot [this {:keys [alt-child]}]
+(defsc AltRoot [this {:keys [alt-child] :as props}]
   {:query                 [{:alt-child (comp/get-query OtherChild)}]
    :componentDidMount     (fn [this] (mroot/register-root! this))
    :componentWillUnmount  (fn [this] (mroot/deregister-root! this))
    :shouldComponentUpdate (fn [] true)
    :initial-state         {:alt-child [{:id 1 :n 22}
                                        {:id 2 :n 44}]}}
+  (log/spy :info props)
   (dom/div
     (dom/h4 "ALTERNATE ROOT")
     (mapv ui-other-child alt-child)))
@@ -47,18 +49,16 @@
                                 [(m/set-props {:child/name v})]
                                 {:only-refresh [(comp/get-ident this)]})))})
     (dom/div
-      (dom/create-element AltRootPlainClass))))
+      (if (= 1 id)
+        (ui-alt-root)
+        (dom/create-element AltRootPlainClass)))))
 
 (def ui-child (comp/factory Child {:keyfn :child/id}))
 
 (defsc Root [this {:keys [children] :as props}]
-  {:query         (fn [_]
-                    (into [{:children (comp/get-query Child)}] (comp/get-query AltRoot)))
-   :initial-state (fn [_]
-                    (merge
-                      (comp/get-initial-state AltRoot {})
-                      {:children [(comp/get-initial-state Child {:id 1 :name "Joe"})
-                                  (comp/get-initial-state Child {:id 2 :name "Sally"})]}))}
+  {:query         [{:children (comp/get-query Child)}]
+   :initial-state {:children [{:id 1 :name "Joe"}
+                              {:id 2 :name "Sally"}]}}
   (dom/div
     (mapv ui-child children)))
 

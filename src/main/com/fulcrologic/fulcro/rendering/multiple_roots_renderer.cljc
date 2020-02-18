@@ -23,8 +23,8 @@
   (defsc AltRoot [this {:keys [alt-child]}]
     ;; query is from ROOT of the db, just like normal root.
     {:query                 [{:alt-child (comp/get-query OtherChild)}]
-     :componentDidMount     (fn [this] (mroot/register-root! this))
-     :componentWillUnmount  (fn [this] (mroot/deregister-root! this))
+     :componentDidMount     (fn [this] (mroot/register-root! this {:app app}))
+     :componentWillUnmount  (fn [this] (mroot/deregister-root! this {:app app}))
      :shouldComponentUpdate (fn [] true)
      :initial-state         {:alt-child [{:id 1 :n 22}
                                          {:id 2 :n 44}]}}
@@ -66,24 +66,40 @@
     [com.fulcrologic.fulcro.application :as app]))
 
 (defn register-root!
-  "Register a mounted react component as a new root that should be managed."
-  [react-instance]
-  (if (map? comp/*app*)
-    (let [class (comp/react-type react-instance)
-          k     (comp/class->registry-key class)]
-      (log/debug "Adding root of type " k)
-      (swap! (::app/runtime-atom comp/*app*) update-in [::known-roots k] (fnil conj #{}) react-instance))
-    (log/error "Register-root cannot find app in *app*. You need with-parent-context?")))
+  "Register a mounted react component as a new root that should be managed. The
+  options map can contain:
+
+  - `:initialize?`: Should the initial state be pushed into the app state (if not already present)? Defaults
+  to true, which causes it to happen once (on initial mount)."
+  ([react-instance]
+   (register-root! react-instance {:initialize? true}))
+  ([react-instance {:keys [app initialize?]}]
+   (let [app (or app comp/*app*)]
+     (if (map? app)
+       (let [class        (comp/react-type react-instance)
+             k            (comp/class->registry-key class)
+             known-roots  (some-> app ::app/runtime-atom deref ::known-roots)
+             initialized? (contains? known-roots k)]
+         (when (and initialize? (not initialized?))
+           (app/initialize-state! app class)
+           ;; We've already rendered this frame, so if we need initialized, we need a refresh
+           (app/schedule-render! app {:force-root? true}))
+         (log/debug "Adding root of type " k)
+         (swap! (::app/runtime-atom app) update-in [::known-roots k] (fnil conj #{}) react-instance))
+       (log/error "Register-root cannot find app. Pass your Fulcro app via options.")))))
 
 (defn deregister-root!
   "Deregister a mounted root that should no longer be managed."
-  [react-instance]
-  (if (map? comp/*app*)
-    (let [class (comp/react-type react-instance)
-          k     (comp/class->registry-key class)]
-      (log/debug "Adding root of type " k)
-      (swap! (::app/runtime-atom comp/*app*) update-in [::known-roots k] disj react-instance))
-    (log/error "Deregister-root cannot find app in *app*. You need with-parent-context?")))
+  ([react-instance]
+   (deregister-root! react-instance {}))
+  ([react-instance {:keys [app] :as options}]
+   (let [app (or app comp/*app*)]
+     (if (map? app)
+       (let [class (comp/react-type react-instance)
+             k     (comp/class->registry-key class)]
+         (log/debug "Adding root of type " k)
+         (swap! (::app/runtime-atom app) update-in [::known-roots k] disj react-instance))
+       (log/error "Deregister-root cannot find app. Pass your Fulcro app via options.")))))
 
 (defn render-roots! [app options]
   (let [state-map   (app/current-state app)
@@ -95,7 +111,6 @@
                   root-props (fdn/db->tree query state-map state-map)]]
       (doseq [root (get known-roots k)]
         (when (comp/mounted? root)
-          (log/debug "Refreshing mounted root for " k)
           #?(:cljs (.setState ^js root (fn [s] #js {"fulcro$value" root-props}))))))))
 
 (defn render-stale-components!
@@ -173,17 +188,20 @@
   one mounted app.
   "
   [UIRoot fulcro-app]
-  (let [cls (fn [])]
+  (let [cls     (fn [])
+        ui-root (comp/computed-factory UIRoot)]
     #?(:cljs
        (gobj/extend (.-prototype cls) js/React.Component.prototype
          (clj->js
            {:shouldComponentUpdate (fn [] false)
             :render                (fn []
-                                     (with-app-context fulcro-app
-                                       (let [query     (comp/get-query UIRoot)
-                                             state-map (app/current-state fulcro-app)
-                                             props     (fdn/db->tree query state-map state-map)]
-                                         ((comp/factory UIRoot) props))))})))
+                                     (this-as this
+                                       (let [js-props (.-props this)]
+                                         (with-app-context fulcro-app
+                                           (let [query     (comp/get-query UIRoot)
+                                                 state-map (app/current-state fulcro-app)
+                                                 props     (fdn/db->tree query state-map state-map)]
+                                             (ui-root props {:js-props js-props}))))))})))
     cls))
 
 (defn floating-root-factory
