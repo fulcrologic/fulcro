@@ -23,8 +23,8 @@
   (defsc AltRoot [this {:keys [alt-child]}]
     ;; query is from ROOT of the db, just like normal root.
     {:query                 [{:alt-child (comp/get-query OtherChild)}]
-     :componentDidMount     (fn [this] (mroot/register-root! this))
-     :componentWillUnmount  (fn [this] (mroot/deregister-root! this))
+     :componentDidMount     (fn [this] (mroot/register-root! this {:app app}))
+     :componentWillUnmount  (fn [this] (mroot/deregister-root! this {:app app}))
      :shouldComponentUpdate (fn [] true)
      :initial-state         {:alt-child [{:id 1 :n 22}
                                          {:id 2 :n 44}]}}
