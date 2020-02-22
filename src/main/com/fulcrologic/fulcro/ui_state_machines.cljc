@@ -559,9 +559,9 @@
                                                                    ::event-id ::load-error}))])))
     nil))
 
-(defmutation handle-load-error [_]
-  (action [{:keys [app load-request]}]
-    (handle-load-error* app load-request)))
+(defmutation handle-load-error [params]
+  (action [{:keys [app]}]
+    (handle-load-error* app (:load-params params))))
 
 (>defn queue-loads! [app env]
   [::fulcro-app ::env => nil?]
@@ -1027,7 +1027,10 @@
         {::keys [asm-id]} env
         options (-> (dissoc options ::ok-event ::ok-data ::error-event ::error-data ::comp/component-class
                       ::target-alias ::target-actor)
-                  (assoc :marker marker :abort-id asm-id :fallback `handle-load-error :post-mutation-params (merge ok-data {::asm-id asm-id}))
+                  (assoc :marker marker
+                         :abort-id asm-id
+                         :fallback `handle-load-error
+                         :post-mutation-params (merge ok-data {::asm-id asm-id}))
                   (cond->
                     (or target-actor target-alias) (assoc :target (compute-target env options))
                     ok-event (->

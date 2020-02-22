@@ -46,6 +46,7 @@
   (if-let [will-enter (comp/component-options class :will-enter)]
     will-enter
     (let [ident (comp/get-ident class {})]
+      (when-not ident (log/error "Component must have an ident for routing to work properly:" (comp/component-name class)))
       (fn [_ _] (route-immediate ident)))))
 
 (defn will-enter
@@ -553,14 +554,17 @@
            _                      (when (empty? router-targets)
                                     (compile-error env options "defrouter requires at least one router-target"))
            id                     (keyword router-ns (name router-sym))
+           getq                   (fn [s] `(or (comp/get-query ~s)
+                                             (throw (ex-info (str "Route target has no query! "
+                                                               (comp/component-name ~s)) {}))))
            query                  (into [::id
                                          [::uism/asm-id id]
-                                         {::current-route `(comp/get-query ~(first router-targets))}]
+                                         {::current-route (getq (first router-targets))}]
                                     (map-indexed
                                       (fn [idx s]
                                         (when (nil? s)
-                                          (compile-error env options "defrouter target contains nil!"))
-                                        {(keyword (str "alt" idx)) `(comp/get-query ~s)})
+                                          (compile-error env options "defrouter :target contains nil!"))
+                                        {(keyword (str "alt" idx)) (getq s)})
                                       (rest router-targets)))
            initial-state-map      (into {::id            id
                                          ::current-route `(comp/get-initial-state ~(first router-targets) ~'params)}
@@ -568,7 +572,6 @@
                                       (fn [idx s] [(keyword (str "alt" idx)) `(comp/get-initial-state ~s {})])
                                       (rest router-targets)))
            ident-method           (apply list `(fn [] [::id ~id]))
-           get-targets-method     (apply list `(fn [~'c] ~(set router-targets)))
            initial-state-lambda   (apply list `(fn [~'params] ~initial-state-map))
            states-to-render-route (if (seq body)
                                     #{:routed :deferred}
