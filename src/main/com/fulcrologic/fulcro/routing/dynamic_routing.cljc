@@ -261,7 +261,7 @@
 (defn fail-handler [env] env)
 
 (defn route-handler [{::uism/keys [app event-data] :as env}]
-  (let [{:keys [router target error-timeout deferred-timeout path-segment] :or {error-timeout 5000 deferred-timeout 100}} event-data
+  (let [{:keys [router target error-timeout deferred-timeout path-segment] :or {error-timeout 5000 deferred-timeout 20}} event-data
         immediate? (immediate? target)]
     (-> (if immediate?
           (let [new-env (-> env
@@ -478,7 +478,7 @@
                      target-ident      (will-enter target app params)
                      completing-action (or (some-> target-ident meta :fn) (constantly true))
                      event-data        (merge
-                                         {:error-timeout 5000 :deferred-timeout 100}
+                                         {:error-timeout 5000 :deferred-timeout 20}
                                          timeouts
                                          {:path-segment matching-prefix
                                           :router       (vary-meta router-ident assoc :component component)
