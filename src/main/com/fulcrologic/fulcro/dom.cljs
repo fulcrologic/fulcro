@@ -176,15 +176,18 @@
         (js/React.createElement element (gobj/getValueByKeys this "state" "cached-props"))))
     (let [real-factory (js/React.createFactory ctor)]
       (fn [props & children]
-        (if-let [r (gobj/get props "ref")]
-          (if (string? r)
-            (apply real-factory props children)
-            (let [p #js{}]
-              (gobj/extend p props)
-              (gobj/set p "inputRef" r)
-              (gobj/remove p "ref")
-              (apply real-factory p children)))
-          (apply real-factory props children))))))
+        (let [t (gobj/get props "type")]
+          (if (= t "file")
+            (apply js/React.createElement "input" props children)
+            (if-let [r (gobj/get props "ref")]
+              (if (string? r)
+                (apply real-factory props children)
+                (let [p #js{}]
+                  (gobj/extend p props)
+                  (gobj/set p "inputRef" r)
+                  (gobj/remove p "ref")
+                  (apply real-factory p children)))
+              (apply real-factory props children))))))))
 
 
 (def wrapped-input "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "input"))
