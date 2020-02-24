@@ -114,12 +114,15 @@
   [::env => ::env]
 
   (let [{:keys [app state result mutation-ast transmitted-ast]} env
-        ;; transaction should only be present if the net middleware rewrote the tx
+        ;; NOTE: transaction should only be present if the network middleware rewrote the tx, which means
+        ;; transaction would be the global-eql-transformed query that was modified by middleware.
+        ;; Otherwise, the query we care about is the transmitted AST, since that is what merge mark/sweep should
+        ;; work with.
         {:keys [body transaction]} result
         mark-query    (if transmitted-ast
                         (if (= :root (:type transmitted-ast))
                           (eql/ast->query transmitted-ast)
-                          [(eql/ast->expr transmitted-ast)])
+                          [(eql/ast->expr transmitted-ast true)])
                         transaction)
         body          (if (and body mark-query)
                         (merge/mark-missing body mark-query)
@@ -150,8 +153,8 @@
   [::env => ::env]
   (-> env
     (update-errors-on-ui-component! ::mutation-error)
-    (integrate-mutation-return-value!)
     (rewrite-tempids!)
+    (integrate-mutation-return-value!)
     (trigger-global-error-action!)
     (dispatch-ok-error-actions!)))
 

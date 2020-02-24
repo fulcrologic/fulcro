@@ -259,7 +259,7 @@
    * `:load-mutation` - A symbol. Defines which mutation to use as an implementation of low-level load operations. See
      Developer's Guide
    * `:query-transform-default` - A `(fn [query] query')`. Defaults to a function that strips `:ui/...` keywords and
-     form state config joins from load queries.
+     form state config joins from load queries. DEPRECATED. Prefer `:global-eql-transform`.
    * `:load-marker-default` - A default value to use for load markers. Defaults to false.
    * `:render-root!` - The function to call in order to render the root of your application. Defaults
      to `js/ReactDOM.render`.
