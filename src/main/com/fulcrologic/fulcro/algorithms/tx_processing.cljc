@@ -314,7 +314,7 @@
                                  (catch #?(:cljs :default :clj Exception) e
                                    (let [mutation-symbol (:dispatch-key original-ast-node)]
                                      (log/error e "The `action` section of mutation" mutation-symbol "threw an exception."))))
-                               (ilet [tx (eql/ast->expr original-ast-node)]
+                               (ilet [tx (eql/ast->expr original-ast-node true)]
                                  (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                                :state-before state-before
                                                                                :tx           tx})))
@@ -343,7 +343,7 @@
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
                                  (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
-                             (ilet [tx (eql/ast->expr original-ast-node)]
+                             (ilet [tx (eql/ast->expr original-ast-node true)]
                                (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                              :state-before state-before
                                                                              :tx           tx})))
@@ -419,8 +419,8 @@
         ast             (if (and desired-ast query-transform)
                           (query-transform desired-ast)
                           desired-ast)]
-    (log/debug "Desired tx from tx:" (eql/ast->expr desired-ast))
-    (log/debug "Desired tx at network layer:" (eql/ast->expr ast))
+    (log/debug "Desired tx from tx:" (eql/ast->expr desired-ast true))
+    (log/debug "Desired tx at network layer:" (eql/ast->expr ast true))
     (cond-> tx-element
       desired-ast (assoc-in [::desired-ast-nodes remote] desired-ast)
       ast (assoc-in [::transmitted-ast-nodes remote] ast))))
@@ -451,7 +451,7 @@
         (swap! runtime-atom update-in [::send-queues remote] (fnil conj []) send-node)
         send-node)
       (do
-        (log/debug "Mutation" (some-> tx-node ::elements (get ele-idx) ::original-ast-node eql/ast->expr) "returned false or nil. Skipping send.")
+        (log/debug "Mutation" (some-> tx-node ::elements (get ele-idx) ::original-ast-node (eql/ast->expr true)) "returned false or nil. Skipping send.")
         (handler {:status-code 200 :body {}})
         nil))))
 
