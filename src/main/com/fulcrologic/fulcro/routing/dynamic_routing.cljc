@@ -520,10 +520,8 @@
      (throw (ana/error (merge env (some-> form meta)) message {}))))
 
 #?(:clj (s/def ::router-targets (s/coll-of symbol? :type vector?)))
-#?(:clj (s/def ::initial-ui list?))
-#?(:clj (s/def ::loading-ui list?))
-#?(:clj (s/def ::failed-ui list?))
-#?(:clj (s/def ::defrouter-options (s/keys :req-un [::router-targets] :opt-un [::initial-ui ::loading-ui ::failed-ui])))
+#?(:clj (s/def ::always-render-body? boolean?))
+#?(:clj (s/def ::defrouter-options (s/keys :req-un [::router-targets] :opt-un [::always-render-body?])))
 
 (defn validate-route-targets
   "Run a runtime validation on route targets to verify that they at least declare a route-segment that is a vector."
@@ -576,17 +574,26 @@
            states-to-render-route (if (seq body)
                                     #{:routed :deferred}
                                     `(constantly true))
-           render-cases           (apply list `(let [~'class (current-route-class ~'this)]
-                                                 (if (~states-to-render-route ~'current-state)
-                                                   (when ~'class
-                                                     (let [~'factory (comp/factory ~'class)]
-                                                       (~'factory (comp/computed ~'current-route (comp/get-computed ~'this)))))
+           always-render-body?    (and (map? options) (:always-render-body? options))
+           render-cases           (if always-render-body?
+                                    (apply list `(let [~'class (current-route-class ~'this)]
                                                    (let [~(first arglist) ~'this
                                                          ~(second arglist) {:pending-path-segment ~'pending-path-segment
                                                                             :route-props          ~'current-route
                                                                             :route-factory        (when ~'class (comp/factory ~'class))
                                                                             :current-state        ~'current-state}]
-                                                     ~@body))))
+                                                     ~@body)))
+                                    (apply list `(let [~'class (current-route-class ~'this)]
+                                                   (if (~states-to-render-route ~'current-state)
+                                                     (when ~'class
+                                                       (let [~'factory (comp/factory ~'class)]
+                                                         (~'factory (comp/computed ~'current-route (comp/get-computed ~'this)))))
+                                                     (let [~(first arglist) ~'this
+                                                           ~(second arglist) {:pending-path-segment ~'pending-path-segment
+                                                                              :route-props          ~'current-route
+                                                                              :route-factory        (when ~'class (comp/factory ~'class))
+                                                                              :current-state        ~'current-state}]
+                                                       ~@body)))))
            options                (merge
                                     `{:componentDidMount (fn [this#] (validate-route-targets this#))}
                                     options
@@ -612,8 +619,17 @@
      `:router-targets` - (REQUIRED) A *vector* of ui components that are router targets. The first one is considered the \"default\".
      Other defsc options - (LIMITED) You may not specify query/initial-state/protocols/ident, but you can define things like react
      lifecycle methods. See defsc.
+     `:always-render-body?` - (OPTIONAL) When true this router expects that you will supply a render body, and
+     it will always be rendered. The props this body of the router body will include:
 
-     The optional body, if defined, will *only* be used if the router is in one of the following states:
+     - `:current-state` - The state of the routing state machine. (:initial, :pending, :failed, :routed)
+     - `:route-factory` - A factory that can generate the current route.
+     - `:route-props` -  The props that should be passed to the route factory. You can augment these with computed if you
+     wish. The router normally passes computed through like so: `(route-factory (comp/computed route-props (comp/get-computed this)))`
+     - `:pending-path-segment` - The route that we're going to (when in pending state).
+
+     The optional body, if defined, will *only* be used if the router has the `:always-render-body?` option set of
+     is in one of the following states:
 
      - `:initial` - No route is set.
      - `:pending` - A deferred route is taking longer than expected (configurable timeout, default 100ms)
