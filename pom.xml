@@ -4,7 +4,7 @@
   <groupId>com.fulcrologic</groupId>
   <artifactId>fulcro</artifactId>
   <packaging>jar</packaging>
-  <version>3.1.14</version>
+  <version>3.1.15</version>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -64,12 +64,12 @@
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.10.0</version>
+      <version>1.10.1</version>
     </dependency>
     <dependency>
       <groupId>com.fulcrologic</groupId>
       <artifactId>guardrails</artifactId>
-      <version>0.0.10</version>
+      <version>0.0.12</version>
     </dependency>
     <dependency>
       <groupId>edn-query-language</groupId>
@@ -94,7 +94,7 @@
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojurescript</artifactId>
-      <version>1.10.520</version>
+      <version>1.10.597</version>
     </dependency>
     <dependency>
       <groupId>cljsjs</groupId>
@@ -114,7 +114,7 @@
     <dependency>
       <groupId>com.cognitect</groupId>
       <artifactId>transit-clj</artifactId>
-      <version>0.8.313</version>
+      <version>0.8.319</version>
     </dependency>
     <dependency>
       <groupId>cljsjs</groupId>

@@ -98,10 +98,7 @@
         (when (and ident (nil? (second ident)))
           (log/info
             (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
-              " This warning can be safely ignored if that is intended.")))
-        (log/debug "Adding" (comp/component-name this) "instance to class index")
-        (when ident
-          (log/debug "Adding" (comp/component-name this) "with ident" ident "to ident index")))
+              " This warning can be safely ignored if that is intended."))))
       (swap! runtime-atom index-component* this ident cls))))
 
 (defn- drop-component*
@@ -120,7 +117,6 @@
   ([this ident]
    (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
          cls (comp/react-type this)]
-     (log/debug "Dropping component instance with ident " ident "from indexes")
      (swap! runtime-atom drop-component* this ident cls)))
   ([this]
    (let [old-ident (comp/get-ident this)]
