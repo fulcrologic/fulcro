@@ -7,27 +7,27 @@
            com.taoensso/timbre        {:mvn/version "4.10.0"}
            com.taoensso/encore        {:mvn/version "2.115.0"}
            com.taoensso/sente         {:mvn/version "1.15.0"}
-           com.cognitect/transit-clj  {:mvn/version "0.8.313"}
+           com.cognitect/transit-clj  {:mvn/version "0.8.319"}
            com.cognitect/transit-cljs {:mvn/version "0.8.256"}
-           com.fulcrologic/guardrails {:mvn/version "0.0.10"}
-           org.clojure/clojure        {:mvn/version "1.10.0" :scope "provided"}
-           org.clojure/clojurescript  {:mvn/version "1.10.520" :scope "provided"}
+           com.fulcrologic/guardrails {:mvn/version "0.0.12"}
+           org.clojure/clojure        {:mvn/version "1.10.1" :scope "provided"}
+           org.clojure/clojurescript  {:mvn/version "1.10.597" :scope "provided"}
            org.clojure/core.async     {:mvn/version "0.4.474"}}
 
  :aliases {:test      {:extra-paths ["src/test"]
                        :extra-deps  {org.clojure/test.check  {:mvn/version "0.9.0"}
-                                     com.wsscode/pathom      {:mvn/version "2.2.24"}
+                                     com.wsscode/pathom      {:mvn/version "2.2.30"}
                                      fulcrologic/fulcro-spec {:mvn/version "3.1.4"}}}
 
            :clj-tests {:extra-paths ["src/test"]
                        :main-opts   ["-m" "kaocha.runner"]
-                       :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-554"}}}
+                       :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-565"}}}
 
            :dev       {:extra-paths ["src/dev" "resources" "src/todomvc"]
-                       :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.8.69"}
-                                     com.wsscode/pathom                {:mvn/version "2.2.24"}
+                       :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.8.83"}
+                                     com.wsscode/pathom                {:mvn/version "2.2.30"}
                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.0.5"}
-                                     binaryage/devtools                {:mvn/version "0.9.10"}
+                                     binaryage/devtools                {:mvn/version "0.9.11"}
                                      ring/ring-core                    {:mvn/version "1.7.1"}
                                      org.immutant/web                  {:mvn/version "2.1.10"}
-                                     org.clojure/tools.namespace       {:mvn/version "0.3.0-alpha4"}}}}}
+                                     org.clojure/tools.namespace       {:mvn/version "0.3.1"}}}}}
