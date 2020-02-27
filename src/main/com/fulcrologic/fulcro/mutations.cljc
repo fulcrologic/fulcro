@@ -127,7 +127,9 @@
         body          (if (and body mark-query)
                         (merge/mark-missing body mark-query)
                         body)
-        eql           (or transaction [(eql/ast->expr mutation-ast)])
+        eql           (or transaction
+                        (and mutation-ast [(eql/ast->expr mutation-ast true)])
+                        mark-query)
         remote-error? (ah/app-algorithm app :remote-error?)]
     (when-not (remote-error? result)
       (swap! state merge/merge-mutation-joins eql body))

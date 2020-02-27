@@ -147,4 +147,4 @@
   [ast]
   (if (= :root (:type ast))
     (eql/ast->query ast)
-    [(eql/ast->expr ast)]))
+    [(eql/ast->expr ast true)]))
