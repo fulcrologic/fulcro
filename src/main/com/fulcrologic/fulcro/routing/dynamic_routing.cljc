@@ -1,4 +1,13 @@
 (ns com.fulcrologic.fulcro.routing.dynamic-routing
+  "A router that uses Fulcro dynamic queries to optimize query performance on rendering and provides a number of useful
+  features such as easy composition, control over route targeting, on-screen component vetoes of routing requests, etc.
+
+  NOTE: This router is *not* concerned with HTML5 history events or URL management. This router is intended to be usable
+  in server-side rendering, React Native, and anywhere else Fulcro might be used. Therefore it is not tied to a particular
+  rendering platform's idea of location management (i.e. URLs).
+
+  The structure of the route composition (and its representation as a sequence of string path components) is intended to
+  be easy to integrate with HTML5 history and URL control."
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]

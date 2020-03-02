@@ -25,7 +25,8 @@
 (defn render!
   "The top-level call for using this optimized render in your application.
 
-  If `:force-root? true` is passed in options, then it just forces a keyframe root render.
+  If `:force-root? true` is passed in options, then it forces a `keyframe` root render with
+  that same option.
 
   This renderer always does a keyframe render *unless* an `:only-refresh` option is passed to the stack
   (usually as an option on `(transact! this [(f)] {:only-refresh [...idents...]})`. In that case the renderer

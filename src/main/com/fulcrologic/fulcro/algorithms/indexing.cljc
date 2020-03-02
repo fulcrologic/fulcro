@@ -1,5 +1,8 @@
 (ns com.fulcrologic.fulcro.algorithms.indexing
-  "Functions that implement the query and component indexing."
+  "Functions that implement the query and component indexing. Fulcro keeps indexes of on-screen
+   components by ident and class. These enable Fulcro to find on-screen components for things
+   like targeted refresh. You are allowed to use the indexes to find components for whatever
+   purpose suits your needs (e.g. looking at component options)."
   (:require
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]

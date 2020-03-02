@@ -15,7 +15,7 @@
   server-rendered content in the DOM.
 
   If `:force-root? true` is included in the options map then not only will this do a keyframe update, it will also
-  force all components to return `false` from `shouldComponentUpdate`."
+  force all components to return `true` from `shouldComponentUpdate`."
   [app {:keys [force-root? hydrate?] :as options}]
   (binding [comp/*blindly-render* force-root?]
     (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app

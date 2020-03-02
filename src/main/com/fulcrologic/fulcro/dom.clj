@@ -1,5 +1,22 @@
 (ns com.fulcrologic.fulcro.dom
-  "MACROS for generating CLJS code. See dom.cljs"
+  "MACROS for generating CLJS code. See dom.cljs. There are both CLJ and CLJS versions of this file, but *both* are
+  form CLJS. The CLJ file is necessary because macros in CLJS are expanded at compile time in the JVM. There is
+  no way to get macros and functions that work properly for both CLJ and CLJS output, so in order to get
+  both a macro and function that is usable in CLJ and CLJS there need to be two namespaces. The DOM macros/functions
+  that work for CLJ are in `dom-server`.
+
+  Thus, if you are using these in a CLJC file, you MUST require them like this:
+
+  ```
+  (ns my-thing.ui
+    (:require
+      #?(:clj [com.fulcrologic.fulcro.dom-server :as dom]
+         :cljs [com.fulcrologic.fulcro.dom :as dom])))
+  ```
+
+  This is a limitation of the operation of the language itself (if you want both macros for performance in CLJ and CLJS
+  (expanded at compile time to optimal form) as well as function versions for use as lambdas).
+  "
   (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [clojure.spec.alpha :as s]

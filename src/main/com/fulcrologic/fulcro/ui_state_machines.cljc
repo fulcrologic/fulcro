@@ -1,4 +1,11 @@
 (ns com.fulcrologic.fulcro.ui-state-machines
+  "Support for structuring the logic of component interactions as a state machine. Useful when
+   the logic of a group of components becomes non-trivial, which is often. Note that it is not
+   recommended that you try to structure large parts of your application as a state machine
+   (since this implementation is closer to FSM than state charts), but it turns out that
+   most applications work very well with groups of components under separate state machines
+   as somewhat larger modules of the overall application. See the Developer's Guide for
+   more information on working with this namespace."
   #?(:cljs (:require-macros com.fulcrologic.fulcro.ui-state-machines))
   (:refer-clojure :exclude [load])
   (:require

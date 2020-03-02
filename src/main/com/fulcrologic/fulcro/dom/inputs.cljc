@@ -1,7 +1,9 @@
 (ns com.fulcrologic.fulcro.dom.inputs
-  "A namespace for specialized tool for dealing with inputs in HTML DOM to control a value in the data model
-  that cannot be directly represented by normal HTML inputs. For example, you want to have an int in
-  your data model, but HTML5 number inputs return a string and do not constrain the input to integers."
+  "A namespace for dealing with inputs in HTML DOM when you wish to control a value in the data model
+  that cannot be directly represented by normal HTML inputs (which always use strings). For example, you want to have an int in
+  your data model, but HTML5 number inputs return a string. The primary utility is `StringBufferedInput` which generates
+  a new React class that wraps an HTML `input`. The namespace also includes a few uses that are handy (at least as
+  examples): `ui-int-input` and `ui-keyword-input`. See the source of those for examples."
   (:require
     #?(:cljs
        [goog.object :as gobj])

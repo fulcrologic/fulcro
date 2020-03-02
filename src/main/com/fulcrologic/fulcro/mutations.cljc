@@ -1,4 +1,45 @@
 (ns com.fulcrologic.fulcro.mutations
+  "Mutations are the central mechanism of getting things done in Fulcro. The term mutation refers to two things:
+
+  * The literal data that stands for the operation. These are lists with a single symbol and a map of parameters. In
+  earlier version, you had to quote them: `'[(f {:x 1})]`, but Fulcro 3 includes a way to declare them so that they
+  auto-quote themselves for convenience. This can be confusing to new users. Remember that a mutation call is nothing
+  more than a *submission* of this data via `comp/transact!` (i.e. call `f` with the parameter `{:x 1}`).
+  * One or more definitions of what to do when the mutation is requested.
+
+  The former are submitted with `transact!` and can be written like so:
+
+  ```
+  ;; The unquote on the parameters is typically needed because you'll use surrounding binding values in them.
+  (let [x 3
+        some-local-value 42]
+    (comp/transact! this `[(f ~{:x x}) (g ~{:y some-local-value})]))
+  ;; or, if pre-declared and required:
+  (let [x 3
+        some-local-value 42]
+    (comp/transact! this [(f {:x x}) (g {:y some-local-value})]))
+  ```
+
+  This works because a mutation *definition* actually builds a record that response to function calls. This means
+
+  ```
+  (defn func [x] (inc x))
+  (defmutation f [params] ...)
+
+  ;; A regular function runs when called...
+  (func 3)
+  ;; => 4
+
+  ;; A mutation simply returns its expression when called:
+  (f {:x 1})
+  ;; => (f {:x 1})
+  ```
+
+  This allows you to embed a mutation expression without quoting in your calls to transact (if desired) or with
+  quoting if you have something like a circular reference problem.
+
+  See the Developer's Guide for more information.
+  "
   #?(:cljs (:require-macros com.fulcrologic.fulcro.mutations))
   (:require
     #?(:clj [cljs.analyzer :as ana])

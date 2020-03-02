@@ -7,9 +7,20 @@
 
   There is also support for detecting which fields have been marked complete and are dirty.
 
-  Validation can be done via Clojure spec, or by defining your own field validation functions via
-  `make-validator`. This general-purpose validation factor function can easily be used to create more
+  Validation can be done via Clojure spec (not recommended), or by defining your own field validation functions via
+  `make-validator` (recommended). This general-purpose validation factory function can easily be used to create more
   automated validation factories that can be more configuration-driven, but this is left as an exercise for the community.
+
+  Specs are not recommended because forms commonly have multi-field dependencies that simply are
+  not well-supported, and sometimes the use of things like Fulcro tempids leads to specs that you'd
+  rather not have on your server. Use of spec really boils down to your intention for those
+  spec (i.e. hard validation of final database value vs. potential runtime look of the data as
+  it is manipulated). Specs that include \"state\" information will cause you more pain than
+  you want, though you can certainly leverage specs anywhere it makes sense using the validator factory.
+
+  IMPORTANT: This namespace is about *(possibly recursive) form data management*. Rendering and
+  such are not part of the stated intention. See Fulcro RAD for more fully-automated,
+  multi-platform form generation.
 
   See the Developer's Guide for more information.
   "

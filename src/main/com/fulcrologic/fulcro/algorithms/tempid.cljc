@@ -1,5 +1,12 @@
 (ns com.fulcrologic.fulcro.algorithms.tempid
-  "Functions for making and consuming Fulcro temporary IDs."
+  "Functions for making and consuming Fulcro temporary IDs. Tempids are used when the client is optimistically
+  creating a new entity and you want to be able to detect that on the server when the data is sent. Additionally,
+  Fulcro mutations can return a remapping instruction from the server to rewrite all tempids in the client
+  (state, network queues, etc.) atomically.
+
+  This allows the client to safely generate new entities with a temporary ID and let the server remap them to the real
+  IDs at some future time.  Transit read/write is included, so that (de)serialization of them can be consistent whenever
+  needed (see the `transit` ns in this package)."
   (:refer-clojure :exclude [uuid])
   (:require
     [taoensso.timbre :as log]
