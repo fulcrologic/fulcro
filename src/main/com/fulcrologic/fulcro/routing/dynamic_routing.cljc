@@ -103,7 +103,7 @@
   (when (and #?(:clj false :cljs goog.DEBUG)
              *target-class*
              (not (ident-matches-expectation? (comp/ident *target-class* {}) ident)))
-    (log/warn fn-name " was invoked with the ident " ident
+    (log/error fn-name " was invoked with the ident " ident
               " which doesn't seem to match the ident of the wrapping component (class "
               *target-class* " , ident ["
               (first (comp/ident *target-class* {})) " ...])")))
@@ -154,6 +154,9 @@
       (if router-id
         (do
           (log/debug "Router" router-id "notified that pending route is ready.")
+          (when (and #?(:clj false :cljs goog.DEBUG) (nil? (get-in state-map target)))
+            (log/error `target-ready "should route to" target "but there is no data in the DB for the ident."
+                      "Perhaps you supplied a wrong ident?"))
           (uism/trigger! app router-id :ready!))
         (log/error "dr/target-ready! was called but there was no router waiting for the target listed: " target
           "This could mean you sent one ident, and indicated ready on another."))))
