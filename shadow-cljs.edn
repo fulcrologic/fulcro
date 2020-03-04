@@ -8,15 +8,22 @@
                        :asset-path "/js/todomvc"
                        :dev        {:compiler-options {:external-config {:guardrails {}}}}
                        :modules    {:main {:entries [fulcro-todomvc.main]}}
-                       :devtools   { :preloads [com.fulcrologic.fulcro.inspect.preload]}}
+                       :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
 
-            :roots  {:target     :browser
+            :roots    {:target     :browser
                        :output-dir "resources/public/js/multiroot"
                        :asset-path "/js/multiroot"
                        :dev        {:compiler-options {:external-config {:guardrails {}}}}
                        :modules    {:main {:entries [roots.sample]}}
                        :devtools   {:after-load roots.sample/start
-                                    :preloads [com.fulcrologic.fulcro.inspect.preload]}}
+                                    :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
+
+            :hooks    {:target     :browser
+                       :output-dir "resources/public/js/hooks"
+                       :asset-path "/js/hooks"
+                       :modules    {:main {:entries [roots.hooks-demo]}}
+                       :devtools   {:after-load roots.hooks-demo/start
+                                    :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
 
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
