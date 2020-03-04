@@ -35,9 +35,9 @@
   ([f deps] #?(:cljs (js/React.useEffect f (clj->js deps)))))
 
 (defn use-state
-  "A simple wrapper around React/useState. Returns a js array."
+  "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring"
   [initial-value]
-  #?(:cljs (js/React.useState initial-value)))
+  #?(:cljs (js->clj (js/React.useState initial-value))))
 
 (defn isoget-in
   "Like get-in, but for js objects, and in CLJC. In clj, it is just get-in. In cljs it is
@@ -459,10 +459,12 @@
   * `faux-class` - A Fulcro faux class, which is a fn that has had `add-options!` called on it.
 
   Returns a cljs vector containing `this` and fulcro `props`.
+
+  You should *not* use this directly. Prefer `defsc` or `configure-hooks-component!`
   "
   [js-props faux-class]
   #?(:cljs
-     (let [tunnelled-props-state   (use-state #js {})
+     (let [tunnelled-props-state   (js/React.useState #js {})
            current-state           (aget tunnelled-props-state 0 "fulcro$value")
            {:keys [ident] :as options} (gobj/get faux-class "fulcro$options")
            props                   (gobj/get js-props "fulcro$value")
@@ -489,12 +491,12 @@
              (fn [] (drop-component! faux-component original-ident)))))
        [faux-component current-props])))
 
-(defn configure-hooks-component! [{:keys [render] :as options} get-class]
-  (add-hook-options!
-    (fn [js-props]
-      (let [[this props] (use-fulcro js-props (get-class))]
-        (render this props)))
-    options))
+#_(defn configure-hooks-component! [{:keys [render] :as options} get-class]
+    (add-hook-options!
+      (fn [js-props]
+        (let [[this props] (use-fulcro js-props (get-class))]
+          (render this props)))
+      options))
 
 (defn mounted?
   "Returns true if the given component instance is mounted on the DOM."
@@ -1218,6 +1220,18 @@
                 ~@body)))))))
 
 #?(:clj
+   (defn- build-hooks-render [classsym thissym propsym compsym extended-args-sym body]
+     (let [computed-bindings (when compsym `[~compsym (com.fulcrologic.fulcro.components/get-computed ~thissym)])
+           extended-bindings (when extended-args-sym `[~extended-args-sym (com.fulcrologic.fulcro.components/get-extra-props ~thissym)])
+           render-fn         (symbol (str "render-" (name classsym)))]
+       `(~'fn ~render-fn [~thissym ~propsym]
+          (com.fulcrologic.fulcro.components/wrapped-render ~thissym
+            (fn []
+              (let [~@computed-bindings
+                    ~@extended-bindings]
+                ~@body)))))))
+
+#?(:clj
    (defn- build-and-validate-initial-state-map [env sym initial-state legal-keys children-by-query-key]
      (let [env           (merge env (meta initial-state))
            join-keys     (set (keys children-by-query-key))
@@ -1320,15 +1334,29 @@
            ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-form                       (build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
            query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
-           render-form                      (build-render sym thissym propsym computedsym extra-args body)
+           hooks?                           (:use-hooks? options)
+           render-form                      (if hooks?
+                                              (build-hooks-render sym thissym propsym computedsym extra-args body)
+                                              (build-render sym thissym propsym computedsym extra-args body))
            nspc                             (if (cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
            fqkw                             (keyword (str nspc) (name sym))
            options-map                      (cond-> options
                                               state-form (assoc :initial-state state-form)
                                               ident-form (assoc :ident ident-form)
                                               query-form (assoc :query query-form)
+                                              hooks? (assoc :componentName fqkw)
                                               render-form (assoc :render render-form))]
-       (if (cljs? env)
+       (cond
+         hooks?
+         `(do
+            (defonce ~sym
+              (fn [js-props#]
+                (let [render# (:render (component-options ~sym))
+                      [this# props#] (use-fulcro js-props# ~sym)]
+                  (render# this# props#))))
+            (add-hook-options! ~sym ~options-map))
+
+         (cljs? env)
          `(do
             (declare ~sym)
             (let [options# ~options-map]
@@ -1340,6 +1368,8 @@
                       (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
                     nil)))
               (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
+
+         :else
          `(do
             (declare ~sym)
             (let [options# ~options-map]

@@ -32,17 +32,28 @@
 ;;   (dom/div "This ..." ...))
 ;;
 ;; should output:
-(def Hook
-  (comp/configure-hooks-component!
-    {:componentName ::Hook
-     :ident         (fn [this props] [:hook/id (:hook/id props)])
-     :query         (fn [_] [:hook/id :hook/x])
-     :initial-state (fn [{:keys [id] :as params}] {:hook/id id :hook/x 1})
-     :render        (fn [this {:hook/keys [x] :as props}]
-                      (dom/div "This is a hooks-based component: "
-                        (dom/button {:onClick #(m/set-integer! this :hook/x :value (inc x))}
-                          (str x))))}
-    (fn [] Hook)))
+#_(def Hook
+    (comp/configure-hooks-component!
+      {:componentName ::Hook
+       :ident         (fn [this props] [:hook/id (:hook/id props)])
+       :query         (fn [_] [:hook/id :hook/x])
+       :initial-state (fn [{:keys [id] :as params}] {:hook/id id :hook/x 1})
+       :render        (fn [this {:hook/keys [x] :as props}]
+                        (dom/div "This is a hooks-based component: "
+                          (dom/button {:onClick #(m/set-integer! this :hook/x :value (inc x))}
+                            (str x))))}
+      (fn [] Hook)))
+
+(defsc Hook [this {:keys [:hook/id :hook/x] :as props}]
+  {:query         [:hook/id :hook/x]
+   :ident         :hook/id
+   :initial-state {:hook/x 1 :hook/id :param/id}
+   :use-hooks?    true}
+  (let [[v set-v!] (comp/use-state 0)]
+    (dom/div "This is a hooks-based component: "
+      (dom/button {:onClick #(set-v! (inc v))} (str v))
+      (dom/button {:onClick #(m/set-integer! this :hook/x :value (inc x))}
+        (str x)))))
 
 (def ui-hook (comp/factory Hook {:keyfn :hook/id}))
 
