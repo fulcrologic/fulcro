@@ -22,6 +22,10 @@
     #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]))
 
+;; Class of the routing target component, available in the notifications fns
+;; (:will-enter, :route-cancelled, :will-leave)
+(def ^:dynamic *target-class* nil)
+
 (declare route-immediate)
 
 (defn route-segment
@@ -39,7 +43,8 @@
   "Universal CLJC version of will-enter.  Don't use the protocol method in CLJ."
   [class route-params]
   (when-let [f (get-route-cancelled class)]
-    (f route-params)))
+    (binding [*target-class* class]
+      (f route-params))))
 
 (defn get-will-enter
   "Returns the function that is called before a route target is activated (if the route segment of interest has changed and the
@@ -62,7 +67,8 @@
   "Universal CLJC version of will-enter."
   [class app params]
   (when-let [will-enter (get-will-enter class)]
-    (will-enter app params)))
+    (binding [*target-class* class]
+      (will-enter app params))))
 
 (defn route-target? [component] (boolean (comp/component-options component :route-segment)))
 
@@ -77,7 +83,8 @@
 
 (defn will-leave [c props]
   (when-let [f (get-will-leave c)]
-    (f c props)))
+    (binding [*target-class* (comp/isoget c :type)]
+      (f c props))))
 
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
 
@@ -86,9 +93,29 @@
   [router]
   (set (comp/component-options router :router-targets)))
 
-(defn route-immediate [ident] (with-meta ident {:immediate true}))
-(defn route-deferred [ident completion-fn] (with-meta ident {:immediate false
-                                                             :fn        completion-fn}))
+(defn- ident-matches-expectation? [[expected-table maybe-expected-id] [table id]]
+  ;; NOTE: If the `id` of the ident is hardcoded then maybe-expected-id will be set,
+  ;; but if it depends on props then it will be nil
+  (and (= expected-table table)
+       (or (nil? maybe-expected-id) (= maybe-expected-id id))))
+
+(defn- check-ident-matches-expectation? [fn-name ident]
+  (when (and #?(:clj false :cljs goog.DEBUG)
+             *target-class*
+             (not (ident-matches-expectation? (comp/ident *target-class* {}) ident)))
+    (log/error fn-name " was invoked with the ident " ident
+              " which doesn't seem to match the ident of the wrapping component (class "
+              *target-class* " , ident ["
+              (first (comp/ident *target-class* {})) " ...])")))
+
+(defn route-immediate [ident]
+  (check-ident-matches-expectation? "route-immediate" ident)
+  (with-meta ident {:immediate true}))
+
+(defn route-deferred [ident completion-fn]
+  (check-ident-matches-expectation? "route-deferred" ident)
+  (with-meta ident {:immediate false
+                    :fn        completion-fn}))
 (defn immediate? [ident] (some-> ident meta :immediate))
 
 (defn- apply-route* [state-map {:keys [router target]}]
@@ -127,6 +154,9 @@
       (if router-id
         (do
           (log/debug "Router" router-id "notified that pending route is ready.")
+          (when (and #?(:clj false :cljs goog.DEBUG) (nil? (get-in state-map target)))
+            (log/error `target-ready "should route to" target "but there is no data in the DB for the ident."
+                      "Perhaps you supplied a wrong ident?"))
           (uism/trigger! app router-id :ready!))
         (log/error "dr/target-ready! was called but there was no router waiting for the target listed: " target
           "This could mean you sent one ident, and indicated ready on another."))))
