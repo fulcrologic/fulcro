@@ -22,9 +22,13 @@
     #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]))
 
-;; Class of the routing target component, available in the notifications fns
-;; (:will-enter, :route-cancelled, :will-leave)
-(def ^:dynamic *target-class* nil)
+(def ^:dynamic *target-class*
+  "INTERNAL USE ONLY. Not guaranteed to be available at runtime in production builds. This is used to aid in giving
+   development-time warnings/errors.
+
+   Class of the routing target component, available in the notifications fns
+   (:will-enter, :route-cancelled, :will-leave)"
+  nil)
 
 (declare route-immediate)
 
