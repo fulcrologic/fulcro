@@ -1,6 +1,10 @@
 (ns com.fulcrologic.fulcro.algorithms.lookup
-  "Namespace with support for finding plug-in algorithms on the app. Avoids circular references
-  within the library itself."
+  "Fulcro is quite customizable, and all of the pluggable algorithms are stored on the app. This
+  very easily leads to a desire to alias the long com.fulcrologic.fulcro.application namespace
+  to something like `app` for easy access to keyword aliasing, but in Clojure this leads
+  to circular references. This namespace exists simply to save typing and hassle with
+  respect to that. It includes `app-algorithm` which can look up a plug-in algorithm on
+  an app using a simple keyword without having to require the application ns."
   (:require
     [taoensso.timbre :as log]))
 
@@ -12,9 +16,8 @@
   `k` - the algorithm to obtain. This can be a plain keyword or a symbol of the algorithm desired.
 
   Supported algorithms that can be obtained/overridden in Fulcro (check the source of app/fulcro-app if you suspect this is out
-  of date):
+  of date, which is likely is):
 
-  - `:tx!` - Internal implementation of transaction submission. Default `app/default-tx!`
   - `:global-eql-transform` - A `(fn [tx] tx')` that is applied to all outgoing requests (when using default `tx!`).
      Defaults to stripping things like `:ui/*` and form state config joins.
   - `:remote-error?` - A `(fn [result] boolean)` that defines what a remote error is.

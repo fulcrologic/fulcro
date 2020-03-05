@@ -1,4 +1,9 @@
 (ns com.fulcrologic.fulcro.data-fetch
+  "Functions for issuing loads of subgraphs of data for your application. The primary functions of interest are
+  `load!` and `load-field!`. Fulcro's composed queries and idents allow these loads to automatically be normalized
+  and merged into your database. The data targeting support allows you to then *join* that new subgraph to the
+  existing UI data graph. This process is the central topic to understand in Fulcro, and it is to your advantage
+  to study the concepts of Fulcro idents and query composition carefully."
   (:refer-clojure :exclude [load])
   (:require
     [clojure.walk :refer [walk prewalk]]

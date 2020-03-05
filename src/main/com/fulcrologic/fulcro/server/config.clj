@@ -1,11 +1,21 @@
 (ns com.fulcrologic.fulcro.server.config
-  "Utilities for managing server configuration via EDN files.  These functions expect a config/defaults.edn to exist
-  on the classpath as a definition for server configuration default values.  When you call `load-config!` it will
-  deep merge the file you supply with the base defaults to return the 'complete' configuration.  When loading
-  configurations a relative path is evaluated against CLASSPATH and an absolute path against the real filesystem.
+  "Utilities for managing server configuration via EDN files.
 
-  The values in the EDN files can be :env/VAR to pull a string from an env variable, and :env.edn/VAR to do a `read-string`
-  against the value of an environment variable."
+  The general design requirements of this support are that you should be able to:
+
+  * Specify your configuration as EDN.
+  * Specify a reasonable set of server config values as \"defaults\" so that specific environments can override
+  just what matters.
+  * Override the defaults by deep-merging an environment-specific config file over the defaults.
+  * Specify individual overrides via environment variables.
+  ** Support rich data types from environment variables, like maps, numerics, etc.
+
+  So the basic operation is that you create a default EDN file and one or more environment files (e.g.
+  `dev.edn`, `prod.edn`, `joes-test-env.edn`, etc. You can then use a combination of runtime parameters,
+  JVM properties, and environment variables to end up with your runtime configuration.
+
+  See `load-config!` for more detailed usage.
+  "
   (:require
     [clojure.java.io :as io]
     [clojure.edn :as edn]
@@ -68,16 +78,16 @@
   * `:defaults-path` : (optional) A relative or absolute path to the default options that should be the basis of configuration.
      Defaults to `config/defaults.edn`. When relative, will come from resources. When absolute, will come from disk.
 
-  Reads the defaults, then deep merges the EDN content
+  Reads the defaults from CLASSPATH (default config/defaults.edn), then deep merges the EDN content
   of an additional config file you specify into that and evaluates environment variable expansions.
 
-  You may use a Java system property to specify (override) the config file used:
+  You may use a Java system property to specify (*override*) the `:config-path` option:
 
   ```
   java -Dconfig=/usr/local/etc/app.edn ...
   ```
 
-  If no such property is used then config-path MUST be supplied (or this will throw an exception).
+  allowing you to affect a packaged JAR application.
 
   Values in the EDN of the form :env/VAR mean to use the raw string value of an environment variable, and
   :env.edn/VAR mean to use the `read-string` value of the environment variable as that value.

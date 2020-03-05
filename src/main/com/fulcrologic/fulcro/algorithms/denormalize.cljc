@@ -193,7 +193,28 @@
   Returns a tree of data where each resolved data node is also marked with the current
   *denormalize-time* (dynamically bound outside of this call). Users of this function that
   are hydrating the UI should ensure that this time is bound to Fulcro's current internal
-  basis-time using `binding`."
+  basis-time using `binding`.
+
+  The `state-map` needs to be your entire Fulcro database. This database is used to resolve the joins in the EQL query
+  (which are represented as `idents`).
+
+  The starting entity can be `state-map` as well if your EQL query starts from your root. If not, it can simply be
+  the map (taken from the `state-map`) of the entity whose query you're using.
+
+  For example:
+
+  ```
+  (defsc SomeComponent [this props]
+    {:ident :thing/id
+     :query [...]})
+
+  ;; Get the sub-tree of data for thing 1:
+  (db->tree
+    (comp/get-query SomeComponent)
+    (get-in state-map [:thing/id 1])
+    state-map)
+  ```
+  "
   [query starting-entity state-map]
   (let [ast (eql/query->ast query)]
     (some-> (denormalize ast starting-entity state-map {})

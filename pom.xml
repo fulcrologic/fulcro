@@ -4,7 +4,7 @@
   <groupId>com.fulcrologic</groupId>
   <artifactId>fulcro</artifactId>
   <packaging>jar</packaging>
-  <version>3.1.16</version>
+  <version>3.1.17</version>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -84,7 +84,7 @@
     <dependency>
       <groupId>cljsjs</groupId>
       <artifactId>react-dom</artifactId>
-      <version>16.12.0-1</version>
+      <version>16.12.0-2</version>
     </dependency>
     <dependency>
       <groupId>com.cognitect</groupId>
@@ -99,7 +99,7 @@
     <dependency>
       <groupId>cljsjs</groupId>
       <artifactId>react</artifactId>
-      <version>16.12.0-1</version>
+      <version>16.12.0-2</version>
     </dependency>
     <dependency>
       <groupId>com.taoensso</groupId>
@@ -119,7 +119,7 @@
     <dependency>
       <groupId>cljsjs</groupId>
       <artifactId>react-dom-server</artifactId>
-      <version>16.12.0-1</version>
+      <version>16.12.0-2</version>
     </dependency>
     <dependency>
       <groupId>org.clojure</groupId>

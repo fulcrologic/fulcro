@@ -1,4 +1,7 @@
 (ns com.fulcrologic.fulcro.server.api-middleware
+  "Standard Ring middleware for setting up servers to handle Fulcro requests. These assume you will be using a library
+  like Pathom to create a parser that can properly dispatch resolution of requests. See the Developer's Guide or
+  the Fulcro template for examples of usage."
   (:require
     [clojure.pprint :refer [pprint]]
     [clojure.test :refer :all]
