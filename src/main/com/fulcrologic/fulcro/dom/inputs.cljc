@@ -53,7 +53,7 @@
                                            stringValue
                                            (model->string value))
                                    string-filter string-filter)
-               new-derived-state (merge state {:stringValue stringValue})]
+               new-derived-state (merge state {:stringValue stringValue :oldPropValue value})]
            #js {"fulcro$state" new-derived-state}))
        :render
        (fn [this]
