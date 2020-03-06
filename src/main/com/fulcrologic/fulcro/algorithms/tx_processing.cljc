@@ -128,7 +128,7 @@
                                                   (inspect/ilet [{:keys [status-code body]} result]
                                                     (if (= 200 status-code)
                                                       (inspect/send-finished! app remote-name combined-node-id body)
-                                                      (inspect/send-failed! app remote-name (str status-code))))
+                                                      (inspect/send-failed! app combined-node-id (str status-code))))
                                                   (result-handler result)))
                                               (remove-send! app remote-name combined-node-id combined-node-idx))
                            ::active?        true}]

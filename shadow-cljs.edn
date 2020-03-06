@@ -2,8 +2,7 @@
  :nrepl    {:port 9000}
  :dev-http {9001 "resources/public"}
  :jvm-opts ["-Xmx2G"]
- :builds   {
-            :todomvc  {:target     :browser
+ :builds   {:todomvc  {:target     :browser
                        :output-dir "resources/public/js/todomvc"
                        :asset-path "/js/todomvc"
                        :dev        {:compiler-options {:external-config {:guardrails {}}}}

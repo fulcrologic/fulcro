@@ -1,27 +1,23 @@
-(ns fulcro_todomvc.websocket-server
+(ns fulcro-todomvc.websocket-server
   (:require
     [com.fulcrologic.fulcro.server.api-middleware :refer [not-found-handler]]
     [com.fulcrologic.fulcro.networking.websockets :as fws]
     [immutant.web :as web]
+    [fulcro-todomvc.server :refer [parser]]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]
     [ring.middleware.params :refer [wrap-params]]
     [ring.middleware.keyword-params :refer [wrap-keyword-params]]
     [ring.util.response :refer [response file-response resource-response]]
-    [taoensso.sente.server-adapters.immutant :refer [get-sch-adapter]]))
+    [taoensso.sente.server-adapters.immutant :refer [get-sch-adapter]]
+    [clojure.core.async :as async]))
 
 (def server (atom nil))
 
-(defn query-parser
-  ""
-  [query]
-  ;; call out to something like a pathom parser. See Fulcro Developers Guide
-  )
-
 (defn http-server []
   (let [websockets (fws/start! (fws/make-websockets
-                                 query-parser
+                                 (fn [query] (async/<!! (parser {} query)))
                                  {:http-server-adapter (get-sch-adapter)
                                   ;; See Sente for CSRF instructions
                                   :sente-options       {:csrf-token-fn nil}}))

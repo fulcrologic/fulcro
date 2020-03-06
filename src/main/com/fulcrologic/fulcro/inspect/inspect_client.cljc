@@ -248,7 +248,7 @@
                               :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler (fn [{:keys [body] :as result}]
                                                                                                 (let [error? (ah/app-algorithm app :remote-error?)]
                                                                                                   (if (error? result)
-                                                                                                    (send-failed! app remote-name result)
+                                                                                                    (send-failed! app tx-id result)
                                                                                                     (send-finished! app remote-name tx-id body)))
                                                                                                 (post-message :fulcro.inspect.client/message-response
                                                                                                   {:fulcro.inspect.ui-parser/msg-id       msg-id

@@ -1,4 +1,4 @@
-(ns fulcro_todomvc.server
+(ns fulcro-todomvc.server
   (:require
     [clojure.core.async :as async]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
@@ -29,6 +29,7 @@
    ::pc/params [:list-id :id :text]
    ::pc/output [:item/id]}
   (log/info "New item on server")
+  (Thread/sleep 5000)
   (let [new-id (tempid/uuid)]
     (swap! item-db assoc new-id {:item/id new-id :item/label text :item/complete false})
     {:tempids {id new-id}

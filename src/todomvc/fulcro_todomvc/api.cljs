@@ -7,7 +7,8 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [clojure.string :as str]))
+    [clojure.string :as str]
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Client-side API
@@ -38,6 +39,9 @@
                     (create-item* id text)
                     (add-item-to-list* list-id id)
                     (clear-list-input-field* list-id))))
+  (error-action [{:keys [state ast]}]
+    (swap! state fns/remove-entity [:item/id id])
+    (js/alert "Failed to add item to server!"))
   (remote [_] true))
 
 (defmutation todo-check
