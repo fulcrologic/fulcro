@@ -1181,9 +1181,13 @@
                queried-keywords      (-legal-keys template)
                has-wildcard?         (some #{'*} template)
                to-sym                (fn [k] (symbol (namespace k) (name k)))
-               illegal-syms          (mapv to-sym (set/difference destructured-keywords queried-keywords))]
+               illegal-syms          (mapv to-sym (set/difference destructured-keywords queried-keywords))
+               component-query       #(and (list? %) (= "get-query" (name (first %))) %)
+               err-env               (merge env (meta template))]
+           (when-let [child-query (some component-query template)]
+             (throw (ana/error err-env (str "defsc " class ": `get-query` calls in :query can only be inside a join value, i.e. `{:some/key " child-query "}`"))))
            (when (and (not has-wildcard?) (seq illegal-syms))
-             (throw (ana/error (merge env (meta template)) (str "defsc " class ": " illegal-syms " was destructured in props, but does not appear in the :query!"))))
+             (throw (ana/error err-env (str "defsc " class ": " illegal-syms " was destructured in props, but does not appear in the :query!"))))
            `(~'fn ~'query* [~thissym] ~template)))
        method
        (replace-and-validate-fn env 'query* [thissym] 0 method))))
@@ -1289,6 +1293,8 @@
 #?(:clj
    (s/def ::ident (s/or :template (s/and vector? #(= 2 (count %))) :method list? :keyword keyword?)))
 #?(:clj
+   ;; NOTE: We cannot reuse ::eql/query because we have the raw input *form* inside a macro,
+   ;; not the actual *data* that will be there at runtime (i.e. it may contain raw fn calls etc.)
    (s/def ::query (s/or :template vector? :method list?)))
 #?(:clj
    (s/def ::initial-state (s/or :template map? :method list?)))
