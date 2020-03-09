@@ -286,23 +286,26 @@
      (not= :unchecked (my-validator form field)))
   ```
   "
-  [field-valid?]
-  (fn custom-get-validity*
-    ([ui-entity-props field]
-     (let [{{complete? ::complete?} ::config} ui-entity-props
-           complete? (or complete? #{})]
-       (cond
-         (not (complete? field)) :unchecked
-         (not (field-valid? ui-entity-props field)) :invalid
-         :else :valid)))
-    ([ui-entity-props]
-     (let [{{:keys [::fields ::subforms]} ::config} ui-entity-props
-           immediate-subforms (immediate-subforms ui-entity-props (-> subforms keys set))
-           field-validity     (fn [current-validity k] (merge-validity current-validity (custom-get-validity* ui-entity-props k)))
-           subform-validities (map custom-get-validity* immediate-subforms)
-           subform-validity   (reduce merge-validity :valid subform-validities)
-           this-validity      (reduce field-validity :valid fields)]
-       (merge-validity this-validity subform-validity)))))
+  ([field-valid?]
+   (make-validator field-valid? {:validate-edges? false}))
+  ([field-valid? {:keys [validate-edges?]}]
+   (fn custom-get-validity*
+     ([ui-entity-props field]
+      (let [{{complete? ::complete?} ::config} ui-entity-props
+            complete? (or complete? #{})]
+        (cond
+          (not (complete? field)) :unchecked
+          (not (field-valid? ui-entity-props field)) :invalid
+          :else :valid)))
+     ([ui-entity-props]
+      (let [{{:keys [::fields ::subforms]} ::config} ui-entity-props
+            immediate-subforms (immediate-subforms ui-entity-props (-> subforms keys set))
+            field-validity     (fn [current-validity k] (merge-validity current-validity (custom-get-validity* ui-entity-props k)))
+            subform-validities (map custom-get-validity* immediate-subforms)
+            subform-validity   (reduce merge-validity :valid subform-validities)
+            fields-to-validate (if validate-edges? (concat fields (keys subforms)) fields)
+            this-validity      (reduce field-validity :valid fields-to-validate)]
+        (merge-validity this-validity subform-validity))))))
 
 (let [spec-validator (make-validator no-spec-or-valid?)]
   (defn get-spec-validity
@@ -535,7 +538,8 @@
    [map? eql/ident? => map?]
    (update-forms state-map
      (fn mark*-step [e form-config]
-       [e (assoc form-config ::complete? (::fields form-config))]) entity-ident)))
+       [e (assoc form-config ::complete? (into (::fields form-config)
+                                           (keys (::subforms form-config))))]) entity-ident)))
 
 (>defn delete-form-state*
   "Removes copies of entities used by form-state logic."
