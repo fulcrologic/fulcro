@@ -429,10 +429,10 @@
   included in result regardless of pristine state.
   "
   ([ui-entity as-delta?]
-   [::denormalized-form boolean? => map?]
+   [map? boolean? => map?]
    (dirty-fields ui-entity as-delta? {}))
   ([ui-entity as-delta? {:keys [new-entity?] :as opts}]
-   [::denormalized-form boolean? map? => map?]
+   [map? boolean? map? => map?]
    (let [{:keys [::id ::fields ::pristine-state ::subforms] :as config} (get ui-entity ::config)
          subform-keys       (-> subforms keys set)
          subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (comp/get-ident entity)))
