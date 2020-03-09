@@ -53,6 +53,10 @@
           (#'defsc/build-query-forms nil 'X 'this '{:keys [db/id person/nme person/job]}
             {:template '[:db/id :person/name {:person/job (defsc/get-query Job)}]}))
       "Verifies the propargs matches queries data when not a symbol")
+    (is (thrown-with-msg? ExceptionInfo #"defsc X: `get-query` calls in :query can only be inside a join value.*"
+          (#'defsc/build-query-forms nil 'X 'this '{:keys [db/id person/job]}
+            {:template '[:db/id :person/job (defsc/get-query Job)]}))
+        "Verifies the propargs matches queries data when not a symbol")
     (assertions
       "Support a method form"
       (#'defsc/build-query-forms nil 'X 'this 'props {:method '(fn [] [:db/id])})

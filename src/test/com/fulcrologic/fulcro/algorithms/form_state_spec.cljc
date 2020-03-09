@@ -42,7 +42,8 @@
 
 (defsc NonForm [this props]
   {:query [:id :x]
-   :ident [:ntop :id]})
+   :ident [:ntop :id]
+   :form-fields #{:ntop}})
 
 (defsc FormNoFields [this props]
   {:query [:id :x fs/form-config-join]

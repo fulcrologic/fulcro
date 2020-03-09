@@ -111,10 +111,10 @@
         subforms            (into {}
                               (map (fn [k] [k (with-meta {} {:component (join-component k)})]))
                               subform-keys)]
-    (when-not queries-for-config?
+    (when (and has-fields? (not queries-for-config?))
       (throw (ex-info (str "Attempt to add form configuration to " (comp/component-name class) ", but it does not query for config!")
                {:offending-component class})))
-    (when-not has-fields?
+    (when (and (not has-fields?) queries-for-config?)
       (throw (ex-info (str "Attempt to add form configuration to " (comp/component-name class) ", but it does not declare any fields!")
                {:offending-component class})))
     [fields subforms subform-keys]))
@@ -429,10 +429,10 @@
   included in result regardless of pristine state.
   "
   ([ui-entity as-delta?]
-   [::denormalized-form boolean? => map?]
+   [map? boolean? => map?]
    (dirty-fields ui-entity as-delta? {}))
   ([ui-entity as-delta? {:keys [new-entity?] :as opts}]
-   [::denormalized-form boolean? map? => map?]
+   [map? boolean? map? => map?]
    (let [{:keys [::id ::fields ::pristine-state ::subforms] :as config} (get ui-entity ::config)
          subform-keys       (-> subforms keys set)
          subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (comp/get-ident entity)))

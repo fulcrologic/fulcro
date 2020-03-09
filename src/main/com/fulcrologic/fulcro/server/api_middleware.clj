@@ -18,12 +18,10 @@
      :body    "Invalid request."}))
 
 (defn generate-response
-  "Generate a Fulcro-compatible response containing at least a status code, headers, and body. You should
-  pre-populate at least the body of the input-response.
-  The content type of the returned response will always be pegged to 'application/transit+json'."
-  [{:keys [status body headers] :or {status 200} :as input-response}]
-  (-> (assoc input-response :status status :body body)
-    (update :headers assoc "Content-Type" "application/transit+json")))
+  "Generate a Fulcro-compatible response containing at least a status code, and
+  body. You should pre-populate at least the body of the input-response."
+  [{:keys [status body] :or {status 200} :as input-response}]
+  (assoc input-response :status status :body body))
 
 (defn augment-response
   "Adds a lambda to the given data `core-response` such that `apply-response-augmentations`
@@ -180,12 +178,18 @@
    - `:uri` - The URI on the server that handles the API requests.
    - `:parser` - A function `(fn [eql-query] eql-response)` that can process the query.
 
-   IMPORTANT: You must install `wrap-transit-response` and `wrap-transit-params` to your middleware below this."
+   IMPORTANT: You must install Fulcro's `wrap-transit-response` and
+   `wrap-transit-params`, or other middleware that handles content negotiation,
+   like https://github.com/metosin/muuntaja, to your list of middleware
+   handlers after `wrap-api`."
   [handler {:keys [uri parser]}]
   (when-not (and (string? uri) (fn? parser))
     (throw (ex-info "Invalid parameters to `wrap-api`. :uri and :parser are required. See docstring." {})))
   (fn [request]
     ;; eliminates overhead of wrap-transit
     (if (= uri (:uri request))
-      (handle-api-request (:transit-params request) parser)
+      ;; Fulcro's middleware, like ring-transit, places the parsed request in
+      ;; the request map on `:transit-params`, other ring middleware, such as
+      ;; metosin/muuntaja, places the parsed request on `:body-params`.
+      (handle-api-request (or (:transit-params request) (:body-params request)) parser)
       (handler request))))
