@@ -130,7 +130,7 @@
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   [class entity]
-  [comp/component-class? map? => (s/keys :req [::config])]
+  [comp/component-class? map? => map?]
   (let [[fields subform-classmap subform-keys] (derive-form-info class)
         local-entity (if (contains? entity ::config)
                        entity
