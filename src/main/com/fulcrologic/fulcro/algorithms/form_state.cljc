@@ -111,10 +111,10 @@
         subforms            (into {}
                               (map (fn [k] [k (with-meta {} {:component (join-component k)})]))
                               subform-keys)]
-    (when-not queries-for-config?
+    (when (and has-fields? (not queries-for-config?))
       (throw (ex-info (str "Attempt to add form configuration to " (comp/component-name class) ", but it does not query for config!")
                {:offending-component class})))
-    (when-not has-fields?
+    (when (and (not has-fields?) queries-for-config?)
       (throw (ex-info (str "Attempt to add form configuration to " (comp/component-name class) ", but it does not declare any fields!")
                {:offending-component class})))
     [fields subforms subform-keys]))
