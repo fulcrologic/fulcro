@@ -41,8 +41,8 @@
    :form-fields #{::person-name ::unused ::person-age ::phone-numbers}})
 
 (defsc NonForm [this props]
-  {:query [:id :x]
-   :ident [:ntop :id]
+  {:query       [:id :x]
+   :ident       [:ntop :id]
    :form-fields #{:ntop}})
 
 (defsc FormNoFields [this props]
@@ -358,3 +358,38 @@
           "the clean version has the updated data"
           (get-in committed-ui-tree [::person-name]) => "Bobby"
           (get-in committed-ui-tree [::phone-numbers 0 ::locale ::country]) => :UK)))))
+
+(defsc SomeEntity [_ _]
+  {:query [:entity/id]
+   :ident :entity/id})
+
+(defsc FormPickingEntity [_ _]
+  {:query       [:form/id :form/field {:form/entity (comp/get-query SomeEntity)} fs/form-config-join]
+   :ident       :form/id
+   :form-fields #{:form/field :form/entity}})
+
+(specification "Working with joins to entities that are meant to be selected"
+  (let [initial-form (fs/add-form-config FormPickingEntity {:form/id     1
+                                                            :form/field  "A"
+                                                            :form/entity {:entity/id 22}})
+        updated-form (assoc initial-form :form/entity {:entity/id 23})]
+    (assertions
+      "Reports no dirty fields on a pristine form"
+      (fs/dirty-fields initial-form true) => {}
+      "Reports the updated target ident if the entity changes"
+      (fs/dirty-fields updated-form true) => {[:form/id 1]
+                                              {:form/entity {:before [:entity/id 22]
+                                                             :after  [:entity/id 23]}}})))
+
+(specification "Working with joins to entities that are meant to be selected (to-many)"
+  (let [initial-form (fs/add-form-config FormPickingEntity {:form/id     1
+                                                            :form/field  "A"
+                                                            :form/entity [{:entity/id 22} {:entity/id 23}]})
+        updated-form (assoc initial-form :form/entity [{:entity/id 23}])]
+    (assertions
+      "Reports no dirty fields on a pristine form"
+      (fs/dirty-fields initial-form true) => {}
+      "Reports the updated target ident if the entity changes"
+      (fs/dirty-fields updated-form true) => {[:form/id 1]
+                                              {:form/entity {:before [[:entity/id 22] [:entity/id 23]]
+                                                             :after  [[:entity/id 23]]}}})))
