@@ -157,12 +157,13 @@
                          (merge entity {::config config})))]
     (reduce
       (fn [resulting-entity k]
-        (let [c     (some-> subform-classmap (get k) meta :component)
-              child (get resulting-entity k)]
+        (let [c           (some-> subform-classmap (get k) meta :component)
+              has-fields? (boolean (seq (comp/component-options c :form-fields)))
+              child       (get resulting-entity k)]
           (try
             (cond
-              (and c child (vector? child)) (assoc resulting-entity k (mapv #(add-form-config c %) child))
-              (and c child) (assoc resulting-entity k (add-form-config c child))
+              (and c has-fields? child (vector? child)) (assoc resulting-entity k (mapv #(add-form-config c %) child))
+              (and c has-fields? child) (assoc resulting-entity k (add-form-config c child))
               :else resulting-entity)
             (catch #?(:clj Exception :cljs :default) e
               (throw (ex-info (str "Subform " (comp/component-name c) " of " (comp/component-name class) " failed to initialize.")
@@ -196,24 +197,26 @@
                               (-> state-map
                                 (assoc-in cfg-ident config)
                                 (assoc-in (conj entity-ident ::config) cfg-ident))))]
-    (reduce
-      (fn [smap subform-key]
-        (let [subform-class  (some-> subform-classmap (get subform-key) meta :component)
-              subform-target (get entity subform-key)]
-          (try
-            (cond
-              (and subform-class subform-target (every? eql/ident? subform-target))
-              (reduce (fn [s subform-ident] (add-form-config* s subform-class subform-ident)) smap subform-target)
+    (if (and (empty? fields) (empty? subform-classmap))
+      state-map
+      (reduce
+        (fn [smap subform-key]
+          (let [subform-class  (some-> subform-classmap (get subform-key) meta :component)
+                subform-target (get entity subform-key)]
+            (try
+              (cond
+                (and subform-class subform-target (every? eql/ident? subform-target))
+                (reduce (fn [s subform-ident] (add-form-config* s subform-class subform-ident)) smap subform-target)
 
-              (and subform-class (eql/ident? subform-target))
-              (add-form-config* smap subform-class subform-target)
+                (and subform-class (eql/ident? subform-target))
+                (add-form-config* smap subform-class subform-target)
 
-              :else smap)
-            (catch #?(:clj Exception :cljs :default) e
-              (throw (ex-info (str "Subform " (comp/component-name subform-class) " of " (comp/component-name class) " failed to initialize.")
-                       {:nested-exception e}))))))
-      updated-state-map
-      subform-keys)))
+                :else smap)
+              (catch #?(:clj Exception :cljs :default) e
+                (throw (ex-info (str "Subform " (comp/component-name subform-class) " of " (comp/component-name class) " failed to initialize.")
+                         {:nested-exception e}))))))
+        updated-state-map
+        subform-keys))))
 
 (>defn immediate-subforms
   "Get the instances of the immediate subforms that are joined into the given entity by
