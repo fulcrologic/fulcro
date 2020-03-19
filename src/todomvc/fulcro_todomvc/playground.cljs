@@ -280,7 +280,6 @@
       (log/info "Rendered " (.-displayName this) "in " (- end start))
       result)))
 
-;; TASK: Support 2 kinds of middleware: prop/extraarg, and render wrapping
 (def app (app/fulcro-app {:extra-props-middleware (wrap-my-extra)
                           :render-middleware      (wrap-time-render)}))
 
