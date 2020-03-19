@@ -166,11 +166,13 @@
   "Remove not-found keys from m (non-recursive). `m` can be a map (sweep the values) or vector (run sweep-one on each entry)."
   [m]
   (cond
-    (map? m) (reduce (fn [acc [k v]]
-                       (if (or (= ::not-found k) (= ::not-found v) (= :tempids k))
-                         acc
-                         (assoc acc k v)))
-               (with-meta {} (meta m)) m)
+    ;; tempids look like maps in CLJ
+    (and (not (tempid/tempid? m)) (map? m))
+    (reduce (fn [acc [k v]]
+              (if (or (= ::not-found k) (= ::not-found v) (= :tempids k))
+                acc
+                (assoc acc k v)))
+      (with-meta {} (meta m)) m)
     (vector? m) (with-meta (mapv sweep-one m) (meta m))
     :else m))
 
@@ -180,6 +182,7 @@
   [m]
   (cond
     (leaf? m) (sweep-one m)
+    ;; tempids look like maps in CLJ
     (and (not (tempid/tempid? m)) (map? m))
     (reduce (fn [acc [k v]]
               (cond
