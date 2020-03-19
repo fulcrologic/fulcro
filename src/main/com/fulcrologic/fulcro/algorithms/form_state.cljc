@@ -42,7 +42,8 @@
 (>def ::subforms (s/map-of keyword? any?))                  ; a map of subform field to component class
 (>def ::pristine-state (s/map-of keyword? any?))            ; the saved state of the form
 (>def ::complete? (s/every keyword? :kind set?))            ; the fields that have been interacted with
-(>def ::config (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms]))
+(>def ::config (s/or :denormalized (s/keys :req [::id ::fields] :opt [::pristine-state ::complete? ::subforms])
+                 :normalized (s/and eql/ident? #(= ::forms-by-ident (first %)))))
 (>def ::validity #{:valid :invalid :unchecked})
 (>def ::denormalized-form (s/keys :req [::config]))
 
