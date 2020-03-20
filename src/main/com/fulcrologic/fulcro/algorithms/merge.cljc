@@ -8,7 +8,8 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [edn-query-language.core :as eql]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
 
 (defn remove-ident*
   "Removes an ident, if it exists, from a list of idents in app state. This
@@ -120,7 +121,7 @@
                     (eql/ident? jk)
                     (nil? (get result jk)))
                   (let [mock-missing-object (mark-missing-impl {} (util/join-value element))
-                        v                   (merge mock-missing-object missing-entity) ]
+                        v                   (merge mock-missing-object missing-entity)]
                     (assoc result jk v))
 
                   ; join to nothing
@@ -165,11 +166,13 @@
   "Remove not-found keys from m (non-recursive). `m` can be a map (sweep the values) or vector (run sweep-one on each entry)."
   [m]
   (cond
-    (map? m) (reduce (fn [acc [k v]]
-                       (if (or (= ::not-found k) (= ::not-found v) (= :tempids k))
-                         acc
-                         (assoc acc k v)))
-               (with-meta {} (meta m)) m)
+    ;; tempids look like maps in CLJ
+    (and (not (tempid/tempid? m)) (map? m))
+    (reduce (fn [acc [k v]]
+              (if (or (= ::not-found k) (= ::not-found v) (= :tempids k))
+                acc
+                (assoc acc k v)))
+      (with-meta {} (meta m)) m)
     (vector? m) (with-meta (mapv sweep-one m) (meta m))
     :else m))
 
@@ -179,13 +182,15 @@
   [m]
   (cond
     (leaf? m) (sweep-one m)
-    (map? m) (reduce (fn [acc [k v]]
-                       (cond
-                         (or (= ::not-found k) (= ::not-found v) (= :tempids k)) acc
-                         (and (eql/ident? v) (= ::not-found (second v))) acc
-                         :otherwise (assoc acc k (sweep v))))
-               (with-meta {} (meta m))
-               m)
+    ;; tempids look like maps in CLJ
+    (and (not (tempid/tempid? m)) (map? m))
+    (reduce (fn [acc [k v]]
+              (cond
+                (or (= ::not-found k) (= ::not-found v) (= :tempids k)) acc
+                (and (eql/ident? v) (= ::not-found (second v))) acc
+                :otherwise (assoc acc k (sweep v))))
+      (with-meta {} (meta m))
+      m)
     (vector? m) (with-meta (mapv sweep m) (meta m))
     :else m))
 

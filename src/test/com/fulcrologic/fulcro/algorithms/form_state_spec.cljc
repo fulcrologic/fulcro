@@ -55,8 +55,31 @@
    :form-fields #{:name :thing}})
 
 (s/def ::person-name (s/and string? #(not (empty? (str/trim %)))))
+(s/def ::picker any?)
 
-(specification "add-form-config"
+(defsc Thing [_ _]
+  {:ident :thing/id
+   :query [:thing/id]})
+
+(defsc Entity [_ _]
+  {:ident       :entity/id
+   :query       [:entity/id :entity/value {:entity/thing (comp/get-query Thing)} fs/form-config-join]
+   :form-fields #{:entity/value :entity/thing}})
+
+(specification "add-form-config" :focus
+  (component "treats joins in a way that will just track their ident"
+    (let [data-tree    {:db/id        1
+                        :entity/value 42
+                        :entity/thing {:thing/id 1}}
+          initial-form (fs/add-form-config Entity data-tree)]
+      (assertions
+        "adds form config to the top level"
+        (contains? initial-form ::fs/config) => true
+        "places the non-form join into subforms (for normalized ident-tracking)"
+        (get-in initial-form [::fs/config ::fs/fields]) => #{:entity/value}
+        (get-in initial-form [::fs/config ::fs/subforms]) => {:entity/thing {}}
+        "leaves the nested entity alone"
+        (contains? (:entity/thing initial-form) ::fs/config) => false)))
   (component "returns the entity with added configuration data, where:"
     (let [data-tree       {:db/id          1
                            ::person-name   "Joe"
@@ -385,8 +408,11 @@
   (let [initial-form (fs/add-form-config FormPickingEntity {:form/id     1
                                                             :form/field  "A"
                                                             :form/entity [{:entity/id 22} {:entity/id 23}]})
+        first-entity (get-in initial-form [:form/entity 0])
         updated-form (assoc initial-form :form/entity [{:entity/id 23}])]
     (assertions
+      "Skips adding config to sub-entities that have no fields"
+      (contains? first-entity ::fs/config) => false
       "Reports no dirty fields on a pristine form"
       (fs/dirty-fields initial-form true) => {}
       "Reports the updated target ident if the entity changes"
