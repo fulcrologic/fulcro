@@ -227,7 +227,7 @@
                            (let [state-map (app/current-state comp/*app*)
                                  query     (comp/get-query UIClass state-map)
                                  props     (fdn/db->tree query state-map state-map)]
-                             (ui-factory props (comp/props this))))
+                             (ui-factory (or props {}) (comp/props this))))
          wrapper-class   (comp/configure-component! constructor ::wrapper
                            {:shouldComponentUpdate (fn [_ _ _] false)
                             :render                render})
