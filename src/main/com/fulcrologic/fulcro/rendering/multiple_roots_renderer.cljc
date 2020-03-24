@@ -222,12 +222,12 @@
    (floating-root-factory UIClass {}))
   ([UIClass options]
    (let [constructor     (fn [])
-         ui-factory      (comp/factory UIClass)
-         render          (fn []
+         ui-factory      (comp/computed-factory UIClass)
+         render          (fn [this]
                            (let [state-map (app/current-state comp/*app*)
                                  query     (comp/get-query UIClass state-map)
                                  props     (fdn/db->tree query state-map state-map)]
-                             (ui-factory props)))
+                             (ui-factory (or props {}) (comp/props this))))
          wrapper-class   (comp/configure-component! constructor ::wrapper
                            {:shouldComponentUpdate (fn [_ _ _] false)
                             :render                render})
