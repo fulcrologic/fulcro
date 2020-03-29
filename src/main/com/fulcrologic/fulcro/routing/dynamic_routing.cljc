@@ -917,9 +917,9 @@
    Returns a vector of route segments. Any keywords in the result will be replaced by the values from `params`, if present.
 
    Returns nil if no path can be found."
-  [state-map StartingClass RouteTarget params]
+  [StartingClass RouteTarget params]
   (if-let [end (comp/component-options RouteTarget :route-segment)]
-    (let [query     (comp/get-query StartingClass state-map)
+    (let [query     (comp/get-query StartingClass)
           root-node (eql/query->ast query)
           zipper    (zip/zipper #(contains? % :children) :children (fn [n children] (assoc n :children children)) root-node)
           node      (->> zipper
