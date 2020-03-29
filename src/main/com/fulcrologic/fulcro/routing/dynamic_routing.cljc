@@ -571,8 +571,7 @@
 (defn change-route-relative!
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
   of string components to pass through to the nearest child router as the new path. The first argument is any live component
-  or the app.  The `timeouts` are as in `change-route`.
-  It is safe to call this from within a mutation.
+  or the app.  The `timeouts-and-params` are as in `change-route`.
 
   When possible (i.e. no circular references to components) you can maintain better code navigation by
   generating `new-route` via `path-to`.  This will allow readers of your code to quickly jump to the actual
@@ -580,7 +579,7 @@
   "
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
-  ([app-or-comp relative-class-or-instance new-route timeouts]
+  ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
    (let [old-route (current-route app-or-comp relative-class-or-instance)
          new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route)]
      (cond
@@ -616,7 +615,7 @@
                      segment           (route-segment target)
                      params            (reduce
                                          (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
-                                         {}
+                                         (dissoc timeouts-and-params :error-timeout :deferred-timeout)
                                          (map (fn [a b] [a b]) segment matching-prefix))
                      router-ident      (comp/get-ident component {})
                      router-id         (-> router-ident second)
@@ -624,7 +623,7 @@
                      completing-action (or (some-> target-ident meta :fn) (constantly true))
                      event-data        (merge
                                          {:error-timeout 5000 :deferred-timeout 20}
-                                         timeouts
+                                         timeouts-and-params
                                          {:path-segment matching-prefix
                                           :router       (vary-meta router-ident assoc :component component)
                                           :target       (vary-meta target-ident assoc :component target :params params)})]
@@ -659,9 +658,10 @@
 (defn change-route!
   "Trigger a route change.
 
-  this - The component (or app) that is causing the route change.
-  new-route - A vector of URI components to pass to the router.
-  timeouts - A map of timeouts that affect UI during deferred routes: {:error-timeout ms :deferred-timeout ms}
+  * `this` - The component (or app) that is causing the route change.
+  * `new-route` - A vector of URI components to pass to the router.
+  * `timeouts-and-params` - A map of additional parameters and route timeouts that affect UI during deferred routes:
+  `{:error-timeout ms :deferred-timeout ms}`.  Anything extra will appear in the `params` of `will-enter`.
 
   The error timeout is how long to wait  (default 5000ms) before showing the error-ui of a route (which must be defined on the
   router that is having problems).  The deferred-timeout (default 100ms) is how long to wait before showing the loading-ui of
@@ -669,10 +669,10 @@
   "
   ([this new-route]
    (change-route! this new-route {}))
-  ([this new-route timeouts]
+  ([this new-route timeouts-and-params]
    (let [app  (comp/any->app this)
          root (app/root-class app)]
-     (change-route-relative! app root new-route timeouts))))
+     (change-route-relative! app root new-route timeouts-and-params))))
 
 (def change-route change-route!)
 
