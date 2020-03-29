@@ -543,7 +543,7 @@
         root       (or (ast-node-for-live-router app ast)
                      (-> ast :children first))]
     (loop [{router-class :component
-            :keys        [children]} root new-path-remaining new-path]
+            :keys        [children]} root]
       (when (and router-class (router? router-class))
         (let [router-ident     (comp/get-ident router-class {})
               active-target    (get-in state-map (conj router-ident ::current-route))
@@ -554,7 +554,7 @@
                                                        (not (force-route-flagged? c))) c)) (mounted-targets app router-class)))]
           (cond
             rejecting-target rejecting-target
-            next-router (recur next-router (rest new-path-remaining))))))))
+            next-router (recur next-router)))))))
 
 (defn can-change-route?
   "Returns true if the active on-screen targets indicate they will allow navigation.
