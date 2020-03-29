@@ -1,14 +1,15 @@
 (ns com.fulcrologic.fulcro.routing.dynamic-routing-test
   (:require
+    [clojure.zip :as zip]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [clojure.test :refer [deftest]]
     [taoensso.timbre :as log]
-    [fulcro-spec.core :refer [assertions]]))
+    [fulcro-spec.core :refer [assertions specification]]))
 
-(declare User Settings Root2 RootRouter2 SettingsPaneRouter Pane1 Pane2)
+(declare User Settings Root2 RootRouter2 SettingsPaneRouter Pane1 Pane2 =>)
 
 (deftest route-target-detection-test
   (assertions
@@ -137,3 +138,15 @@
     "Can replace parameters via a map at the end"
     (dr/path-to A B C {:a/param "hello" :c/param "there"}) => ["a" "hello" "b" "c" "there"]))
 
+(specification "resolve-path"
+  (assertions
+    "resolves paths from some relative starting point"
+    (dr/resolve-path {} Root2 Settings {}) => ["settings"]
+    (dr/resolve-path {} Root2 Pane1 {}) => ["settings" "pane1"]
+    "Leaves parameters as keywords if they cannot be resolved in route params"
+    (dr/resolve-path {} Root2 User {}) => ["user" :user-id]
+    "Returns nil if the target isn't a route target"
+    (dr/resolve-path {} Root2 Root2 {}) => nil
+    (dr/resolve-path {} Root2 RootRouter2 {}) => nil
+    "Can substitute route params"
+    (dr/resolve-path {} Root2 User {:user-id 22}) => ["user" "22"]))

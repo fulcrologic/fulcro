@@ -11,6 +11,7 @@
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
     #?(:cljs [goog.object :as gobj])
+    [clojure.zip :as zip]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -909,3 +910,31 @@
              (into (apply subpath (last classes) params))))
          []
          (partition-all 2 segments))))))
+
+(defn resolve-path
+  "Attempts to resolve a path from the root (or StartingClass if given) to the given RouteTarget.
+
+   Returns a vector of route segments. Any keywords in the result will be replaced by the values from `params`, if present.
+
+   Returns nil if no path can be found."
+  [state-map StartingClass RouteTarget params]
+  (if-let [end (comp/component-options RouteTarget :route-segment)]
+    (let [query     (comp/get-query StartingClass state-map)
+          root-node (eql/query->ast query)
+          zipper    (zip/zipper #(contains? % :children) :children (fn [n children] (assoc n :children children)) root-node)
+          node      (->> zipper
+                      (iterate zip/next)
+                      (drop-while (fn [n]
+                                    (let [{:keys [component]} (zip/node n)]
+                                      (and
+                                        (not= component RouteTarget)
+                                        (not (zip/end? n))))))
+                      first)
+          found?    (= RouteTarget (some-> node zip/node :component))]
+      (when found?
+        (let [base-path (->> node zip/path (mapcat (fn [{:keys [component]}] (comp/component-options component :route-segment))) vec)]
+          (mapv (fn [ele]
+                  (if (contains? params ele)
+                    (str (get params ele))
+                    ele)) (into base-path end)))))
+    nil))
