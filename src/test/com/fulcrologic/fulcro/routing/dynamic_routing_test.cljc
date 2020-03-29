@@ -141,12 +141,12 @@
 (specification "resolve-path"
   (assertions
     "resolves paths from some relative starting point"
-    (dr/resolve-path {} Root2 Settings {}) => ["settings"]
-    (dr/resolve-path {} Root2 Pane1 {}) => ["settings" "pane1"]
+    (dr/resolve-path Root2 Settings {}) => ["settings"]
+    (dr/resolve-path Root2 Pane1 {}) => ["settings" "pane1"]
     "Leaves parameters as keywords if they cannot be resolved in route params"
-    (dr/resolve-path {} Root2 User {}) => ["user" :user-id]
+    (dr/resolve-path Root2 User {}) => ["user" :user-id]
     "Returns nil if the target isn't a route target"
-    (dr/resolve-path {} Root2 Root2 {}) => nil
-    (dr/resolve-path {} Root2 RootRouter2 {}) => nil
+    (dr/resolve-path Root2 Root2 {}) => nil
+    (dr/resolve-path Root2 RootRouter2 {}) => nil
     "Can substitute route params"
-    (dr/resolve-path {} Root2 User {:user-id 22}) => ["user" "22"]))
+    (dr/resolve-path Root2 User {:user-id 22}) => ["user" "22"]))
