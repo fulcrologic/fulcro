@@ -912,7 +912,7 @@
          (partition-all 2 segments))))))
 
 (defn resolve-path
-  "Attempts to resolve a path from the root (or StartingClass if given) to the given RouteTarget.
+  "Attempts to resolve a path from StartingClass to the given RouteTarget.
 
    Returns a vector of route segments. Any keywords in the result will be replaced by the values from `params`, if present.
 
