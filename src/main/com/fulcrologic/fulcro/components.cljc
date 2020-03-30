@@ -1231,9 +1231,14 @@
        `(~'fn ~render-fn [~thissym ~propsym]
           (com.fulcrologic.fulcro.components/wrapped-render ~thissym
             (fn []
-              (let [~@computed-bindings
-                    ~@extended-bindings]
-                ~@body)))))))
+              (binding [*app*         (or *app* (isoget-in ~thissym ["props" "fulcro$app"]))
+                        *depth*       (if *depth* (inc *depth*) 1)
+                        *shared*      (or *shared* (some-> *app* :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props))
+                        *query-state* (some-> *app* :com.fulcrologic.fulcro.application/state-atom deref)
+                        *parent*      ~thissym]
+                (let [~@computed-bindings
+                      ~@extended-bindings]
+                  ~@body))))))))
 
 #?(:clj
    (defn- build-and-validate-initial-state-map [env sym initial-state legal-keys children-by-query-key]

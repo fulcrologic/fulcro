@@ -62,6 +62,7 @@
    :use-hooks?    true}
   (let [[v set-v!] (comp/use-state 0)]
     (dom/div "This is a hooks-based component: "
+      (js/console.log comp/*depth* comp/*shared* comp/*parent*)
       (ui-some-hook-child child)
       (dom/button {:onClick #(set-v! (inc v))} (str v))
       (dom/button {:onClick #(m/set-integer! this :hook/x :value (inc x))}
@@ -82,7 +83,7 @@
 (comment
   (comp/get-query Hook))
 
-(defonce app (app/fulcro-app {}))
+(defonce app (app/fulcro-app {:shared {:x 1}}))
 
 (defn start []
   (app/mount! app Root "app"))
