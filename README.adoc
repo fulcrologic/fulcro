@@ -32,11 +32,13 @@ transaction processing system. Most of the surface level differences are simply 
 
 == Trying it Out
 
-The documentation for this version is in the http://book.fulcrologic.com/fulcro3[*new* revision of the Developer's Guide].
+The documentation for this version is in the http://book.fulcrologic.com/[Developer's Guide]. If you're using
+Fulcro 2, you can still read the http://book.fulcrologic.com/fulcro2[prior version of the guide].
 
-There is also a https://github.com/fulcrologic/fulcro-template[template project] in progress which you can use as a starting point.
+There is also a https://github.com/fulcrologic/fulcro-template[template project] which you can use as a starting point.
 
 == Contributing to Fulcro
+
 For learning more about how to contribute to the Fulcro project, please refer
 https://github.com/fulcrologic/fulcro/blob/develop/CONTRIBUTING.md[CONTRIBUTING.md]
 
