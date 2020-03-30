@@ -264,6 +264,7 @@
      :cljs
           (fn [& args]
             (this-as this
+              (js/console.log "THIS" this)
               (if-let [app (any->app this)]
                 (binding [*app*         app
                           *depth*       (inc (depth this))

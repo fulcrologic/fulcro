@@ -44,13 +44,25 @@
                             (str x))))}
       (fn [] Hook)))
 
-(defsc Hook [this {:keys [:hook/id :hook/x] :as props}]
-  {:query         [:hook/id :hook/x]
+(defsc SomeHookChild [this {:child/keys [id label] :as props}]
+  {:query         [:child/id :child/label]
+   :initial-state {:child/id :param/id :child/label (str "some child")}
+   :ident         :child/id}
+  (dom/div "Child " label
+    (dom/input {:value   label
+                :onInput (fn [evt] (m/set-string! this :child/label :event evt))})))
+
+(def ui-some-hook-child (comp/factory SomeHookChild {:keyfn :child/id}))
+
+(defsc Hook [this {:hook/keys [id x child] :as props}]
+  {:query         [:hook/id :hook/x {:hook/child (comp/get-query SomeHookChild)}]
    :ident         :hook/id
-   :initial-state {:hook/x 1 :hook/id :param/id}
+   :initial-state {:hook/x     1 :hook/id :param/id
+                   :hook/child {:id :param/id}}
    :use-hooks?    true}
   (let [[v set-v!] (comp/use-state 0)]
     (dom/div "This is a hooks-based component: "
+      (ui-some-hook-child child)
       (dom/button {:onClick #(set-v! (inc v))} (str v))
       (dom/button {:onClick #(m/set-integer! this :hook/x :value (inc x))}
         (str x)))))
