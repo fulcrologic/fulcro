@@ -25,10 +25,10 @@ Fulcro has undergone a number of face-lifts over its lifetime.
 version requires you to change a few i18n things if you were using it, and adds API to the DOM to make UI much more concise.
 2.6:: Changes for React 16+. Changes in React led to a change in the underlying rendering refresh
 optimizations.
-3.0:: This version. A nearly complete rewrite of the internals.  Simplifies a lot of things, makes others
-more extensible, and preserves the shape of the API; however, it is not 100% API compatible with prior versions.  In
-particular, in the course of fixing some long-standing issues, subtle semantic differences were desirable/unavoidable in the
-transaction processing system.
+3.0:: This version. Rewrote the internals to simplify a lot of things, make others
+more extensible, all while preserving the shape of the API. It is not 100% API compatible with prior versions, and uses
+new namespaces.  In particular, in the course of fixing some long-standing issues, subtle semantic differences were desirable/unavoidable in the
+transaction processing system. Most of the surface level differences are simply in the naming of things.
 
 == Trying it Out
 
