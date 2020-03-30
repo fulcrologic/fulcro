@@ -253,28 +253,6 @@
      (cond-> shared
        (not (empty? ks)) (get-in ks)))))
 
-(defn wrap-base-render
-  "Wrap a raw react `render` method so that Fulcro bindings are properly applied. Returns a `(fn [this] ...)`
-   that can work from React when called from setState etc.  Used internally, and typically not needed by
-   end-developer code."
-  [render]
-  #?(:clj (fn [& args]
-            (binding [*parent* (first args)]
-              (apply render args)))
-     :cljs
-          (fn [& args]
-            (this-as this
-              (js/console.log "THIS" this)
-              (if-let [app (any->app this)]
-                (binding [*app*         app
-                          *depth*       (inc (depth this))
-                          *shared*      (shared this)
-                          *query-state* (-> app (:com.fulcrologic.fulcro.application/state-atom) deref)
-                          *parent*      this]
-                  (apply render this args))
-                (log/fatal "Cannot find app on component!"))))))
-
-
 (letfn
   [(wrap-props-state-handler
      ([handler]
@@ -368,7 +346,23 @@
                         props     (if check-for-fresh-props-in-state?
                                     (raw->newest-props raw-props raw-state)
                                     (gobj/get raw-props "fulcro$props"))]
-                    (handler this props)))))))]
+                    (handler this props)))))))
+
+   (wrap-base-render [render]
+     #?(:clj (fn [& args]
+               (binding [*parent* (first args)]
+                 (apply render args)))
+        :cljs
+        (fn [& args]
+          (this-as this
+            (if-let [app (any->app this)]
+              (binding [*app*         app
+                        *depth*       (inc (depth this))
+                        *shared*      (shared this)
+                        *query-state* (-> app (:com.fulcrologic.fulcro.application/state-atom) deref)
+                        *parent*      this]
+                (apply render this args))
+              (log/fatal "Cannot find app on component!"))))))]
   (defn configure-component!
     "Configure the given `cls` (a function) to act as a react component within the Fulcro ecosystem.
 
@@ -1362,11 +1356,10 @@
          hooks?
          `(do
             (defonce ~sym
-              (let [get-render# (memoize #(wrap-base-render (:render (component-options ~sym))))]
-                (fn [js-props#]
-                  (let [render# (get-render#)
-                        [this# props#] (use-fulcro js-props# ~sym)]
-                    (render# this# props#)))))
+              (fn [js-props#]
+                (let [render# (:render (component-options ~sym))
+                      [this# props#] (use-fulcro js-props# ~sym)]
+                  (render# this# props#))))
             (add-hook-options! ~sym ~options-map))
 
          (cljs? env)
