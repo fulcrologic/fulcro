@@ -100,6 +100,9 @@
                               (log/warn "Boolean load marker no longer supported.")
                               false)
                             marker)]
+    (when (and target (not (targeting/special-target? target)) (= 2 (count target)))
+      (log/warn "Data load targets of two elements imply that you are targeting a table entry. That is probably"
+        "incorrect. Normalization targets tables. Targeting is for creating missing edges, which are usually 3-tuples."))
     {:query                query
      :source-key           server-property-or-ident
      :remote               remote
