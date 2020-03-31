@@ -74,7 +74,7 @@
   ([react-instance]
    (register-root! react-instance {:initialize? true}))
   ([react-instance {:keys [app initialize?]}]
-   (let [app (or app comp/*app*)]
+   (let [app (or app (comp/any->app react-instance) comp/*app*)]
      (if (map? app)
        (let [class        (comp/react-type react-instance)
              k            (comp/class->registry-key class)
@@ -93,7 +93,7 @@
   ([react-instance]
    (deregister-root! react-instance {}))
   ([react-instance {:keys [app] :as options}]
-   (let [app (or app comp/*app*)]
+   (let [app (or app (comp/any->app react-instance) comp/*app*)]
      (if (map? app)
        (let [class (comp/react-type react-instance)
              k     (comp/class->registry-key class)]
@@ -154,8 +154,7 @@
 #?(:clj
    (defmacro with-app-context
      "Wraps the given body with the correct internal bindings of the given fulcro-app so that Fulcro internals
-     will work when that body is embedded in unusual ways (e.g. as the body in a child-as-a-function
-     React pattern).
+     will work when that body is embedded in unusual ways.
 
      You should use this around the render body of any floating root that will be rendered outside of
      the synchronous fulcro render (e.g. you pass a floating root class to a React library).
@@ -163,12 +162,11 @@
      [fulcro-app & body]
      (if-not (:ns &env)
        `(do ~@body)
-       `(let [r# (or comp/*app* ~fulcro-app)
-              d# (or comp/*depth* 0)
-              s# (get (some-> ~fulcro-app ::app/runtime-atom deref) ::shared-props comp/*shared*)]
-          (binding [comp/*app*    r#
-                    comp/*depth*  d#
-                    comp/*shared* s#]
+       `(let [app# (or comp/*app* ~fulcro-app)
+              d#   (or comp/*depth* 0)]
+          (binding [comp/*app*    app#
+                    comp/*shared* (comp/shared app#)
+                    comp/*depth*  d#]
             ~@body)))))
 
 (defn floating-root-react-class
@@ -198,10 +196,11 @@
                                      (this-as this
                                        (let [js-props (.-props this)]
                                          (with-app-context fulcro-app
-                                           (let [query     (comp/get-query UIRoot)
-                                                 state-map (app/current-state fulcro-app)
-                                                 props     (fdn/db->tree query state-map state-map)]
-                                             (ui-root props {:js-props js-props}))))))})))
+                                           (binding [fdn/*denormalize-time* (app/basis-t fulcro-app)]
+                                             (let [query     (comp/get-query UIRoot)
+                                                   state-map (app/current-state fulcro-app)
+                                                   props     (fdn/db->tree query state-map state-map)]
+                                               (ui-root props {:js-props js-props})))))))})))
     cls))
 
 (defn floating-root-factory
@@ -224,10 +223,11 @@
    (let [constructor     (fn [])
          ui-factory      (comp/computed-factory UIClass)
          render          (fn [this]
-                           (let [state-map (app/current-state comp/*app*)
-                                 query     (comp/get-query UIClass state-map)
-                                 props     (fdn/db->tree query state-map state-map)]
-                             (ui-factory (or props {}) (comp/props this))))
+                           (binding [fdn/*denormalize-time* (app/basis-t comp/*app*)]
+                             (let [state-map (app/current-state comp/*app*)
+                                   query     (comp/get-query UIClass state-map)
+                                   props     (fdn/db->tree query state-map state-map)]
+                               (ui-factory (or props {}) (comp/props this)))))
          wrapper-class   (comp/configure-component! constructor ::wrapper
                            {:shouldComponentUpdate (fn [_ _ _] false)
                             :render                render})
