@@ -267,14 +267,11 @@
   ([comp-or-app]
    (shared comp-or-app []))
   ([comp-or-app k-or-ks]
-   (if *shared*
-     (get-in *shared* k-or-ks)
-     (let [app    (any->app comp-or-app)
-           shared (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props)
-           ks     (cond-> k-or-ks
-                    (not (sequential? k-or-ks)) vector)]
-       (cond-> shared
-         (not (empty? ks)) (get-in ks))))))
+   (let [shared (or *shared* (some-> (any->app comp-or-app) :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props))
+         ks     (cond-> k-or-ks
+                  (not (sequential? k-or-ks)) vector)]
+     (cond-> shared
+       (not (empty? ks)) (get-in ks)))))
 
 (letfn
   [(wrap-props-state-handler
