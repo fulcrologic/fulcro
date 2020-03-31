@@ -51,6 +51,7 @@
                           :child/label (str "some child")
                           :child/other {:id 42 :n 1000}}
    :componentWillUnmount (fn [this] (log/info "SHC UNMOUNT"))
+   :componentDidMount (fn [this] (log/info "SHC MOUNT"))
    :ident                :child/id}
   (dom/div
     (dom/div "Child " label)
