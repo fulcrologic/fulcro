@@ -13,15 +13,15 @@
                        :output-dir "resources/public/js/multiroot"
                        :asset-path "/js/multiroot"
                        :dev        {:compiler-options {:external-config {:guardrails {}}}}
-                       :modules    {:main {:entries [roots.sample]}}
-                       :devtools   {:after-load roots.sample/start
+                       :modules    {:main {:entries [other-demos.multi-root-sample]}}
+                       :devtools   {:after-load other-demos.multi-root-sample/start
                                     :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
 
             :hooks    {:target     :browser
                        :output-dir "resources/public/js/hooks"
                        :asset-path "/js/hooks"
-                       :modules    {:main {:entries [roots.hooks-demo]}}
-                       :devtools   {:after-load roots.hooks-demo/start
+                       :modules    {:main {:entries [other-demos.hooks-demo]}}
+                       :devtools   {:after-load other-demos.hooks-demo/start
                                     :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
 
             :test     {:target           :browser-test
