@@ -5,7 +5,7 @@
         [[cljs.analyzer :as ana]]
         :cljs
         [[goog.object :as gobj]
-         cljsjs.react])
+         ["react" :as react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -21,6 +21,9 @@
        [clojure.lang Associative IDeref APersistentMap])))
 
 (defonce ^:private component-registry (atom {}))
+
+#?(:cljs
+   (set! js/React react))
 
 ;; Used internally by get-query for resolving dynamic queries (was created to prevent the need for external API change in 3.x)
 (def ^:dynamic *query-state* nil)
@@ -752,7 +755,6 @@
   [f options]
   (let [cls-atom (atom nil)
         js-fn    (fn [js-props]
-                   (js/console.log js-props)
                    (let [[this props] (use-fulcro js-props @cls-atom)]
                      (wrapped-render this
                        (fn []

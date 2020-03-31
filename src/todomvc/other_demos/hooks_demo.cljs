@@ -6,6 +6,7 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.dom.inputs :as inputs]
     [com.fulcrologic.fulcro.mutations :as m]
     [goog.object :as gobj]
     [taoensso.timbre :as log]))
@@ -45,14 +46,12 @@
       (fn [] Hook)))
 
 (defsc SomeHookChild [this {:child/keys [id label other] :as props}]
-  {:query                [:child/id :child/label
-                          {:child/other (comp/get-query OtherChild)}]
-   :initial-state        {:child/id    :param/id
-                          :child/label (str "some child")
-                          :child/other {:id 42 :n 1000}}
-   :componentWillUnmount (fn [this] (log/info "SHC UNMOUNT"))
-   :componentDidMount (fn [this] (log/info "SHC MOUNT"))
-   :ident                :child/id}
+  {:query         [:child/id :child/label
+                   {:child/other (comp/get-query OtherChild)}]
+   :initial-state {:child/id    :param/id
+                   :child/label (str "some child")
+                   :child/other {:id 42 :n 1000}}
+   :ident         :child/id}
   (dom/div
     (dom/div "Child " label)
     (ui-other-child other)
@@ -62,7 +61,7 @@
 (def ui-some-hook-child (comp/factory SomeHookChild {:keyfn :child/id}))
 
 ;; Without defsc
-#_(def Hook
+#_(defonce Hook
     (comp/configure-hooks-component!
       (fn [this {:hook/keys [id x child] :as props}]
         (let [[v set-v!] (comp/use-state 0)]
@@ -79,6 +78,7 @@
                          :hook/id    id
                          :hook/child (comp/get-initial-state SomeHookChild {:id id})})}))
 
+
 ;; with defsc
 (defsc Hook [this {:hook/keys [id x child] :as props}]
   {:query         [:hook/id :hook/x {:hook/child (comp/get-query SomeHookChild)}]
@@ -87,11 +87,11 @@
                     {:hook/x     1
                      :hook/id    id
                      :hook/child (comp/get-initial-state SomeHookChild {:id child-id})})
-   #_#_:use-hooks? true}
-  (let [#_#_[v set-v!] (comp/use-state 0)]
+   :use-hooks?    true}
+  (let [[v set-v!] (comp/use-state 0)]
     (dom/div "This is a hooks-based component: "
       (ui-some-hook-child child)
-      ;(dom/button {:onClick #(set-v! (inc v))} (str v))
+      (dom/button {:onClick #(set-v! (inc v))} (str v))
       (dom/button {:onClick #(m/set-integer! this :hook/x :value (inc x))}
         (str x)))))
 
@@ -105,10 +105,12 @@
                    :hooks        [{:id 2 :child-id 101} {:id 3 :child-id 102}]
                    :normal-child {:id 1000 :n 100}}}
   (dom/div
+    (dom/h2 "A")
     (ui-other-child normal-child)
+    (dom/h2 "B")
     (ui-hook hook)
     (dom/h2 "Children")
-    (map ui-hook hooks)))
+    (clj->js (mapv ui-hook hooks))))
 
 (comment
   (comp/get-query Hook))

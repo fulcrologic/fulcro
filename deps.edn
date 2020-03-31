@@ -1,9 +1,6 @@
 {:paths   ["src/main"]
 
  :deps    {edn-query-language/eql     {:mvn/version "0.0.9"}
-           cljsjs/react               {:mvn/version "16.12.0-2"}
-           cljsjs/react-dom           {:mvn/version "16.12.0-2"}
-           cljsjs/react-dom-server    {:mvn/version "16.12.0-2"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
            com.taoensso/encore        {:mvn/version "2.115.0"}
            com.taoensso/sente         {:mvn/version "1.15.0"}

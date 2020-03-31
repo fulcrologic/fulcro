@@ -21,6 +21,11 @@
                        :output-dir "resources/public/js/hooks"
                        :asset-path "/js/hooks"
                        :modules    {:main {:entries [other-demos.hooks-demo]}}
+                       #_#_:js-options
+                           {:resolve {"react"     {:target  :npm
+                                                   :require "preact/compat"}
+                                      "react-dom" {:target  :npm
+                                                   :require "preact/compat"}}}
                        :devtools   {:after-load other-demos.hooks-demo/start
                                     :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
 

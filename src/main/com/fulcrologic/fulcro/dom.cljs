@@ -6,12 +6,16 @@
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
-    [cljsjs.react]
-    [cljsjs.react.dom]
+    ["react" :as react]
+    ["react-dom" :as react-dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
+    [com.fulcrologic.fulcro.dom.inputs :as inputs]
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [taoensso.timbre :as log]))
+
+(set! js/React react)
+(set! js/ReactDOM react-dom)
 
 (declare a abbr address altGlyph altGlyphDef altGlyphItem animate animateColor animateMotion animateTransform area
   article aside audio b base bdi bdo big blockquote body br button canvas caption circle cite clipPath code
@@ -75,7 +79,7 @@
   (js/ReactDOM.render component el))
 
 (defn render-to-str
-  "Equivalent to React.renderToString. NOTE: You must require cljsjs.react.dom.server to use this function."
+  "Equivalent to React.renderToString. NOTE: You must make sure js/ReactDOMServer is defined (e.g. require cljsjs.react.dom.server) to use this function."
   [c]
   (js/ReactDOMServer.renderToString c))
 
@@ -85,6 +89,20 @@
    (js/ReactDOM.findDOMNode component))
   ([component name]
    (some-> (.-refs component) (gobj/get name) (js/ReactDOM.findDOMNode))))
+
+(def Input
+  "React component that wraps dom/input to prevent cursor madness."
+  (inputs/StringBufferedInput ::Input {:string->model identity
+                                       :model->string identity}))
+
+(def ui-input
+  "A wrapped input. Use this when you see the cursor jump around while you're trying to type in an input. Drop-in replacement
+   for `dom/input`."
+  (let [factory (comp/factory Input {:keyfn :key})]
+    (fn [props]
+      (if-let [ref (:ref props)]
+        (factory (assoc props :ref (fn [r] (ref (some-> r (node))))))
+        (factory props)))))
 
 (defn create-element
   "Create a DOM element for which there exists no corresponding function.

@@ -11,10 +11,12 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     #?@(:clj  [[cljs.analyzer :as ana]]
-        :cljs [[cljsjs.react]
+        :cljs [["react" :as react]
                [goog.async.Deferred]
                [cljs.loader :as loader]])
     [taoensso.timbre :as log]))
+
+#?(:cljs (set! js/React react))
 
 #?(:clj
    (s/def ::mutation-args

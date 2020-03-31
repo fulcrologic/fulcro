@@ -9,8 +9,8 @@
     [com.fulcrologic.fulcro.data-fetch :as df]
     [taoensso.timbre :as log]))
 
-(defonce remote (fws/fulcro-websocket-remote {:auto-retry?        true
-                                              :request-timeout-ms 10000}) #_(http/fulcro-http-remote {}))
+(defonce remote #_(fws/fulcro-websocket-remote {:auto-retry?        true
+                                              :request-timeout-ms 10000}) (http/fulcro-http-remote {}))
 
 (defonce app (app/fulcro-app {:remotes           {:remote remote}
                               :client-did-mount  (fn [_]
