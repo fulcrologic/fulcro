@@ -55,8 +55,8 @@
   (dom/div
     (dom/div "Child " label)
     (ui-other-child other)
-    (dom/input {:value   label
-                :onInput (fn [evt] (m/set-string! this :child/label :event evt))})))
+    (dom/ui-input {:value    label
+                   :onChange (fn [v] (m/set-string! this :child/label :value v))})))
 
 (def ui-some-hook-child (comp/factory SomeHookChild {:keyfn :child/id}))
 

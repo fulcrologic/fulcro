@@ -97,7 +97,9 @@
 
 (def ui-input
   "A wrapped input. Use this when you see the cursor jump around while you're trying to type in an input. Drop-in replacement
-   for `dom/input`."
+   for `dom/input`.
+
+   NOTE: The onChange and onBlur handlers will receive a string value, not an event. If you want the raw event on changes use onInput."
   (let [factory (comp/factory Input {:keyfn :key})]
     (fn [props]
       (if-let [ref (:ref props)]
