@@ -1,0 +1,116 @@
+= The Problems with DOM Inputs
+
+React users (developers of libraries and applications) often struggle with DOM Inputs.  The idea of controlled
+inputs is highly desirable from a functional-programming standpoint, and brings a lot of clarity to your application;
+however, the real OS-level input that you see in the browser is *actually* controlled by the browser, and our attempts
+at taking over that control, as you'll see, are somewhat difficult.
+
+== Who Controls The Input?
+
+On the surface you might think this is a relatively simple question. After all, can't I just do something like
+this in JS?
+
+[source, javascript]
+-----
+input.value = "hello";
+-----
+
+Of course the answer is "yes". You've told that input who's boss.  Or have you?
+
+=== Browser Inputs
+
+At the core of most browsers the on-screen inputs are meant to be interactive. The browser allows the user to use
+all manner of input methods (everything from typing foreign languages to selecting a date in an HTML5 input). The
+localization concerns alone mean that a key on the keyboard may not end up actually triggering *any* visible event to
+your application (some languages, like Chinese, require you to type multiple keys to get a single character of input).
+
+The real model of what is going on looks something like this:
+
+[ditaa]
+-----
+                                 Browser   <-------------------------------------------------------+
+              OS input evts     +--------------+    HARD WRITES                                    |
+    User ---------------------->|              +----------+                                        |
+                                +--+-----------+          |                                        |
+ +----------------+    onChange    |                      |      DOM Input Node (has .value)       |
+ | JS Thread Queue| <--------------+                      |      --------------+                   |
+ +--------+-------+                                       +------->            +-------------------+
+          |                                                      |             |  User code (js) change
+          | evt.target is dom node                               +-------------+
+          v                                                            ^
+  +-------------------+                                                |
+  | User code         +------------------------------------------------+
+  +-------------------+
+-----
+
+The point is that your user code (whether it be code you wrote, or code in a library you're using) is coming
+"late to the game". Your code will always run *after* the real browser has put *real stuff* in the DOM node.
+
+If your user code tells the input to change, then *bad things happen to focused inputs*. The most common
+manifestation of this problem is that the cursor jumps to the end of the input, so your user puts their cursor
+in the middle of the content `abc|f` and presses `d` followed by `e` and the two updates look like
+`abcdf|` followed by `abcdfe`. Needless to say, you're getting a bug report from an end user.
+
+=== How React "Deals" with It
+
+React uses a somewhat magical approach: If you read the Forms documentation carefully, you'll see that *all uses of
+controlled inputs are done through component local state*. This is *not* a coincidence. The lifecycle of React is
+specifically designed so that calls to `setState` done synchronously will happen *before* trying to re-sync to the DOM,
+and the implementation of input synchronization *does nothing* if the input's value is already what you want it to be.
+Read this
+https://stackoverflow.com/questions/28922275/in-reactjs-why-does-setstate-behave-differently-when-called-synchronously/28922465#28922465[full description]
+for more information about how this causes headaches when your data update code runs asynchronously.
+
+NOTE: I've noticed that Preact seems to behave better on this. I suspect that Preact checks the old input value
+at the low-level DOM before setting a value, whereas stock React does a force write if what it *thinks* is there
+differs from what you ask it to put there, causing cursor jumps.
+
+Your alternative is to use "uncontrolled" inputs, where you have a ref to the DOM input and use
+`defaultValue` to give an initial value.
+
+Neither of these work well with external libraries like Fulcro to really
+control the input asynchronously (transactional updates, websocket pushes, etc). All React wrappers have
+this problem. See, for example, the
+https://github.com/reagent-project/reagent/blob/v0.10.0/src/reagent/impl/template.cljs#L140[100 lines of magic] that
+Reagent does to handle this problem, and at the time of this writing there are open issues that indicate things like
+Chinese not working well with it.
+
+=== Fulcro's Approach
+
+Fulcro's current approach to this problem isn't fully ideal, and this document is a clarification of the
+problem statement so that perhaps we can come up with a better solution.
+
+The general approach is as follows:
+
+- Wrap all inputs "behind the scenes" with a React Component in Fulcro that "buffers" the input value.
+** Wrap onChange so that incoming evt.target.value is cached in component-local state
+** If an async update to the `value` of our fake input matches what
+   we've cached, then do nothing.
+- The wrapper must also do some magic to make sure `:ref` is properly ferried through to the underlying real React input.
+
+There are a number of problems with this approach:
+
+* If the async code modified the value in some way (e.g. upper-cased it) then the cursor will still jump, since
+any set of `.value` on the real DOM input will do that.
+* Delayed sequences of async updates may report a sequence of changes to the input that has "already happened".
+
+For example:
+
+* You put your cursor in front of an input's value, which is currently "12"
+* You type "a" "b" very quickly
+** The first event updates component-local state to "a12" and *submits* a tx w/"a12" (tx 1)
+** The second event updates component-local state to "ab12" and *submits* a tx w/"ab12" (tx 2)
+** js processes tx 1, and sends the new value to your component as "a12". This mismatches what is
+in the component-local state *and* what is on the DOM. React updates the DOM node. The cursor jumps to the end.
+The component-local state is now "a12"
+* You type "c"
+** The event updates component-local state to "a12c" and *submits* a tx w/"a12c" (tx 3)
+** js processes the tx 2, and sends the new value to your component as "ab12". React updates the
+DOM node. The cursor was already at the end. The input now says "ab12"
+** js processes the tx 3, and sends the new value to your component as "a12c". React updates the
+DOM node. The cursor was already at the end. The input now says "a12c"
+
+So, in that example sequence we both lost a character, mis-placed another, and moved the user's cursor.
+
+If you study Reagent's solution, they juggle the DOM node's real value, and do things like reset the cursor position. That
+may in fact be the best solution.
