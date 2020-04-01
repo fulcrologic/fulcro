@@ -121,3 +121,20 @@ may in fact be the best solution.
 * React avoids doing that when using component-local state and synchronous updates
 * Libraries that manage application state and want to control inputs cause async sets of React's VDOM value on inputs,
 which can lead to sets of real DOM node `.value`, leading to bad user experience.
+
+== Some Rough Ideas:
+
+There are a number of possible issues we need to deal with:
+
+* The change event on an input, once processed by Fulcro, results in a transformed value (e.g. upper-cased input). This
+use-case means we *always* need to set the input's raw `.value` property, causing a cursor jump.
+* As shown in the example earlier: the results of transactions can "flow in" over time. Having a cached local state value
+isn't quite enough, though a short *history* of recent changes could allow us to prevent overwrites...unfortunately,
+that's a heuristic that can probably fail in weird ways.
+* Ideally we let the user type as quickly as possible, independent of how slowly transaction processing is going. This
+gives a good user responsiveness feel. Right now transactions happen on a periodic basis (rapid submissions will process
+something like 30x/sec). We could add a tx debounce that would prevent tx processing on rapid keystrokes.
+** Debounced tx processing would mean that the input content, if morphed by tx processing, would get behind. Perhaps a special
+Fulcro input could streamline that processing (perhaps into a synchronous form?). Imagine we could mark a transaction
+as syncrhonous, and immediately read state so that we're putting the correct value in the input immediately?
+
