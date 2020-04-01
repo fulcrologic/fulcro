@@ -114,3 +114,10 @@ So, in that example sequence we both lost a character, mis-placed another, and m
 
 If you study Reagent's solution, they juggle the DOM node's real value, and do things like reset the cursor position. That
 may in fact be the best solution.
+
+== Summary
+
+* Setting the `.value` prop on a real DOM node causes cursor to jump
+* React avoids doing that when using component-local state and synchronous updates
+* Libraries that manage application state and want to control inputs cause async sets of React's VDOM value on inputs,
+which can lead to sets of real DOM node `.value`, leading to bad user experience.
