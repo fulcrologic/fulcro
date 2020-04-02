@@ -28,9 +28,6 @@
      (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
        config)))
 
-#?(:clj
-   (defn use-hooks? [] (boolean (:default-to-hooks? (current-config)))))
-
 #?(:cljs
    (set! js/React react))
 
@@ -1446,7 +1443,7 @@
            ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-form                       (build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
            query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
-           hooks?                           (or (:use-hooks? options) (and (use-hooks?) (not (false? (:use-hooks? options)))))
+           hooks?                           (:use-hooks? options)
            render-form                      (if hooks?
                                               (build-hooks-render sym thissym propsym computedsym extra-args body)
                                               (build-render sym thissym propsym computedsym extra-args body))
