@@ -760,6 +760,7 @@
                                     options
                                     `{:query         ~query
                                       :ident         ~ident-method
+                                      :use-hooks?    false
                                       :initial-state ~initial-state-lambda})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options

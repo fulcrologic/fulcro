@@ -122,19 +122,22 @@ may in fact be the best solution.
 * Libraries that manage application state and want to control inputs cause async sets of React's VDOM value on inputs,
 which can lead to sets of real DOM node `.value`, leading to bad user experience.
 
-== Some Rough Ideas:
+== Solution
 
-There are a number of possible issues we need to deal with:
+It turns out that Fulcro already had a great solution for this that follows the React suggested
+use exactly. Even though Fulcro normally does asynchronous transactions to update app state, there
+is nothing that says we cannot override that via an option. Running a purely optimistic mutation
+against the state atom is fast and harmless.
 
-* The change event on an input, once processed by Fulcro, results in a transformed value (e.g. upper-cased input). This
-use-case means we *always* need to set the input's raw `.value` property, causing a cursor jump.
-* As shown in the example earlier: the results of transactions can "flow in" over time. Having a cached local state value
-isn't quite enough, though a short *history* of recent changes could allow us to prevent overwrites...unfortunately,
-that's a heuristic that can probably fail in weird ways.
-* Ideally we let the user type as quickly as possible, independent of how slowly transaction processing is going. This
-gives a good user responsiveness feel. Right now transactions happen on a periodic basis (rapid submissions will process
-something like 30x/sec). We could add a tx debounce that would prevent tx processing on rapid keystrokes.
-** Debounced tx processing would mean that the input content, if morphed by tx processing, would get behind. Perhaps a special
-Fulcro input could streamline that processing (perhaps into a synchronous form?). Imagine we could mark a transaction
-as syncrhonous, and immediately read state so that we're putting the correct value in the input immediately?
+Fulcro's rendering optimizations also support the idea of props tunneling, where new versions of
+a component's props are sent through React's `setState` on that component. Thus, the solution
+is quite simple:
+
+1. Add `:synchronous? true` as an option to `transact!` and have it mean "run the optimistic part of
+this transaction synchronously and update my props".
+2. The implementation can simply pull the query and ident from `this` re-create the UI props for
+the component after the optimistic actions, and tunnel them to the component.
+
+If this all happens on the thread that is handling an event, then React will just do the right thing,
+and raw inputs will behave as expected with no magic at all.
 

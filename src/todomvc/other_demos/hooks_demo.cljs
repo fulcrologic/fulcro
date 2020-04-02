@@ -1,14 +1,10 @@
 (ns other-demos.hooks-demo
   (:require
-    [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mroot]
-    [com.fulcrologic.fulcro.algorithms.indexing :as index]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.dom.inputs :as inputs]
     [com.fulcrologic.fulcro.mutations :as m]
-    [goog.object :as gobj]
     [taoensso.timbre :as log]))
 
 (declare AltRootPlainClass app)
@@ -45,7 +41,7 @@
                             (str x))))}
       (fn [] Hook)))
 
-(defsc SomeHookChild [this {:child/keys [id label other] :as props}]
+(defsc SomeHookChild [this {:child/keys [id label other]}]
   {:query         [:child/id :child/label
                    {:child/other (comp/get-query OtherChild)}]
    :initial-state {:child/id    :param/id
@@ -55,8 +51,9 @@
   (dom/div
     (dom/div "Child " label)
     (ui-other-child other)
-    (dom/ui-input {:value    label
-                   :onChange (fn [v] (m/set-string! this :child/label :value v))})))
+    (dom/button {:onClick #(m/set-string! this :child/label :value "RESET")} "Reset")
+    (dom/input {:value    label
+                :onChange (fn [evt] (m/set-string! this :child/label :event evt))})))
 
 (def ui-some-hook-child (comp/factory SomeHookChild {:keyfn :child/id}))
 

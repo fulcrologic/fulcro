@@ -17,17 +17,20 @@
                        :devtools   {:after-load other-demos.multi-root-sample/start
                                     :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
 
-            :hooks    {:target     :browser
-                       :output-dir "resources/public/js/hooks"
-                       :asset-path "/js/hooks"
-                       :modules    {:main {:entries [other-demos.hooks-demo]}}
+            :hooks    {:target           :browser
+                       :output-dir       "resources/public/js/hooks"
+                       :asset-path       "/js/hooks"
+                       :modules          {:main {:entries [other-demos.hooks-demo]}}
+                       :compiler-options {:external-config {:fulcro     {:wrap-inputs? false
+                                                                         :default-to-hooks? false}
+                                                            :guardrails {:throw? false :emit-spec? true}}}
                        #_#_:js-options
                            {:resolve {"react"     {:target  :npm
                                                    :require "preact/compat"}
                                       "react-dom" {:target  :npm
                                                    :require "preact/compat"}}}
-                       :devtools   {:after-load other-demos.hooks-demo/start
-                                    :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
+                       :devtools         {:after-load other-demos.hooks-demo/start
+                                          :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
 
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"

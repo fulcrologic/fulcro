@@ -6,8 +6,8 @@
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
-    ["react" :as react]
-    ["react-dom" :as react-dom]
+    [react]
+    [react-dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
     [com.fulcrologic.fulcro.dom.inputs :as inputs]
@@ -265,4 +265,30 @@
        (f (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
             (arr-append args)))))))
 
-(com.fulcrologic.fulcro.dom/gen-client-dom-fns com.fulcrologic.fulcro.dom/macro-create-element)
+(defn macro-create-unwrapped-element
+  "Just like macro-create-element, but never wraps form input types."
+  ([type args] (macro-create-element type args nil))
+  ([type args csskw]
+   (let [[head & tail] (mapv comp/force-children args)]
+     (cond
+       (nil? head)
+       (macro-create-element* (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+                                (arr-append tail)))
+
+       (element? head)
+       (macro-create-element* (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+                                (arr-append args)))
+
+       (object? head)
+       (macro-create-element* (doto #js [type (cdom/add-kwprops-to-props head csskw)]
+                                (arr-append tail)))
+
+       (map? head)
+       (macro-create-element* (doto #js [type (clj->js (cdom/add-kwprops-to-props (cdom/interpret-classes head) csskw))]
+                                (arr-append tail)))
+
+       :else
+       (macro-create-element* (doto #js [type (cdom/add-kwprops-to-props #js {} csskw)]
+                                (arr-append args)))))))
+
+(com.fulcrologic.fulcro.dom/gen-client-dom-fns com.fulcrologic.fulcro.dom/macro-create-element com.fulcrologic.fulcro.dom/macro-create-unwrapped-element)

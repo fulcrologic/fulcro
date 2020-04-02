@@ -170,22 +170,26 @@
   "
   ([app tx]
    [::app ::txn/tx => ::txn/id]
-   (default-tx! app tx {:optimistic? true}))
-  ([{:keys [::runtime-atom] :as app} tx options]
+   (default-tx! app tx {:optimistic?  true
+                        :synchronous? false}))
+  ([{:keys [::runtime-atom] :as app} tx {:keys [synchronous?] :as options}]
    [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
-   (txn/schedule-activation! app)
-   (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
-         follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
-         node            (txn/tx-node tx options)
-         accumulate      (fn [r items] (into (set r) items))
-         refresh         (cond-> (set refresh)
-                           (seq follow-on-reads) (into follow-on-reads)
-                           ref (conj ref))]
-     (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
-                                   ;; refresh sets are cumulative because rendering is debounced
-                                   (seq refresh) (update ::to-refresh accumulate refresh)
-                                   (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
-     (::txn/id node))))
+   (if synchronous?
+     (txn/transact-sync! app tx options)
+     (do
+       (txn/schedule-activation! app)
+       (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
+             follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
+             node            (txn/tx-node tx options)
+             accumulate      (fn [r items] (into (set r) items))
+             refresh         (cond-> (set refresh)
+                               (seq follow-on-reads) (into follow-on-reads)
+                               ref (conj ref))]
+         (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
+                                       ;; refresh sets are cumulative because rendering is debounced
+                                       (seq refresh) (update ::to-refresh accumulate refresh)
+                                       (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
+         (::txn/id node))))))
 
 (>defn default-remote-error?
   "Default detection of network errors. Returns true if the status-code of the given result

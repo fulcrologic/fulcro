@@ -8,9 +8,11 @@
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
     com.fulcrologic.fulcro.specs
@@ -674,3 +676,52 @@
     (log/debug "Scheduling a render")
     (schedule-render! app)
     nil))
+
+(defn transact-sync!
+  "Run the optimistic action(s) of a transaction synchronously. It is primarily used to deal with controlled inputs, since they
+   have issues working asynchronously, so ideally the mutation in question will *not* have remote action (though they
+   are allowed to).
+
+   NOTE: any *remote* behaviors of `tx` will *still be async*.
+
+   This function:
+
+   * Runs the optimistic side of the mutation(s)
+   * IF (and only if) one or more of the mutations has more sections than just an `action` then it submits the mutation to the normal transaction queue,
+     but with the optimistic part already done.
+   * This functions *does not* queue a render refresh (though if the normal transaction queue is updated, it will queue tx remote processing, which will trigger a UI refresh).
+
+   If you pass it an on-screen instance that has a query and ident, then this function tunnel updated UI props synchronously to that
+   component so it can refresh immediately and avoid DOM input issues.
+
+   Returns the new component props or the final state map if no component was used in the transaction.
+   "
+  [app tx {:keys [component] :as options}]
+  (let [mutation-nodes      (:children (eql/query->ast tx))
+        ast-node->operation (zipmap mutation-nodes (map (fn [ast-node] (m/mutate {:ast ast-node})) mutation-nodes))
+        {optimistic true
+         mixed      false} (group-by #(= #{:action :result-action} (-> (ast-node->operation %) keys set)) mutation-nodes)
+        optimistic-tx-node  (when (seq optimistic)
+                              (let [node (tx-node (eql/ast->query {:type :root :children optimistic}) options)]
+                                (dispatch-elements node (build-env app node) m/mutate)))
+        mixed-tx-node       (when (seq mixed)
+                              (let [node (tx-node (eql/ast->query {:type :root :children mixed}) options)]
+                                (dispatch-elements node (build-env app node) m/mutate)))
+        resulting-node-id   (atom nil)]
+    (when optimistic-tx-node (run-actions! app optimistic-tx-node))
+    (when mixed-tx-node
+      (let [node         (run-actions! app mixed-tx-node)
+            runtime-atom (:com.fulcrologic.fulcro.application/runtime-atom app)]
+        (reset! resulting-node-id (::id node))
+        (swap! runtime-atom update ::active-queue conj node)
+        (schedule-queue-processing! app 20)))
+    (when component
+      ;; Tick the clock...can't access app/tick! without a circular ns ref...
+      (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc)
+      (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
+        (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
+              ident     (comp/get-ident component)
+              query     (comp/get-query component)
+              ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
+          (comp/tunnel-props! component ui-props))))
+    @resulting-node-id))

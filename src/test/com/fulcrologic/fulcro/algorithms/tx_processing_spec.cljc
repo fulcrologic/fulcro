@@ -1029,7 +1029,7 @@
   (refresh [_]
     [:a :c]))
 
-(specification "requested-refreshes" :focus
+(specification "requested-refreshes"
   (let [app             (mock-app)
         dispatched-node (-> (txn/tx-node [(rf1) (rf2)])
                           (txn/dispatch-elements {} (fn [e] (m/mutate e))))
