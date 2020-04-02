@@ -128,49 +128,54 @@
 
   class - The component class.
   entity - A denormalized (tree) of data that matches the given component class.
+  opts map
+    - :destructive? - If true, overwrites any previous form-config with new re-computed values.
 
   Returns the (possibly updated) denormalized entity, ready to merge."
-  [class entity]
-  [comp/component-class? map? => map?]
-  (let [[fields subform-classmap subform-keys] (derive-form-info class)
-        local-entity (if (contains? entity ::config)
-                       entity
-                       (let [pristine-state (select-keys entity fields)
-                             subform-ident  (fn [k entity] (some-> (get subform-classmap k) meta
-                                                             :component (comp/get-ident entity)))
-                             subform-keys   (-> subform-classmap keys set)
-                             subform-refs   (reduce
-                                              (fn [refs k]
-                                                (let [items (get entity k)]
-                                                  (cond
-                                                    ; to-one
-                                                    (map? items) (assoc refs k (subform-ident k items))
-                                                    ; to-many
-                                                    (vector? items) (assoc refs k (mapv #(subform-ident k %) items))
-                                                    :else refs)))
-                                              {}
-                                              subform-keys)
-                             pristine-state (merge pristine-state subform-refs)
-                             config         {::id             (comp/get-ident class entity)
-                                             ::fields         fields
-                                             ::pristine-state pristine-state
-                                             ::subforms       (or subform-classmap {})}]
-                         (merge entity {::config config})))]
-    (reduce
-      (fn [resulting-entity k]
-        (let [c           (some-> subform-classmap (get k) meta :component)
-              has-fields? (boolean (seq (comp/component-options c :form-fields)))
-              child       (get resulting-entity k)]
-          (try
-            (cond
-              (and c has-fields? child (vector? child)) (assoc resulting-entity k (mapv #(add-form-config c %) child))
-              (and c has-fields? child) (assoc resulting-entity k (add-form-config c child))
-              :else resulting-entity)
-            (catch #?(:clj Exception :cljs :default) e
-              (throw (ex-info (str "Subform " (comp/component-name c) " of " (comp/component-name class) " failed to initialize.")
-                       {:nested-exception e}))))))
-      local-entity
-      subform-keys)))
+  ([class entity]
+   [comp/component-class? map? => map?]
+   (add-form-config class entity {}))
+  ([class entity {:keys [destructive?] :as opts}]
+   [comp/component-class? map? map? => map?]
+   (let [[fields subform-classmap subform-keys] (derive-form-info class)
+         local-entity (if (or (not (contains? entity ::config)) destructive?)
+                        (let [pristine-state (select-keys entity fields)
+                              subform-ident  (fn [k entity] (some-> (get subform-classmap k) meta
+                                                              :component (comp/get-ident entity)))
+                              subform-keys   (-> subform-classmap keys set)
+                              subform-refs   (reduce
+                                               (fn [refs k]
+                                                 (let [items (get entity k)]
+                                                   (cond
+                                                     ; to-one
+                                                     (map? items) (assoc refs k (subform-ident k items))
+                                                     ; to-many
+                                                     (vector? items) (assoc refs k (mapv #(subform-ident k %) items))
+                                                     :else refs)))
+                                               {}
+                                               subform-keys)
+                              pristine-state (merge pristine-state subform-refs)
+                              config         {::id             (comp/get-ident class entity)
+                                              ::fields         fields
+                                              ::pristine-state pristine-state
+                                              ::subforms       (or subform-classmap {})}]
+                          (merge entity {::config config}))
+                        entity)]
+     (reduce
+       (fn [resulting-entity k]
+         (let [c           (some-> subform-classmap (get k) meta :component)
+               has-fields? (boolean (seq (comp/component-options c :form-fields)))
+               child       (get resulting-entity k)]
+           (try
+             (cond
+               (and c has-fields? child (vector? child)) (assoc resulting-entity k (mapv #(add-form-config c % opts) child))
+               (and c has-fields? child) (assoc resulting-entity k (add-form-config c child opts))
+               :else resulting-entity)
+             (catch #?(:clj Exception :cljs :default) e
+               (throw (ex-info (str "Subform " (comp/component-name c) " of " (comp/component-name class) " failed to initialize.")
+                        {:nested-exception e}))))))
+       local-entity
+       subform-keys))))
 
 
 
@@ -181,43 +186,48 @@
   state-map - The application state database (map, not atom).
   class - The component class. Must have declared form fields.
   entity-ident - The ident of the normalized entity of the given class that you wish to initialize.
+  opts map
+    - :destructive? - If true, overwrites any previous form-config with new re-computed values.
 
   Returns an updated state map with normalized form configuration in place for the entity."
-  [state-map class entity-ident]
-  [map? comp/component-class? eql/ident? => map?]
-  (let [[fields subform-classmap subform-keys] (derive-form-info class)
-        entity            (get-in state-map entity-ident)
-        updated-state-map (if (contains? entity ::config)
-                            state-map
-                            (let [pristine-state (select-keys entity (set/union subform-keys fields))
-                                  config         {::id             entity-ident
-                                                  ::fields         fields
-                                                  ::pristine-state pristine-state
-                                                  ::subforms       (or subform-classmap {})}
-                                  cfg-ident      [::forms-by-ident (form-id entity-ident)]]
-                              (-> state-map
-                                (assoc-in cfg-ident config)
-                                (assoc-in (conj entity-ident ::config) cfg-ident))))]
-    (if (and (empty? fields) (empty? subform-classmap))
-      state-map
-      (reduce
-        (fn [smap subform-key]
-          (let [subform-class  (some-> subform-classmap (get subform-key) meta :component)
-                subform-target (get entity subform-key)]
-            (try
-              (cond
-                (and subform-class subform-target (every? eql/ident? subform-target))
-                (reduce (fn [s subform-ident] (add-form-config* s subform-class subform-ident)) smap subform-target)
+  ([state-map class entity-ident]
+   [map? comp/component-class? eql/ident? => map?]
+   (add-form-config* state-map class entity-ident {}))
+  ([state-map class entity-ident {:keys [destructive?] :as opts}]
+   [map? comp/component-class? eql/ident? map? => map?]
+   (let [[fields subform-classmap subform-keys] (derive-form-info class)
+         entity            (get-in state-map entity-ident)
+         updated-state-map (if (or destructive? (not (contains? entity ::config)))
+                             (let [pristine-state (select-keys entity (set/union subform-keys fields))
+                                   config         {::id             entity-ident
+                                                   ::fields         fields
+                                                   ::pristine-state pristine-state
+                                                   ::subforms       (or subform-classmap {})}
+                                   cfg-ident      [::forms-by-ident (form-id entity-ident)]]
+                               (-> state-map
+                                 (assoc-in cfg-ident config)
+                                 (assoc-in (conj entity-ident ::config) cfg-ident)))
+                             state-map)]
+     (if (and (empty? fields) (empty? subform-classmap))
+       state-map
+       (reduce
+         (fn [smap subform-key]
+           (let [subform-class  (some-> subform-classmap (get subform-key) meta :component)
+                 subform-target (get entity subform-key)]
+             (try
+               (cond
+                 (and subform-class subform-target (every? eql/ident? subform-target))
+                 (reduce (fn [s subform-ident] (add-form-config* s subform-class subform-ident opts)) smap subform-target)
 
-                (and subform-class (eql/ident? subform-target))
-                (add-form-config* smap subform-class subform-target)
+                 (and subform-class (eql/ident? subform-target))
+                 (add-form-config* smap subform-class subform-target opts)
 
-                :else smap)
-              (catch #?(:clj Exception :cljs :default) e
-                (throw (ex-info (str "Subform " (comp/component-name subform-class) " of " (comp/component-name class) " failed to initialize.")
-                         {:nested-exception e}))))))
-        updated-state-map
-        subform-keys))))
+                 :else smap)
+               (catch #?(:clj Exception :cljs :default) e
+                 (throw (ex-info (str "Subform " (comp/component-name subform-class) " of " (comp/component-name class) " failed to initialize.")
+                          {:nested-exception e}))))))
+         updated-state-map
+         subform-keys)))))
 
 (>defn immediate-subforms
   "Get the instances of the immediate subforms that are joined into the given entity by
