@@ -30,7 +30,7 @@
     (cljs.tagged_literals JSValue)
     (clojure.lang ExceptionInfo)))
 
-(defn wrap-inputs? [] (boolean (:wrap-inputs? (comp/current-config))))
+(defn wrap-inputs? [] (not (false? (:wrap-inputs? (comp/current-config)))))
 
 (defn- map-of-literals? [v]
   (and (map? v) (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))
