@@ -21,9 +21,7 @@
                        :output-dir       "resources/public/js/hooks"
                        :asset-path       "/js/hooks"
                        :modules          {:main {:entries [other-demos.hooks-demo]}}
-                       :compiler-options {:external-config {:fulcro     {:wrap-inputs? false
-                                                                         :default-to-hooks? false}
-                                                            :guardrails {:throw? false :emit-spec? true}}}
+                       :compiler-options {:external-config {:guardrails {:throw? false :emit-spec? true}}}
                        #_#_:js-options
                            {:resolve {"react"     {:target  :npm
                                                    :require "preact/compat"}
