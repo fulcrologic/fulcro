@@ -110,8 +110,7 @@
                   query      (comp/get-query cls state-map)
                   root-props (fdn/db->tree query state-map state-map)]]
       (doseq [root (get known-roots k)]
-        (when (comp/mounted? root)
-          #?(:cljs (.setState ^js root (fn [s] #js {"fulcro$value" root-props}))))))))
+        (comp/tunnel-props! root root-props)))))
 
 (defn render-stale-components!
   "This function tracks the state of the app at the time of prior render in the app's runtime-atom. It

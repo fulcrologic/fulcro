@@ -2,10 +2,11 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.components))
   (:require
     #?@(:clj
-        [[cljs.analyzer :as ana]]
+        [[cljs.analyzer :as ana]
+         [cljs.env :as cljs-env]]
         :cljs
         [[goog.object :as gobj]
-         ["react" :as react]])
+         [react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -21,6 +22,14 @@
        [clojure.lang Associative IDeref APersistentMap])))
 
 (defonce ^:private component-registry (atom {}))
+
+#?(:clj
+   (defn current-config []
+     (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
+       config)))
+
+#?(:clj
+   (defn use-hooks? [] (boolean (:default-to-hooks? (current-config)))))
 
 #?(:cljs
    (set! js/React react))
@@ -602,6 +611,18 @@
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
        nil))))
 
+(defn tunnel-props!
+  "CLJS-only.  When the `component` is mounted this will tunnel `new-props` to that component through React `setState`. If you're in
+  an event handler, this means the tunnelling will be synchronous, and can be useful when updating props that could affect DOM
+  inputs. This is typically used internally (see `transact!!`, and should generally not be used in applications unless it is a very advanced
+  scenario and you've studied how this works. NOTE: You should `tick!` the application clock and bind *denormalize-time*
+  when generating `new-props` so they are properly time-stamped by `db->tree`, or manually add time to `new-props`
+  using `fdn/with-time` directly."
+  [component new-props]
+  #?(:cljs
+     (when (mounted? component)
+       (.setState ^js component (fn [s] #js {"fulcro$value" new-props})))))
+
 (defn is-factory?
   "Returns true if the given argument is a component factory."
   [class-or-factory]
@@ -863,6 +884,10 @@
   - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
     the network portion of the transaction (assuming it has not already completed).
   - `:compressible?` - boolean. Check compressible-transact! docs.
+  - `:synchronous?` - boolean. When turned on the transaction will run immediately on the calling thread. If run against
+  a component the props will be immediately tunneled back to the calling component, allowing for React (raw) input
+  event handlers to behave as described in standard React Forms docs (uses setState behind the scenes). Any remote operations
+  will still be queued as normal. Calling `transact!!` is a shorthand for this option.
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
@@ -879,6 +904,29 @@
        (tx! app tx options))))
   ([app-or-comp tx]
    (transact! app-or-comp tx {})))
+
+(defn transact!!
+  "Shorthand for exactly `(transact! component tx (merge options {:synchronous? true}))`.
+
+  Runs a synchronous transaction, which is an optimized mode where the optimistic behaviors of the mutations in the
+  transaction run on the calling thread, and new props are immediately made available to the calling component via
+  \"props tunneling\" (a behind-the-scenes mechanism using js/setState).
+
+  This mode is meant to be used in form input event handlers, since React is designed to only work properly with
+  raw DOM inputs via component-local state. This prevents things like the cursor jumping to the end of inputs
+  unexpectedly.
+
+  If you're using this, you should also set the compiler option:
+
+  ```
+  :compiler-options {:external-config {:fulcro     {:wrap-inputs? false}}}
+  ```
+  to turn off Fulcro DOM's generation of wrapped inputs (which try to solve this problem in a less-effective way).
+  "
+  ([component tx]
+   (transact! component tx {:synchronous? true}))
+  ([component tx options]
+   (transact! component tx (merge options {:synchronous? true}))))
 
 (declare normalize-query)
 
@@ -1398,7 +1446,7 @@
            ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-form                       (build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
            query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
-           hooks?                           (:use-hooks? options)
+           hooks?                           (or (:use-hooks? options) (and (use-hooks?) (not (false? (:use-hooks? options)))))
            render-form                      (if hooks?
                                               (build-hooks-render sym thissym propsym computedsym extra-args body)
                                               (build-render sym thissym propsym computedsym extra-args body))
