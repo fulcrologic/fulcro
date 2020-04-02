@@ -327,7 +327,7 @@
        (fn? span) => true
        (fn? p) => true)
      (provided "It is used in a functional context"
-       (dom/macro-create-element t args) => (assertions
+       (dom/macro-create-unwrapped-element t args) => (assertions
                                               "The runtime version of the processing is called"
                                               t => "div")
 
