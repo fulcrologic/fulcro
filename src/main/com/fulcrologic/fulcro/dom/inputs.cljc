@@ -9,8 +9,7 @@
        [goog.object :as gobj])
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.dom.events :as evt]
-    [com.fulcrologic.fulcro.dom :as dom]))
+    [com.fulcrologic.fulcro.dom.events :as evt]))
 
 (defn StringBufferedInput
   "Create a new type of input that can be derived from a string. `kw` is a fully-qualified keyword name for the new
@@ -60,7 +59,7 @@
          #?(:cljs
             (let [{:keys [value onBlur] :as props} (comp/props this)
                   {:keys [stringValue on-change]} (comp/get-state this)]
-              (dom/create-element "input"
+              (js/React.createElement "input"
                 (clj->js
                   (merge props
                     (cond->

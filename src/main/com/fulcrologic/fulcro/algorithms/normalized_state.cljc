@@ -4,7 +4,7 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.algorithms.normalized-state))
   (:require
     [clojure.set :as set]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp]
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [>defn =>]]

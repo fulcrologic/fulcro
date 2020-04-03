@@ -1,4 +1,4 @@
-(ns roots.sample
+(ns other-demos.multi-root-sample
   (:require
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mroot]
     [com.fulcrologic.fulcro.application :as app]

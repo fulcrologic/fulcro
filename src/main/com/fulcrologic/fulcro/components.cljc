@@ -2,10 +2,11 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.components))
   (:require
     #?@(:clj
-        [[cljs.analyzer :as ana]]
+        [[cljs.analyzer :as ana]
+         [cljs.env :as cljs-env]]
         :cljs
         [[goog.object :as gobj]
-         cljsjs.react])
+         [react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -21,11 +22,33 @@
        [clojure.lang Associative IDeref APersistentMap])))
 
 (defonce ^:private component-registry (atom {}))
+
+#?(:clj
+   (defn current-config []
+     (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
+       config)))
+
+#?(:cljs
+   (set! js/React react))
+
+;; Used internally by get-query for resolving dynamic queries (was created to prevent the need for external API change in 3.x)
 (def ^:dynamic *query-state* nil)
+
+;; Bound during Fulcro-driven renders to communicate critical information to components *on their initial render*.
+;; Due to the nature of js and React there is no guarantee that future `render` (or lifecycle calls) will actually be done synchronously,
+;; so these are *copied* into the raw react props of the component for future reference (a mounted component won't change
+;; depth, will know its parent, and the app is a immutable map with atoms). You must ensure these are bound using
+;; `with-parent-context` if you cause an initial mount of a component via things like the child-as-a-function, or HOC patterns.
+;; If a raw js library wants a Fulcro component (class), then you may need to use the multiple-roots renderer so that
+;; it can register on mount with Fulcro.
 (def ^:dynamic *app* nil)
 (def ^:dynamic *parent* nil)
 (def ^:dynamic *depth* nil)
 (def ^:dynamic *shared* nil)
+
+;; Used by default shouldComponentUpdate. If set to `true`, then SCU will return true. This is used by hot code reload
+;; to know when it should re-render even if props have not changed so you can see the effects of rendering code changes.
+;; Also used when you force a root render.
 (def ^:dynamic *blindly-render* false)
 
 (defn use-effect
@@ -214,7 +237,7 @@
 (defn depth [this] (isoget-in this [:props :fulcro$depth]))
 
 (defn get-raw-react-prop
-  "GET a RAW react prop. Used internally."
+  "GET a RAW react prop. Used internally. Safe in CLJC, but equivalent to `(gobj/getValueByKeys this \"props\" (name k)`."
   [c k]
   (isoget-in c [:props k]))
 
@@ -242,12 +265,15 @@
 (defn shared
   "Return the global shared properties of the root. See :shared and
    :shared-fn app options. NOTE: Shared props only update on root render and by explicit calls to
-   `app/update-shared!`"
-  ([component]
-   (shared component []))
-  ([component k-or-ks]
-   {:pre [(component-instance? component)]}
-   (let [shared (isoget-in component [:props :fulcro$shared])
+   `app/update-shared!`.
+
+   This function attempts to rely on the dynamic var *shared* (first), but will make a best-effort of
+   finding shared props when run within a component's render or lifecycle. Passing your app will
+   ensure this returns the current shared props."
+  ([comp-or-app]
+   (shared comp-or-app []))
+  ([comp-or-app k-or-ks]
+   (let [shared (or *shared* (some-> (any->app comp-or-app) :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props))
          ks     (cond-> k-or-ks
                   (not (sequential? k-or-ks)) vector)]
      (cond-> shared
@@ -356,13 +382,13 @@
         (fn [& args]
           (this-as this
             (if-let [app (any->app this)]
-              (binding [*app*         app
-                        *depth*       (inc (depth this))
-                        *shared*      (shared this)
-                        *query-state* (-> app (:com.fulcrologic.fulcro.application/state-atom) deref)
-                        *parent*      this]
+              (binding [*app*    app
+                        *depth*  (inc (depth this))
+                        *shared* (shared this)
+                        *parent* this]
                 (apply render this args))
               (log/fatal "Cannot find app on component!"))))))]
+
   (defn configure-component!
     "Configure the given `cls` (a function) to act as a react component within the Fulcro ecosystem.
 
@@ -433,24 +459,25 @@
 (defn add-hook-options!
   "Make a given `cls` (a plain fn) act like a a Fulcro component with the given component options map. Registers the
   new component in the component-registry. Component options MUST contain :componentName as be a fully-qualified
-  keyword to name the component in the registry."
-  [cls component-options]
+  keyword to name the component in the registry.
+
+  component-options *must* include a unique `:componentName` (keyword) that will be used for registering the given
+  function as the faux class in the component registry."
+  [render-fn component-options]
   #?(:cljs
      (let [k              (:componentName component-options)
-           faux-classname (str (or
-                                 k
-                                 (throw (ex-info "Missing :componentName for hooks component" {}))))]
-       (gobj/extend cls
+           faux-classname (str (or k (throw (ex-info "Missing :componentName for hooks component" {}))))]
+       (gobj/extend render-fn
          #js {:fulcro$options         component-options
               :displayName            faux-classname
-              :fulcro$class           cls
-              :type                   cls
+              :fulcro$class           render-fn
+              :type                   render-fn
               :cljs$lang$type         true
               :cljs$lang$ctorStr      faux-classname
               :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
               :fulcro$registryKey     (:componentName component-options)})
-       (register-component! k cls)
-       cls)))
+       (register-component! k render-fn)
+       render-fn)))
 
 (defn use-fulcro
   "Allows you to use a plain function as a Fulcro-managed React hooks component.
@@ -466,11 +493,13 @@
   #?(:cljs
      (let [tunnelled-props-state   (js/React.useState #js {})
            current-state           (aget tunnelled-props-state 0 "fulcro$value")
-           {:keys [ident] :as options} (gobj/get faux-class "fulcro$options")
-           props                   (gobj/get js-props "fulcro$value")
+           {:keys [ident] :as options} (isoget faux-class :fulcro$options)
+           props                   (isoget js-props :fulcro$value)
            current-props           (newer-props props current-state)
            current-ident           (when ident (ident faux-class current-props))
-           app                     (or *app* (gobj/get js-props "fulcro$app"))
+           app                     (or *app* (isoget js-props :fulcro$app))
+           depth                   (or *depth* (isoget js-props :fulcro$depth))
+           shared-props            (shared app)
            js-set-tunnelled-props! (aget tunnelled-props-state 1)
            set-tunnelled-props!    (fn [updater]
                                      (let [new-props (updater nil)] (js-set-tunnelled-props! new-props)))
@@ -480,8 +509,10 @@
                                         :type               faux-class
                                         :fulcro$options     options
                                         :fulcro$mounted     true
-                                        :props              #js {:fulcro$app   app
-                                                                 :fulcro$value current-props}}]
+                                        :props              #js {:fulcro$app    app
+                                                                 :fulcro$depth  (inc depth)
+                                                                 :fulcro$shared shared-props
+                                                                 :fulcro$value  current-props}}]
        (use-effect
          (fn []
            (let [original-ident   current-ident
@@ -491,12 +522,6 @@
              (fn [] (drop-component! faux-component original-ident)))))
        [faux-component current-props])))
 
-#_(defn configure-hooks-component! [{:keys [render] :as options} get-class]
-    (add-hook-options!
-      (fn [js-props]
-        (let [[this props] (use-fulcro js-props (get-class))]
-          (render this props)))
-      options))
 
 (defn mounted?
   "Returns true if the given component instance is mounted on the DOM."
@@ -583,6 +608,18 @@
        (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
        nil))))
 
+(defn tunnel-props!
+  "CLJS-only.  When the `component` is mounted this will tunnel `new-props` to that component through React `setState`. If you're in
+  an event handler, this means the tunnelling will be synchronous, and can be useful when updating props that could affect DOM
+  inputs. This is typically used internally (see `transact!!`, and should generally not be used in applications unless it is a very advanced
+  scenario and you've studied how this works. NOTE: You should `tick!` the application clock and bind *denormalize-time*
+  when generating `new-props` so they are properly time-stamped by `db->tree`, or manually add time to `new-props`
+  using `fdn/with-time` directly."
+  [component new-props]
+  #?(:cljs
+     (when (mounted? component)
+       (.setState ^js component (fn [s] #js {"fulcro$value" new-props})))))
+
 (defn is-factory?
   "Returns true if the given argument is a component factory."
   [class-or-factory]
@@ -627,7 +664,8 @@
   "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
-  ([class-or-factory] (get-query class-or-factory (or *query-state* {})))
+  ([class-or-factory] (get-query class-or-factory (or *query-state*
+                                                    (some-> *app* :com.fulcrologic.fulcro.application/state-atom deref) {})))
   ([class-or-factory state-map]
    (when (nil? class-or-factory)
      (throw (ex-info "nil passed to get-query" {})))
@@ -708,6 +746,41 @@
          (render-middleware this real-render)
          (real-render)))))
 
+(defn configure-hooks-component!
+  "Configure a function `(f [this fulcro-props] ...)` to work properly as a hook-based react component. This can be
+  used in leiu of `defsc` to create a component, where `options` is the (non-magic) map of component options
+  (i.e. :query is a `(fn [this])`, not a vector).
+
+  IMPORTANT: Your options must include `:componentName`, a fully-qualified keyword to use in the component registry.
+
+  Returns a new function that wraps yours (to properly extract Fulcro props) and installs the proper Fulcro component
+  options on the low-level function so that it will act properly when used within React as a hook-based component.
+
+  (def MyComponent
+    (configure-hooks-component!
+      (fn [this props]
+        (let [[v set-v!] (use-state this 0)
+          (dom/div ...)))
+      {:query ... :ident (fn [_ props] ...) :componentName ::MyComponent}))
+
+  (def ui-my-component (comp/factory MyComponent {:keyfn :id})
+
+  This can be used to easily generate dynamic components at runtime (as can `configure-component!`).
+  "
+  [f options]
+  (let [cls-atom (atom nil)
+        js-fn    (fn [js-props]
+                   (let [[this props] (use-fulcro js-props @cls-atom)]
+                     (wrapped-render this
+                       (fn []
+                         (binding [*app*    (or *app* (any->app this))
+                                   *depth*  (inc (depth this))
+                                   *shared* (shared *app*)
+                                   *parent* this]
+                           (f this props))))))]
+    (reset! cls-atom js-fn)
+    (add-hook-options! js-fn options)))
+
 (defn- create-element
   "Create a react element for a Fulcro class.  In CLJ this returns the same thing as a mounted instance, whereas in CLJS it is an
   element (which has yet to instantiate an instance)."
@@ -747,7 +820,6 @@
                props            #js {:fulcro$value   props
                                      :fulcro$queryid qid
                                      :fulcro$app     *app*
-                                     :fulcro$shared  *shared*
                                      :fulcro$parent  *parent*
                                      :fulcro$depth   *depth*}
                props            (if props-middleware
@@ -809,6 +881,10 @@
   - `:abort-id` - An ID (you make up) that makes it possible (if the plugins you're using support it) to cancel
     the network portion of the transaction (assuming it has not already completed).
   - `:compressible?` - boolean. Check compressible-transact! docs.
+  - `:synchronous?` - boolean. When turned on the transaction will run immediately on the calling thread. If run against
+  a component the props will be immediately tunneled back to the calling component, allowing for React (raw) input
+  event handlers to behave as described in standard React Forms docs (uses setState behind the scenes). Any remote operations
+  will still be queued as normal. Calling `transact!!` is a shorthand for this option.
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
@@ -825,6 +901,29 @@
        (tx! app tx options))))
   ([app-or-comp tx]
    (transact! app-or-comp tx {})))
+
+(defn transact!!
+  "Shorthand for exactly `(transact! component tx (merge options {:synchronous? true}))`.
+
+  Runs a synchronous transaction, which is an optimized mode where the optimistic behaviors of the mutations in the
+  transaction run on the calling thread, and new props are immediately made available to the calling component via
+  \"props tunneling\" (a behind-the-scenes mechanism using js/setState).
+
+  This mode is meant to be used in form input event handlers, since React is designed to only work properly with
+  raw DOM inputs via component-local state. This prevents things like the cursor jumping to the end of inputs
+  unexpectedly.
+
+  If you're using this, you should also set the compiler option:
+
+  ```
+  :compiler-options {:external-config {:fulcro     {:wrap-inputs? false}}}
+  ```
+  to turn off Fulcro DOM's generation of wrapped inputs (which try to solve this problem in a less-effective way).
+  "
+  ([component tx]
+   (transact! component tx {:synchronous? true}))
+  ([component tx options]
+   (transact! component tx (merge options {:synchronous? true}))))
 
 (declare normalize-query)
 
@@ -1050,11 +1149,11 @@
      (if-not (:ns &env)
        `(do ~@body)
        `(let [parent# ~outer-parent
-              r#      (or *app* (any->app parent#))
+              app#    (or *app* (any->app parent#))
               d#      (or *depth* (inc (depth parent#)))
-              s#      (or *shared* (shared parent#))
+              s#      (shared app#)
               p#      (or *parent* parent#)]
-          (binding [*app*    r#
+          (binding [*app*    app#
                     *depth*  d#
                     *shared* s#
                     *parent* p#]
@@ -1231,9 +1330,13 @@
        `(~'fn ~render-fn [~thissym ~propsym]
           (com.fulcrologic.fulcro.components/wrapped-render ~thissym
             (fn []
-              (let [~@computed-bindings
-                    ~@extended-bindings]
-                ~@body)))))))
+              (binding [*app*    (or *app* (isoget-in ~thissym ["props" "fulcro$app"]))
+                        *depth*  (inc (or *depth* (isoget-in ~thissym ["props" "fulcro$depth"])))
+                        *shared* (shared *app*)
+                        *parent* ~thissym]
+                (let [~@computed-bindings
+                      ~@extended-bindings]
+                  ~@body))))))))
 
 #?(:clj
    (defn- build-and-validate-initial-state-map [env sym initial-state legal-keys children-by-query-key]

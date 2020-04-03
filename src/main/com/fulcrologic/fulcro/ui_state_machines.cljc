@@ -21,7 +21,7 @@
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util :refer [atom?]]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
@@ -144,6 +144,17 @@
   ([this active-state-machine-id event-id extra-data]
    (let [{::keys [transact-options]} extra-data]
      (comp/transact! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
+                                                         ::event-id   event-id
+                                                         ::event-data extra-data})]
+       (or transact-options {})))))
+
+(defn trigger!!
+  "Just like `trigger!`, but does optimistic actions synchronously so that events that change data rendered in
+   form fields will be updated synchronously."
+  ([this active-state-machine-id event-id] (trigger!! this active-state-machine-id event-id {}))
+  ([this active-state-machine-id event-id extra-data]
+   (let [{::keys [transact-options]} extra-data]
+     (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
                                                          ::event-id   event-id
                                                          ::event-data extra-data})]
        (or transact-options {})))))

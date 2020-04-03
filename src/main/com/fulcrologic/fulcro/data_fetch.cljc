@@ -100,6 +100,9 @@
                               (log/warn "Boolean load marker no longer supported.")
                               false)
                             marker)]
+    (when (and target (not (targeting/special-target? target)) (= 2 (count target)))
+      (log/warn "Data load targets of two elements imply that you are targeting a table entry. That is probably"
+        "incorrect. Normalization targets tables. Targeting is for creating missing edges, which are usually 3-tuples."))
     {:query                query
      :source-key           server-property-or-ident
      :remote               remote
@@ -252,7 +255,7 @@
   - `post-mutation` - A mutation (symbol) to run *after* the data is merged. Note, if target is supplied be sure your post mutation
     should expect the data at the targeted location. The `env` of that mutation will be the env of the load (if available), but will also include `:load-request`.
   - `post-mutation-params` - An optional map that will be passed to the post-mutation when it is called.
-  - `post-action` - A lambda that will a mutation env parameter `(fn [env] ...)`. Called after success, like post-mutation
+  - `post-action` - A lambda that will get a mutation env parameter `(fn [env] ...)`. Called after success, like post-mutation
     (and after post-mutation if also defined). `env` will include the original `:load-params` and raw network layer `:result`. If you
     want the post behavior to act as a top-level mutation, then prefer `post-mutation`. The action can also call `transact!`.
   - `fallback` - A mutation (symbol) to run if there is a server/network error. The `env` of the fallback will be like a mutation `env`, and will

@@ -10,6 +10,8 @@
   be easy to integrate with HTML5 history and URL control."
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
+    #?(:cljs [goog.object :as gobj])
+    [clojure.zip :as zip]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -44,7 +46,7 @@
   (comp/component-options class :route-cancelled))
 
 (defn route-cancelled
-  "Universal CLJC version of will-enter.  Don't use the protocol method in CLJ."
+  "Universal CLJC version of route-cancelled.  Don't use the protocol method in CLJ."
   [class route-params]
   (when-let [f (get-route-cancelled class)]
     (binding [*target-class* class]
@@ -76,12 +78,11 @@
 
 (defn route-target? [component] (boolean (comp/component-options component :route-segment)))
 
-;; NON-static protocol for interacting as a route target
 (defn get-will-leave
   "Returns the function of a route target to be called with
   the current component and props. If it returns `true` then the routing operation will continue.  If it returns `false`
-  then whatever new route was requested will be completely abandoned.  It is the responsibility of this method to give
-  UI feedback as to why the route change was aborted."
+  then whatever new route was requested will be completely abandoned. If this component has a `allow-route-change?`
+  then the return value of will-leave will be ignored."
   [this]
   (or (comp/component-options this :will-leave) (constantly true)))
 
@@ -89,6 +90,24 @@
   (when-let [f (get-will-leave c)]
     (binding [*target-class* (comp/isoget c :type)]
       (f c props))))
+
+(defn get-allow-route-change?
+  "Returns the function of a route target to be called with the current component and props.
+   If it returns `true` then the routing operation can continue.  If it returns `false`
+   then whatever new route was requested will be completely abandoned. This handler MUST NOT side-effect, and
+   may be called multiple times on a single route request."
+  [this]
+  (or
+    (comp/component-options this :allow-route-change?)
+    (when-let [will-leave (comp/component-options this :will-leave)]
+      (log/warn "DEPRECATED USE OF `:will-leave` to check for allowable routing. You should add :allow-route-change? to: " (comp/component-name this))
+      (fn [] (will-leave this (comp/props this))))
+    (constantly true)))
+
+(defn allow-route-change? [c]
+  (when-let [f (get-allow-route-change? c)]
+    (binding [*target-class* (comp/isoget c :type)]
+      (f c))))
 
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
 
@@ -101,16 +120,16 @@
   ;; NOTE: If the `id` of the ident is hardcoded then maybe-expected-id will be set,
   ;; but if it depends on props then it will be nil
   (and (= expected-table table)
-       (or (nil? maybe-expected-id) (= maybe-expected-id id))))
+    (or (nil? maybe-expected-id) (= maybe-expected-id id))))
 
 (defn- check-ident-matches-expectation? [fn-name ident]
   (when (and #?(:clj false :cljs goog.DEBUG)
-             *target-class*
-             (not (ident-matches-expectation? (comp/ident *target-class* {}) ident)))
+          *target-class*
+          (not (ident-matches-expectation? (comp/ident *target-class* {}) ident)))
     (log/error fn-name " was invoked with the ident " ident
-              " which doesn't seem to match the ident of the wrapping component (class "
-              *target-class* " , ident ["
-              (first (comp/ident *target-class* {})) " ...])")))
+      " which doesn't seem to match the ident of the wrapping component (class "
+      *target-class* " , ident ["
+      (first (comp/ident *target-class* {})) " ...])")))
 
 (defn route-immediate [ident]
   (check-ident-matches-expectation? "route-immediate" ident)
@@ -160,7 +179,7 @@
           (log/debug "Router" router-id "notified that pending route is ready.")
           (when (and #?(:clj false :cljs goog.DEBUG) (nil? (get-in state-map target)))
             (log/error `target-ready "should route to" target "but there is no data in the DB for the ident."
-                      "Perhaps you supplied a wrong ident?"))
+              "Perhaps you supplied a wrong ident?"))
           (uism/trigger! app router-id :ready!))
         (log/error "dr/target-ready! was called but there was no router waiting for the target listed: " target
           "This could mean you sent one ident, and indicated ready on another."))))
@@ -452,41 +471,115 @@
   where `fq-router-kw` is a keyword that has the exact namespace and name of the router you're interested in. If you want
   to just over-render you can use a quoted `_` instead.
   "
-  [this-or-app relative-class-or-instance]
+  ([this-or-app]
+   (let [app        (comp/any->app this-or-app)
+         router     (app/root-class app)
+         state-map  (app/current-state app)
+         root-query (comp/get-query router state-map)
+         ast        (eql/query->ast root-query)
+         root       (or (ast-node-for-live-router app ast)
+                      (-> ast :children first))
+         result     (atom [])]
+     (loop [{:keys [component] :as node} root]
+       (when (and component (router? component))
+         (let [router-ident (comp/get-ident component {})
+               router-id    (-> router-ident second)
+               sm-env       (uism/state-machine-env state-map nil router-id :none {})
+               path-segment (uism/retrieve sm-env :path-segment)
+               next-router  (some #(ast-node-for-live-router app %) (:children node))]
+           (when (seq path-segment)
+             (swap! result into path-segment))
+           (when next-router
+             (recur next-router)))))
+     @result))
+  ([this-or-app relative-class-or-instance]
+   (let [app        (comp/any->app this-or-app)
+         state-map  (app/current-state app)
+         router     relative-class-or-instance
+         root-query (comp/get-query router state-map)
+         ast        (eql/query->ast root-query)
+         root       (or (ast-node-for-live-router app ast)
+                      (-> ast :children first))
+         result     (atom [])]
+     (loop [{:keys [component] :as node} root]
+       (when (and component (router? component))
+         (let [router-ident (comp/get-ident component {})
+               router-id    (-> router-ident second)
+               sm-env       (uism/state-machine-env state-map nil router-id :none {})
+               path-segment (uism/retrieve sm-env :path-segment)
+               next-router  (some #(ast-node-for-live-router app %) (:children node))]
+           (when (seq path-segment)
+             (swap! result into path-segment))
+           (when next-router
+             (recur next-router)))))
+     @result)))
+
+(defn- mounted-targets [app router-class]
+  (let [state-map            (app/current-state app)
+        mounted-target-class (reduce (fn [acc {:keys [dispatch-key component]}]
+                                       (when (= ::current-route dispatch-key)
+                                         (reduced component)))
+                               nil
+                               (some-> router-class (comp/get-query state-map)
+                                 eql/query->ast :children))]
+    (comp/class->all app mounted-target-class)))
+
+(defn- set-force-route-flag! [route-target]
+  #?(:cljs (gobj/set route-target "fulcro$routing$force_route" true)))
+
+(defn- force-route-flagged?
+  "returns true if the given route target's allow-route-change? should be ignored."
+  [route-target]
+  (comp/isoget route-target "fulcro$routing$force_route"))
+
+(defn target-denying-route-changes
+  "This function will return the first mounted instance of a route target that is currently indicating it would
+  deny a route change."
+  [this-or-app]
   (let [app        (comp/any->app this-or-app)
+        router     (app/root-class app)
         state-map  (app/current-state app)
-        router     relative-class-or-instance
         root-query (comp/get-query router state-map)
         ast        (eql/query->ast root-query)
         root       (or (ast-node-for-live-router app ast)
-                     (-> ast :children first))
-        result     (atom [])]
-    (loop [{:keys [component] :as node} root]
-      (when (and component (router? component))
-        (let [router-ident (comp/get-ident component {})
-              router-id    (-> router-ident second)
-              sm-env       (uism/state-machine-env state-map nil router-id :none {})
-              path-segment (uism/retrieve sm-env :path-segment)
-              next-router  (some #(ast-node-for-live-router app %) (:children node))]
-          (when (seq path-segment)
-            (swap! result into path-segment))
-          (when next-router
-            (recur next-router)))))
-    @result))
+                     (-> ast :children first))]
+    (loop [{router-class :component
+            :keys        [children]} root]
+      (when (and router-class (router? router-class))
+        (let [router-ident     (comp/get-ident router-class {})
+              active-target    (get-in state-map (conj router-ident ::current-route))
+              next-router      (some #(ast-node-for-live-router app %) children)
+              rejecting-target (when (vector? active-target)
+                                 (some (fn [c] (when (and
+                                                       (false? (allow-route-change? c))
+                                                       (not (force-route-flagged? c))) c)) (mounted-targets app router-class)))]
+          (cond
+            rejecting-target rejecting-target
+            next-router (recur next-router)))))))
 
-(defn change-route-relative
+(defn can-change-route?
+  "Returns true if the active on-screen targets indicate they will allow navigation.
+
+  NOTE: If your route targets have an `:allow-route-change?`, then that will be used to determine if the route can
+  be abandoned; otherwise `:will-leave` will be called to answer the question; however, this USE of `will-leave`
+  is DEPRECATED (though the hook is NOT because it serves another purpose). If you side-effect in `:will-leave` this could cause strange
+  behavior throughout the application.  It is recommended that your targets implement `:allow-route-change?` if they need
+  to prevent routing, and only leverage `:will-leave` to do things like cancel in-progress loads."
+  [this-or-app]
+  (nil? (target-denying-route-changes this-or-app)))
+
+(defn change-route-relative!
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
   of string components to pass through to the nearest child router as the new path. The first argument is any live component
-  or the app.  The `timeouts` are as in `change-route`.
-  It is safe to call this from within a mutation.
+  or the app.  The `timeouts-and-params` are as in `change-route`.
 
   When possible (i.e. no circular references to components) you can maintain better code navigation by
   generating `new-route` via `path-to`.  This will allow readers of your code to quickly jump to the actual
   components that implement the targets when reading the code.
   "
   ([this-or-app relative-class-or-instance new-route]
-   (change-route-relative this-or-app relative-class-or-instance new-route {}))
-  ([app-or-comp relative-class-or-instance new-route timeouts]
+   (change-route-relative! this-or-app relative-class-or-instance new-route {}))
+  ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
    (let [old-route (current-route app-or-comp relative-class-or-instance)
          new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route)]
      (cond
@@ -495,6 +588,14 @@
 
        (and #?(:clj true :cljs goog.DEBUG) (not (seq new-path)))
        (log/error "Could not find route targets for new-route" new-route)
+
+       (not (can-change-route? app-or-comp))
+       (let [app          (comp/any->app app-or-comp)
+             target       (target-denying-route-changes app)
+             route-denied (comp/component-options target :route-denied)]
+         (log/debug "Route request denied by on-screen target. Calling component's :route-denied (if defined).")
+         (when route-denied
+           (route-denied target relative-class-or-instance new-route)))
 
        :otherwise
        (if (signal-router-leaving app-or-comp relative-class-or-instance new-route)
@@ -514,7 +615,7 @@
                      segment           (route-segment target)
                      params            (reduce
                                          (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
-                                         {}
+                                         (dissoc timeouts-and-params :error-timeout :deferred-timeout)
                                          (map (fn [a b] [a b]) segment matching-prefix))
                      router-ident      (comp/get-ident component {})
                      router-id         (-> router-ident second)
@@ -522,7 +623,7 @@
                      completing-action (or (some-> target-ident meta :fn) (constantly true))
                      event-data        (merge
                                          {:error-timeout 5000 :deferred-timeout 20}
-                                         timeouts
+                                         timeouts-and-params
                                          {:path-segment matching-prefix
                                           :router       (vary-meta router-ident assoc :component component)
                                           :target       (vary-meta target-ident assoc :component target :params params)})]
@@ -540,23 +641,40 @@
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path))))))
          (log/debug "Route request cancelled by on-screen target."))))))
 
-(defn change-route
+(def change-route-relative "DEPRECATED NAME: Use change-route-relative!" change-route-relative!)
+
+(defn retry-route!
+  "Retry a route that the receiving component just denied, and ignore this target's answer. All other targets will still
+  be asked. This is primarily used when you want to be able to use js/confirm in a component to ask the user if
+  they \"really mean to navigate away\". You MUST pass the arguments that `:route-denied` received
+  or you can easily cause an infinite loop. Other on-screen targets can still potentially abort the route."
+  [denied-target-instance relative-root path]
+  #?(:cljs
+     (do
+       (log/debug "Retrying route at the request of " (comp/component-name denied-target-instance))
+       (set-force-route-flag! denied-target-instance)
+       (change-route-relative! denied-target-instance relative-root path))))
+
+(defn change-route!
   "Trigger a route change.
 
-  this - The component (or app) that is causing the route change.
-  new-route - A vector of URI components to pass to the router.
-  timeouts - A map of timeouts that affect UI during deferred routes: {:error-timeout ms :deferred-timeout ms}
+  * `this` - The component (or app) that is causing the route change.
+  * `new-route` - A vector of URI components to pass to the router.
+  * `timeouts-and-params` - A map of additional parameters and route timeouts that affect UI during deferred routes:
+  `{:error-timeout ms :deferred-timeout ms}`.  Anything extra will appear in the `params` of `will-enter`.
 
   The error timeout is how long to wait  (default 5000ms) before showing the error-ui of a route (which must be defined on the
   router that is having problems).  The deferred-timeout (default 100ms) is how long to wait before showing the loading-ui of
   a deferred router (to prevent flicker).
   "
   ([this new-route]
-   (change-route this new-route {}))
-  ([this new-route timeouts]
+   (change-route! this new-route {}))
+  ([this new-route timeouts-and-params]
    (let [app  (comp/any->app this)
          root (app/root-class app)]
-     (change-route-relative app root new-route timeouts))))
+     (change-route-relative! app root new-route timeouts-and-params))))
+
+(def change-route change-route!)
 
 #?(:clj
    (defn compile-error [env form message]
@@ -642,6 +760,7 @@
                                     options
                                     `{:query         ~query
                                       :ident         ~ident-method
+                                      :use-hooks?    false
                                       :initial-state ~initial-state-lambda})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
@@ -792,3 +911,31 @@
              (into (apply subpath (last classes) params))))
          []
          (partition-all 2 segments))))))
+
+(defn resolve-path
+  "Attempts to resolve a path from StartingClass to the given RouteTarget.
+
+   Returns a vector of route segments. Any keywords in the result will be replaced by the values from `params`, if present.
+
+   Returns nil if no path can be found."
+  [StartingClass RouteTarget params]
+  (if-let [end (comp/component-options RouteTarget :route-segment)]
+    (let [query     (comp/get-query StartingClass)
+          root-node (eql/query->ast query)
+          zipper    (zip/zipper #(contains? % :children) :children (fn [n children] (assoc n :children children)) root-node)
+          node      (->> zipper
+                      (iterate zip/next)
+                      (drop-while (fn [n]
+                                    (let [{:keys [component]} (zip/node n)]
+                                      (and
+                                        (not= component RouteTarget)
+                                        (not (zip/end? n))))))
+                      first)
+          found?    (= RouteTarget (some-> node zip/node :component))]
+      (when found?
+        (let [base-path (->> node zip/path (mapcat (fn [{:keys [component]}] (comp/component-options component :route-segment))) vec)]
+          (mapv (fn [ele]
+                  (if (contains? params ele)
+                    (str (get params ele))
+                    ele)) (into base-path end)))))
+    nil))

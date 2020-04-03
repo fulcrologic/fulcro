@@ -2498,9 +2498,9 @@ sax@^1.2.4:
   integrity sha512-NqVDv9TpANUjFm0N8uM5GxL36UgKi9/atZw+x7YFnQ8ckwFGKrl4xX4yWtrey3UJm5nP1kUbnYgLopqWNSRhWw==
 
 scheduler@^0.19.0:
-  version "0.19.0"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.19.0.tgz#a715d56302de403df742f4a9be11975b32f5698d"
-  integrity sha512-xowbVaTPe9r7y7RUejcK73/j8tt2jfiyTednOvHbA8JoClvMYCp+r8QegLwK/n8zWQAtZb1fFnER4XLBZXrCxA==
+  version "0.19.1"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.19.1.tgz#4f3e2ed2c1a7d65681f4c854fa8c5a1ccb40f196"
+  integrity sha512-n/zwRWRYSUj0/3g/otKDRPMh6qv2SYMWNq85IEa8iZyAv8od9zDYpGSnpBEjNgcMNq6Scbu5KfIPxNF72R/2EA==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
@@ -2548,12 +2548,11 @@ shadow-cljs-jar@1.3.2:
   resolved "https://registry.yarnpkg.com/shadow-cljs-jar/-/shadow-cljs-jar-1.3.2.tgz#97273afe1747b6a2311917c1c88d9e243c81957b"
   integrity sha512-XmeffAZHv8z7451kzeq9oKh8fh278Ak+UIOGGrapyqrFBB773xN8vMQ3O7J7TYLnb9BUwcqadKkmgaq7q6fhZg==
 
-shadow-cljs@2.8.90:
-  version "2.8.90"
-  resolved "https://registry.yarnpkg.com/shadow-cljs/-/shadow-cljs-2.8.90.tgz#3dc1cbe60fad0ec15ff85528de760d918386822d"
-  integrity sha512-9Mvg3XctrCR55NcVScKqvPcsIhMfEYEST1PMosjMH0CzvlD295HCFycC3mqbn9Kehtxsy0qWRsfN3BqHfYsRbQ==
+shadow-cljs@2.8.94:
+  version "2.8.94"
+  resolved "https://registry.yarnpkg.com/shadow-cljs/-/shadow-cljs-2.8.94.tgz#62896a2478439d7c46cb4912e7c14c26e027d22b"
+  integrity sha512-o3ykB9TpCnMGem4cjmbAkVeYe/saGMVl6RhC/BdO1UNlhPZUp3hwdVp9mBDN079O5jJEtC8RmjHY6xe9utYokw==
   dependencies:
-    mkdirp "^0.5.1"
     node-libs-browser "^2.0.0"
     readline-sync "^1.4.7"
     shadow-cljs-jar "1.3.2"

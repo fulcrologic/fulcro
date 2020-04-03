@@ -18,7 +18,7 @@
     [edn-query-language.core :as eql]
     [clojure.string :as str]
     com.fulcrologic.fulcro.specs
-    [com.fulcrologic.guardrails.core :refer [>defn => |]]
+    [com.fulcrologic.guardrails.core :refer [>defn => | ?]]
     #?@(:cljs [[goog.object :as gobj]
                [goog.functions :refer [debounce]]
                [goog.dom :as gdom]])
@@ -33,11 +33,15 @@
   (-> app ::runtime-atom deref ::basis-t))
 
 (>defn current-state
-  "Get the current value of the application state database."
-  [app-or-component]
-  [any? => map?]
-  (let [app (comp/any->app app-or-component)]
-    (-> app ::state-atom deref)))
+  "Get the current value of the application state database. If called without arguments it will attempt to find the app
+   in the dynamically-bound comp/*app*, which is bound during render."
+  ([app-or-component]
+   [any? => map?]
+   (let [app (comp/any->app app-or-component)]
+     (-> app ::state-atom deref)))
+  ([]
+   [=> (? map?)]
+   (some-> comp/*app* ::state-atom deref)))
 
 (>defn tick!
   "Move the basis-t forward one tick. For internal use in internal algorithms. Fulcro
@@ -54,12 +58,13 @@
   [::app => any?]
   (try
     (when-let [shared-fn (ah/app-algorithm app :shared-fn)]
-      (let [shared     (-> app ::runtime-atom deref ::static-shared-props)
-            state      (current-state app)
-            root-class (-> app ::runtime-atom deref ::root-class)
-            query      (comp/get-query root-class state)
-            v          (fdn/db->tree query state state)]
-        (swap! runtime-atom assoc ::shared-props (merge shared (shared-fn v)))))
+      (let [shared       (-> app ::runtime-atom deref ::static-shared-props)
+            state        (current-state app)
+            root-class   (-> app ::runtime-atom deref ::root-class)
+            query        (comp/get-query root-class state)
+            v            (fdn/db->tree query state state)
+            shared-props (merge shared (shared-fn v))]
+        (swap! runtime-atom assoc ::shared-props shared-props)))
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 
@@ -111,7 +116,7 @@
      (binding [fdn/*denormalize-time* (basis-t app)
                comp/*app*             app
                comp/*shared*          shared-props
-               comp/*query-state*     @state-atom]
+               comp/*depth*           0]
        (when (or force-root? root-props-changed?)
          (update-shared! app))
        (if optimized-render!
@@ -165,22 +170,26 @@
   "
   ([app tx]
    [::app ::txn/tx => ::txn/id]
-   (default-tx! app tx {:optimistic? true}))
-  ([{:keys [::runtime-atom] :as app} tx options]
+   (default-tx! app tx {:optimistic?  true
+                        :synchronous? false}))
+  ([{:keys [::runtime-atom] :as app} tx {:keys [synchronous?] :as options}]
    [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
-   (txn/schedule-activation! app)
-   (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
-         follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
-         node            (txn/tx-node tx options)
-         accumulate      (fn [r items] (into (set r) items))
-         refresh         (cond-> (set refresh)
-                           (seq follow-on-reads) (into follow-on-reads)
-                           ref (conj ref))]
-     (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
-                                   ;; refresh sets are cumulative because rendering is debounced
-                                   (seq refresh) (update ::to-refresh accumulate refresh)
-                                   (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
-     (::txn/id node))))
+   (if synchronous?
+     (txn/transact-sync! app tx options)
+     (do
+       (txn/schedule-activation! app)
+       (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
+             follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
+             node            (txn/tx-node tx options)
+             accumulate      (fn [r items] (into (set r) items))
+             refresh         (cond-> (set refresh)
+                               (seq follow-on-reads) (into follow-on-reads)
+                               ref (conj ref))]
+         (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
+                                       ;; refresh sets are cumulative because rendering is debounced
+                                       (seq refresh) (update ::to-refresh accumulate refresh)
+                                       (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
+         (::txn/id node))))))
 
 (>defn default-remote-error?
   "Default detection of network errors. Returns true if the status-code of the given result

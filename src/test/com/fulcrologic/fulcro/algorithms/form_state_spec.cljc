@@ -111,6 +111,38 @@
         "each subform is recursively initialized"
         (get-in configured-form [::phone-numbers 0 ::fs/config ::fs/id]) => [:phone/id 2]
         (get-in configured-form [::phone-numbers 0 ::locale ::fs/config ::fs/id]) => [:locale/by-id 5])))
+  (behavior "for an entity with form-config"
+    (component "by default, without destructive parameter"
+      (let [data-tree       {:db/id          1
+                             ::fs/config     {::stub true}
+                             ::person-name   "Joe"
+                             ::phone-numbers [{:db/id      2 ::phone-number "555-1212"
+                                               ::locale    {:db/id 5 ::country :US}
+                                               ::fs/config {::stub true}}]}
+            configured-form (fs/add-form-config Person data-tree)
+            nested-form     (-> configured-form ::phone-numbers first)]
+        (assertions
+          "previous form-config is unmodified"
+          (::fs/config configured-form) => {::stub true}
+          (::fs/config nested-form) => {::stub true})))
+    (component "with destructive parameter"
+      (let [data-tree    {:db/id          1
+                          ::fs/config     {::stub true}
+                          ::person-name   "Joe"
+                          ::phone-numbers [{:db/id      2 ::phone-number "555-1212"
+                                            ::locale    {:db/id 5 ::country :US}
+                                            ::fs/config {::stub true}}]}
+            initial-form (fs/add-form-config Person data-tree {:destructive? true})
+            nested-form  (-> initial-form ::phone-numbers first)]
+        (assertions
+          "adds form config to the top level"
+          (contains? initial-form ::fs/config) => true
+          (contains? nested-form ::fs/config) => true
+          "places the non-form join into subforms (for normalized ident-tracking)"
+          (get-in initial-form [::fs/config ::fs/fields]) => #{::person-age ::person-name}
+          (get-in initial-form [::fs/config ::fs/subforms]) => {::phone-numbers {} ::unused {}}
+          (get-in nested-form [::fs/config ::fs/fields]) => #{::phone-number}
+          (get-in nested-form [::fs/config ::fs/subforms]) => {::locale {}}))))
   (component "error checking"
     (let [data-tree {:id 1 :name "A" :thing {:id 2 :x 42}}]
       (assertions
@@ -127,17 +159,38 @@
                            :root-prop 99
                            :phone/id  {5 {:db/id 5 ::phone-number "555-4444"
                                           :ui/n  22}}}
-        configured-db     (fs/add-form-config* state-map Person [:person/id 1])
         fconfig-id-person [::fs/forms-by-ident (fs/form-id [:person/id 1])]
         fconfig-id-phone  [::fs/forms-by-ident (fs/form-id [:phone/id 5])]]
-    (assertions
-      "Adds for configuration to normalized tables"
-      (get-in configured-db [:person/id 1 ::fs/config]) => fconfig-id-person
-      (get-in configured-db [:phone/id 5 ::fs/config]) => fconfig-id-phone
-      (get-in configured-db fconfig-id-person) =fn=> (fn [c] (contains? c ::fs/id))
-      "leaves existing (non-form) data alone"
-      (get-in configured-db [:person/id 1 :ui/checked?]) => true
-      (get-in configured-db [:phone/id 5 :ui/n]) => 22)))
+    (behavior "for an entity without form-config"
+      (let [configured-db (fs/add-form-config* state-map Person [:person/id 1])]
+        (assertions
+          "Adds form configuration to normalized tables"
+          (get-in configured-db [:person/id 1 ::fs/config]) => fconfig-id-person
+          (get-in configured-db [:phone/id 5 ::fs/config]) => fconfig-id-phone
+          (get-in configured-db fconfig-id-person) =fn=> (fn [c] (contains? c ::fs/id))
+          "leaves existing (non-form) data alone"
+          (get-in configured-db [:person/id 1 :ui/checked?]) => true
+          (get-in configured-db [:phone/id 5 :ui/n]) => 22)))
+    (behavior "for an entity with form-config"
+      (component "without destructive parameter"
+        (let [configured-db (-> state-map
+                              (assoc-in [:person/id 1 ::fs/config] {::stub true})
+                              (assoc-in [:phone/id 5 ::fs/config] {::stub true})
+                              (fs/add-form-config* Person [:person/id 1]))]
+          (assertions
+            "Form config remains unchanged"
+            (get-in configured-db [:person/id 1 ::fs/config]) => {::stub true}
+            (get-in configured-db [:phone/id 5 ::fs/config]) => {::stub true})))
+      (component "with destructive parameter"
+        (let [configured-db (-> state-map
+                              (assoc-in [:person/id 1 ::fs/config] {:stub true})
+                              (assoc-in [:phone/id 5 ::fs/config] {::stub true})
+                              (fs/add-form-config* Person [:person/id 1] {:destructive? true}))]
+          (assertions
+            "Adds for configuration to normalized tables"
+            (get-in configured-db [:person/id 1 ::fs/config]) => fconfig-id-person
+            (get-in configured-db [:phone/id 5 ::fs/config]) => fconfig-id-phone
+            (get-in configured-db fconfig-id-person) =fn=> (fn [c] (contains? c ::fs/id))))))))
 
 (specification "delete-form-state*"
   (let [state-map     {:person/id {1 {:db/id          1 ::person-name "Joe" :ui/checked? true

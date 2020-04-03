@@ -23,10 +23,14 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom-common :as cdom]
-    [clojure.string :as str])
+    [clojure.string :as str]
+    [taoensso.timbre :as log]
+    [cljs.env :as cljs-env])
   (:import
     (cljs.tagged_literals JSValue)
     (clojure.lang ExceptionInfo)))
+
+(defn wrap-inputs? [] (not (false? (:wrap-inputs? (comp/current-config)))))
 
 (defn- map-of-literals? [v]
   (and (map? v) (not-any? symbol? (tree-seq #(or (map? %) (vector? %) (seq? %)) seq v))))
@@ -118,6 +122,53 @@
       `(com.fulcrologic.fulcro.dom/macro-create-element
          ~str-tag-name ~(JSValue. (into [attrs-value] raw-children)) ~css))))
 
+(defn emit-tag-unwrapped
+  "PRIVATE.  DO NOT USE. Same as emit-tag, but does no wrap inputs."
+  [str-tag-name args]
+  (let [conformed-args         (util/conform! ::dom-macro-args args)
+        {attrs    :attrs
+         children :children
+         css      :css} conformed-args
+        css-props              (cdom/add-kwprops-to-props {} css)
+        raw-children           (mapv second children)
+        children               (mapv (fn [[_ c]]
+                                       (if (or (nil? c) (string? c))
+                                         c
+                                         `(comp/force-children ~c))) children)
+        attrs-type             (or (first attrs) :nil)      ; attrs omitted == nil
+        attrs-value            (or (second attrs) {})
+        raw-create-element     'com.fulcrologic.fulcro.dom/macro-create-element*
+        runtime-create-element 'com.fulcrologic.fulcro.dom/macro-create-unwrapped-element
+        classes-expression?    (and (= attrs-type :map) (contains? attrs-value :classes))
+        attrs-type             (if classes-expression? :runtime-map attrs-type)]
+    (case attrs-type
+      :js-object                                            ; kw combos not supported
+      (if css
+        (let [attr-expr `(cdom/add-kwprops-to-props ~attrs-value ~css)]
+          `(~raw-create-element ~(JSValue. (into [str-tag-name attr-expr] children))))
+        `(~raw-create-element ~(JSValue. (into [str-tag-name attrs-value] children))))
+
+      :map
+      `(~raw-create-element ~(JSValue. (into [str-tag-name (-> attrs-value
+                                                             (cdom/add-kwprops-to-props css)
+                                                             (clj-map->js-object))]
+                                         children)))
+
+      :runtime-map
+      `(~runtime-create-element ~str-tag-name ~(into [attrs-value] raw-children) ~css)
+
+      (:symbol :expression)
+      `(~runtime-create-element
+         ~str-tag-name ~(into [attrs-value] raw-children) ~css)
+
+      :nil
+      `(~raw-create-element
+         ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
+
+      ;; pure children
+      `(~runtime-create-element
+         ~str-tag-name ~(JSValue. (into [attrs-value] raw-children)) ~css))))
+
 (defn syntax-error
   "Format a DOM syntax error"
   [and-form ex]
@@ -136,8 +187,14 @@
          (catch ExceptionInfo e#
            (throw (ex-info (syntax-error ~'&form e#) (ex-data e#))))))))
 
-(defmacro gen-dom-macros [emitter]
-  `(do ~@(clojure.core/map (partial gen-dom-macro emitter) cdom/tags)))
+(defmacro gen-dom-macros
+  ([emitter unwrapped-emitter]
+   (.println System/out (str "Using wrapped inputs? " (wrap-inputs?)))
+   (if (wrap-inputs?)
+     `(do ~@(clojure.core/map (partial gen-dom-macro emitter) cdom/tags))
+     `(do ~@(clojure.core/map (partial gen-dom-macro unwrapped-emitter) cdom/tags))))
+  ([emitter]
+   `(do ~@(clojure.core/map (partial gen-dom-macro emitter) cdom/tags))))
 
 (defn- gen-client-dom-fn [create-element-symbol tag]
   `(defn ~tag ~(cdom/gen-docstring tag true)
@@ -150,7 +207,16 @@
            attrs-value#    (or (second attrs#) {})]
        (~create-element-symbol ~(name tag) (into [attrs-value#] children#) css#))))
 
-(defmacro gen-client-dom-fns [create-element-sym]
-  `(do ~@(clojure.core/map (partial gen-client-dom-fn create-element-sym) cdom/tags)))
+(defmacro gen-client-dom-fns
+  ([create-element-sym]
+   `(do ~@(clojure.core/map (partial gen-client-dom-fn create-element-sym) cdom/tags)))
+  ([create-element-sym create-unwrapped-element-sym]
+   (if (wrap-inputs?)
+     (do
+       (log/info "Using Wrapped inputs")
+       `(do ~@(clojure.core/map (partial gen-client-dom-fn create-element-sym) cdom/tags)))
+     (do
+       (log/info "Using RAW inputs. Remember to use `comp/transact!!` for sync updates on DOM events.")
+       `(do ~@(clojure.core/map (partial gen-client-dom-fn create-unwrapped-element-sym) cdom/tags))))))
 
-(gen-dom-macros com.fulcrologic.fulcro.dom/emit-tag)
+(gen-dom-macros com.fulcrologic.fulcro.dom/emit-tag com.fulcrologic.fulcro.dom/emit-tag-unwrapped)
