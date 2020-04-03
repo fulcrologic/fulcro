@@ -128,12 +128,15 @@
   [{::keys [event-id event-data asm-id] :as params}]
   (action [{:keys [app] :as env}]
     (let [{::keys [transact-options]} event-data
+          {tx-options :com.fulcrologic.fulcro.algorithms.tx-processing/options} env
+          {:keys [synchronous?]} tx-options
           event-data (dissoc event-data ::transact-options)]
       (when (nil? event-id)
         (log/error "Invalid (nil) event ID"))
       (log/debug "Triggering" event-id "on" asm-id "with" event-data)
       (trigger-state-machine-event! env params)
-      (app/schedule-render! app (or transact-options {})))
+      (when-not synchronous?
+        (app/schedule-render! app (or transact-options {}))))
     true))
 
 (defn trigger!
@@ -155,8 +158,8 @@
   ([this active-state-machine-id event-id extra-data]
    (let [{::keys [transact-options]} extra-data]
      (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
-                                                         ::event-id   event-id
-                                                         ::event-data extra-data})]
+                                                          ::event-id   event-id
+                                                          ::event-data extra-data})]
        (or transact-options {})))))
 
 (>defn asm-ident "Returns the ident of the active state machine with the given ID"
