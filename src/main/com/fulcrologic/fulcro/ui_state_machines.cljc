@@ -148,6 +148,17 @@
                                                          ::event-data extra-data})]
        (or transact-options {})))))
 
+(defn trigger!!
+  "Just like `trigger!`, but does optimistic actions synchronously so that events that change data rendered in
+   form fields will be updated synchronously."
+  ([this active-state-machine-id event-id] (trigger!! this active-state-machine-id event-id {}))
+  ([this active-state-machine-id event-id extra-data]
+   (let [{::keys [transact-options]} extra-data]
+     (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
+                                                         ::event-id   event-id
+                                                         ::event-data extra-data})]
+       (or transact-options {})))))
+
 (>defn asm-ident "Returns the ident of the active state machine with the given ID"
   [asm-id]
   [::asm-id => eql/ident?]
