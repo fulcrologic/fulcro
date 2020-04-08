@@ -10,19 +10,24 @@
     [taoensso.timbre :as log]))
 
 (defonce remote #_(fws/fulcro-websocket-remote {:auto-retry?        true
-                                              :request-timeout-ms 10000}) (http/fulcro-http-remote {}))
+                                                :request-timeout-ms 10000}) (http/fulcro-http-remote {}))
 
-(defonce app (app/fulcro-app {:remotes           {:remote remote}
-                              :client-did-mount  (fn [_]
-                                                   (log/merge-config! {:output-fn prefix-output-fn
-                                                                       :appenders {:console (console-appender)}}))
-                              :optimized-render! kr2/render!}))
+(defonce app (app/fulcro-app {:remotes          {:remote remote}
+                              :client-did-mount (fn [_]
+                                                  (log/merge-config! {:output-fn prefix-output-fn
+                                                                      :appenders {:console (console-appender)}}))
+                              #_#_:optimized-render! kr2/render!}))
 
 (defn start []
   (app/mount! app ui/Root "app")
-  ;(df/load! app :com.wsscode.pathom/trace nil)
-  (df/load! app [:list/id 1] ui/TodoList))
+  (df/load! app :com.wsscode.pathom/trace nil)
+  #_(df/load! app [:list/id 1] ui/TodoList))
 
 (comment
+  (app/set-root! app ui/Root {:initialize-state? true})
+  (app/mounted? app)
+  (df/load! app [:list/id 1] ui/TodoList)
+  (app/mount! app ui/Root "app" {:initialize-state? false})
+  @(::app/state-atom app)
   (fws/stop! remote)
   )

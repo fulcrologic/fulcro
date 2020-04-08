@@ -29,6 +29,7 @@
                              (fdn/db->tree query state-map state-map)
                              state-map)
           app-root #?(:clj {}
-                      :cljs (r! (root-factory data-tree) mount-node))]
+                      :cljs (when root-factory
+                              (r! (root-factory data-tree) mount-node)))]
       (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/app-root app-root)
       #?(:cljs app-root))))

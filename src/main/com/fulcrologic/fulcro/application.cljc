@@ -109,24 +109,26 @@
   ([app {:keys [force-root?] :as options}]
    [::app map? => any?]
    (tick! app)
-   (let [{:keys [::runtime-atom ::state-atom]} app
-         optimized-render!   (ah/app-algorithm app :optimized-render!)
-         shared-props        (get @runtime-atom ::shared-props)
-         root-props-changed? (root-props-changed? app)]
-     (binding [fdn/*denormalize-time* (basis-t app)
-               comp/*app*             app
-               comp/*shared*          shared-props
-               comp/*depth*           0]
-       (when (or force-root? root-props-changed?)
-         (update-shared! app))
-       (if optimized-render!
-         (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
-         (log/debug "Render skipped. No optimized render is configured.")))
+   (let [{::keys [runtime-atom state-atom]} app
+         {::keys [root-class]} (some-> runtime-atom deref)]
+     (when root-class
+       (let [optimized-render!   (ah/app-algorithm app :optimized-render!)
+             shared-props        (get @runtime-atom ::shared-props)
+             root-props-changed? (root-props-changed? app)]
+         (binding [fdn/*denormalize-time* (basis-t app)
+                   comp/*app*             app
+                   comp/*shared*          shared-props
+                   comp/*depth*           0]
+           (when (or force-root? root-props-changed?)
+             (update-shared! app))
+           (if optimized-render!
+             (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
+             (log/debug "Render skipped. No optimized render is configured.")))
 
-     (swap! runtime-atom assoc
-       ::last-rendered-state @state-atom
-       :com.fulcrologic.fulcro.application/only-refresh #{}
-       :com.fulcrologic.fulcro.application/to-refresh #{}))))
+         (swap! runtime-atom assoc
+           ::last-rendered-state @state-atom
+           :com.fulcrologic.fulcro.application/only-refresh #{}
+           :com.fulcrologic.fulcro.application/to-refresh #{}))))))
 
 (let [go! #?(:cljs (debounce (fn [app options]
                                (sched/schedule-animation! app ::render-scheduled? #(render! app options))) 16)
