@@ -495,6 +495,7 @@
            current-state           (aget tunnelled-props-state 0 "fulcro$value")
            {:keys [ident] :as options} (isoget faux-class :fulcro$options)
            props                   (isoget js-props :fulcro$value)
+           children                (isoget js-props :children)
            current-props           (newer-props props current-state)
            current-ident           (when ident (ident faux-class current-props))
            app                     (or *app* (isoget js-props :fulcro$app))
@@ -512,7 +513,8 @@
                                         :props              #js {:fulcro$app    app
                                                                  :fulcro$depth  (inc depth)
                                                                  :fulcro$shared shared-props
-                                                                 :fulcro$value  current-props}}]
+                                                                 :fulcro$value  current-props
+                                                                 :children      children}}]
        (use-effect
          (fn []
            (let [original-ident   current-ident
