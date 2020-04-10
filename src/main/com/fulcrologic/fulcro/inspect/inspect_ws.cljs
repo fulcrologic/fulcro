@@ -39,10 +39,12 @@
                                        :write inspect.transit/write-handlers})
          :wrap-recv-evs? false
          :backoff-ms-fn  backoff-ms}))
-    (log/debug "Starting websockets")
-    (let [{:keys [state send-fn]} @sente-socket-client]
-      (go-loop [attempt 1]
-        (let [open? (:open? @state)]
+    (log/debug "Starting websockets at:" SERVER_HOST ":" SERVER_PORT)
+    (go-loop [attempt 1]
+      (if-not @sente-socket-client
+        (log/info "Shutting down inspect ws async loops.")
+        (let [{:keys [state send-fn]} @sente-socket-client
+              open? (:open? @state)]
           (if open?
             (when-let [[type data] (<! inspect/send-ch)]
               (log/debug "Forwarding to server: type =" type)
@@ -52,16 +54,18 @@
               (log/trace (str "Waiting for channel to be ready"))
               (async/<! (async/timeout (backoff-ms attempt)))))
           (recur (if open? 1 (inc attempt))))))
-    (let [{:keys [state ch-recv]} @sente-socket-client]
-      (go-loop [attempt 1]
-        (let [open? (:open? @state)]
+    (go-loop [attempt 1]
+      (if-not @sente-socket-client
+        (log/info "Shutting down inspect ws async loops.")
+        (let [{:keys [state ch-recv]} @sente-socket-client
+              open? (:open? @state)]
           (if open?
-            (do (enc/when-let [[event-type message] (:event (<! ch-recv))
-                               _ (= :fulcro.inspect/event event-type)
-                               {:as msg :keys [type data]} message]
-                  (log/debug "Forwarding from electron: type =" type)
-                  (log/trace "Forwarding from electron: data =" data)
-                  (inspect/handle-devtool-message msg)))
+            (enc/when-let [[event-type message] (:event (<! ch-recv))
+                           _ (= :fulcro.inspect/event event-type)
+                           {:as msg :keys [type data]} message]
+              (log/debug "Forwarding from electron: type =" type)
+              (log/trace "Forwarding from electron: data =" data)
+              (inspect/handle-devtool-message msg))
             (do
               (log/trace (str "Waiting for channel to be ready"))
               (async/<! (async/timeout (backoff-ms attempt)))))
@@ -73,3 +77,7 @@
     (reset! inspect/started?* true)
     (start-ws-messaging!)))
 
+(defn stop-ws []
+  (log/info "Shutting down inspect websockets.")
+  (reset! sente-socket-client nil)
+  (reset! inspect/started?* false))
