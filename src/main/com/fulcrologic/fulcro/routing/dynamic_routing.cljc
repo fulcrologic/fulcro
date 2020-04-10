@@ -636,7 +636,10 @@
                        {:router (uism/with-actor-class router-ident component)}
                        event-data))
                    (uism/trigger! app router-id :route! event-data))
-                 (completing-action)
+                 ;; make sure any transactions submitted from the completing action wait for a render of the state machine's
+                 ;; startup or route effects before running.
+                 (binding [comp/*after-render* true]
+                   (completing-action))
                  (when (seq remaining-path)
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path))))))
          (log/debug "Route request cancelled by on-screen target."))))))

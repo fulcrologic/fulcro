@@ -407,7 +407,8 @@
                                       (into acc
                                         (if action?
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
-                                                                            ~@handler-body
+                                                                            (binding [comp/*after-render* true]
+                                                                              ~@handler-body)
                                                                             nil)]
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
                             []
@@ -419,8 +420,9 @@
                             `{~(first handlers) ~@(rest handlers)}
                             `{~(first handlers) ~@(rest handlers)
                               :result-action    (fn [~'env]
-                                                  (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
-                                                    (~'default-action ~'env)))})
+                                                  (binding [comp/*after-render* true]
+                                                    (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
+                                                      (~'default-action ~'env))))})
            doc            (or doc "")
            multimethod    `(defmethod com.fulcrologic.fulcro.mutations/mutate '~fqsym [~env-symbol]
                              (let [~(first arglist) (-> ~env-symbol :ast :params)]

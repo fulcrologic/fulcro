@@ -105,7 +105,6 @@
 (def registry (atom {}))
 (defn register-state-machine! [id definition] (swap! registry assoc id definition))
 
-
 (>defn get-state-machine [id] [::state-machine-id => (s/nilable ::state-machine-definition)] (get @registry id))
 
 (>defn lookup-state-machine [env]
@@ -167,10 +166,16 @@
   [::asm-id => eql/ident?]
   [::asm-id asm-id])
 
+(>defn asm-id
+  "Returns the active state machine ID from the state machine env."
+  [env]
+  [::env => ::asm-id]
+  (::asm-id env))
+
 (>defn new-asm
   "Create the runtime state for the given state machine in it's initial state.
 
-  - `::state-machine-id` is the globally unique key of for a state machine definition.
+  - `::asm-id` is the globally unique key of for a state machine definition.
   - `::asm-id` is a user-generated unique ID for the instance of the asm. This allows more than one
     instance of the same state machine definition to be active at the same time on the UI.
   - `::actor->ident` is a map from actor name to an ident.
@@ -218,17 +223,17 @@
   [::env ::state-id => ::env]
   (if (valid-state? env state-id)
     (do
-      (log/debug "Activating state " state-id "on" (::asm-id env))
+      (log/debug "Activating state " state-id "on" (asm-id env))
       (assoc-in env (asm-path env ::active-state) state-id))
     (do
-      (log/error "Activate called for invalid state: " state-id "on" (::asm-id env))
+      (log/error "Activate called for invalid state: " state-id "on" (asm-id env))
       env)))
 
 (>defn store
   "Store a k/v pair with the active state machine (will only exist as long as it is active)"
   [env k v]
   [::env keyword? any? => ::env]
-  (log/debug "Storing" k "->" v "on" (::asm-id env))
+  (log/debug "Storing" k "->" v "on" (asm-id env))
   (update-in env (asm-path env ::local-storage) assoc k v))
 
 (>defn retrieve
@@ -314,7 +319,7 @@
    [::env ::alias any? => ::env]
    (if-let [real-path (resolve-alias env alias)]
      (do
-       (log/debug "Updating value for " (::asm-id env) "alias" alias "->" new-value)
+       (log/debug "Updating value for " (asm-id env) "alias" alias "->" new-value)
        (update env ::state-map assoc-in real-path new-value))
      (do
        (log/error "Attempt to set a value on an invalid alias:" alias)
@@ -354,7 +359,7 @@
   "Indicate that the state machine is done."
   [env]
   [::env => ::env]
-  (log/debug "Exiting state machine" (::asm-id env))
+  (log/debug "Exiting state machine" (asm-id env))
   (activate env ::exit))
 
 (>defn apply-event-value
@@ -486,7 +491,7 @@
      (let [path     (resolve-alias env alias)
            sub-path (butlast path)
            k        (last path)]
-       (log/debug "Dissoc of aliased value" alias "on" (::asm-id env))
+       (log/debug "Dissoc of aliased value" alias "on" (asm-id env))
        (apply-action env #(update-in % sub-path dissoc k)))))
   ([env k & ks]
    [::env ::alias (s/* ::alias) => ::env]
@@ -508,7 +513,7 @@
   the ident if that ident is already in the list."
   [env ident & named-parameters]
   [::env eql/ident? (s/* (s/cat :name #{:prepend :append} :param keyword?)) => ::env]
-  (log/debug "Integrating" ident "on" (::asm-id env))
+  (log/debug "Integrating" ident "on" (asm-id env))
   (let [actions (partition 2 named-parameters)]
     (reduce (fn [env [command alias-to-idents]]
               (let [alias-value                 (alias-value env alias-to-idents)
@@ -527,7 +532,7 @@
   "Removes an ident, if it exists, from an alias that points to a list of idents."
   [env ident alias-to-idents]
   [::env eql/ident? ::alias => ::env]
-  (log/debug "Removing" ident "from" alias-to-idents "on" (::asm-id env))
+  (log/debug "Removing" ident "from" alias-to-idents "on" (asm-id env))
   (let [new-list (fn [old-list]
                    (vec (filter #(not= ident %) old-list)))]
     (update-aliased env alias-to-idents new-list)))
@@ -549,7 +554,7 @@
   [::fulcro-app ::env ::actor-name (s/nilable comp/component-class?) ::load-options => nil?]
   (let [actor-ident (actor->ident env actor-name)
         cls         (or component-class (actor-class env actor-name))]
-    (log/debug "Starting actor load" actor-name "on" (::asm-id env))
+    (log/debug "Starting actor load" actor-name "on" (asm-id env))
     (if (nil? cls)
       (log/error "Cannot run load. Counld not derive Fulcro class (and none was configured) for " actor-name)
       (df/load! app actor-ident cls load-options))
@@ -634,7 +639,7 @@
   effect immediately (in terms of making sure the timeout does not fire)."
   [env timer-id]
   [::env ::timer-id => ::env]
-  (log/debug "Clearing timeout " (::asm-id env) ":" timer-id)
+  (log/debug "Clearing timeout " (asm-id env) ":" timer-id)
   (let [{::keys [js-timer]} (asm-value env [::active-timers timer-id])
         real-js-timer (-> js-timer meta :timer)]
     (when real-js-timer
@@ -724,7 +729,7 @@
             (log/error "INTERNAL ERROR: Cancel predicate was nil for timer " timer-id))
           (if (and cancel-predicate (cancel-predicate event-id))
             (do
-              (log/debug "Cancelling timer " timer-id "on" (::asm-id env) "due to event" event-id)
+              (log/debug "Cancelling timer " timer-id "on" (asm-id env) "due to event" event-id)
               (clear-timeout! env timer-id))
             env)))
       env
@@ -761,7 +766,8 @@
         handler      (active-state-handler sm-env)
         valued-env   (apply-event-value sm-env params)
         handled-env  (try
-                       (handler (assoc valued-env ::fulcro-app app))
+                       (binding [comp/*after-render* true]
+                         (handler (assoc valued-env ::fulcro-app app)))
                        (catch #?(:clj Exception :cljs :default) e
                          (log/error e "Handler for event" event-id "threw an exception for ASM ID" asm-id)
                          nil))
@@ -775,20 +781,22 @@
     (trigger-queued-events! mutation-env (::queued-triggers final-env) refresh-list)))
 
 (>defn trigger
-  "Trigger an event on another state machine.
+  "Trigger an event on a state machine. Events sent this way will be processed immediately (synchronously) after
+   the handler for the calling handler completes. If you prefer that a trigger happens as a separate transaction
+   then use `trigger!`.
 
   `env` - is the env in a state machine handler
-  `state-machine-id` - The ID of the state machine you want to trigger an event on.
+  `asm-id` - The ID of the state machine you want to trigger an event on.
   `event` - The event ID you want to send.
   `event-data` - A map of data to send with the event
 
   Returns the updated env.  The actual event will not be sent until this handler finishes."
-  ([env state-machine-id event]
+  ([env asm-id event]
    [::env ::asm-id ::event-id => ::env]
-   (trigger env state-machine-id event {}))
-  ([env state-machine-id event event-data]
+   (trigger env asm-id event {}))
+  ([env asm-id event event-data]
    [::env ::asm-id ::event-id ::event-data => ::env]
-   (update env ::queued-triggers (fnil conj []) {::asm-id     state-machine-id
+   (update env ::queued-triggers (fnil conj []) {::asm-id     asm-id
                                                  ::event-id   event
                                                  ::event-data event-data})))
 
@@ -1019,7 +1027,7 @@
    => ::env]
   (let [target              (compute-target env options-and-params)
         abort-id            (or (::txn/abort-id options-and-params) (:abort-id options-and-params))
-        asm-id              (::asm-id env)
+        asm-id              (asm-id env)
         mutation-sym        (m/mutation-symbol mutation)
         mutation-descriptor (-> options-and-params
                               (dissoc ::target-actor ::target-alias ::targeting/target)
@@ -1123,9 +1131,8 @@
   "Run a mutation helper function (e.g. a fn of Fulcro state)."
   [env mutation-helper & args]
   [::env fn? (s/* any?) => ::env]
-  (log/debug "Applying mutation helper to state of" (::asm-id env))
+  (log/debug "Applying mutation helper to state of" (asm-id env))
   (apply update env ::state-map mutation-helper args))
-
 
 (>defn get-active-state
   "Get the name of the active state for an active state machine using a component. If you use this to represent UI changes then you should

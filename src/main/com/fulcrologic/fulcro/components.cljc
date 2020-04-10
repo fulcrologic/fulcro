@@ -864,10 +864,17 @@
        ([props computed-props & children]
         (apply real-factory (computed props computed-props) children))))))
 
+(def ^:dynamic *after-render*
+  "Dynamic var that affects the activation of transactions run via `transact!`. Defaults to false. When set to true
+   this option prevents a transaction from running until after the next render is complete. This typically should not be set
+   to true in scenarios where you are unsure if a render will occur, since that could make the transaction appear to
+   \"hang\"."
+  false)
+
 (defn transact!
   "Submit a transaction for processing.
 
-  The underlying transaction system is pluggable, but the default supported options are:
+  The underlying transaction system is pluggable, but the *default* supported options are:
 
   - `:optimistic?` - boolean. Should the transaction be processed optimistically?
   - `:ref` - ident. The ident of the component used to submit this transaction. This is set automatically if you use a component to call this function.
@@ -887,6 +894,11 @@
   a component the props will be immediately tunneled back to the calling component, allowing for React (raw) input
   event handlers to behave as described in standard React Forms docs (uses setState behind the scenes). Any remote operations
   will still be queued as normal. Calling `transact!!` is a shorthand for this option.
+  ` `:after-render?` - Wait until the next render completes before allowing this transaction to run. This can be used
+  when calling `transact!` from *within* another mutation to ensure that the effects of the current mutation finish
+  before this transaction takes control of the CPU. This option defaults to `false`, but `defmutation` causes it to
+  be set to true for any transactions run within mutation action sections. You can affect the default for this value
+  in a dynamic scope by binding `*after-render*` to true
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
@@ -898,6 +910,7 @@
    (when-let [app (any->app app-or-component)]
      (let [tx!     (ah/app-algorithm app :tx!)
            options (cond-> options
+                     (and (not (contains? options :after-render?)) (true? *after-render*)) (assoc :after-render? true)
                      (and (nil? (:ref options)) (has-ident? app-or-component)) (assoc :ref (get-ident app-or-component))
                      (and (nil? (:component options)) (component-instance? app-or-component)) (assoc :component app-or-component))]
        (tx! app tx options))))

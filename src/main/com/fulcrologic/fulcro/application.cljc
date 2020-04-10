@@ -128,7 +128,13 @@
          (swap! runtime-atom assoc
            ::last-rendered-state @state-atom
            :com.fulcrologic.fulcro.application/only-refresh #{}
-           :com.fulcrologic.fulcro.application/to-refresh #{}))))))
+           :com.fulcrologic.fulcro.application/to-refresh #{})))
+     (log/info "RENDER")
+     (doseq [render-listener (-> runtime-atom deref ::render-listeners vals)]
+       (try
+         (render-listener app options)
+         (catch #?(:clj Exception :cljs :default) e
+           (log/error e "Render listener failed.")))))))
 
 (let [go! #?(:cljs (debounce (fn [app options]
                                (sched/schedule-animation! app ::render-scheduled? #(render! app options))) 16)
@@ -289,6 +295,7 @@
             render-root!
             hydrate-root!
             unmount-root!
+            submit-transaction!
             render-middleware
             initial-db
             client-did-mount
@@ -301,54 +308,57 @@
             shared
             external-config
             shared-fn] :as options}]
-   {::id           (tempid/uuid)
-    ::state-atom   (atom (or initial-db {}))
-    ::config       {:load-marker-default     load-marker-default
-                    :client-did-mount        (or client-did-mount (:started-callback options))
-                    :external-config         external-config
-                    :query-transform-default query-transform-default
-                    :load-mutation           load-mutation}
-    ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    default-tx!
-                    :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! ident-optimized/render!)
-                    :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
-                    :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
-                    :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
-                    :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
-                    :com.fulcrologic.fulcro.algorithm/render!                render!
-                    :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
-                    :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
-                    :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
-                    :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
-                    :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
-                    :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
-                    :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
-                    :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
-                    :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
-                    :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
-                    :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
-    ::runtime-atom (atom
-                     {::app-root                        nil
-                      ::mount-node                      nil
-                      ::root-class                      root-class
-                      ::root-factory                    nil
-                      ::basis-t                         1
-                      ::last-rendered-state             {}
+   (let [tx! (or submit-transaction! default-tx!)]
+     {::id           (tempid/uuid)
+      ::state-atom   (atom (or initial-db {}))
+      ::config       {:load-marker-default     load-marker-default
+                      :client-did-mount        (or client-did-mount (:started-callback options))
+                      :external-config         external-config
+                      :query-transform-default query-transform-default
+                      :load-mutation           load-mutation}
+      ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
+                      :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! ident-optimized/render!)
+                      :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
+                      :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
+                      :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
+                      :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
+                      :com.fulcrologic.fulcro.algorithm/render!                render!
+                      :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
+                      :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
+                      :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
+                      :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
+                      :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
+                      :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
+                      :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
+                      :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
+                      :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
+                      :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
+                      :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
+      ::runtime-atom (atom
+                       {::app-root                        nil
+                        ::mount-node                      nil
+                        ::root-class                      root-class
+                        ::root-factory                    nil
+                        ::basis-t                         1
+                        ::last-rendered-state             {}
 
-                      ::static-shared-props             shared
-                      ::shared-props                    {}
+                        ::static-shared-props             shared
+                        ::shared-props                    {}
 
-                      ::remotes                         (or remotes
-                                                          {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
-                                                                                 (log/fatal "Remote requested, but no remote defined.")
-                                                                                 (result-handler {:status-code 418 :body {}}))}})
-                      ::indexes                         {:ident->components {}}
-                      ::mutate                          mut/mutate
-                      ::txn/activation-scheduled?       false
-                      ::txn/queue-processing-scheduled? false
-                      ::txn/sends-scheduled?            false
-                      ::txn/submission-queue            []
-                      ::txn/active-queue                []
-                      ::txn/send-queues                 {}})}))
+                        ::remotes                         (or remotes
+                                                            {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
+                                                                                   (log/fatal "Remote requested, but no remote defined.")
+                                                                                   (result-handler {:status-code 418 :body {}}))}})
+                        ::indexes                         {:ident->components {}}
+                        ::mutate                          mut/mutate
+                        ::render-listeners                (cond-> {}
+                                                            (= tx! default-tx!) (assoc ::txn/after-render txn/application-rendered!))
+                        ::txn/activation-scheduled?       false
+                        ::txn/queue-processing-scheduled? false
+                        ::txn/sends-scheduled?            false
+                        ::txn/submission-queue            []
+                        ::txn/active-queue                []
+                        ::txn/send-queues                 {}})})))
 
 (>defn fulcro-app?
   "Returns true if the given `x` is a Fulcro application."
@@ -563,3 +573,9 @@
    (swap! (::runtime-atom app) assoc ::root-class root)
    (when initialize-state?
      (initialize-state! app root))))
+
+(defn add-render-listener!
+  "Add (or replace) a render listener named `nm`. `listener` is a `(fn [app options] )` that will be called
+   after each render."
+  [app nm listener]
+  (swap! (::runtime-atom app) assoc-in [::render-listeners nm] listener))
