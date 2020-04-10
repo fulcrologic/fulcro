@@ -100,9 +100,14 @@
     (when-mocking
 
       (log/-log! _ _ _ _ _ _ _ args _ _)
-      =2x=> (assertions
+      =1x=> (assertions
               "Logs an error about the failed mutation"
-              (str/includes? (second @args) "Dispatch of mutation") => true)
+              (str (nth @args 2)) => "[(f)]"
+              (str/includes? (second @args) "Dispatch for mutation") => true)
+      (log/-log! _ _ _ _ _ _ _ args _ _)
+      =1x=> (assertions
+              "Logs an error about the failed mutation"
+              (str (nth @args 2)) => "[(g)]")
 
       (let [n            (txn/tx-node '[(f) (g)])
             updated-node (txn/dispatch-elements n
@@ -181,7 +186,61 @@
           (fn? (-> node ::txn/elements first ::txn/dispatch :remote)) => true
           (fn? (-> node ::txn/elements first ::txn/dispatch :action)) => true
           "Successive calls append to the active queue"
-          (fn? (-> node2 ::txn/elements first ::txn/dispatch :remote)) => true)))))
+          (fn? (-> node2 ::txn/elements first ::txn/dispatch :remote)) => true))))
+  (component "When there is nothing blocked in the submission queue"
+    (let [app    (mock-app)
+          called (atom false)]
+      (when-mocking!
+        (txn/schedule-activation! app) => nil
+        (txn/process-queue! app) => nil
+
+        (comp/transact! app [(f {})])
+        (comp/transact! app [(g {})])
+        (txn/activate-submissions! app))
+
+      (with-redefs [txn/schedule-activation! (fn [_ _] (reset! called true))]
+        (txn/application-rendered! app {})
+
+        (assertions
+          "Does not trigger an additional activation"
+          @called => false))))
+  (component "When some transactions are marked for running after render"
+    (let [app (mock-app)]
+      (when-mocking!
+        (txn/schedule-activation! app) => nil
+        (txn/process-queue! app) => (assertions
+                                      "Processes the active queue."
+                                      true => true)
+
+        (comp/transact! app [(f {})])
+        (comp/transact! app [(g {})] {:after-render? true})
+
+        (txn/activate-submissions! app)
+
+        (let [sub-q (-> app ::app/runtime-atom deref ::txn/submission-queue)
+              act-q (-> app ::app/runtime-atom deref ::txn/active-queue)
+              node  (first act-q)
+              node2 (first sub-q)]
+          (assertions
+            "Removes the non-blocked txes to the submission queue"
+            (vector? sub-q) => true
+            (count sub-q) => 1
+            (-> node2 ::txn/elements first ::txn/original-ast-node :dispatch-key) => `g
+            "Places the unblocked nodes on the active queue"
+            (count act-q) => 1
+            (-> node ::txn/elements first ::txn/original-ast-node :dispatch-key) => `f)))
+
+      (provided! "After render"
+        (txn/schedule-activation! a tm) => (assertions
+                                             "Submissions are immediately activated."
+                                             tm => 0)
+
+        (txn/application-rendered! app {})
+
+        (let [sub-q (-> app ::app/runtime-atom deref ::txn/submission-queue)]
+          (assertions
+            "Removes txn option to run after render"
+            (every? #(not (contains? (::txn/options %) :after-render?)) (log/spy :info sub-q)) => true))))))
 
 (defonce aa-track (atom #{}))
 

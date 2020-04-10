@@ -636,7 +636,10 @@
                        {:router (uism/with-actor-class router-ident component)}
                        event-data))
                    (uism/trigger! app router-id :route! event-data))
-                 (completing-action)
+                 ;; make sure any transactions submitted from the completing action wait for a render of the state machine's
+                 ;; startup or route effects before running.
+                 (binding [comp/*after-render* true]
+                   (completing-action))
                  (when (seq remaining-path)
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path))))))
          (log/debug "Route request cancelled by on-screen target."))))))
@@ -782,7 +785,7 @@
      Other defsc options - (LIMITED) You may not specify query/initial-state/protocols/ident, but you can define things like react
      lifecycle methods. See defsc.
      `:always-render-body?` - (OPTIONAL) When true this router expects that you will supply a render body, and
-     it will always be rendered. The props this body of the router body will include:
+     it will always be rendered. The props available in the body will include:
 
      - `:current-state` - The state of the routing state machine. (:initial, :pending, :failed, :routed)
      - `:route-factory` - A factory that can generate the current route.
@@ -790,8 +793,8 @@
      wish. The router normally passes computed through like so: `(route-factory (comp/computed route-props (comp/get-computed this)))`
      - `:pending-path-segment` - The route that we're going to (when in pending state).
 
-     The optional body, if defined, will *only* be used if the router has the `:always-render-body?` option set of
-     is in one of the following states:
+     The optional body, if defined, will *only* be used if the router has the `:always-render-body?` option set or
+     it is in one of the following states:
 
      - `:initial` - No route is set.
      - `:pending` - A deferred route is taking longer than expected (configurable timeout, default 100ms)

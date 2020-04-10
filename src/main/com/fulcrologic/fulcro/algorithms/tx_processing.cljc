@@ -151,7 +151,7 @@
         (inspect/send-started! app remote-name (::id send-node) tx))
       (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
-        (log/error e "Send threw an exception!")
+        (log/error e "Send threw an exception for tx:" (futil/ast->query (::ast send-node)))
         (try
           (inspect/ido
             (inspect/send-failed! app (::id send-node) "Transmit Exception"))
@@ -238,7 +238,7 @@
                        (try
                          (dispatch-fn env)
                          (catch #?(:clj Exception :cljs :default) e
-                           (log/error e "Dispatch of mutation failed with an exception. No dispatch generated.")
+                           (log/error e "Dispatch for mutation" (some-> env :ast futil/ast->query) "failed with an exception. No dispatch generated.")
                            {})))
         dispatch     (fn dispatch* [{:keys [::original-ast-node] :as ele}]
                        (let [{:keys [type]} original-ast-node
@@ -248,16 +248,28 @@
         dispatch-all (fn [eles] (mapv dispatch eles))]
     (update tx-node ::elements dispatch-all)))
 
+(defn application-rendered!
+  "Should be called after the application renders to ensure that transactions blocked until the next render become
+   unblocked. Schedules an activation."
+  [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app} options]
+  (when (some #(boolean (-> % ::options :after-render?)) (-> runtime-atom deref ::submission-queue))
+    (swap! runtime-atom update ::submission-queue
+      (fn [queue] (mapv (fn [node] (update node ::options dissoc :after-render?)) queue)))
+    (schedule-activation! app 0)))
+
 (>defn activate-submissions!
   "Activate all of the transactions that have been submitted since the last activation. After the items are activated
-  a single processing step will run for the active queue."
+  a single processing step will run for the active queue.
+
+  Activation can be blocked by the tx-node options for things like waiting for the next render frame."
   [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app}]
   [:com.fulcrologic.fulcro.application/app => any?]
-  (let [dispatched-nodes (mapv #(dispatch-elements % (build-env app %) m/mutate) (::submission-queue @runtime-atom))]
+  (let [{blocked true ready false} (group-by (comp boolean :after-render? ::options) (::submission-queue @runtime-atom))
+        dispatched-nodes (mapv #(dispatch-elements % (build-env app %) m/mutate) ready)]
     (swap! runtime-atom (fn [a]
                           (-> a
                             (update ::active-queue #(reduce conj % dispatched-nodes))
-                            (assoc ::submission-queue []))))
+                            (assoc ::submission-queue (vec blocked)))))
     (process-queue! app)))
 
 (>defn schedule-activation!
@@ -346,7 +358,7 @@
                              (try
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
-                                 (log/error e "Failure dispatching optimistic action for AST node" element "of transaction node" node)))
+                                 (log/error e "The `action` section threw an exception for mutation: " (:dispatch-key original-ast-node))))
                              (ilet [tx (eql/ast->expr original-ast-node true)]
                                (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
                                                                              :state-before state-before
@@ -580,7 +592,7 @@
   [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
   (let [get-env (fn get-env* [remote progress] (build-env app tx-node {:remote remote :progress progress}))]
     (reduce
-      (fn [node {:keys [::idx ::progress ::dispatch] :as element}]
+      (fn [node {::keys [idx progress dispatch original-ast-node] :as element}]
         (doseq [[remote value] progress]
           (let [env    (get-env remote value)
                 action (get dispatch :progress-action)]
@@ -588,7 +600,7 @@
               (try
                 (action env)
                 (catch #?(:cljs :default :clj Exception) e
-                  (log/error e "Progress action threw an exception for txn element" element))))))
+                  (log/error e "Progress action threw an exception in mutation" (:dispatch-key original-ast-node)))))))
         (update-in node [::elements idx] dissoc ::progress))
       tx-node
       elements)))
