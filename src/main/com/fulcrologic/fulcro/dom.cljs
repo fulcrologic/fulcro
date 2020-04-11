@@ -32,13 +32,9 @@
   sup svg switch symbol table tbody td text textPath textarea tfoot th thead time title tr track tref tspan
   u ul unknown use var video view vkern wbr)
 
-(def ^{:private true} element-marker
-  (-> (js/React.createElement "div" nil)
-    (gobj/get "$$typeof")))
-
 (defn element? "Returns true if the given arg is a react element."
   [x]
-  (and (object? x) (= element-marker (gobj/get x "$$typeof"))))
+  (js/React.isValidElement x))
 
 (defn child->typed-child [child]
   (cond
