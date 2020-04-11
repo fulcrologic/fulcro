@@ -35,6 +35,7 @@
         {:type           channel-type
          :host           SERVER_HOST
          :port           SERVER_PORT
+         :protocol       :http
          :packer         (make-packer {:read  inspect.transit/read-handlers
                                        :write inspect.transit/write-handlers})
          :wrap-recv-evs? false
