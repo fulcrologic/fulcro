@@ -134,8 +134,7 @@
         (log/error "Invalid (nil) event ID"))
       (log/debug "Triggering" event-id "on" asm-id "with" event-data)
       (trigger-state-machine-event! env params)
-      (when-not synchronous?
-        (app/schedule-render! app (or transact-options {}))))
+      (app/schedule-render! app (or transact-options {})))
     true))
 
 (defn trigger!
