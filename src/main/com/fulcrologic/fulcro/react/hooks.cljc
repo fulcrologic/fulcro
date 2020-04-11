@@ -41,7 +41,7 @@
 
   React docs: https://reactjs.org/docs/hooks-reference.html#usecallback"
   ([cb]
-   (js/React.useCallback cb #js []))
+   (js/React.useCallback cb))
   ([cb args]
    (js/React.useCallback cb (to-array args))))
 
