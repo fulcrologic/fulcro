@@ -51,14 +51,17 @@
 ;; Also used when you force a root render.
 (def ^:dynamic *blindly-render* false)
 
-(defn use-effect
-  "A simple wrapper around React/useEffect that auto-converts cljs arrays of deps to js."
+(defn ^:deprecated use-effect
+  "DEPRECATED: use from com.fulcrologic.fulcro.react.hooks
+
+  A simple wrapper around React/useEffect that auto-converts cljs arrays of deps to js."
   ([f] #?(:cljs (js/React.useEffect f)))
   ;; TODO: optimization: if this were a macro we could convert literal vectors at compile time. See DOM macros.
   ([f deps] #?(:cljs (js/React.useEffect f (clj->js deps)))))
 
-(defn use-state
-  "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring"
+(defn ^:deprecated use-state
+  "DEPRECATED: use from com.fulcrologic.fulcro.react.hooks
+  A simple wrapper around React/useState. Returns a cljs vector for easy destructuring"
   [initial-value]
   #?(:cljs (js->clj (js/React.useState initial-value))))
 
