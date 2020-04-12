@@ -15,6 +15,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.guardrails.core :refer [>def]]
     [clojure.set :as set])
   #?(:clj
@@ -518,7 +519,7 @@
                                                                  :fulcro$shared shared-props
                                                                  :fulcro$value  current-props
                                                                  :children      children}}]
-       (use-effect
+       (hooks/use-effect
          (fn []
            (let [original-ident   current-ident
                  index-component! (ah/app-algorithm app :index-component!)

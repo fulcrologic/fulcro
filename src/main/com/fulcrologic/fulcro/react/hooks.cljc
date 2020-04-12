@@ -1,10 +1,13 @@
 (ns com.fulcrologic.fulcro.react.hooks
+  "Simple wrappers for React hooks support, along with additional predefinined functions that do useful things
+   with hooks in the context of Fulcro."
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; WARNING TO MAINTAINERS: DO NOT REFERENCE DOM IN HERE. This has to work with native.
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (:require
     #?@(:cljs
         [[goog.object :as gobj]
-         ["react" :as react]])))
-
-#?(:cljs (set! js/React react))
+         cljsjs.react])))
 
 (defn use-state
   "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring.
@@ -68,14 +71,14 @@
   [ref f]
   (js/React.useImperativeHandle ref f))
 
-(defn use-layout-effect
-  "A simple wrapper around React/useLayoutEffect.
+#_(defn use-layout-effect
+    "A simple wrapper around React/useLayoutEffect.
 
-  React docs: https://reactjs.org/docs/hooks-reference.html#uselayouteffect"
-  ([f]
-   (js/React.useLayoutEffect (wrap-effect f)))
-  ([f args]
-   (js/React.useLayoutEffect (wrap-effect f) (to-array args))))
+    React docs: https://reactjs.org/docs/hooks-reference.html#uselayouteffect"
+    ([f]
+     (js/React.useLayoutEffect (wrap-effect f)))
+    ([f args]
+     (js/React.useLayoutEffect (wrap-effect f) (to-array args))))
 
 (defn use-debug-value
   "A simple wrapper around React/useDebugValue.
