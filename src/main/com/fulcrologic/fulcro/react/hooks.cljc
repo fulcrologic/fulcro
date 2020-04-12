@@ -4,72 +4,72 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; WARNING TO MAINTAINERS: DO NOT REFERENCE DOM IN HERE. This has to work with native.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (:require
-    #?@(:cljs
-        [[goog.object :as gobj]
-         cljsjs.react])))
+  #?(:cljs
+     (:require
+       [goog.object :as gobj]
+       cljsjs.react)))
 
 (defn use-state
   "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring.
 
   React docs: https://reactjs.org/docs/hooks-reference.html#usestate"
   [initial-value]
-  (into-array (js/React.useState initial-value)))
+  #?(:cljs (into-array (js/React.useState initial-value))))
 
 (defn use-effect
   "A simple wrapper around React/useEffect.
 
   React docs: https://reactjs.org/docs/hooks-reference.html#useeffect"
   ([f]
-   (js/React.useEffect f))
+   #?(:cljs (js/React.useEffect f)))
   ([f args]
-   (js/React.useEffect f (to-array args))))
+   #?(:cljs (js/React.useEffect f (to-array args)))))
 
 (defn use-context
   "A simple wrapper around React/useContext."
   [ctx]
-  (js/React.useContext ctx))
+  #?(:cljs (js/React.useContext ctx)))
 
 (defn use-reducer
   "A simple wrapper around React/useReducer. Returns a cljs vector for easy destructuring
 
   React docs: https://reactjs.org/docs/hooks-reference.html#usecontext"
   ([reducer initial-arg]
-   (into-array (js/React.useReducer reducer initial-arg)))
+   #?(:cljs (into-array (js/React.useReducer reducer initial-arg))))
   ([reducer initial-arg init]
-   (into-array (js/React.useReducer reducer initial-arg init))))
+   #?(:cljs (into-array (js/React.useReducer reducer initial-arg init)))))
 
 (defn use-callback
   "A simple wrapper around React/useCallback. Converts args to js array before send.
 
   React docs: https://reactjs.org/docs/hooks-reference.html#usecallback"
   ([cb]
-   (js/React.useCallback cb))
+   #?(:cljs (js/React.useCallback cb)))
   ([cb args]
-   (js/React.useCallback cb (to-array args))))
+   #?(:cljs (js/React.useCallback cb (to-array args)))))
 
 (defn use-memo
   "A simple wrapper around React/useMemo. Converts args to js array before send.
 
   React docs: https://reactjs.org/docs/hooks-reference.html#usememo"
   ([cb]
-   (js/React.useMemo cb))
+   #?(:cljs (js/React.useMemo cb)))
   ([cb args]
-   (js/React.useMemo cb (to-array args))))
+   #?(:cljs (js/React.useMemo cb (to-array args)))))
 
 (defn use-ref
   "A simple wrapper around React/useRef.
 
   React docs: https://reactjs.org/docs/hooks-reference.html#useref"
-  ([] (js/React.useRef nil))
-  ([value] (js/React.useRef value)))
+  ([] #?(:cljs (js/React.useRef nil)))
+  ([value] #?(:cljs (js/React.useRef value))))
 
 (defn use-imperative-handle
   "A simple wrapper around React/useImperativeHandle.
 
   React docs: https://reactjs.org/docs/hooks-reference.html#useimperativehandle"
   [ref f]
-  (js/React.useImperativeHandle ref f))
+  #?(:cljs (js/React.useImperativeHandle ref f)))
 
 #_(defn use-layout-effect
     "A simple wrapper around React/useLayoutEffect.
@@ -85,6 +85,6 @@
 
   React docs: https://reactjs.org/docs/hooks-reference.html#uselayouteffect"
   ([value]
-   (js/React.useDebugValue value))
+   #?(:cljs (js/React.useDebugValue value)))
   ([value formatter]
-   (js/React.useDebugValue value formatter)))
+   #?(:cljs (js/React.useDebugValue value formatter))))
