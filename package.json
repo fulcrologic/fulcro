@@ -10,15 +10,7 @@
     "karma-cljs-test": "0.1.0",
     "react": "16.13.0",
     "react-dom": "16.13.0",
-    "shadow-cljs": "2.8.94"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:fulcrologic/fulcro.git"
-  },
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
+    "shadow-cljs": "2.8.94",
     "codemirror": "^5.47.0",
     "d3": "^5.9.2",
     "highlight.js": "^9.15.8",
@@ -28,5 +20,11 @@
     "react-icons": "^2.2.7",
     "reakit": "^0.11.2",
     "transit-js": "0.8.861"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:fulcrologic/fulcro.git"
+  },
+  "author": "",
+  "license": "MIT"
 }
