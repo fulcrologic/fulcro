@@ -6,7 +6,7 @@
          [cljs.env :as cljs-env]]
         :cljs
         [[goog.object :as gobj]
-         [react]])
+         [cljsjs.react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -28,9 +28,6 @@
    (defn current-config []
      (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
        config)))
-
-#?(:cljs
-   (set! js/React react))
 
 ;; Used internally by get-query for resolving dynamic queries (was created to prevent the need for external API change in 3.x)
 (def ^:dynamic *query-state* nil)

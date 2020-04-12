@@ -7,6 +7,12 @@
            com.cognitect/transit-clj  {:mvn/version "0.8.319"}
            com.cognitect/transit-cljs {:mvn/version "0.8.256"}
            com.fulcrologic/guardrails {:mvn/version "0.0.12"}
+
+           ;; These are so cljdoc will work. Use shadow-cljs, which requires you put them in package.json
+           cljsjs/react               {:mvn/version "16.13.0-0"}
+           cljsjs/react-dom           {:mvn/version "16.13.0-0"}
+           cljsjs/react-dom-server    {:mvn/version "16.13.0-0"}
+
            org.clojure/clojure        {:mvn/version "1.10.1" :scope "provided"}
            org.clojure/clojurescript  {:mvn/version "1.10.597" :scope "provided"}
            org.clojure/core.async     {:mvn/version "0.4.474"}}
@@ -21,7 +27,7 @@
                         :extra-deps  {lambdaisland/kaocha {:mvn/version "1.0-612"}}}
 
            :workspaces {:extra-paths ["src/workspaces"]
-                        :extra-deps {com.github.awkay/workspaces {:mvn/version "1.0.0-RC3"}}}
+                        :extra-deps  {com.github.awkay/workspaces {:mvn/version "1.0.0-RC3"}}}
 
            :dev        {:extra-paths ["src/dev" "resources" "src/todomvc"]
                         :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.8.94"}

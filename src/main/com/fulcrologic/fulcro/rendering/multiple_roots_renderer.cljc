@@ -62,7 +62,9 @@
     [com.fulcrologic.fulcro.application :as app]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
-    #?(:cljs [goog.object :as gobj])
+    #?@(:cljs
+        [cljsjs.react
+         [goog.object :as gobj]])
     [com.fulcrologic.fulcro.application :as app]))
 
 (defn register-root!

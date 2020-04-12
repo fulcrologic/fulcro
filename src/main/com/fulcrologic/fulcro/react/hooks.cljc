@@ -7,7 +7,7 @@
   #?(:cljs
      (:require
        [goog.object :as gobj]
-       [cljsjs.react])))
+       cljsjs.react)))
 
 (defn use-state
   "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring.
