@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.react-interop
   (:require
+    [cljsjs.react]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom :as dom]
     [taoensso.timbre :as log]))

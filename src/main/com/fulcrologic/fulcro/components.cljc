@@ -6,7 +6,7 @@
          [cljs.env :as cljs-env]]
         :cljs
         [[goog.object :as gobj]
-         [react]])
+         [cljsjs.react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -15,6 +15,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.guardrails.core :refer [>def]]
     [clojure.set :as set])
   #?(:clj
@@ -27,9 +28,6 @@
    (defn current-config []
      (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
        config)))
-
-#?(:cljs
-   (set! js/React react))
 
 ;; Used internally by get-query for resolving dynamic queries (was created to prevent the need for external API change in 3.x)
 (def ^:dynamic *query-state* nil)
@@ -51,14 +49,17 @@
 ;; Also used when you force a root render.
 (def ^:dynamic *blindly-render* false)
 
-(defn use-effect
-  "A simple wrapper around React/useEffect that auto-converts cljs arrays of deps to js."
+(defn ^:deprecated use-effect
+  "DEPRECATED: use from com.fulcrologic.fulcro.react.hooks
+
+  A simple wrapper around React/useEffect that auto-converts cljs arrays of deps to js."
   ([f] #?(:cljs (js/React.useEffect f)))
   ;; TODO: optimization: if this were a macro we could convert literal vectors at compile time. See DOM macros.
   ([f deps] #?(:cljs (js/React.useEffect f (clj->js deps)))))
 
-(defn use-state
-  "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring"
+(defn ^:deprecated use-state
+  "DEPRECATED: use from com.fulcrologic.fulcro.react.hooks
+  A simple wrapper around React/useState. Returns a cljs vector for easy destructuring"
   [initial-value]
   #?(:cljs (js->clj (js/React.useState initial-value))))
 
@@ -515,7 +516,7 @@
                                                                  :fulcro$shared shared-props
                                                                  :fulcro$value  current-props
                                                                  :children      children}}]
-       (use-effect
+       (hooks/use-effect
          (fn []
            (let [original-ident   current-ident
                  index-component! (ah/app-algorithm app :index-component!)

@@ -5,8 +5,8 @@
   "main": "index.js",
   "directories": {},
   "devDependencies": {
-    "karma": "3.1.4",
-    "karma-chrome-launcher": "2.2.0",
+    "karma": "5.0.1",
+    "karma-chrome-launcher": "3.1.0",
     "karma-cljs-test": "0.1.0",
     "react": "16.13.0",
     "react-dom": "16.13.0",
@@ -17,16 +17,5 @@
     "url": "git@github.com:fulcrologic/fulcro.git"
   },
   "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "codemirror": "^5.47.0",
-    "d3": "^5.9.2",
-    "highlight.js": "^9.15.8",
-    "parinfer": "^3.12.0",
-    "parinfer-codemirror": "^1.4.2",
-    "react-grid-layout": "^0.16.6",
-    "react-icons": "^2.2.7",
-    "reakit": "^0.11.2",
-    "transit-js": "0.8.861"
-  }
+  "license": "MIT"
 }

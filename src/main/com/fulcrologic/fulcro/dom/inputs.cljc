@@ -5,8 +5,9 @@
   a new React class that wraps an HTML `input`. The namespace also includes a few uses that are handy (at least as
   examples): `ui-int-input` and `ui-keyword-input`. See the source of those for examples."
   (:require
-    #?(:cljs
-       [goog.object :as gobj])
+    #?@(:cljs
+        [[cljsjs.react]
+         [goog.object :as gobj]])
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom.events :as evt]))
