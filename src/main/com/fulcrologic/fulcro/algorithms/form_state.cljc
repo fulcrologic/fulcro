@@ -395,11 +395,13 @@
         {:keys [::subforms]} config
         [updated-entity updated-config] (xform entity config)
         subform-idents (immediate-subform-idents (get-in state-map starting-entity-ident) (-> subforms keys set))]
-    (as-> state-map sm
-      (assoc-in sm starting-entity-ident updated-entity)
-      (assoc-in sm config-ident updated-config)
-      (reduce (fn [s id]
-                (update-forms s xform id)) sm subform-idents))))
+    (if config-ident
+      (as-> state-map sm
+        (assoc-in sm starting-entity-ident updated-entity)
+        (assoc-in sm config-ident updated-config)
+        (reduce (fn [s id]
+                  (update-forms s xform id)) sm subform-idents))
+      state-map)))
 
 (defn- strip-tempid-idents
   "Remote tempid idents from to-one or to-many values"

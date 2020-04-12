@@ -583,7 +583,7 @@
    (let [old-route (current-route app-or-comp relative-class-or-instance)
          new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route)]
      (cond
-       (= old-route new-route)
+       (and (= old-route new-route) (not (::force? timeouts-and-params)))
        (log/debug "Request to change route, but path is the current route. Ignoring change request.")
 
        (and #?(:clj true :cljs goog.DEBUG) (not (seq new-path)))

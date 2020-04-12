@@ -129,7 +129,6 @@
            ::last-rendered-state @state-atom
            :com.fulcrologic.fulcro.application/only-refresh #{}
            :com.fulcrologic.fulcro.application/to-refresh #{})))
-     (log/info "RENDER")
      (doseq [render-listener (-> runtime-atom deref ::render-listeners vals)]
        (try
          (render-listener app options)
