@@ -7,7 +7,7 @@
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
     [cljsjs.react]
-    [cljsjs.react-dom]
+    [cljsjs.react.dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
     [com.fulcrologic.fulcro.dom.inputs :as inputs]

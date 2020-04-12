@@ -82,6 +82,11 @@
       <version>2.115.0</version>
     </dependency>
     <dependency>
+      <groupId>cljsjs</groupId>
+      <artifactId>react-dom</artifactId>
+      <version>16.13.0-0</version>
+    </dependency>
+    <dependency>
       <groupId>com.cognitect</groupId>
       <artifactId>transit-cljs</artifactId>
       <version>0.8.256</version>
@@ -90,6 +95,11 @@
       <groupId>org.clojure</groupId>
       <artifactId>clojurescript</artifactId>
       <version>1.10.597</version>
+    </dependency>
+    <dependency>
+      <groupId>cljsjs</groupId>
+      <artifactId>react</artifactId>
+      <version>16.13.0-0</version>
     </dependency>
     <dependency>
       <groupId>com.taoensso</groupId>
@@ -105,6 +115,11 @@
       <groupId>com.cognitect</groupId>
       <artifactId>transit-clj</artifactId>
       <version>0.8.319</version>
+    </dependency>
+    <dependency>
+      <groupId>cljsjs</groupId>
+      <artifactId>react-dom-server</artifactId>
+      <version>16.13.0-0</version>
     </dependency>
     <dependency>
       <groupId>org.clojure</groupId>
