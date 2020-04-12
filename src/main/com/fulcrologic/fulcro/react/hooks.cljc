@@ -1,5 +1,5 @@
 (ns com.fulcrologic.fulcro.react.hooks
-  "Simple wrappers for React hooks support, along with additional predefinined functions that do useful things
+  "Simple wrappers for React hooks support, along with additional predefined functions that do useful things
    with hooks in the context of Fulcro."
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; WARNING TO MAINTAINERS: DO NOT REFERENCE DOM IN HERE. This has to work with native.
