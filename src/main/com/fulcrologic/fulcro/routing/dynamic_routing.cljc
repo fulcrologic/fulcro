@@ -105,9 +105,13 @@
     (constantly true)))
 
 (defn allow-route-change? [c]
-  (when-let [f (get-allow-route-change? c)]
-    (binding [*target-class* (comp/isoget c :type)]
-      (f c))))
+  (try
+    (when-let [f (get-allow-route-change? c)]
+      (binding [*target-class* (comp/isoget c :type)]
+        (f c)))
+    (catch #?(:clj Exception :cljs :default) e
+      (log/error "Cannot evalutate route change. Assuming ok. Exception message: " (ex-message e))
+      true)))
 
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
 
