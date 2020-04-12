@@ -6,16 +6,13 @@
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
-    [react]
-    [react-dom]
+    [cljsjs.react]
+    [cljsjs.react-dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
     [com.fulcrologic.fulcro.dom.inputs :as inputs]
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [taoensso.timbre :as log]))
-
-(set! js/React react)
-(set! js/ReactDOM react-dom)
 
 (declare a abbr address altGlyph altGlyphDef altGlyphItem animate animateColor animateMotion animateTransform area
   article aside audio b base bdi bdo big blockquote body br button canvas caption circle cite clipPath code
