@@ -602,7 +602,8 @@
            (route-denied target relative-class-or-instance new-route)))
 
        :otherwise
-       (if (signal-router-leaving app-or-comp relative-class-or-instance new-route)
+       (do
+         (signal-router-leaving app-or-comp relative-class-or-instance new-route)
          (let [app        (comp/any->app app-or-comp)
                state-map  (app/current-state app)
                router     relative-class-or-instance
@@ -645,8 +646,7 @@
                  (binding [comp/*after-render* true]
                    (completing-action))
                  (when (seq remaining-path)
-                   (recur (ast-node-for-route target-ast remaining-path) remaining-path))))))
-         (log/debug "Route request cancelled by on-screen target."))))))
+                   (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))))))))
 
 (def change-route-relative "DEPRECATED NAME: Use change-route-relative!" change-route-relative!)
 
