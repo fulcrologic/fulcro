@@ -1,20 +1,31 @@
 (ns com.fulcrologic.fulcro.react.hooks
   "Simple wrappers for React hooks support, along with additional predefined functions that do useful things
    with hooks in the context of Fulcro."
+  #?(:cljs
+     (:require-macros [com.fulcrologic.fulcro.react.hooks :refer [use-effect use-lifecycle]]))
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; WARNING TO MAINTAINERS: DO NOT REFERENCE DOM IN HERE. This has to work with native.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (:require
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    #?(:cljs
-       [goog.object :as gobj]
-       cljsjs.react)
+    #?@(:cljs
+        [[goog.object :as gobj]
+         cljsjs.react])
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.application :as app]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
+    [taoensso.encore :as enc])
+  #?(:clj (:import (cljs.tagged_literals JSValue))))
+
+(defn useState
+  "A simple CLJC wrapper around React/useState. Returns a JS vector for speed. You probably want use-state, which is more
+  convenient.
+
+  React docs: https://reactjs.org/docs/hooks-reference.html#usestate"
+  [initial-value]
+  #?(:cljs (js/React.useState initial-value)))
 
 (defn use-state
   "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring.
@@ -23,14 +34,32 @@
   [initial-value]
   #?(:cljs (into-array (js/React.useState initial-value))))
 
-(defn use-effect
-  "A simple wrapper around React/useEffect.
+(defn useEffect
+  "A CLJC wrapper around js/React.useEffect that does NO conversion of
+  dependencies. You probably want the macro use-effect instead.
 
   React docs: https://reactjs.org/docs/hooks-reference.html#useeffect"
   ([f]
    #?(:cljs (js/React.useEffect f)))
-  ([f args]
-   #?(:cljs (js/React.useEffect f (to-array args)))))
+  ([f js-deps]
+   #?(:cljs (js/React.useEffect f js-deps))))
+
+#?(:clj
+   (defmacro use-effect
+     "A simple macro wrapper around React/useEffect that does compile-time conversion of `dependencies` to a js-array
+     for convenience without affecting performance.
+
+      React docs: https://reactjs.org/docs/hooks-reference.html#useeffect"
+     ([f]
+      (when (enc/compiling-cljs?)
+        `(useEffect ~f)))
+     ([f dependencies]
+      (when (enc/compiling-cljs?)
+        (let [deps (cond
+                     (nil? dependencies) nil
+                     (instance? JSValue dependencies) dependencies
+                     :else (JSValue. dependencies))]
+          `(useEffect ~f ~deps))))))
 
 (defn use-context
   "A simple wrapper around React/useContext."
@@ -96,12 +125,20 @@
   ([value formatter]
    #?(:cljs (js/React.useDebugValue value formatter))))
 
+#?(:clj
+   (defmacro use-lifecycle
+     "A macro shorthand that evaulates to low-level js at compile time for
+     `(use-effect (fn [] (when setup (setup)) (when teardown teardown)) [])`"
+     [setup teardown]
+     (if setup
+       `(use-effect (fn [] (~setup) ~teardown) [])
+       `(use-effect (fn [] ~teardown) []))))
+
 (let [id (fn [] (tempid/uuid))]
   (defn use-generated-id
     "Returns a constant ident with a generated ID component."
     []
-    (let [[id _] (use-state id)]
-      id)))
+    (aget (useState id) 0)))
 
 (defn use-gc
   "Effect handler. Creates an effect that will garbage-collect the given ident from fulcro app state on cleanup, and
@@ -120,13 +157,11 @@
   ```
   "
   [this-or-app ident edges]
-  (use-effect
+  (use-lifecycle
+    nil
     (fn []
-      ;; nothing to do on start
-      (fn []
-        (let [state (-> this-or-app comp/any->app ::app/state-atom)]
-          (swap! state fns/remove-entity ident edges))))
-    #?(:cljs #js [])))
+      (let [state (-> this-or-app comp/any->app ::app/state-atom)]
+        (swap! state fns/remove-entity ident edges)))))
 
 (let [initial-mount-state (fn []
                             (let [componentName (keyword "com.fulcrologic.fulcro.floating-root" (gensym "generated-root"))]
@@ -148,34 +183,27 @@
     [parent-this {:keys [child-class
                          initial-state-params]}]
     ;; factories are functions, and if you pass a function to setState it will run it, which is NOT what we want...
-    (let [[key-and-root setRoot!] (use-state initial-mount-state)
-          _ (use-effect
-              (fn []
-                (let [join-key      (aget key-and-root 0)
-                      child-factory (comp/computed-factory child-class)
-                      cls           (comp/configure-hooks-component!
-                                      (fn [this fulcro-props]
-                                        (log/spy :info "RENDER")
-                                        (use-effect
-                                          (fn []
-                                            (log/info "REGISTER")
-                                            (mrr/register-root! this)
-                                            (fn []
-                                              (log/info "DEREGISTER")
-                                              (mrr/deregister-root! this)))
-                                          #?(:cljs #js []))
-                                        (comp/with-parent-context parent-this
-                                          (child-factory (get fulcro-props join-key) (comp/props parent-this))))
-                                      {:query         (fn [_] [{join-key (comp/get-query child-class)}])
-                                       :initial-state (fn [_] {join-key (comp/get-initial-state child-class (or initial-state-params {}))})
-                                       :componentName join-key})
-                      factory       (comp/computed-factory cls {:keyfn (fn [_] join-key)})]
-                  (log/debug "Creating floating root class" join-key)
-                  (setRoot! #?(:clj [join-key factory] :cljs #js [join-key factory])))
-                (fn []
-                  (let [join-key (aget key-and-root 0)
-                        state    (-> parent-this comp/any->app ::app/state-atom)]
-                    (log/debug "Cleaning up floating root class" join-key)
-                    (swap! state dissoc join-key))))
-              #?(:cljs #js []))]
+    (let [st           (useState initial-mount-state)
+          key-and-root (aget st 0)
+          setRoot!     (aget st 1)
+          _            (use-lifecycle
+                         (fn []
+                           (let [join-key      (aget key-and-root 0)
+                                 child-factory (comp/computed-factory child-class)
+                                 cls           (comp/configure-hooks-component!
+                                                 (fn [this fulcro-props]
+                                                   (use-lifecycle
+                                                     (fn [] (mrr/register-root! this))
+                                                     (fn [] (mrr/deregister-root! this)))
+                                                   (comp/with-parent-context parent-this
+                                                     (child-factory (get fulcro-props join-key) (comp/props parent-this))))
+                                                 {:query         (fn [_] [{join-key (comp/get-query child-class)}])
+                                                  :initial-state (fn [_] {join-key (comp/get-initial-state child-class (or initial-state-params {}))})
+                                                  :componentName join-key})
+                                 factory       (comp/computed-factory cls {:keyfn (fn [_] join-key)})]
+                             (setRoot! #?(:clj [join-key factory] :cljs #js [join-key factory]))))
+                         (fn []
+                           (let [join-key (aget key-and-root 0)
+                                 state    (-> parent-this comp/any->app ::app/state-atom)]
+                             (swap! state dissoc join-key))))]
       (aget key-and-root 1))))

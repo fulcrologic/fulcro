@@ -86,7 +86,7 @@
                      :hook/id    id
                      :hook/child (comp/get-initial-state SomeHookChild {:id child-id})})
    :use-hooks?    true}
-  (let [[v set-v!] (hooks/use-state 0)]
+  (let [[v set-v!] (hooks/use-state 140)]
     (dom/div "This is a hooks-based component: "
       (ui-some-hook-child child)
       (dom/button {:onClick #(set-v! (inc v))} (str v))
