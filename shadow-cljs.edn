@@ -1,4 +1,4 @@
-{:deps     {:aliases [:dev :test]}
+{:deps     {:aliases [:dev :test :workspaces]}
  :nrepl    {:port 9000}
  :dev-http {9001 "resources/public"}
  :jvm-opts ["-Xmx2G"]

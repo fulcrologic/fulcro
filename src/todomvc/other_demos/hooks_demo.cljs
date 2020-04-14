@@ -5,7 +5,8 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as m]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]))
 
 (declare AltRootPlainClass app)
 
@@ -85,7 +86,7 @@
                      :hook/id    id
                      :hook/child (comp/get-initial-state SomeHookChild {:id child-id})})
    :use-hooks?    true}
-  (let [[v set-v!] (comp/use-state 0)]
+  (let [[v set-v!] (hooks/use-state 0)]
     (dom/div "This is a hooks-based component: "
       (ui-some-hook-child child)
       (dom/button {:onClick #(set-v! (inc v))} (str v))
@@ -107,7 +108,7 @@
     (dom/h2 "B")
     (ui-hook hook)
     (dom/h2 "Children")
-    (clj->js (mapv ui-hook hooks))))
+    (mapv ui-hook hooks)))
 
 (comment
   (comp/get-query Hook))

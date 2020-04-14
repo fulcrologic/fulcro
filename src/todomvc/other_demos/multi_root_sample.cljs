@@ -6,7 +6,8 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as m]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]))
 
 (declare AltRootPlainClass app)
 
@@ -21,17 +22,18 @@
 
 (def ui-other-child (comp/factory OtherChild {:keyfn :other/id}))
 
-(defsc AltRoot [this {:keys [alt-child] :as props}]
-  {:query                 [{:alt-child (comp/get-query OtherChild)}]
-   :componentDidMount     (fn [this] (mroot/register-root! this))
-   :componentWillUnmount  (fn [this] (mroot/deregister-root! this))
-   :shouldComponentUpdate (fn [] true)
-   :initial-state         {:alt-child [{:id 1 :n 22}
-                                       {:id 2 :n 44}]}}
-  (log/spy :info props)
-  (dom/div
-    (dom/h4 "ALTERNATE ROOT")
-    (mapv ui-other-child alt-child)))
+(defsc AltRoot [this props]
+  {:use-hooks? true}
+  (let [id      (hooks/use-generated-id) ; Generate an ID to use with floating root
+        ;; mount a floating root that renders OtherChild
+        factory (hooks/use-fulcro-mount this {:initial-state-params {:id id :n 1}
+                                              :child-class          OtherChild})]
+    ;; Install a GC handler that will clean up the generated data of OtherChild when this component unmounts
+    (hooks/use-gc this [:other/id id] #{})
+    (dom/div
+      (dom/h4 "ALTERNATE ROOT")
+      (when factory
+        (factory props)))))
 
 (def ui-alt-root (mroot/floating-root-factory AltRoot))
 
@@ -50,6 +52,7 @@
                                 {:only-refresh [(comp/get-ident this)]})))})
     (dom/div
       (if (= 1 id)
+        ;; EACH child renders a floating root component
         (ui-alt-root)
         (dom/create-element AltRootPlainClass)))))
 
@@ -59,10 +62,17 @@
   {:query         [{:children (comp/get-query Child)}]
    :initial-state {:children [{:id 1 :name "Joe"}
                               {:id 2 :name "Sally"}]}}
-  (dom/div
-    (mapv ui-child children)))
+  (let [show? (comp/get-state this :show?)]
+    (dom/div
+      (dom/button {:onClick (fn [] (comp/set-state! this {:show? (not show?)}))} "Toggle")
+      (when show?
+        ;; Two children
+        (mapv ui-child children)))))
 
 (defonce app (app/fulcro-app {:optimized-render! mroot/render!}))
+(comment
+  (-> app ::app/runtime-atom deref ::app/indexes)
+  )
 (def AltRootPlainClass (mroot/floating-root-react-class AltRoot app))
 
 (defn start []
