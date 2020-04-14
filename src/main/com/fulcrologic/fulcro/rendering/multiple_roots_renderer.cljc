@@ -59,13 +59,12 @@
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     #?@(:cljs
         [cljsjs.react
-         [goog.object :as gobj]])
-    [com.fulcrologic.fulcro.application :as app]))
+         [goog.object :as gobj]])))
 
 (defn register-root!
   "Register a mounted react component as a new root that should be managed. The
@@ -78,16 +77,18 @@
   ([react-instance {:keys [app initialize?]}]
    (let [app (or app (comp/any->app react-instance) comp/*app*)]
      (if (map? app)
-       (let [class        (comp/react-type react-instance)
-             k            (comp/class->registry-key class)
-             known-roots  (some-> app ::app/runtime-atom deref ::known-roots)
-             initialized? (contains? known-roots k)]
+       (let [class             (comp/react-type react-instance)
+             k                 (comp/class->registry-key class)
+             initialize-state! (ah/app-algorithm app :initialize-state!)
+             schedule-render!  (ah/app-algorithm app :schedule-render!)
+             known-roots       (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref ::known-roots)
+             initialized?      (contains? known-roots k)]
          (when (and initialize? (not initialized?))
-           (app/initialize-state! app class)
+           (initialize-state! app class)
            ;; We've already rendered this frame, so if we need initialized, we need a refresh
-           (app/schedule-render! app {:force-root? true}))
+           (schedule-render! app {:force-root? true}))
          (log/debug "Adding root of type " k)
-         (swap! (::app/runtime-atom app) update-in [::known-roots k] (fnil conj #{}) react-instance))
+         (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update-in [::known-roots k] (fnil conj #{}) react-instance))
        (log/error "Register-root cannot find app. Pass your Fulcro app via options.")))))
 
 (defn deregister-root!
@@ -100,12 +101,12 @@
        (let [class (comp/react-type react-instance)
              k     (comp/class->registry-key class)]
          (log/debug "Adding root of type " k)
-         (swap! (::app/runtime-atom app) update-in [::known-roots k] disj react-instance))
+         (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update-in [::known-roots k] disj react-instance))
        (log/error "Deregister-root cannot find app. Pass your Fulcro app via options.")))))
 
 (defn render-roots! [app options]
-  (let [state-map   (app/current-state app)
-        known-roots (some-> app ::app/runtime-atom deref ::known-roots)]
+  (let [state-map   (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
+        known-roots (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref ::known-roots)]
     (kr/render! app options)
     (doseq [k (keys known-roots)
             :let [cls        (comp/registry-key->class k)
@@ -143,14 +144,13 @@
   ([app]
    (render! app {}))
   ([app {:keys [force-root? root-props-changed?] :as options}]
-   (let [state-map (app/current-state app)]
-     (if (or force-root? root-props-changed?)
-       (render-roots! app options)
-       (try
-         (render-stale-components! app options)
-         (catch #?(:clj Exception :cljs :default) e
-           (log/info "Optimized render failed. Falling back to root render.")
-           (render-roots! app options)))))))
+   (if (or force-root? root-props-changed?)
+     (render-roots! app options)
+     (try
+       (render-stale-components! app options)
+       (catch #?(:clj Exception :cljs :default) e
+         (log/info "Optimized render failed. Falling back to root render.")
+         (render-roots! app options))))))
 
 #?(:clj
    (defmacro with-app-context
@@ -197,9 +197,9 @@
                                      (this-as this
                                        (let [js-props (.-props this)]
                                          (with-app-context fulcro-app
-                                           (binding [fdn/*denormalize-time* (app/basis-t fulcro-app)]
+                                           (binding [fdn/*denormalize-time* (-> fulcro-app :com.fulcrologic.fulcro.application/runtime-atom deref ::basis-t)]
                                              (let [query     (comp/get-query UIRoot)
-                                                   state-map (app/current-state fulcro-app)
+                                                   state-map (some-> fulcro-app :com.fulcrologic.fulcro.application/state-atom deref)
                                                    props     (fdn/db->tree query state-map state-map)]
                                                (ui-root props {:js-props js-props})))))))})))
     cls))
@@ -224,8 +224,8 @@
    (let [constructor     (fn [])
          ui-factory      (comp/computed-factory UIClass)
          render          (fn [this]
-                           (binding [fdn/*denormalize-time* (app/basis-t comp/*app*)]
-                             (let [state-map (app/current-state comp/*app*)
+                           (binding [fdn/*denormalize-time* (-> comp/*app* :com.fulcrologic.fulcro.application/runtime-atom deref ::basis-t)]
+                             (let [state-map (some-> comp/*app* :com.fulcrologic.fulcro.application/state-atom deref)
                                    query     (comp/get-query UIClass state-map)
                                    props     (fdn/db->tree query state-map state-map)]
                                (ui-factory (or props {}) (comp/props this)))))

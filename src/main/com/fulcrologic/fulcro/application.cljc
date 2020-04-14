@@ -232,6 +232,21 @@
                                       (= "ui" ident-ns)
                                       (str/starts-with? ident-ns "com.fulcrologic.fulcro")))))))))
 
+(defn initialize-state!
+  "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
+  in the state atom of the app. Can be called before `mount!`, in which case you should tell mount not to (re) initialize
+  state."
+  [app root]
+  (let [initial-db   (-> app ::state-atom deref)
+        root-query   (comp/get-query root initial-db)
+        initial-tree (comp/get-initial-state root)
+        db-from-ui   (if root-query
+                       (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
+                         (merge/merge-alternate-union-elements root))
+                       initial-tree)
+        db           (util/deep-merge initial-db db-from-ui)]
+    (reset! (::state-atom app) db)))
+
 (defn fulcro-app
   "Create a new Fulcro application.
 
@@ -316,6 +331,7 @@
                       :load-mutation           load-mutation}
       ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
                       :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! mrr/render!)
+                      :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
                       :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
                       :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
                       :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
@@ -370,21 +386,6 @@
   [{:keys [::runtime-atom]}]
   [::app => boolean?]
   (-> runtime-atom deref ::app-root boolean))
-
-(defn initialize-state!
-  "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
-  in the state atom of the app. Can be called before `mount!`, in which case you should tell mount not to (re) initialize
-  state."
-  [app root]
-  (let [initial-db   (-> app ::state-atom deref)
-        root-query   (comp/get-query root initial-db)
-        initial-tree (comp/get-initial-state root)
-        db-from-ui   (if root-query
-                       (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
-                         (merge/merge-alternate-union-elements root))
-                       initial-tree)
-        db           (util/deep-merge initial-db db-from-ui)]
-    (reset! (::state-atom app) db)))
 
 (defn mount!
   "Mount the app.  If called on an already-mounted app this will have the effect of re-installing the root node so that
