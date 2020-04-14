@@ -13,7 +13,7 @@
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as mut]
-    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ident-optimized]
+    [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
     [clojure.string :as str]
@@ -240,11 +240,10 @@
    * `:initial-db` a *map* containing a *normalized* Fulcro app db.  Normally Fulcro will populate app state with
      your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
    * `:optimized-render!` - A function that can analyze the state of the application and optimally refresh the screen.
-     Defaults to `ident-optimized-render/render!`, but can also be set to `keyframe-render/render!`.  Further customizations are
-     also possible.  Most applications will likely be best with the default (which analyzes changes by ident and targets
-     refreshes), but applications with a lot of on-screen components may find the keyframe renderer to be faster. Both
-     get added benefits from Fulcro's default `shouldComponentUpdate`, which will prevent rendering when there are no real
-     changes.
+     Defaults to `multiple-roots-renderer` (highly recommended), but other options are available in the rendering package.
+     Further customizations are
+     also possible.  Most applications will likely be best with the default. Standard Fulcro components are also pure
+     (unless you supply `shouldComponentUpdate` to change that) to prevent rendering when props have not changed.
    * `default-result-action!` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
      default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
      and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
@@ -316,7 +315,7 @@
                       :query-transform-default query-transform-default
                       :load-mutation           load-mutation}
       ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
-                      :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! ident-optimized/render!)
+                      :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! mrr/render!)
                       :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
                       :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
                       :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
