@@ -19,7 +19,8 @@
     [com.fulcrologic.guardrails.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [clojure.pprint :as pp]))
 
 (declare schedule-activation! process-queue! remove-send!)
 
@@ -733,7 +734,7 @@
       (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
         (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
               ident     (comp/get-ident component)
-              query     (comp/get-query component)
+              query     (comp/get-query component state-map)
               ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
           (comp/tunnel-props! component ui-props))))
     @resulting-node-id))
