@@ -120,12 +120,13 @@
   ```
   "
   [this-or-app ident edges]
-  (use-effect (fn []
-                ;; nothing to do on start
-                (fn []
-                  (let [state (comp/any->app this-or-app)]
-                    (fns/remove-ident)))
-                #?(:cljs #js []))))
+  (use-effect
+    (fn []
+      ;; nothing to do on start
+      (fn []
+        (let [state (-> this-or-app comp/any->app ::app/state-atom)]
+          (swap! state fns/remove-entity ident edges))))
+    #?(:cljs #js [])))
 
 (let [initial-mount-state (fn []
                             (let [componentName (keyword "com.fulcrologic.fulcro.floating-root" (gensym "generated-root"))]
