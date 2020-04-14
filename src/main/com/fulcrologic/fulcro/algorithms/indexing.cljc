@@ -96,13 +96,16 @@
     (let [ident (when get-ident (get-ident this (comp/props this)))
           cls   (comp/react-type this)]
       (when #?(:cljs goog.DEBUG :clj true)
+        (when ident
+          (log/debug "Indexing component " ident))
         (when (and ident (not (eql/ident? ident)))
           (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident))
         (when (and ident (nil? (second ident)))
           (log/info
             (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
               " This warning can be safely ignored if that is intended."))))
-      (swap! runtime-atom index-component* this ident cls))))
+      (when ident
+        (swap! runtime-atom index-component* this ident cls)))))
 
 (defn- drop-component*
   [runtime-state instance ident cls]
@@ -120,7 +123,10 @@
   ([this ident]
    (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
          cls (comp/react-type this)]
-     (swap! runtime-atom drop-component* this ident cls)))
+     (when (and #?(:cljs goog.DEBUG :clj true) ident)
+       (log/debug "Dropping component from index" ident))
+     (when ident
+       (swap! runtime-atom drop-component* this ident cls))))
   ([this]
    (let [old-ident (comp/get-ident this)]
      (drop-component! this old-ident))))

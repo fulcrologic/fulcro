@@ -15,7 +15,6 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.guardrails.core :refer [>def]]
     [clojure.set :as set])
   #?(:clj
@@ -516,15 +515,15 @@
                                                                  :fulcro$shared shared-props
                                                                  :fulcro$value  current-props
                                                                  :children      children}}]
-       (hooks/use-effect
+       (js/React.useEffect
          (fn []
            (let [original-ident   current-ident
                  index-component! (ah/app-algorithm app :index-component!)
                  drop-component!  (ah/app-algorithm app :drop-component!)]
              (index-component! faux-component)
-             (fn [] (drop-component! faux-component original-ident)))))
+             (fn [] (drop-component! faux-component original-ident))))
+         #?(:cljs #js [(second current-ident)]))
        [faux-component current-props])))
-
 
 (defn mounted?
   "Returns true if the given component instance is mounted on the DOM."
