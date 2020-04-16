@@ -485,43 +485,53 @@
   * `js-props` - The React js props from the parent.
   * `faux-class` - A Fulcro faux class, which is a fn that has had `add-options!` called on it.
 
-  Returns a cljs vector containing `this` and fulcro `props`.
+  Returns a cljs vector containing `this` and fulcro `props`. You should *not* use the returned `this` directly,
+  as it is a placeholder.
 
-  You should *not* use this directly. Prefer `defsc` or `configure-hooks-component!`
+  Prefer `defsc` or `configure-hooks-component! over using this directly.`
   "
   [js-props faux-class]
   #?(:cljs
-     (let [tunnelled-props-state   (js/React.useState #js {})
-           current-state           (aget tunnelled-props-state 0 "fulcro$value")
+     (let [app                     (isoget js-props :fulcro$app)
+           tunnelled-props-state   (js/React.useState #js {})
+           js-set-tunnelled-props! (aget tunnelled-props-state 1)
            {:keys [ident] :as options} (isoget faux-class :fulcro$options)
+           faux-component-state    (js/React.useState (fn []
+                                                        (when-not app
+                                                          (log/error "Cannot create proper fulcro component, as *app* isn't bound."
+                                                            "This happens when something renders a Fulcro component outside of Fulcro's render context."
+                                                            "See `with-parent-context`."))
+                                                        (let [depth                (or *depth* (isoget js-props :fulcro$depth))
+                                                              set-tunnelled-props! (fn [updater] (let [new-props (updater nil)] (js-set-tunnelled-props! new-props)))]
+                                                          #js {:setState           set-tunnelled-props!
+                                                               :fulcro$isComponent true
+                                                               :fulcro$class       faux-class
+                                                               :type               faux-class
+                                                               :fulcro$options     options
+                                                               :fulcro$mounted     false
+                                                               :props              #js {:fulcro$app   app
+                                                                                        :fulcro$depth (inc depth)}})))
+           faux-component          (aget faux-component-state 0)
+           current-state           (aget tunnelled-props-state 0 "fulcro$value")
            props                   (isoget js-props :fulcro$value)
            children                (isoget js-props :children)
            current-props           (newer-props props current-state)
            current-ident           (when ident (ident faux-class current-props))
-           app                     (or *app* (isoget js-props :fulcro$app))
-           depth                   (or *depth* (isoget js-props :fulcro$depth))
-           shared-props            (shared app)
-           js-set-tunnelled-props! (aget tunnelled-props-state 1)
-           set-tunnelled-props!    (fn [updater]
-                                     (let [new-props (updater nil)] (js-set-tunnelled-props! new-props)))
-           faux-component          #js {:setState           set-tunnelled-props!
-                                        :fulcro$isComponent true
-                                        :fulcro$class       faux-class
-                                        :type               faux-class
-                                        :fulcro$options     options
-                                        :fulcro$mounted     true
-                                        :props              #js {:fulcro$app    app
-                                                                 :fulcro$depth  (inc depth)
-                                                                 :fulcro$shared shared-props
-                                                                 :fulcro$value  current-props
-                                                                 :children      children}}]
+           shared-props            (when app (shared app))]
+       (doto (gobj/get faux-component "props")
+         (gobj/set "fulcro$shared" shared-props)
+         (gobj/set "fulcro$value" current-props)
+         (gobj/set "children" children))
        (js/React.useEffect
          (fn []
            (let [original-ident   current-ident
                  index-component! (ah/app-algorithm app :index-component!)
                  drop-component!  (ah/app-algorithm app :drop-component!)]
+             (gobj/set faux-component "fulcro$mounted" true)
              (index-component! faux-component)
-             (fn [] (drop-component! faux-component original-ident))))
+             (fn []
+               (gobj/set faux-component "fulcro$mounted" false)
+               (drop-component! faux-component original-ident))))
          #?(:cljs #js [(second current-ident)]))
        [faux-component current-props])))
 
@@ -1573,7 +1583,6 @@
        (defsc* &env args)
        (catch Exception e
          (if (contains? (ex-data e) :tag)
-
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 

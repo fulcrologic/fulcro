@@ -183,27 +183,32 @@
     [parent-this {:keys [child-class
                          initial-state-params]}]
     ;; factories are functions, and if you pass a function to setState it will run it, which is NOT what we want...
-    (let [st           (useState initial-mount-state)
-          key-and-root (aget st 0)
-          setRoot!     (aget st 1)
-          _            (use-lifecycle
-                         (fn []
-                           (let [join-key      (aget key-and-root 0)
-                                 child-factory (comp/computed-factory child-class)
-                                 cls           (comp/configure-hooks-component!
-                                                 (fn [this fulcro-props]
-                                                   (use-lifecycle
-                                                     (fn [] (mrr/register-root! this))
-                                                     (fn [] (mrr/deregister-root! this)))
-                                                   (comp/with-parent-context parent-this
-                                                     (child-factory (get fulcro-props join-key) (comp/props parent-this))))
-                                                 {:query         (fn [_] [{join-key (comp/get-query child-class)}])
-                                                  :initial-state (fn [_] {join-key (comp/get-initial-state child-class (or initial-state-params {}))})
-                                                  :componentName join-key})
-                                 factory       (comp/computed-factory cls {:keyfn (fn [_] join-key)})]
-                             (setRoot! #?(:clj [join-key factory] :cljs #js [join-key factory]))))
-                         (fn []
-                           (let [join-key (aget key-and-root 0)
-                                 state    (-> parent-this comp/any->app ::app/state-atom)]
-                             (swap! state dissoc join-key))))]
+    (let [st                 (useState initial-mount-state)
+          pass-through-props (atom {})
+          key-and-root       (aget st 0)
+          setRoot!           (aget st 1)
+          _                  (use-lifecycle
+                               (fn []
+                                 (let [join-key      (aget key-and-root 0)
+                                       child-factory (comp/computed-factory child-class)
+                                       initial-state (comp/get-initial-state child-class (or initial-state-params {}))
+                                       cls           (comp/configure-hooks-component!
+                                                       (fn [this fulcro-props]
+                                                         (use-lifecycle
+                                                           (fn [] (mrr/register-root! this))
+                                                           (fn [] (mrr/deregister-root! this)))
+                                                         (comp/with-parent-context parent-this
+                                                           (child-factory (get fulcro-props join-key initial-state) @pass-through-props)))
+                                                       {:query         (fn [_] [{join-key (comp/get-query child-class)}])
+                                                        :initial-state (fn [_] {join-key initial-state})
+                                                        :componentName join-key})
+                                       real-factory  (comp/factory cls {:keyfn (fn [_] join-key)})
+                                       factory       (fn [props]
+                                                       (reset! pass-through-props props)
+                                                       (real-factory {}))]
+                                   (setRoot! #?(:clj [join-key factory] :cljs #js [join-key factory]))))
+                               (fn []
+                                 (let [join-key (aget key-and-root 0)
+                                       state    (-> parent-this comp/any->app ::app/state-atom)]
+                                   (swap! state dissoc join-key))))]
       (aget key-and-root 1))))
