@@ -12,8 +12,6 @@
         [[goog.object :as gobj]
          cljsjs.react])
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.application :as app]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [taoensso.encore :as enc])
@@ -51,15 +49,15 @@
 
       React docs: https://reactjs.org/docs/hooks-reference.html#useeffect"
      ([f]
-      (when (enc/compiling-cljs?)
-        `(useEffect ~f)))
+      `(useEffect ~f))
      ([f dependencies]
-      (when (enc/compiling-cljs?)
+      (if (enc/compiling-cljs?)
         (let [deps (cond
                      (nil? dependencies) nil
                      (instance? JSValue dependencies) dependencies
                      :else (JSValue. dependencies))]
-          `(useEffect ~f ~deps))))))
+          `(useEffect ~f ~deps))
+        `(useEffect ~f ~dependencies)))))
 
 (defn use-context
   "A simple wrapper around React/useContext."
@@ -129,10 +127,12 @@
    (defmacro use-lifecycle
      "A macro shorthand that evaulates to low-level js at compile time for
      `(use-effect (fn [] (when setup (setup)) (when teardown teardown)) [])`"
-     [setup teardown]
-     (if setup
-       `(use-effect (fn [] (~setup) ~teardown) [])
-       `(use-effect (fn [] ~teardown) []))))
+     ([setup] `(use-lifecycle ~setup nil))
+     ([setup teardown]
+      (cond
+        (and setup teardown) `(use-effect (fn [] (~setup) ~teardown) [])
+        setup `(use-effect (fn [] (~setup) ~(when (enc/compiling-cljs?) 'js/undefined)) [])
+        teardown `(use-effect (fn [] ~teardown) [])))))
 
 (let [id (fn [] (tempid/uuid))]
   (defn use-generated-id
@@ -160,7 +160,7 @@
   (use-lifecycle
     nil
     (fn []
-      (let [state (-> this-or-app comp/any->app ::app/state-atom)]
+      (let [state (-> this-or-app comp/any->app :com.fulcrologic.fulcro.application/state-atom)]
         (swap! state fns/remove-entity ident edges)))))
 
 (let [initial-mount-state (fn []
@@ -209,6 +209,6 @@
                                    (setRoot! #?(:clj [join-key factory] :cljs #js [join-key factory]))))
                                (fn []
                                  (let [join-key (aget key-and-root 0)
-                                       state    (-> parent-this comp/any->app ::app/state-atom)]
+                                       state    (-> parent-this comp/any->app :com.fulcrologic.fulcro.application/state-atom)]
                                    (swap! state dissoc join-key))))]
       (aget key-and-root 1))))
