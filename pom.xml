@@ -4,7 +4,7 @@
   <groupId>com.fulcrologic</groupId>
   <artifactId>fulcro</artifactId>
   <packaging>jar</packaging>
-  <version>3.2.2-SNAPSHOT</version>
+  <version>3.2.2</version>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
