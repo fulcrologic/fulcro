@@ -731,11 +731,13 @@
       ;; Tick the clock...can't access app/tick! without a circular ns ref...
       (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc)
       (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
-        (let [state-map        (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
-              ident            (comp/get-ident component)
-              query            (comp/get-query component state-map)
-              schedule-render! (ah/app-algorithm app :schedule-render!)
-              ui-props         (fdn/db->tree query (get-in state-map ident) state-map)]
+        (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
+              ident     (comp/get-ident component)
+              query     (comp/get-query component state-map)
+              render!   (ah/app-algorithm app :render!)
+              ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
           (comp/tunnel-props! component ui-props)
-          (schedule-render! app))))
+          ;; We still need the async update so that UI siblings can see the changed data. We choose a
+          ;; relatively large timeout so as not to interfere with quick typing.
+          (sched/schedule! app ::post-sync-render #(render! app) 200))))
     @resulting-node-id))
