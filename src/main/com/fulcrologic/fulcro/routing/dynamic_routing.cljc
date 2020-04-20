@@ -947,9 +947,9 @@
    Returns nil if no path can be found."
   ([resolved-components params]
    (when (seq resolved-components)
-     (let [base-path (log/spy :info (into []
-                                      (mapcat #(comp/component-options % :route-segment))
-                                      resolved-components))]
+     (let [base-path (into []
+                       (mapcat #(comp/component-options % :route-segment))
+                       resolved-components)]
        (mapv (fn [ele]
                (if (contains? params ele)
                  (str (get params ele))
