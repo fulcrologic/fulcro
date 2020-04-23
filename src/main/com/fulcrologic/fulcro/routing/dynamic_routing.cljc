@@ -919,14 +919,9 @@
          []
          (partition-all 2 segments))))))
 
-(defn resolve-path
-  "Attempts to resolve a path from StartingClass to the given RouteTarget.
-
-   Returns a vector of route segments. Any keywords in the result will be replaced by the values from `params`, if present.
-
-   Returns nil if no path can be found."
-  [StartingClass RouteTarget params]
-  (if-let [end (comp/component-options RouteTarget :route-segment)]
+(defn resolve-path-components
+  [StartingClass RouteTarget]
+  (if (comp/component-options RouteTarget :route-segment)
     (let [query     (comp/get-query StartingClass)
           root-node (eql/query->ast query)
           zipper    (zip/zipper #(contains? % :children) :children (fn [n children] (assoc n :children children)) root-node)
@@ -940,9 +935,24 @@
                       first)
           found?    (= RouteTarget (some-> node zip/node :component))]
       (when found?
-        (let [base-path (->> node zip/path (mapcat (fn [{:keys [component]}] (comp/component-options component :route-segment))) vec)]
-          (mapv (fn [ele]
-                  (if (contains? params ele)
-                    (str (get params ele))
-                    ele)) (into base-path end)))))
+        (conj (->> node zip/path (map :component) vec) RouteTarget)))
     nil))
+
+(defn resolve-path
+  "Attempts to resolve a path from StartingClass to the given RouteTarget. Can also be passed `resolved-components`, which
+  is the output of `resolve-path-components`.
+
+   Returns a vector of route segments. Any keywords in the result will be replaced by the values from `params`, if present.
+
+   Returns nil if no path can be found."
+  ([resolved-components params]
+   (when (seq resolved-components)
+     (let [base-path (into []
+                       (mapcat #(comp/component-options % :route-segment))
+                       resolved-components)]
+       (mapv (fn [ele]
+               (if (contains? params ele)
+                 (str (get params ele))
+                 ele)) base-path))))
+  ([StartingClass RouteTarget params]
+   (resolve-path (resolve-path-components StartingClass RouteTarget) params)))
