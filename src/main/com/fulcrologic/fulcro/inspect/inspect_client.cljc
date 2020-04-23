@@ -100,7 +100,7 @@
 (defn listen-local-messages []
   #?(:cljs
      (.addEventListener js/window "message"
-       (fn [event]
+       (fn [^js event]
          (cond
            (and (identical? (.-source event) js/window)
              (gobj/getValueByKeys event "data" "fulcro-inspect-devtool-message"))
