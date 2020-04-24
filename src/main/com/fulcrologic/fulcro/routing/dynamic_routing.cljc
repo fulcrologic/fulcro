@@ -230,7 +230,7 @@
     class))
 
 (defn route-target
-  "Given a router class and a path segment, returns the class of the router-class that is the target of the given URI path,
+  "Given a router class and a path segment, returns the class of *that router's* target that accepts the given URI path,
   which is a vector of (string) URI components.
 
   Returns nil if there is no target that accepts the path, or a map containing:
@@ -956,3 +956,20 @@
                  ele)) base-path))))
   ([StartingClass RouteTarget params]
    (resolve-path (resolve-path-components StartingClass RouteTarget) params)))
+
+(defn resolve-target
+  "Given a new-route path (vector of strings): resolves the target (class) that is the ultimate target of that path."
+  [app new-route]
+  (let [state-map  (app/current-state app)
+        root-query (comp/get-query (app/root-class app) state-map)
+        ast        (eql/query->ast root-query)
+        root       (ast-node-for-route ast new-route)]
+    (loop [{:keys [component]} root path new-route]
+      (when (and component (router? component))
+        (let [{:keys [target matching-prefix]} (route-target component path)
+              target-ast     (some-> target (comp/get-query state-map) eql/query->ast)
+              prefix-length  (count matching-prefix)
+              remaining-path (vec (drop prefix-length path))]
+          (if (seq remaining-path)
+            (recur (ast-node-for-route target-ast remaining-path) remaining-path)
+            target))))))
