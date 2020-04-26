@@ -192,7 +192,7 @@
              refresh         (cond-> (set refresh)
                                (seq follow-on-reads) (into follow-on-reads)
                                ref (conj ref))]
-         (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fnil conj []) node)
+         (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fn [v n] (conj (vec v) n)) node)
                                        ;; refresh sets are cumulative because rendering is debounced
                                        (seq refresh) (update ::to-refresh accumulate refresh)
                                        (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
