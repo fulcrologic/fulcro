@@ -280,8 +280,7 @@
    (schedule! app ::activation-scheduled? activate-submissions! tm))
   ([app]
    [:com.fulcrologic.fulcro.application/app => any?]
-   ;; TASK: Figure out a better way to do this...
-   (schedule-activation! app 16)))
+   (schedule-activation! app 0)))
 
 (>defn schedule-queue-processing!
   "Schedule a processing of the active queue, which will advance the active transactions by a step.
