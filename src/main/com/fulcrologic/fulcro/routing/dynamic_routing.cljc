@@ -386,7 +386,9 @@
 (defn proposed-new-path
   "Internal algorithm: Returns a sequence of idents of the targets that the `new-route` goes through by analyzing the current
   application query and state."
-  [this-or-app relative-class-or-instance new-route]
+  ([this-or-app relative-class-or-instance new-route]
+   (proposed-new-path this-or-app relative-class-or-instance new-route {}))
+  ([this-or-app relative-class-or-instance new-route timeouts-and-params]
   (let [app        (comp/any->app this-or-app)
         state-map  (app/current-state app)
         router     relative-class-or-instance
@@ -403,7 +405,7 @@
               segment        (route-segment target)
               params         (reduce
                                (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
-                               {}
+                                (dissoc timeouts-and-params :error-timeout :deferred-timeout)
                                (map (fn [a b] [a b]) segment matching-prefix))
               target-ident   (will-enter target app params)]
           (when (or (not (eql/ident? target-ident)) (nil? (second target-ident)))
@@ -415,12 +417,14 @@
             (swap! result conj (vary-meta target-ident assoc :component target :params params)))
           (when (seq remaining-path)
             (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))
-    @result))
+     @result)))
 
 (defn signal-router-leaving
   "Tell active routers that they are about to leave the screen. Returns false if any of them deny the route change."
-  [app-or-comp relative-class-or-instance new-route]
-  (let [new-path   (proposed-new-path app-or-comp relative-class-or-instance new-route)
+  ([app-or-comp relative-class-or-instance new-route]
+   (signal-router-leaving app-or-comp relative-class-or-instance new-route {}))
+  ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
+   (let [new-path   (proposed-new-path app-or-comp relative-class-or-instance new-route timeouts-and-params)
         app        (comp/any->app app-or-comp)
         state-map  (app/current-state app)
         router     relative-class-or-instance
@@ -460,7 +464,7 @@
       (doseq [t @to-cancel]
         (let [{:keys [component params]} (some-> t meta)]
           (route-cancelled component params))))
-    @result))
+     @result)))
 
 (defn current-route
   "Returns the current active route, starting from the relative Fulcro class or instance.
@@ -585,7 +589,7 @@
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
    (let [old-route (current-route app-or-comp relative-class-or-instance)
-         new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route)]
+         new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route timeouts-and-params)]
      (cond
        (and (= old-route new-route) (not (::force? timeouts-and-params)))
        (log/debug "Request to change route, but path is the current route. Ignoring change request.")
@@ -603,7 +607,7 @@
 
        :otherwise
        (do
-         (signal-router-leaving app-or-comp relative-class-or-instance new-route)
+         (signal-router-leaving app-or-comp relative-class-or-instance new-route timeouts-and-params)
          (let [app        (comp/any->app app-or-comp)
                state-map  (app/current-state app)
                router     relative-class-or-instance
