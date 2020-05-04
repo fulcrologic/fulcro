@@ -741,3 +741,54 @@
           ;; relatively large timeout so as not to interfere with quick typing.
           (sched/schedule! app ::post-sync-render #(render! app) 200))))
     @resulting-node-id))
+
+(defn default-tx!
+  "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options
+  that might be used by the transaction processing (or UI refresh).
+
+  Some that may be supported (depending on application settings):
+
+  - `:optimistic?` - boolean. Should the transaction be processed optimistically?
+  - `:ref` - ident. The component ident to include in the transaction env.
+  - `:component` - React element. The instance of the component that should appear in the transaction env.
+  - `:refresh` - Vector containing idents (of components) and keywords (of props). Things that have changed and should be re-rendered
+    on screen. Only necessary when the underlying rendering algorithm won't auto-detect, such as when UI is derived from the
+    state of other components or outside of the directly queried props. Interpretation depends on the renderer selected:
+    The ident-optimized render treats these as \"extras\".
+  - `:only-refresh` - Vector of idents/keywords.  If the underlying rendering configured algorithm supports it: The
+    components using these are the *only* things that will be refreshed in the UI.
+    This can be used to avoid the overhead of looking for stale data when you know exactly what
+    you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
+
+  WARNING: `:only-refresh` can cause missed refreshes because rendering is debounced. If you are using this for
+           rapid-fire updates like drag-and-drop it is recommended that on the trailing edge (e.g. drop) of your sequence you
+           force a normal refresh via `app/render!`.
+
+  If the `options` include `:ref` (which comp/transact! sets), then it will be auto-included on the `:refresh` list.
+
+  NOTE: Fulcro 2 'follow-on reads' are supported and are added to the `:refresh` entries. Your choice of rendering
+  algorithm will influence their necessity.
+
+  Returns the transaction ID of the submitted transaction.
+  "
+  ([app tx]
+   [:com.fulcrologic.fulcro.application/app ::tx => ::id]
+   (default-tx! app tx {}))
+  ([{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} tx {:keys [synchronous?] :as options}]
+   [:com.fulcrologic.fulcro.application/app ::tx ::options => ::id]
+   (if synchronous?
+     (transact-sync! app tx options)
+     (do
+       (schedule-activation! app)
+       (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
+             follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
+             node            (tx-node tx options)
+             accumulate      (fn [r items] (into (set r) items))
+             refresh         (cond-> (set refresh)
+                               (seq follow-on-reads) (into follow-on-reads)
+                               ref (conj ref))]
+         (swap! runtime-atom (fn [s] (cond-> (update s ::submission-queue (fn [v n] (conj (vec v) n)) node)
+                                       ;; refresh sets are cumulative because rendering is debounced
+                                       (seq refresh) (update :com.fulcrologic.fulcro.application/to-refresh accumulate refresh)
+                                       (seq only-refresh) (update :com.fulcrologic.fulcro.application/only-refresh accumulate only-refresh))))
+         (::id node))))))
