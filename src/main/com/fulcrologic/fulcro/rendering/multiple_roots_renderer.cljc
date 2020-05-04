@@ -194,7 +194,7 @@
          (clj->js
            {:shouldComponentUpdate (fn [] false)
             :render                (fn []
-                                     (this-as this
+                                     (this-as ^js this
                                        (let [js-props (.-props this)]
                                          (with-app-context fulcro-app
                                            (binding [fdn/*denormalize-time* (-> fulcro-app :com.fulcrologic.fulcro.application/runtime-atom deref ::basis-t)]

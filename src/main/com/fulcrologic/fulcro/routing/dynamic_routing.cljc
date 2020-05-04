@@ -230,7 +230,7 @@
     class))
 
 (defn route-target
-  "Given a router class and a path segment, returns the class of the router-class that is the target of the given URI path,
+  "Given a router class and a path segment, returns the class of *that router's* target that accepts the given URI path,
   which is a vector of (string) URI components.
 
   Returns nil if there is no target that accepts the path, or a map containing:
@@ -386,7 +386,9 @@
 (defn proposed-new-path
   "Internal algorithm: Returns a sequence of idents of the targets that the `new-route` goes through by analyzing the current
   application query and state."
-  [this-or-app relative-class-or-instance new-route]
+  ([this-or-app relative-class-or-instance new-route]
+   (proposed-new-path this-or-app relative-class-or-instance new-route {}))
+  ([this-or-app relative-class-or-instance new-route timeouts-and-params]
   (let [app        (comp/any->app this-or-app)
         state-map  (app/current-state app)
         router     relative-class-or-instance
@@ -403,7 +405,7 @@
               segment        (route-segment target)
               params         (reduce
                                (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
-                               {}
+                                (dissoc timeouts-and-params :error-timeout :deferred-timeout)
                                (map (fn [a b] [a b]) segment matching-prefix))
               target-ident   (will-enter target app params)]
           (when (or (not (eql/ident? target-ident)) (nil? (second target-ident)))
@@ -415,12 +417,14 @@
             (swap! result conj (vary-meta target-ident assoc :component target :params params)))
           (when (seq remaining-path)
             (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))
-    @result))
+     @result)))
 
 (defn signal-router-leaving
   "Tell active routers that they are about to leave the screen. Returns false if any of them deny the route change."
-  [app-or-comp relative-class-or-instance new-route]
-  (let [new-path   (proposed-new-path app-or-comp relative-class-or-instance new-route)
+  ([app-or-comp relative-class-or-instance new-route]
+   (signal-router-leaving app-or-comp relative-class-or-instance new-route {}))
+  ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
+   (let [new-path   (proposed-new-path app-or-comp relative-class-or-instance new-route timeouts-and-params)
         app        (comp/any->app app-or-comp)
         state-map  (app/current-state app)
         router     relative-class-or-instance
@@ -460,7 +464,7 @@
       (doseq [t @to-cancel]
         (let [{:keys [component params]} (some-> t meta)]
           (route-cancelled component params))))
-    @result))
+     @result)))
 
 (defn current-route
   "Returns the current active route, starting from the relative Fulcro class or instance.
@@ -585,7 +589,7 @@
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
    (let [old-route (current-route app-or-comp relative-class-or-instance)
-         new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route)]
+         new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route timeouts-and-params)]
      (cond
        (and (= old-route new-route) (not (::force? timeouts-and-params)))
        (log/debug "Request to change route, but path is the current route. Ignoring change request.")
@@ -603,7 +607,7 @@
 
        :otherwise
        (do
-         (signal-router-leaving app-or-comp relative-class-or-instance new-route)
+         (signal-router-leaving app-or-comp relative-class-or-instance new-route timeouts-and-params)
          (let [app        (comp/any->app app-or-comp)
                state-map  (app/current-state app)
                router     relative-class-or-instance
@@ -956,3 +960,20 @@
                  ele)) base-path))))
   ([StartingClass RouteTarget params]
    (resolve-path (resolve-path-components StartingClass RouteTarget) params)))
+
+(defn resolve-target
+  "Given a new-route path (vector of strings): resolves the target (class) that is the ultimate target of that path."
+  [app new-route]
+  (let [state-map  (app/current-state app)
+        root-query (comp/get-query (app/root-class app) state-map)
+        ast        (eql/query->ast root-query)
+        root       (ast-node-for-route ast new-route)]
+    (loop [{:keys [component]} root path new-route]
+      (when (and component (router? component))
+        (let [{:keys [target matching-prefix]} (route-target component path)
+              target-ast     (some-> target (comp/get-query state-map) eql/query->ast)
+              prefix-length  (count matching-prefix)
+              remaining-path (vec (drop prefix-length path))]
+          (if (seq remaining-path)
+            (recur (ast-node-for-route target-ast remaining-path) remaining-path)
+            target))))))

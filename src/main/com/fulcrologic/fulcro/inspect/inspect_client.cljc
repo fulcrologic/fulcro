@@ -21,7 +21,10 @@
 
 (defonce send-ch #?(:clj nil :cljs (async/chan (async/dropping-buffer 50000))))
 (defn post-message [type data]
-  #?(:cljs (async/put! send-ch [type data])))
+  #?(:cljs (try
+             (async/put! send-ch [type data])
+             (catch :default e
+               (log/error "Cannot send to inspect. Channel closed.")))))
 
 (defn cljs?
   "Returns true when env is a cljs macro &env"
@@ -100,7 +103,7 @@
 (defn listen-local-messages []
   #?(:cljs
      (.addEventListener js/window "message"
-       (fn [event]
+       (fn [^js event]
          (cond
            (and (identical? (.-source event) js/window)
              (gobj/getValueByKeys event "data" "fulcro-inspect-devtool-message"))
