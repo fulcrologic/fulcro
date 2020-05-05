@@ -792,3 +792,49 @@
                                        (seq refresh) (update :com.fulcrologic.fulcro.application/to-refresh accumulate refresh)
                                        (seq only-refresh) (update :com.fulcrologic.fulcro.application/only-refresh accumulate only-refresh))))
          (::id node))))))
+
+(defn- abort-elements!
+  "Abort any elements in the given send-queue that have the given abort id.
+
+  Aborting will cause the network to abort (which will report a result), or if the item is not yet active a
+  virtual result will still be sent for that node.
+
+  Returns a new send-queue that no longer contains the aborted nodes."
+  [{:keys [abort!] :as remote} send-queue abort-id]
+  (if abort!
+    (reduce
+      (fn [result {::keys [active? options result-handler] :as send-node}]
+        (let [aid (or (-> options ::abort-id) (-> options :abort-id))]
+          (cond
+            (not= aid abort-id) (do
+                                  (conj result send-node))
+            active? (do
+                      (log/debug "Aborting an ACTIVE network request." abort-id)
+                      (abort! remote abort-id)
+                      result)
+            :otherwise (do
+                         (log/debug "Aborting a QUEUED network request." abort-id)
+                         (result-handler {:status-text "Cancelled" ::aborted? true})
+                         result))))
+      []
+      send-queue)
+    (do
+      (log/error "Cannot abort network requests. The remote has no abort support!")
+      send-queue)))
+
+(defn abort!
+  "Implementation of abort when using this tx processing"
+  [app abort-id]
+  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (comp/any->app app)
+        runtime-state   @runtime-atom
+        {:com.fulcrologic.fulcro.application/keys [remotes]
+         ::keys                                   [send-queues]} runtime-state
+        remote-names    (keys send-queues)
+        new-send-queues (reduce
+                          (fn [result remote-name]
+                            (assoc result remote-name (abort-elements!
+                                                        (get remotes remote-name)
+                                                        (get send-queues remote-name) abort-id)))
+                          {}
+                          remote-names)]
+    (swap! runtime-atom assoc ::send-queues new-send-queues)))

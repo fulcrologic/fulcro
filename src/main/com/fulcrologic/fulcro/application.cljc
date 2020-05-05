@@ -248,7 +248,11 @@
    * `:unmount-root!` - The function to call in order to unmount the root of your application. Defaults
      to `js/ReactDOM.unmountComponentAtNode`.
    * `:root-class` - The component class that will be the root. This can be specified just with `mount!`, but
-   giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`."
+   giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`.
+   * `:submit-transaction!` - A function to implement how to submit transactions. This allows you to override how transactions
+     are processed in Fulcro.  Calls to `comp/transact!` will come through this algorithm.
+   * `:abort-transaction!` - The function that can abort submitted transactions. Must be provided if you override
+     `:submit-transaction!`, since the two are related."
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             global-eql-transform
@@ -259,6 +263,7 @@
             hydrate-root!
             unmount-root!
             submit-transaction!
+            abort-transaction!
             render-middleware
             initial-db
             client-did-mount
@@ -280,6 +285,7 @@
                       :query-transform-default query-transform-default
                       :load-mutation           load-mutation}
       ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
+                      :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
                       :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! mrr/render!)
                       :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
                       :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
@@ -451,37 +457,15 @@
     (binding [comp/*blindly-render* true]
       (render! app {:force-root? true}))))
 
-(defn- abort-elements!
-  "Abort any elements in the given send-queue that have the given abort id.
 
-  Aborting will cause the network to abort (which will report a result), or if the item is not yet active a
-  virtual result will still be sent for that node.
-
-  Returns a new send-queue that no longer contains the aborted nodes."
-  [{:keys [abort!] :as remote} send-queue abort-id]
-  (if abort!
-    (reduce
-      (fn [result {::txn/keys [active? options result-handler] :as send-node}]
-        (let [aid (or (-> options ::txn/abort-id) (-> options :abort-id))]
-          (cond
-            (not= aid abort-id) (do
-                                  (conj result send-node))
-            active? (do
-                      (log/debug "Aborting an ACTIVE network request." abort-id)
-                      (abort! remote abort-id)
-                      result)
-            :otherwise (do
-                         (log/debug "Aborting a QUEUED network request." abort-id)
-                         (result-handler {:status-text "Cancelled" ::txn/aborted? true})
-                         result))))
-      []
-      send-queue)
-    (do
-      (log/error "Cannot abort network requests. The remote has no abort support!")
-      send-queue)))
 
 (defn abort!
-  "Attempt to abort the send queue entries with the given abort ID.  Will notify any aborted operations (e.g. result-handler
+  "Attempt to abort the send queue entries with the given abort ID.
+
+  NOTE: This can be redefined on an application. If you change your transaction processing routing, then the built-in
+  version will not work, and this docstring does not apply.
+
+  Will notify any aborted operations (e.g. result-handler
   will be invoked, remote-error? will be used to decide if you consider that an error, etc.).
   The result map from an abort will include `{::txn/aborted? true}`, but will not include `:status-code` or `:body`.
 
@@ -502,19 +486,9 @@
   - `abort-id`: The abort ID of the operations to be aborted.
   "
   [app-ish abort-id]
-  (let [{::keys [runtime-atom]} (comp/any->app app-ish)
-        runtime-state   @runtime-atom
-        {::keys     [remotes]
-         ::txn/keys [send-queues]} runtime-state
-        remote-names    (keys send-queues)
-        new-send-queues (reduce
-                          (fn [result remote-name]
-                            (assoc result remote-name (abort-elements!
-                                                        (get remotes remote-name)
-                                                        (get send-queues remote-name) abort-id)))
-                          {}
-                          remote-names)]
-    (swap! runtime-atom assoc ::send-queues new-send-queues)))
+  (let [app (comp/any->app app-ish)]
+    (when-let [abort! (ah/app-algorithm app :abort!)]
+      (abort! app abort-id))))
 
 (defn set-root!
   "Set a root class to use on the app. Doing so allows much of the API to work before mounting the app."
