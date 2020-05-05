@@ -250,15 +250,19 @@
 (defn toggle!
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
   UI-related data (e.g. form checkbox checked status) and write clear top-level transactions for anything more complicated."
-  [comp field]
-  (comp/transact!! comp `[(toggle {:field ~field})] {:compressible? true}))
+  [component field]
+  (comp/transact!! component `[(toggle {:field ~field})]
+    {:compressible? true
+     :only-refresh  [(comp/get-ident component)]}))
 
 (defn set-value!
   "Set a raw value on the given `field` of a `component`. It is recommended you use this function only on
   UI-related data (e.g. form inputs that are used by the UI, and not persisted data). Changes made via these
   helpers are compressed in the history."
   [component field value]
-  (comp/transact!! component `[(set-props ~{field value})] {:compressible? true}))
+  (comp/transact!! component `[(set-props ~{field value})]
+    {:compressible? true
+     :only-refresh  [(comp/get-ident component)]}))
 
 #?(:cljs
    (defn- ensure-integer
