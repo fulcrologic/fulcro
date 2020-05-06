@@ -10,7 +10,6 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
@@ -456,8 +455,6 @@
   (when-let [app (comp/any->app app-ish)]
     (binding [comp/*blindly-render* true]
       (render! app {:force-root? true}))))
-
-
 
 (defn abort!
   "Attempt to abort the send queue entries with the given abort ID.
