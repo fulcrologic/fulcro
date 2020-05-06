@@ -341,7 +341,7 @@
                               error-handler    (fn [error-result]
                                                  (try
                                                    (let [error (merge error-result {:status-code 500})]
-                                                     (log/error error)
+                                                     (log/error (ex-info "Remote Error" error))
                                                      (result-handler error))
                                                    (catch :default e
                                                      (log/error e "Error handler for remote" url "failed with an exception."))))]
