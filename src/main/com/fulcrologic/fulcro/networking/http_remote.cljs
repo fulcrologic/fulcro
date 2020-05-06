@@ -340,7 +340,9 @@
                                                          (log/error e "Update handler for remote" url "failed with an exception."))))))
                               error-handler    (fn [error-result]
                                                  (try
-                                                   (result-handler (merge error-result {:status-code 500}))
+                                                   (let [error (merge error-result {:status-code 500})]
+                                                     (log/error error)
+                                                     (result-handler error))
                                                    (catch :default e
                                                      (log/error e "Error handler for remote" url "failed with an exception."))))]
                           (if-let [real-request (try
