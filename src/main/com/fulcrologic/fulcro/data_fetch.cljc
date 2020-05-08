@@ -274,6 +274,7 @@
   ([app-or-comp server-property-or-ident class-or-factory] (load! app-or-comp server-property-or-ident class-or-factory {}))
   ([app-or-comp server-property-or-ident class-or-factory config]
    (let [app           (comp/any->app app-or-comp)
+         txn-options   (get config ::txn/options {})
          {:keys [load-marker-default query-transform-default load-mutation]} (-> app :com.fulcrologic.fulcro.application/config)
          {:keys [parallel refresh] :as config} (merge
                                                  (cond-> {:marker load-marker-default :parallel false :refresh [] :without #{}}
@@ -283,7 +284,7 @@
          mutation-args (load-params* app server-property-or-ident class-or-factory config)
          abort-id      (:abort-id mutation-args)]
      (comp/transact! app `[(~load-sym ~mutation-args)]
-       (cond-> {}
+       (cond-> txn-options
          (seq refresh) (assoc :refresh refresh)
          (boolean? parallel) (assoc :parallel? parallel)
          abort-id (assoc ::txn/abort-id abort-id))))))
