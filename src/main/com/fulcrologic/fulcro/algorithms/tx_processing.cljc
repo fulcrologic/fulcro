@@ -727,19 +727,18 @@
         (reset! resulting-node-id (::id node))
         (swap! runtime-atom update ::active-queue conj node)
         (schedule-queue-processing! app 20)))
-    (when component
-      ;; Tick the clock...can't access app/tick! without a circular ns ref...
-      (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc)
-      (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
-        (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
-              ident     (comp/get-ident component)
-              query     (comp/get-query component state-map)
-              render!   (ah/app-algorithm app :render!)
-              ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
-          (comp/tunnel-props! component ui-props)
-          ;; We still need the async update so that UI siblings can see the changed data. We choose a
-          ;; relatively large timeout so as not to interfere with quick typing.
-          (sched/schedule! app ::post-sync-render #(render! app) 200))))
+    (if (and component (comp/component? component) (comp/has-ident? component))
+      (do
+        ;; Tick the clock...can't access app/tick! without a circular ns ref...
+        (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc)
+        (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
+          (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
+                ident     (comp/get-ident component)
+                query     (comp/get-query component state-map)
+                ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
+            (comp/tunnel-props! component ui-props))))
+      (when #?(:cljs js/goog.DEBUG :clj true)
+        (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen.")))
     @resulting-node-id))
 
 (defn default-tx!

@@ -901,9 +901,11 @@
     the network portion of the transaction (assuming it has not already completed).
   - `:compressible?` - boolean. Check compressible-transact! docs.
   - `:synchronous?` - boolean. When turned on the transaction will run immediately on the calling thread. If run against
-  a component the props will be immediately tunneled back to the calling component, allowing for React (raw) input
+  a component then the props will be immediately tunneled back to the calling component, allowing for React (raw) input
   event handlers to behave as described in standard React Forms docs (uses setState behind the scenes). Any remote operations
-  will still be queued as normal. Calling `transact!!` is a shorthand for this option.
+  will still be queued as normal. Calling `transact!!` is a shorthand for this option. WARNING: ONLY the given component will
+  be refreshed in the UI. If you have dependent data elsewhere in the UI you must either use `transact!` or schedule
+  your own global render using `app/schedule-render!`.
   ` `:after-render?` - Wait until the next render completes before allowing this transaction to run. This can be used
   when calling `transact!` from *within* another mutation to ensure that the effects of the current mutation finish
   before this transaction takes control of the CPU. This option defaults to `false`, but `defmutation` causes it to
@@ -938,16 +940,23 @@
   raw DOM inputs via component-local state. This prevents things like the cursor jumping to the end of inputs
   unexpectedly.
 
-  If you're using this, you should also set the compiler option:
+  WARNING: Using an `app` instead of a component in synchronous transactions makes no sense. You must pass a component
+  that has an ident.
+
+  If you're using this, you can also set the compiler option:
 
   ```
   :compiler-options {:external-config {:fulcro     {:wrap-inputs? false}}}
   ```
+
   to turn off Fulcro DOM's generation of wrapped inputs (which try to solve this problem in a less-effective way).
+
+  WARNING: Syncrhonous rendering does *not* refresh the full UI, only the component.
   "
-  ([component tx]
-   (transact! component tx {:synchronous? true}))
+  ([component tx] (transact!! component tx {}))
   ([component tx options]
+   (when-not (and (component? component) (has-ident? component))
+     (log/error "Synchronous transactions only work with component instances that have an ident. UI will not refresh."))
    (transact! component tx (merge options {:synchronous? true}))))
 
 (declare normalize-query)
