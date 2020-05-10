@@ -10,7 +10,6 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
@@ -146,58 +145,6 @@
     ([app options]
      (go! app options))))
 
-(defn default-tx!
-  "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options
-  that might be used by the transaction processing (or UI refresh).
-
-  Some that may be supported (depending on application settings):
-
-  - `:optimistic?` - boolean. Should the transaction be processed optimistically?
-  - `:ref` - ident. The component ident to include in the transaction env.
-  - `:component` - React element. The instance of the component that should appear in the transaction env.
-  - `:refresh` - Vector containing idents (of components) and keywords (of props). Things that have changed and should be re-rendered
-    on screen. Only necessary when the underlying rendering algorithm won't auto-detect, such as when UI is derived from the
-    state of other components or outside of the directly queried props. Interpretation depends on the renderer selected:
-    The ident-optimized render treats these as \"extras\".
-  - `:only-refresh` - Vector of idents/keywords.  If the underlying rendering configured algorithm supports it: The
-    components using these are the *only* things that will be refreshed in the UI.
-    This can be used to avoid the overhead of looking for stale data when you know exactly what
-    you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
-
-  WARNING: `:only-refresh` can cause missed refreshes because rendering is debounced. If you are using this for
-           rapid-fire updates like drag-and-drop it is recommended that on the trailing edge (e.g. drop) of your sequence you
-           force a normal refresh via `app/render!`.
-
-  If the `options` include `:ref` (which comp/transact! sets), then it will be auto-included on the `:refresh` list.
-
-  NOTE: Fulcro 2 'follow-on reads' are supported and are added to the `:refresh` entries. Your choice of rendering
-  algorithm will influence their necessity.
-
-  Returns the transaction ID of the submitted transaction.
-  "
-  ([app tx]
-   [::app ::txn/tx => ::txn/id]
-   (default-tx! app tx {:optimistic?  true
-                        :synchronous? false}))
-  ([{:keys [::runtime-atom] :as app} tx {:keys [synchronous?] :as options}]
-   [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
-   (if synchronous?
-     (txn/transact-sync! app tx options)
-     (do
-       (txn/schedule-activation! app)
-       (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
-             follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
-             node            (txn/tx-node tx options)
-             accumulate      (fn [r items] (into (set r) items))
-             refresh         (cond-> (set refresh)
-                               (seq follow-on-reads) (into follow-on-reads)
-                               ref (conj ref))]
-         (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fn [v n] (conj (vec v) n)) node)
-                                       ;; refresh sets are cumulative because rendering is debounced
-                                       (seq refresh) (update ::to-refresh accumulate refresh)
-                                       (seq only-refresh) (update ::only-refresh accumulate only-refresh))))
-         (::txn/id node))))))
-
 (>defn default-remote-error?
   "Default detection of network errors. Returns true if the status-code of the given result
   map is not 200."
@@ -246,6 +193,8 @@
                        initial-tree)
         db           (util/deep-merge initial-db db-from-ui)]
     (reset! (::state-atom app) db)))
+
+(def ^:deprecated default-tx! txn/default-tx!)
 
 (defn fulcro-app
   "Create a new Fulcro application.
@@ -298,7 +247,11 @@
    * `:unmount-root!` - The function to call in order to unmount the root of your application. Defaults
      to `js/ReactDOM.unmountComponentAtNode`.
    * `:root-class` - The component class that will be the root. This can be specified just with `mount!`, but
-   giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`."
+   giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`.
+   * `:submit-transaction!` - A function to implement how to submit transactions. This allows you to override how transactions
+     are processed in Fulcro.  Calls to `comp/transact!` will come through this algorithm.
+   * `:abort-transaction!` - The function that can abort submitted transactions. Must be provided if you override
+     `:submit-transaction!`, since the two are related."
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             global-eql-transform
@@ -309,6 +262,7 @@
             hydrate-root!
             unmount-root!
             submit-transaction!
+            abort-transaction!
             render-middleware
             initial-db
             client-did-mount
@@ -321,7 +275,7 @@
             shared
             external-config
             shared-fn] :as options}]
-   (let [tx! (or submit-transaction! default-tx!)]
+   (let [tx! (or submit-transaction! txn/default-tx!)]
      {::id           (tempid/uuid)
       ::state-atom   (atom (or initial-db {}))
       ::config       {:load-marker-default     load-marker-default
@@ -330,6 +284,7 @@
                       :query-transform-default query-transform-default
                       :load-mutation           load-mutation}
       ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
+                      :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
                       :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! mrr/render!)
                       :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
                       :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
@@ -366,7 +321,7 @@
                         ::indexes                         {:ident->components {}}
                         ::mutate                          mut/mutate
                         ::render-listeners                (cond-> {}
-                                                            (= tx! default-tx!) (assoc ::txn/after-render txn/application-rendered!))
+                                                            (= tx! txn/default-tx!) (assoc ::txn/after-render txn/application-rendered!))
                         ::txn/activation-scheduled?       false
                         ::txn/queue-processing-scheduled? false
                         ::txn/sends-scheduled?            false
@@ -501,37 +456,13 @@
     (binding [comp/*blindly-render* true]
       (render! app {:force-root? true}))))
 
-(defn- abort-elements!
-  "Abort any elements in the given send-queue that have the given abort id.
-
-  Aborting will cause the network to abort (which will report a result), or if the item is not yet active a
-  virtual result will still be sent for that node.
-
-  Returns a new send-queue that no longer contains the aborted nodes."
-  [{:keys [abort!] :as remote} send-queue abort-id]
-  (if abort!
-    (reduce
-      (fn [result {::txn/keys [active? options result-handler] :as send-node}]
-        (let [aid (or (-> options ::txn/abort-id) (-> options :abort-id))]
-          (cond
-            (not= aid abort-id) (do
-                                  (conj result send-node))
-            active? (do
-                      (log/debug "Aborting an ACTIVE network request." abort-id)
-                      (abort! remote abort-id)
-                      result)
-            :otherwise (do
-                         (log/debug "Aborting a QUEUED network request." abort-id)
-                         (result-handler {:status-text "Cancelled" ::txn/aborted? true})
-                         result))))
-      []
-      send-queue)
-    (do
-      (log/error "Cannot abort network requests. The remote has no abort support!")
-      send-queue)))
-
 (defn abort!
-  "Attempt to abort the send queue entries with the given abort ID.  Will notify any aborted operations (e.g. result-handler
+  "Attempt to abort the send queue entries with the given abort ID.
+
+  NOTE: This can be redefined on an application. If you change your transaction processing routing, then the built-in
+  version will not work, and this docstring does not apply.
+
+  Will notify any aborted operations (e.g. result-handler
   will be invoked, remote-error? will be used to decide if you consider that an error, etc.).
   The result map from an abort will include `{::txn/aborted? true}`, but will not include `:status-code` or `:body`.
 
@@ -552,19 +483,9 @@
   - `abort-id`: The abort ID of the operations to be aborted.
   "
   [app-ish abort-id]
-  (let [{::keys [runtime-atom]} (comp/any->app app-ish)
-        runtime-state   @runtime-atom
-        {::keys     [remotes]
-         ::txn/keys [send-queues]} runtime-state
-        remote-names    (keys send-queues)
-        new-send-queues (reduce
-                          (fn [result remote-name]
-                            (assoc result remote-name (abort-elements!
-                                                        (get remotes remote-name)
-                                                        (get send-queues remote-name) abort-id)))
-                          {}
-                          remote-names)]
-    (swap! runtime-atom assoc ::send-queues new-send-queues)))
+  (let [app (comp/any->app app-ish)]
+    (when-let [abort! (ah/app-algorithm app :abort!)]
+      (abort! app abort-id))))
 
 (defn set-root!
   "Set a root class to use on the app. Doing so allows much of the API to work before mounting the app."

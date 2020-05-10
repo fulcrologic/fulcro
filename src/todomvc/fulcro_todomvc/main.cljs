@@ -20,8 +20,8 @@
 
 (defn start []
   (app/mount! app ui/Root "app")
-  (df/load! app :com.wsscode.pathom/trace nil)
-  #_(df/load! app [:list/id 1] ui/TodoList))
+  ;(df/load! app :com.wsscode.pathom/trace nil)
+  (df/load! app [:list/id 1] ui/TodoList))
 
 (comment
   (app/set-root! app ui/Root {:initialize-state? true})

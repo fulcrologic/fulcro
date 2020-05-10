@@ -727,17 +727,113 @@
         (reset! resulting-node-id (::id node))
         (swap! runtime-atom update ::active-queue conj node)
         (schedule-queue-processing! app 20)))
-    (when component
-      ;; Tick the clock...can't access app/tick! without a circular ns ref...
-      (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc)
-      (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
-        (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
-              ident     (comp/get-ident component)
-              query     (comp/get-query component state-map)
-              render!   (ah/app-algorithm app :render!)
-              ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
-          (comp/tunnel-props! component ui-props)
-          ;; We still need the async update so that UI siblings can see the changed data. We choose a
-          ;; relatively large timeout so as not to interfere with quick typing.
-          (sched/schedule! app ::post-sync-render #(render! app) 200))))
+    (if (and component (comp/component? component) (comp/has-ident? component))
+      (do
+        ;; Tick the clock...can't access app/tick! without a circular ns ref...
+        (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc)
+        (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
+          (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
+                ident     (comp/get-ident component)
+                query     (comp/get-query component state-map)
+                ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
+            (comp/tunnel-props! component ui-props))))
+      (when #?(:cljs js/goog.DEBUG :clj true)
+        (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen.")))
     @resulting-node-id))
+
+(defn default-tx!
+  "Default (Fulcro-2 compatible) transaction submission. The options map can contain any additional options
+  that might be used by the transaction processing (or UI refresh).
+
+  Some that may be supported (depending on application settings):
+
+  - `:optimistic?` - boolean. Should the transaction be processed optimistically?
+  - `:ref` - ident. The component ident to include in the transaction env.
+  - `:component` - React element. The instance of the component that should appear in the transaction env.
+  - `:refresh` - Vector containing idents (of components) and keywords (of props). Things that have changed and should be re-rendered
+    on screen. Only necessary when the underlying rendering algorithm won't auto-detect, such as when UI is derived from the
+    state of other components or outside of the directly queried props. Interpretation depends on the renderer selected:
+    The ident-optimized render treats these as \"extras\".
+  - `:only-refresh` - Vector of idents/keywords.  If the underlying rendering configured algorithm supports it: The
+    components using these are the *only* things that will be refreshed in the UI.
+    This can be used to avoid the overhead of looking for stale data when you know exactly what
+    you want to refresh on screen as an extra optimization. Idents are *not* checked against queries.
+
+  WARNING: `:only-refresh` can cause missed refreshes because rendering is debounced. If you are using this for
+           rapid-fire updates like drag-and-drop it is recommended that on the trailing edge (e.g. drop) of your sequence you
+           force a normal refresh via `app/render!`.
+
+  If the `options` include `:ref` (which comp/transact! sets), then it will be auto-included on the `:refresh` list.
+
+  NOTE: Fulcro 2 'follow-on reads' are supported and are added to the `:refresh` entries. Your choice of rendering
+  algorithm will influence their necessity.
+
+  Returns the transaction ID of the submitted transaction.
+  "
+  ([app tx]
+   [:com.fulcrologic.fulcro.application/app ::tx => ::id]
+   (default-tx! app tx {}))
+  ([{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} tx {:keys [synchronous?] :as options}]
+   [:com.fulcrologic.fulcro.application/app ::tx ::options => ::id]
+   (if synchronous?
+     (transact-sync! app tx options)
+     (do
+       (schedule-activation! app)
+       (let [{:keys [refresh only-refresh ref] :as options} (merge {:optimistic? true} options)
+             follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
+             node            (tx-node tx options)
+             accumulate      (fn [r items] (into (set r) items))
+             refresh         (cond-> (set refresh)
+                               (seq follow-on-reads) (into follow-on-reads)
+                               ref (conj ref))]
+         (swap! runtime-atom (fn [s] (cond-> (update s ::submission-queue (fn [v n] (conj (vec v) n)) node)
+                                       ;; refresh sets are cumulative because rendering is debounced
+                                       (seq refresh) (update :com.fulcrologic.fulcro.application/to-refresh accumulate refresh)
+                                       (seq only-refresh) (update :com.fulcrologic.fulcro.application/only-refresh accumulate only-refresh))))
+         (::id node))))))
+
+(defn- abort-elements!
+  "Abort any elements in the given send-queue that have the given abort id.
+
+  Aborting will cause the network to abort (which will report a result), or if the item is not yet active a
+  virtual result will still be sent for that node.
+
+  Returns a new send-queue that no longer contains the aborted nodes."
+  [{:keys [abort!] :as remote} send-queue abort-id]
+  (if abort!
+    (reduce
+      (fn [result {::keys [active? options result-handler] :as send-node}]
+        (let [aid (or (-> options ::abort-id) (-> options :abort-id))]
+          (cond
+            (not= aid abort-id) (do
+                                  (conj result send-node))
+            active? (do
+                      (log/debug "Aborting an ACTIVE network request." abort-id)
+                      (abort! remote abort-id)
+                      result)
+            :otherwise (do
+                         (log/debug "Aborting a QUEUED network request." abort-id)
+                         (result-handler {:status-text "Cancelled" ::aborted? true})
+                         result))))
+      []
+      send-queue)
+    (do
+      (log/error "Cannot abort network requests. The remote has no abort support!")
+      send-queue)))
+
+(defn abort!
+  "Implementation of abort when using this tx processing"
+  [app abort-id]
+  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (comp/any->app app)
+        runtime-state   @runtime-atom
+        {:com.fulcrologic.fulcro.application/keys [remotes]
+         ::keys                                   [send-queues]} runtime-state
+        remote-names    (keys send-queues)
+        new-send-queues (reduce
+                          (fn [result remote-name]
+                            (assoc result remote-name (abort-elements!
+                                                        (get remotes remote-name)
+                                                        (get send-queues remote-name) abort-id)))
+                          {}
+                          remote-names)]
+    (swap! runtime-atom assoc ::send-queues new-send-queues)))
