@@ -448,7 +448,11 @@
                                         :cljs$lang$type         true
                                         :cljs$lang$ctorStr      name
                                         :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer name))}
-                                 getDerivedStateFromError (assoc :getDerivedStateFromError getDerivedStateFromError)
+                                 getDerivedStateFromError (assoc :getDerivedStateFromError (fn [error]
+                                                                                             (let [v (getDerivedStateFromError error)]
+                                                                                               (if (coll? v)
+                                                                                                 #js {"fulcro$state" v}
+                                                                                                 v))))
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
          (gobj/extend (.-prototype cls) js/React.Component.prototype js-instance-props
            #js {"fulcro$options" options})
@@ -1563,11 +1567,15 @@
       :componentDidCatch         (fn [this error info] ...)
       :getSnapshotBeforeUpdate   (fn [this prevProps prevState] ...)
 
-      ;; static
+      ;; static.
       :getDerivedStateFromProps  (fn [props state] ...)
 
       ;; ADDED for React 16.6:
-      :getDerivedStateFromError  (fn [error] ...)  **NOTE**: OVERWRITES entire state. This differs slightly from React.
+      ;; NOTE: The state returned from this function can either be:
+      ;; a raw js map, where Fulcro's state is in a sub-key: `#js {\"fulcro$state\" {:fulcro :state}}`.
+      ;; or a clj map. In either case this function will *overwrite* Fulcro's component-local state, which is
+      ;; slighly different behavior than raw React (we have no `this`, so we cannot read Fulcro's state to merge it).
+      :getDerivedStateFromError  (fn [error] ...)
 
       NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
       that other libraries can control the sub-dom. If you do want to implement it, then old props can
