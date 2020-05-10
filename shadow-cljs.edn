@@ -2,39 +2,18 @@
  :nrepl    {:port 9000}
  :dev-http {9001 "resources/public"}
  :jvm-opts ["-Xmx2G"]
- :builds   {:todomvc    {:target     :browser
+ :builds   {:workspaces {:target     nubank.workspaces.shadow-cljs.target
+                         :ns-regexp  "-cards$"
+                         :output-dir "resources/public/js/workspaces"
+                         :asset-path "/js/workspaces"
+                         :preloads   [com.fulcrologic.fulcro.inspect.preload]}
+
+            :todomvc    {:target     :browser
                          :output-dir "resources/public/js/todomvc"
                          :asset-path "/js/todomvc"
                          :dev        {:compiler-options {:external-config {:guardrails {}}}}
                          :modules    {:main {:entries [fulcro-todomvc.main]}}
                          :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload]}}
-
-            :roots      {:target     :browser
-                         :output-dir "resources/public/js/multiroot"
-                         :asset-path "/js/multiroot"
-                         :dev        {:compiler-options {:external-config {:guardrails {}}}}
-                         :modules    {:main {:entries [other-demos.multi-root-sample]}}
-                         :devtools   {:after-load other-demos.multi-root-sample/start
-                                      :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
-
-            :hooks      {:target           :browser
-                         :output-dir       "resources/public/js/hooks"
-                         :asset-path       "/js/hooks"
-                         :modules          {:main {:entries [other-demos.hooks-demo]}}
-                         :compiler-options {:external-config {:guardrails {:throw? false :emit-spec? true}}}
-                         #_#_:js-options
-                             {:resolve {"react"     {:target  :npm
-                                                     :require "preact/compat"}
-                                        "react-dom" {:target  :npm
-                                                     :require "preact/compat"}}}
-                         :devtools         {:after-load other-demos.hooks-demo/start
-                                            :preloads   [com.fulcrologic.fulcro.inspect.preload]}}
-
-            :workspaces {:target     nubank.workspaces.shadow-cljs.target
-                         :ns-regexp  "-cards$"
-                         :output-dir "resources/public/js/workspaces"
-                         :asset-path "/js/workspaces"
-                         :preloads   [com.fulcrologic.fulcro.inspect.preload]}
 
             :test       {:target           :browser-test
                          :test-dir         "resources/public/js/test"

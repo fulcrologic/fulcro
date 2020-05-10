@@ -10,7 +10,7 @@
     "karma-cljs-test": "0.1.0",
     "react": "16.13.0",
     "react-dom": "16.13.0",
-    "shadow-cljs": "2.8.94"
+    "shadow-cljs": "2.8.110"
   },
   "repository": {
     "type": "git",
