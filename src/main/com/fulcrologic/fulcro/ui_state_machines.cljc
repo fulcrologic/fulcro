@@ -9,6 +9,7 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.ui-state-machines))
   (:refer-clojure :exclude [load])
   (:require
+    #?(:cljs [goog.functions :as gf])
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
@@ -24,7 +25,8 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util :refer [atom?]]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]))
 
 (declare asm-value trigger-state-machine-event! apply-action)
 (def mutation-delegate (m/->Mutation `mutation-delegate))
@@ -149,17 +151,23 @@
                                                          ::event-data extra-data})]
        (or transact-options {})))))
 
-(defn trigger!!
-  "Just like `trigger!`, but does optimistic actions synchronously so that events that change data rendered in
-   form fields will be updated synchronously."
-  ([this active-state-machine-id event-id] (trigger!! this active-state-machine-id event-id {}))
-  ([this active-state-machine-id event-id extra-data]
-   (let [{::keys [transact-options]} extra-data]
-     (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
-                                                          ::event-id   event-id
-                                                          ::event-data extra-data})]
-       (or transact-options {}))
-     (app/schedule-render! (comp/any->app this) 200))))
+(let [debounced! #?(:clj (fn [f] f)
+                    :cljs (gf/debounce (fn [f] (f)) 200))]
+  (defn trigger!!
+    "Just like `trigger!`, but does optimistic actions synchronously so that events that change data rendered in
+     form fields will be updated synchronously."
+    ([this active-state-machine-id event-id] (trigger!! this active-state-machine-id event-id {}))
+    ([this active-state-machine-id event-id extra-data]
+     (let [{::keys [transact-options]} extra-data
+           app     (comp/any->app this)
+           render! (ah/app-algorithm app :render!)]
+       (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
+                                                            ::event-id   event-id
+                                                            ::event-data extra-data})]
+         (or transact-options {}))
+       ;; Schedule a future render to ensure entire UI updates, but since this was a sync render it could be rapidly followed
+       ;; by others so we want to debounce it.
+       (debounced! #(app/schedule-render! app))))))
 
 (>defn asm-ident "Returns the ident of the active state machine with the given ID"
   [asm-id]
