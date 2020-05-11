@@ -158,7 +158,8 @@
      (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
                                                           ::event-id   event-id
                                                           ::event-data extra-data})]
-       (or transact-options {})))))
+       (or transact-options {}))
+     (app/schedule-render! (comp/any->app this) 200))))
 
 (>defn asm-ident "Returns the ident of the active state machine with the given ID"
   [asm-id]
