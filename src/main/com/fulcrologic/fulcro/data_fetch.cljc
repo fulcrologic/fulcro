@@ -158,9 +158,8 @@
         (log/debug "Skipping default merge and calling user-supplied ok-action.")
         (ok-action env))
       (let [{:keys [body transaction]} result
-            query      (or transaction query)
-            mark-query (or transaction (futil/ast->query transmitted-ast))
-            body       (merge/mark-missing body mark-query)
+            mark-query  (or transaction (futil/ast->query transmitted-ast))
+            body        (merge/mark-missing body mark-query)
             {:com.fulcrologic.fulcro.application/keys [state-atom]} app]
         (swap! state-atom (fn [s]
                             (cond-> (merge/merge* s query body)
@@ -283,6 +282,8 @@
          load-sym      (or load-mutation `internal-load!)
          mutation-args (load-params* app server-property-or-ident class-or-factory config)
          abort-id      (:abort-id mutation-args)]
+     (when query-transform-default
+       (log/warn "Query-transform-default is a dangerous option that can break general merge behaviors. Do not use it."))
      (comp/transact! app `[(~load-sym ~mutation-args)]
        (cond-> txn-options
          (seq refresh) (assoc :refresh refresh)
