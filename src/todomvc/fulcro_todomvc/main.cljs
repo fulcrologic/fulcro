@@ -9,10 +9,15 @@
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]))
+    [fulcro-todomvc.custom-types :as custom-types]
+    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
+    [com.fulcrologic.fulcro.algorithms.transit :as transit]))
+
+;; Have to be installed before we create websockets
+(defonce prevent-again (custom-types/install!))
 
 (defonce remote #_(fws/fulcro-websocket-remote {:auto-retry?        true
-                                                :request-timeout-ms 10000}) (http/fulcro-http-remote {}))
+                                              :request-timeout-ms 10000}) (http/fulcro-http-remote {}))
 
 (defonce app (stx/with-synchronous-transactions
                (app/fulcro-app {:remotes          {:remote remote}

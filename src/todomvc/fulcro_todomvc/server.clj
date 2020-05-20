@@ -1,5 +1,6 @@
 (ns fulcro-todomvc.server
   (:require
+    [fulcro-todomvc.custom-types :as custom-types]
     [clojure.core.async :as async]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.server.api-middleware :as fmw :refer [not-found-handler wrap-api]]
@@ -96,6 +97,13 @@
   (swap! item-db (fn [db] (into {} (remove #(-> % val :item/complete)) db)))
   {})
 
+(pc/defmutation store-point [env {:keys [p]}]
+  {::pc/sym    `fulcro-todomvc.api/store-point
+   ::pc/params [:p]
+   ::pc/output []}
+  (log/spy :info "Store point" [(type p) p])
+  {})
+
 ;; How to go from :person/id to that person's details
 (pc/defresolver list-resolver [env params]
   {::pc/input  #{:list/id}
@@ -117,23 +125,24 @@
                    todo-new-item commit-label-change todo-delete-item
                    todo-check todo-uncheck
                    todo-check-all todo-uncheck-all
-                   todo-clear-complete])
+                   todo-clear-complete
+                   store-point])
 
 ;; setup for a given connect system
 (def parser
-  (p/parallel-parser
+  (p/parser
     {::p/env     {::p/reader                 [p/map-reader
-                                              pc/parallel-reader
+                                              pc/reader2
                                               pc/open-ident-reader]
                   ::pc/mutation-join-globals [:tempids]}
-     ::p/mutate  pc/mutate-async
+     ::p/mutate  pc/mutate
      ::p/plugins [(pc/connect-plugin {::pc/register my-resolvers})
                   (p/post-process-parser-plugin p/elide-not-found)
                   p/error-handler-plugin]}))
 
 (def middleware (-> not-found-handler
                   (wrap-api {:uri    "/api"
-                             :parser (fn [query] (async/<!! (parser {} query)))})
+                             :parser (fn [query] (parser {} query))})
                   (fmw/wrap-transit-params)
                   (fmw/wrap-transit-response)
                   (wrap-resource "public")
@@ -145,6 +154,7 @@
 (defn http-server []
   (let [result (web/run middleware {:host "0.0.0.0"
                                     :port 8080})]
+    (custom-types/install!)
     (reset! server result)
     (fn [] (web/stop result))))
 

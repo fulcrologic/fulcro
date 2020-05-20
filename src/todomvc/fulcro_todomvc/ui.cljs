@@ -6,6 +6,7 @@
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [fulcro-todomvc.api :as api]
+    [fulcro-todomvc.custom-types :as custom-types]
     [goog.object :as gobj]))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
@@ -180,4 +181,7 @@
   {:initial-state (fn [p] {:root/router (comp/get-initial-state TopRouter {})})
    :query         [{:root/router (comp/get-query TopRouter)}]}
   (dom/div {}
+    ;; Test button for custom types
+    #_(dom/button {:onClick (fn []
+                              (comp/transact! this [(api/store-point {:p (custom-types/Point. 4 9)})]))} "Store Point")
     (ui-router router)))
