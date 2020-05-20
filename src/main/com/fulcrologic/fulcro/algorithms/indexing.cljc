@@ -104,8 +104,7 @@
           (log/info
             (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
               " This warning can be safely ignored if that is intended."))))
-      (when ident
-        (swap! runtime-atom index-component* this ident cls)))))
+      (swap! runtime-atom index-component* this ident cls))))
 
 (defn- drop-component*
   [runtime-state instance ident cls]
