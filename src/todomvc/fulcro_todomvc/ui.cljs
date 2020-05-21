@@ -15,8 +15,9 @@
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))
 
-(defn trim-text [text]
+(defn trim-text
   "Returns text without surrounding whitespace if not empty, otherwise nil"
+  [text]
   (let [trimmed-text (clojure.string/trim text)]
     (when-not (empty? trimmed-text)
       trimmed-text)))

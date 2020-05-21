@@ -67,8 +67,9 @@
   #?(:clj  (java.util.Date.)
      :cljs (js/Date.)))
 
-(defn deep-merge [& xs]
+(defn deep-merge
   "Merges nested maps without overwriting existing keys."
+  [& xs]
   (if (every? map? xs)
     (apply merge-with deep-merge xs)
     (last xs)))
