@@ -146,7 +146,7 @@
 
                   :else result))) result query)))
 
-(defn mark-missing [result query]
+(defn mark-missing
   "Recursively walk the query and response marking anything that was *asked for* in the query but is *not* in the response as missing.
   The sweep-merge process (which happens later in the plumbing) uses these markers as indicators to remove any existing
   data in the target of the merge (i.e. your state database).
@@ -156,6 +156,7 @@
   Returns the result with missing markers in place (which are then used/removed in a later stage).
 
   See the Developer Guide section on Fulcro's merge process for more information."
+  [result query]
   (try
     (mark-missing-impl result query)
     (catch #?(:clj Exception :cljs :default) e
