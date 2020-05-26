@@ -172,12 +172,12 @@
                                     (string? ns)
                                     (or
                                       (= "ui" ns)
-                                      (str/starts-with? ns "com.fulcrologic.fulcro")))
+                                      (str/starts-with? ns "com.fulcrologic.fulcro.")))
                                   (and
                                     (string? ident-ns)
                                     (or
                                       (= "ui" ident-ns)
-                                      (str/starts-with? ident-ns "com.fulcrologic.fulcro")))))))))
+                                      (str/starts-with? ident-ns "com.fulcrologic.fulcro.")))))))))
 
 (defn initialize-state!
   "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
