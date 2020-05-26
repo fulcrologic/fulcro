@@ -34,7 +34,7 @@
   (behavior "Removes ui and fulcro keys from mutation join queries, but NOT mutation params"
     (are [query result]
       (= result (eql/ast->query (app/default-global-eql-transform (eql/query->ast query))))
-      [{'(f {:ui/param 1 :com.fulcrologic.fulcro/param 42}) [:ui/a :b {:com.fulcrologic.fulcro/boo [:y]}]}]
+      [{'(f {:ui/param 1 :com.fulcrologic.fulcro/param 42}) [:ui/a :b {:com.fulcrologic.fulcro.core/boo [:y]}]}]
       [{'(f {:ui/param 1 :com.fulcrologic.fulcro/param 42}) [:b]}]))
   (behavior "Removes items that are namespaced to Fulcro itself"
     (are [query result]
