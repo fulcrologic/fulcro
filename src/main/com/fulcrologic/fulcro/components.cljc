@@ -959,8 +959,6 @@
   "
   ([component tx] (transact!! component tx {}))
   ([component tx options]
-   (when-not (and (component? component) (has-ident? component))
-     (log/error "Synchronous transactions only work with component instances that have an ident. UI will not refresh."))
    (transact! component tx (merge options {:synchronous? true}))))
 
 (declare normalize-query)
