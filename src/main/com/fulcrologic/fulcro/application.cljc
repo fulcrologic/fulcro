@@ -452,6 +452,7 @@
    Use `schedule-render!` to request a normal optimized render."
   [app-ish]
   (when-let [app (comp/any->app app-ish)]
+    (update-shared! app)
     (binding [comp/*blindly-render* true]
       (render! app {:force-root? true}))))
 
