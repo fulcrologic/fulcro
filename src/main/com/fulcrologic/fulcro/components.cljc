@@ -216,6 +216,11 @@
   #?(:clj  (if (component-class? x) x (:fulcro$class x))
      :cljs (or (gobj/get x "type") (type x))))
 
+(defn get-class
+  "Returns the react type (component class) of the given React element (instance). Is identity if used on a class."
+  [instance]
+  (react-type instance))
+
 (defn component-options
   "Returns the map of options that was specified (via `defsc`) for the component class."
   ([instance-or-class & ks]
