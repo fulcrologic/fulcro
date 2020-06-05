@@ -11,8 +11,6 @@
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.react.hooks :as hooks]))
 
-(declare AltRootPlainClass app)
-
 (defsc OtherChild [this {:keys [:other/id :other/n] :as props}]
   {:query         [:other/id :other/n]
    :ident         :other/id
@@ -52,11 +50,7 @@
                               (comp/transact! this
                                 [(m/set-props {:child/name v})]
                                 {:only-refresh [(comp/get-ident this)]})))})
-    (dom/div
-      (if (= 1 id)
-        ;; EACH child renders a floating root component
-        (ui-alt-root)
-        (dom/create-element AltRootPlainClass)))))
+    (ui-alt-root)))
 
 (def ui-child (comp/factory Child {:keyfn :child/id}))
 
@@ -70,8 +64,6 @@
       (when show?
         ;; Two children
         (mapv ui-child children)))))
-
-(def AltRootPlainClass (mroot/floating-root-react-class AltRoot app))
 
 (ws/defcard floating-root-demo-card
   (ct.fulcro/fulcro-card
