@@ -5,6 +5,7 @@
     [edn-query-language.core :as eql]
     [com.fulcrologic.guardrails.core :refer [>defn => >def]]
     [com.fulcrologic.fulcro.algorithms.transit :as t]
+    [com.fulcrologic.fulcro.networking.http-remote :as http]
     [taoensso.timbre :as log]))
 
 (defn new-upload
@@ -91,10 +92,11 @@
    (fn [req]
      (if (has-uploads? req)
        (try
-         (let [ast         (some-> req :body eql/query->ast)
-               ast-to-send (update ast :children #(mapv (fn [n] (update n :params dissoc ::uploads)) %))
-               txn         (eql/ast->query ast-to-send)
-               form        (js/FormData.)]
+         (let [[body response-type] (http/desired-response-type req)
+               ast                  (eql/query->ast body)
+               ast-to-send          (update ast :children #(mapv (fn [n] (update n :params dissoc ::uploads)) %))
+               txn                  (eql/ast->query ast-to-send)
+               form                 (js/FormData.)]
            (.append form "upload-transaction" (t/transit-clj->str txn transit-options))
            (doseq [{:keys [dispatch-key params]} (:children ast)]
              (when-let [uploads (::uploads params)]
@@ -104,7 +106,7 @@
                        content            (some-> js-value js-value->uploadable-object)]
                    (.append form "files" content name-with-mutation)))))
            (-> req
-             (assoc :body form :method :post)
+             (assoc :body form :method :post :response-type response-type)
              (update :headers dissoc "Content-Type")))
          (catch :default e
            (log/error e "Exception while converting mutation with file uploads.")
