@@ -31,14 +31,17 @@
   [& [{:keys [channel-type] :or {channel-type :auto}}]]
   (when-not @sente-socket-client
     (reset! sente-socket-client
-      (sente/make-channel-socket-client! "/chsk" "no-token-desired"
-        {:type           channel-type
-         :host           SERVER_HOST
-         :port           SERVER_PORT
-         :packer         (make-packer {:read  inspect.transit/read-handlers
-                                       :write inspect.transit/write-handlers})
-         :wrap-recv-evs? false
-         :backoff-ms-fn  backoff-ms}))
+      (let [socket-client-opts {:type           channel-type
+                                :host           SERVER_HOST
+                                :port           SERVER_PORT
+                                :packer         (make-packer {:read  inspect.transit/read-handlers
+                                                              :write inspect.transit/write-handlers})
+                                :wrap-recv-evs? false
+                                :backoff-ms-fn  backoff-ms}]
+        (sente/make-channel-socket-client! "/chsk" "no-token-desired"
+          (if (= (:protocol (enc/get-win-loc)) "file:")
+            (assoc socket-client-opts :protocol :http)
+            socket-client-opts))))
     (log/debug "Starting websockets at:" SERVER_HOST ":" SERVER_PORT)
     (go-loop [attempt 1]
       (if-not @sente-socket-client
