@@ -175,7 +175,7 @@
         (not (empty? computed-map)) (assoc :fulcro.client.primitives/computed computed-map)))))
 
 (defn get-computed
-  "Return the computed properties on a component or its props."
+  "Return the computed properties on a component or its props. Note that it requires that the normal properties are not nil."
   ([x]
    (get-computed x []))
   ([x k-or-ks]
