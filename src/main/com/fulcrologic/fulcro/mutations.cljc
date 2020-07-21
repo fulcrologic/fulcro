@@ -266,7 +266,7 @@
   (comp/transact! component `[(set-props ~{field value})] {:compressible? true}))
 
 (defn set-value!!
-  "Just like set-value!, but syncrhonously updates `component` and nothing else."
+  "Just like set-value!, but synchronously updates `component` and nothing else."
   [component field value]
   (comp/transact!! component `[(set-props ~{field value})] {:compressible? true}))
 
@@ -291,7 +291,7 @@
     (set-value! component field value)))
 
 (defn set-integer!!
-  "Just like set-integer!, but syncrhonously refreshes `component` and nothing else."
+  "Just like set-integer!, but synchronously refreshes `component` and nothing else."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (ensure-integer (if event (evt/target-value event) value))]
@@ -315,7 +315,7 @@
     (set-value! component field value)))
 
 (defn set-double!!
-  "Just like set-double!, but syncrhonously refreshes `component` and nothing else."
+  "Just like set-double!, but synchronously refreshes `component` and nothing else."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (ensure-double (if event (evt/target-value event) value))]
@@ -341,7 +341,7 @@
     (set-value! component field value)))
 
 (defn set-string!!
-  "Just like set-string!, but syncrhonously refreshes `component` and nothing else."
+  "Just like set-string!, but synchronously refreshes `component` and nothing else."
   [component field & {:keys [event value]}]
   (assert (and (or event value) (not (and event value))) "Supply either :event or :value")
   (let [value (if event (evt/target-value event) value)]
