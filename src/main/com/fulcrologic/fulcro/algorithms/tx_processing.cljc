@@ -170,6 +170,7 @@
   [:com.fulcrologic.fulcro.application/app => ::send-queues]
   (let [send-queues     (-> runtime-atom deref ::send-queues)
         remote-names    (app->remote-names app)
+        operations      (atom [])
         new-send-queues (reduce
                           (fn [new-send-queues remote]
                             (let [send-queue (get send-queues remote [])
@@ -177,17 +178,22 @@
                                   front      (first serial)]
                               ;; parallel items are removed from the queues, since they don't block anything
                               (doseq [item p]
-                                (net-send! app item remote))
+                                (swap! operations conj #(net-send! app item remote)))
                               ;; sequential items are kept in queue to prevent out-of-order operation
                               (if (::active? front)
                                 (assoc new-send-queues remote serial)
                                 (let [{::keys [send-queue send-node]} (combine-sends app remote serial)]
                                   (when send-node
-                                    (net-send! app send-node remote))
+                                    (swap! operations conj #(net-send! app send-node remote)))
                                   (assoc new-send-queues remote send-queue)))))
                           {}
                           remote-names)]
     (swap! runtime-atom assoc ::send-queues new-send-queues)
+    ;; Actual net sends are done after we set the queues, in case the remote behave synchronously and immediately gives
+    ;; results (like errors). Otherwise, the queue updates of those handlers would be overwritten by our swap on the
+    ;; prior line
+    (doseq [op @operations]
+      (op))
     new-send-queues))
 
 (>defn tx-node
@@ -383,9 +389,9 @@
   [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} remote txn-id ele-idx]
   [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::id ::idx => any?]
   (let [{:keys [::send-queues]} @runtime-atom
-        queue (get send-queues remote)
-        queue (filterv (fn [{:keys [::id ::idx]}]
-                         (not (and (= txn-id id) (= ele-idx idx)))) queue)]
+        old-queue (get send-queues remote)
+        queue     (filterv (fn [{:keys [::id ::idx]}]
+                             (not (and (= txn-id id) (= ele-idx idx)))) old-queue)]
     (swap! runtime-atom assoc-in [::send-queues remote] queue)))
 
 (>defn record-result!
