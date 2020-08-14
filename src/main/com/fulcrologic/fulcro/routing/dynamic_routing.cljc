@@ -450,8 +450,6 @@
                                                         (some-> component (comp/get-query state-map)
                                                           eql/query->ast :children))
                                  mounted-targets      (comp/class->all app mounted-target-class)]
-                             (when (and #?(:cljs goog.DEBUG :clj true) (> (count mounted-targets) 1))
-                               (log/error "More than one route target on screen of type" mounted-target-class))
                              (when (seq mounted-targets)
                                (swap! to-signal into mounted-targets))))
                          (when next-router
