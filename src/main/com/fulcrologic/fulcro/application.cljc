@@ -56,14 +56,15 @@
   [{::keys [runtime-atom] :as app}]
   [::app => any?]
   (try
-    (when-let [shared-fn (ah/app-algorithm app :shared-fn)]
+    (if-let [shared-fn (ah/app-algorithm app :shared-fn)]
       (let [shared       (-> app ::runtime-atom deref ::static-shared-props)
             state        (current-state app)
             root-class   (-> app ::runtime-atom deref ::root-class)
             query        (comp/get-query root-class state)
             v            (fdn/db->tree query state state)
             shared-props (merge shared (shared-fn v))]
-        (swap! runtime-atom assoc ::shared-props shared-props)))
+        (swap! runtime-atom assoc ::shared-props shared-props))
+      (-> app ::runtime-atom deref ::static-shared-props))
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 
@@ -286,7 +287,7 @@
                       :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
                       :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! mrr/render!)
                       :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
-                      :com.fulcrologic.fulcro.algorithm/shared-fn              (or shared-fn (constantly {}))
+                      :com.fulcrologic.fulcro.algorithm/shared-fn              shared-fn
                       :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
                       :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
                       :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
