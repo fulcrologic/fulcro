@@ -4,5 +4,5 @@
                  :test-paths   ["src/test"]
                  :skip-meta    [:integration]
                  :source-paths ["src/main"]}]
-     :reporter [fulcro-spec.reporters.terminal/fulcro-report]
+     ;:reporter [fulcro-spec.reporters.terminal/fulcro-report]
      :plugins  []}

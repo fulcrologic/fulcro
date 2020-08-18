@@ -11,7 +11,7 @@
     "react": "16.13.0",
     "react-dom": "16.13.0",
     "transit-js": "^0.8.861",
-    "shadow-cljs": "2.8.110"
+    "shadow-cljs": "2.10.21"
   },
   "repository": {
     "type": "git",

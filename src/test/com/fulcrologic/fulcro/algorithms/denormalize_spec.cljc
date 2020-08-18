@@ -13,6 +13,7 @@
             [com.wsscode.pathom.core :as p]
             [com.wsscode.pathom.test :as ptest]
             [edn-query-language.core :as eql]
+            [edn-query-language.gen :as eqlgen]
             [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
             [fulcro-spec.diff :as diff]
             [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fpp]))
@@ -263,7 +264,7 @@
       (= (denorm/db->tree query tree {}) (fp/db->tree query tree {})))))
 
 (defn gen-tree-props []
-  (eql/make-gen
+  (eqlgen/make-gen
     {::eql/gen-query-expr
      (fn gen-query-expr [{::eql/keys [gen-property]
                           :as        env}]
@@ -276,7 +277,7 @@
 #_(test/defspec generator-makes-valid-db-props {} (valid-db-tree-props))
 
 (defn gen-join-no-links []
-  (eql/make-gen {::eql/gen-query-expr
+  (eqlgen/make-gen {::eql/gen-query-expr
                  (fn gen-query-expr [{::eql/keys [gen-property gen-join]
                                       :as        env}]
                    (gen/frequency [[20 (gen-property env)]
@@ -295,7 +296,7 @@
   (tc/quick-check 50 (db->tree-consistency-property-without-db (gen-join-no-links)) :max-size 12))
 
 (defn gen-join-with-links []
-  (eql/make-gen
+  (eqlgen/make-gen
     {::eql/gen-query-expr
      (fn gen-query-expr [{::eql/keys [gen-property gen-join]
                           :as        env}]
@@ -315,7 +316,7 @@
   (tc/quick-check 50 (db->tree-consistency-property (gen-join-with-links)) :max-size 12))
 
 (defn gen-links-including-ident-keys []
-  (eql/make-gen
+  (eqlgen/make-gen
     {::eql/gen-query-expr
      (fn gen-query-expr [{::eql/keys [gen-property gen-join]
                           :as        env}]
@@ -331,7 +332,7 @@
   (tc/quick-check 50 (db->tree-consistency-property (gen-links-including-ident-keys)) :max-size 12))
 
 (defn gen-unions []
-  (eql/make-gen
+  (eqlgen/make-gen
     {::eql/gen-query-expr
      (fn gen-query-expr [{::eql/keys [gen-property gen-join]
                           :as        env}]
@@ -352,7 +353,7 @@
   (tc/quick-check 50 (db->tree-consistency-property (gen-unions)) :max-size 12))
 
 (defn gen-recursion []
-  (eql/make-gen
+  (eqlgen/make-gen
     {::eql/gen-query-expr
      (fn gen-query-expr [{::eql/keys [gen-property gen-join]
                           :as        env}]
@@ -373,7 +374,7 @@
   (tc/quick-check 50 (db->tree-consistency-property (gen-recursion)) :max-size 12))
 
 (defn gen-read-queries []
-  (eql/make-gen
+  (eqlgen/make-gen
     {::eql/gen-query-expr
      (fn gen-query-expr [{::eql/keys [gen-property gen-join gen-ident gen-param-expr gen-special-property gen-mutation]
                           :as        env}]
