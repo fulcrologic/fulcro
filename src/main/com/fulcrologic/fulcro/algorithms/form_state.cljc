@@ -281,6 +281,11 @@
   During a recursive check for a form, the validation function will be in the correct context (e.g. the form supplied will contain
   the field. There is no need to search for it in subforms).
 
+  The options map can contain:
+
+  * `validate-edges?` (default false). When true, the validator will be run on joins that lead to subforms. Normally it runs only on non-join
+  form fields.
+
   make-validator returns a dual arity function:
 
   - `(fn [form] ...)` - Calling this version will return :unchecked, :valid, or :invalid for the entire form.
