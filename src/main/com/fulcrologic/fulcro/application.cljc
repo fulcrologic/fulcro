@@ -64,7 +64,7 @@
             v            (fdn/db->tree query state state)
             shared-props (merge shared (shared-fn v))]
         (swap! runtime-atom assoc ::shared-props shared-props))
-      (-> app ::runtime-atom deref ::static-shared-props))
+      (swap! runtime-atom assoc ::shared-props (-> app ::runtime-atom deref ::static-shared-props)))
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 
