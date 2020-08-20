@@ -163,7 +163,7 @@
     (specify! (.-prototype ctor)
       Object
       (onChange [this event]
-        (when-let [handler (.-onChange (.-props this))]
+        (when-let [handler (gobj/get (.-props this) "onChange")]
           (handler event)
           (update-state
             this (.-props this)

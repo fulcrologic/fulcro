@@ -95,13 +95,12 @@
   "Use transit to encode clj data as a string. Useful for encoding initial app state from server-side rendering.
 
   - `data`: Arbitrary data
-  - `opts`: (optional) Options to send when creating a `writer`. Always preserves metadata.
-
-  WARNING: metadata encoding will not work in CLJS if you don't use the latest transit-js. If using
-  shadow-cljs, this means placing that in your package.json file (not relying on the jar version)."
+  - `opts`: (optional) Options to send when creating a `writer`. Always preserves metadata. Adding :metadata? true/false
+    will turn on/off metadata support. Defaults to on."
   ([data] (transit-clj->str data {}))
   ([data opts]
-   (let [opts (assoc opts :transform t/write-meta)]
+   (let [opts (cond-> (dissoc opts :metadata?)
+                (not (false? (:metadata? opts))) (assoc :transform t/write-meta))]
      #?(:cljs (t/write (writer opts) data)
         :clj
               (with-open [out (java.io.ByteArrayOutputStream.)]
