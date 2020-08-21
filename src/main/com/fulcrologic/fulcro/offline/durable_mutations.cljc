@@ -145,7 +145,7 @@
   [app]
   (async/go-loop []
     (let [store (current-mutation-store app)]
-      (async/<! (async/timeout LOOP_TIMEOUT_MS))
+      (async/<! (async/timeout loop-timeout-ms))
       (doseq [{:keys [id txn options last-attempt attempt]} (->> (async/<! (des/-load-all store))
                                                               (map :value)
                                                               (sort-by :created))]
