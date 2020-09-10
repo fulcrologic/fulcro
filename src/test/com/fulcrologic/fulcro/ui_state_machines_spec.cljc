@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.ui-state-machines-spec
   (:require
+    [clojure.pprint :refer [pprint]]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [>defn]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
@@ -824,6 +825,7 @@
                                                         (uism/assoc-aliased :name "Tony")
                                                         (uism/activate :state/a)))}
                    :state/a {::uism/events {:event/bang! {::uism/handler (fn [env]
+                                                                           (pprint (::uism/state-map env))
                                                                            (-> env
                                                                              (uism/apply-action update :WOW inc)
                                                                              (uism/activate :state/b)))}}}
@@ -838,13 +840,16 @@
    :initial-state {:name "Bob"}})
 
 (defsc TestRoot [_ _]
-  {:query         [{:root/child (comp/get-query Child)}]
-   :initial-state {:root/child {}}})
+  {:query         [:WOW {:root/child (comp/get-query Child)}]
+   :initial-state {:WOW 0
+                   :root/child {}}})
 
-(specification "Integration test (using sync tx processing)"
+(specification "Integration test (using sync tx processing)" :focus
   (let [app     (app/headless-synchronous-app TestRoot {})
         fget-in (fn [path] (get-in (app/current-state app) path))]
+
     (uism/begin! app test-machine2 ::id {:actor/child Child} {})
+
     (assertions
       "After begin, ends up in :state/a"
       (uism/get-active-state app ::id) => :state/a
@@ -853,6 +858,7 @@
 
     (behavior "Triggering an event from state a"
       (uism/trigger! app ::id :event/bang!)
+
       (assertions
         "Moves to the correct state"
         (uism/get-active-state app ::id) => :state/b
@@ -861,6 +867,7 @@
 
     (behavior "Triggering an event from state b"
       (uism/trigger! app ::id :event/bang!)
+
       (assertions
         "Moves to the correct state"
         (uism/get-active-state app ::id) => :state/a
