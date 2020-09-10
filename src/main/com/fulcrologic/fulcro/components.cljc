@@ -960,7 +960,7 @@
 
   to turn off Fulcro DOM's generation of wrapped inputs (which try to solve this problem in a less-effective way).
 
-  WARNING: Syncrhonous rendering does *not* refresh the full UI, only the component.
+  WARNING: Synchronous rendering does *not* refresh the full UI, only the component.
   "
   ([component tx] (transact!! component tx {}))
   ([component tx options]
@@ -1609,4 +1609,19 @@
 (defn external-config
   [app-ish k]
   (some-> app-ish (any->app) (get-in [:com.fulcrologic.fulcro.application/config :external-config k])))
+
+(defn refresh-component!
+  "Request that the given subtree starting a component be refreshed from the app database without re-rendering any parent. This
+  is a synchronous call that will tunnel the props to the given component via an internal call to React setState."
+  [component]
+  (if (component? component)
+    (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} (any->app component)
+          state-map @state-atom]
+      (swap! runtime-atom update :com.fulcrologic.fulcro.application/basis-t inc)
+      (binding [fdn/*denormalize-time* (-> @runtime-atom :com.fulcrologic.fulcro.application/basis-t)]
+        (let [ident    (get-ident component)
+              query    (get-query component state-map)
+              ui-props (fdn/db->tree query (get-in state-map ident) state-map)]
+          (tunnel-props! component ui-props))))
+    (log/error "Cannot re-render a non-component")))
 

@@ -10,6 +10,7 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as mut]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
@@ -216,6 +217,8 @@
      as an element of your own custom implementation.
    * `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
      before they are placed on the network layer.
+   * `:client-will-mount` - A `(fn [app])` that is called after the application is fully initialized, but just before
+   it mounts. This is triggered when you call `app/mount!`, but after all internals have been properly initialized.
    * `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time. WARNING: Due to
      the async nature of js and React this function is not guaranteed to be called after the application is
      completely on the DOM.  If you need that guarantee then consider using `:componentDidMount` on your application's
@@ -265,6 +268,7 @@
             abort-transaction!
             render-middleware
             initial-db
+            client-will-mount
             client-did-mount
             remote-error?
             remotes
@@ -280,6 +284,7 @@
       ::state-atom   (atom (or initial-db {}))
       ::config       {:load-marker-default     load-marker-default
                       :client-did-mount        (or client-did-mount (:started-callback options))
+                      :client-will-mount       client-will-mount
                       :external-config         external-config
                       :query-transform-default query-transform-default
                       :load-mutation           load-mutation}
@@ -369,6 +374,7 @@
      (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
     are tempted to do things like `merge!` against Root then that component should *not* be considered Root: make another layer in your UI.")
      (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
+           {:keys [client-did-mount client-will-mount]} (::config app)
            reset-mountpoint! (fn []
                                (let [dom-node     (if (string? node) #?(:cljs (gdom/getElement node)) node)
                                      root-factory (comp/factory root)]
@@ -390,10 +396,12 @@
            (when initialize-state?
              (initialize-state! app root))
            (inspect/app-started! app)
+           (when (and client-will-mount (not disable-client-did-mount?))
+             (client-will-mount app))
            (reset-mountpoint!)
-           (when-let [cdm (-> app ::config :client-did-mount)]
+           (when (and client-did-mount (not disable-client-did-mount?))
              (when-not disable-client-did-mount?
-               (cdm app)))))))))
+               (client-did-mount app)))))))))
 
 (defn unmount!
   "Removes the app from its mount point. If you want to re-mount a running app, then you should pass
@@ -500,3 +508,23 @@
    after each render."
   [app nm listener]
   (swap! (::runtime-atom app) assoc-in [::render-listeners nm] listener))
+
+(defn headless-synchronous-app
+  "Returns a new instance from `fulcro-app` that is pre-configured to use synchronous transaction processing
+   and no rendering. This is particularly useful when you want to write integration tests around a Fulcro
+   app so that the tests need no async support. The `faux-root` must be a component (which need have no body).
+
+   The returned application will be properly initialized, and will have the initial state declared in `faux-component`
+   already merged into the app's state (i.e. the returned app is ready for operations).
+
+   `options` can be anything from `fulcro-app`, but :submit-transaction!, :render-root!, and
+   :optimized-render! are ignored."
+  ([faux-root]
+   (headless-synchronous-app faux-root {}))
+  ([faux-root options]
+   (let [app (fulcro-app (merge options
+                           {:submit-transaction! stx/sync-tx!
+                            :render-root!        (constantly true)
+                            :optimized-render!   (constantly true)}))]
+     (initialize-state! app faux-root)
+     app)))

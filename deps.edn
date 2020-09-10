@@ -15,7 +15,7 @@
 
            org.clojure/clojure        {:mvn/version "1.10.1" :scope "provided"}
            org.clojure/clojurescript  {:mvn/version "1.10.773" :scope "provided"}
-           org.clojure/core.async     {:mvn/version "1.2.603"}}
+           org.clojure/core.async     {:mvn/version "1.1.587"}}
 
  :aliases {:test       {:extra-paths ["src/test"]
                         :extra-deps  {org.clojure/test.check  {:mvn/version "0.9.0"}
@@ -30,7 +30,7 @@
                         :extra-deps  {com.github.awkay/workspaces {:mvn/version "1.0.1"}}}
 
            :dev        {:extra-paths ["src/dev" "resources" "src/todomvc"]
-                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.10.21"}
+                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.11.2"}
                                       com.wsscode/pathom                {:mvn/version "2.2.31"}
                                       com.fulcrologic/fulcro-websockets {:mvn/version "3.1.1"}
                                       binaryage/devtools                {:mvn/version "1.0.0"}

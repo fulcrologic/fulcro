@@ -187,7 +187,7 @@
 
       (render [this]
         (js/React.createElement element (gobj/getValueByKeys this "state" "cached-props"))))
-    (let [real-factory (js/React.createFactory ctor)]
+    (let [real-factory (fn [& args] (apply js/React.createElement ctor args))]
       (fn [props & children]
         (let [t (gobj/get props "type")]
           (if (= t "file")

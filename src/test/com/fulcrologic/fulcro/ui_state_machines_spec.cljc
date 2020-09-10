@@ -1,9 +1,11 @@
 (ns com.fulcrologic.fulcro.ui-state-machines-spec
   (:require
+    [clojure.pprint :refer [pprint]]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [>defn]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
@@ -815,3 +817,59 @@
         (uism/compute-target test-env {::targeting/target  (targeting/multiple-targets [:a 1] [:b 2])
                                        ::uism/target-alias :x})
         => [[:a 1] [:b 2] [:dialog 1 :foo]]))))
+
+
+(uism/defstatemachine test-machine2
+  {::uism/aliases {:name [:actor/child :name]}
+   ::uism/states  {:initial {::uism/handler (fn [env] (-> env
+                                                        (uism/assoc-aliased :name "Tony")
+                                                        (uism/activate :state/a)))}
+                   :state/a {::uism/events {:event/bang! {::uism/handler (fn [env]
+                                                                           (pprint (::uism/state-map env))
+                                                                           (-> env
+                                                                             (uism/apply-action update :WOW inc)
+                                                                             (uism/activate :state/b)))}}}
+                   :state/b {::uism/events {:event/bang! {::uism/handler (fn [env]
+                                                                           (-> env
+                                                                             (uism/apply-action update :WOW inc)
+                                                                             (uism/activate :state/a)))}}}}})
+
+(defsc Child [this {:keys [:name] :as props}]
+  {:query         [:name]
+   :ident         (fn [] [:component/id :child])
+   :initial-state {:name "Bob"}})
+
+(defsc TestRoot [_ _]
+  {:query         [:WOW {:root/child (comp/get-query Child)}]
+   :initial-state {:WOW 0
+                   :root/child {}}})
+
+(specification "Integration test (using sync tx processing)" :focus
+  (let [app     (app/headless-synchronous-app TestRoot {})
+        fget-in (fn [path] (get-in (app/current-state app) path))]
+
+    (uism/begin! app test-machine2 ::id {:actor/child Child} {})
+
+    (assertions
+      "After begin, ends up in :state/a"
+      (uism/get-active-state app ::id) => :state/a
+      "Applies the action from the handler"
+      (fget-in [:component/id :child :name]) => "Tony")
+
+    (behavior "Triggering an event from state a"
+      (uism/trigger! app ::id :event/bang!)
+
+      (assertions
+        "Moves to the correct state"
+        (uism/get-active-state app ::id) => :state/b
+        "Applies the expected actions"
+        (fget-in [:WOW]) => 1))
+
+    (behavior "Triggering an event from state b"
+      (uism/trigger! app ::id :event/bang!)
+
+      (assertions
+        "Moves to the correct state"
+        (uism/get-active-state app ::id) => :state/a
+        "Applies the expected actions"
+        (fget-in [:WOW]) => 2))))
