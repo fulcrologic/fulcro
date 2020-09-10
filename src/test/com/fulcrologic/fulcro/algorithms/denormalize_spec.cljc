@@ -1,22 +1,23 @@
 (ns com.fulcrologic.fulcro.algorithms.denormalize-spec
-  (:require [clojure.spec.alpha :as s]
-            [clojure.test :refer [is are deftest]]
-            [clojure.test.check :as tc]
-            [clojure.test.check.clojure-test :as test]
-            [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as props]
-            [clojure.walk :as walk]
-            [com.fulcrologic.fulcro.algorithms.denormalize :as denorm]
-            [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fp]
-            [com.fulcrologic.fulcro.algorithms.normalize :refer [tree->db]]
-            [com.fulcrologic.fulcro.components :as comp]
-            [com.wsscode.pathom.core :as p]
-            [com.wsscode.pathom.test :as ptest]
-            [edn-query-language.core :as eql]
-            [edn-query-language.gen :as eqlgen]
-            [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-            [fulcro-spec.diff :as diff]
-            [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fpp]))
+  (:require
+    [clojure.spec.alpha :as s]
+    [clojure.test :refer [is are deftest]]
+    [clojure.test.check :as tc]
+    [clojure.test.check.clojure-test :as test]
+    [clojure.test.check.generators :as gen]
+    [clojure.test.check.properties :as props #?@(:cljs [:refer-macros [for-all]])]
+    [clojure.walk :as walk]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as denorm]
+    [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fp]
+    [com.fulcrologic.fulcro.algorithms.normalize :refer [tree->db]]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.wsscode.pathom.core :as p]
+    [com.wsscode.pathom.test :as ptest]
+    [edn-query-language.core :as eql]
+    [edn-query-language.gen :as eqlgen]
+    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
+    [fulcro-spec.diff :as diff]
+    [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fpp]))
 
 ;; helpers
 
@@ -278,18 +279,18 @@
 
 (defn gen-join-no-links []
   (eqlgen/make-gen {::eql/gen-query-expr
-                 (fn gen-query-expr [{::eql/keys [gen-property gen-join]
-                                      :as        env}]
-                   (gen/frequency [[20 (gen-property env)]
-                                   [6 (gen-join env)]]))
+                    (fn gen-query-expr [{::eql/keys [gen-property gen-join]
+                                         :as        env}]
+                      (gen/frequency [[20 (gen-property env)]
+                                      [6 (gen-join env)]]))
 
-                 ::eql/gen-join-key
-                 (fn gen-join-key [{::eql/keys [gen-property] :as env}]
-                   (gen-property env))
+                    ::eql/gen-join-key
+                    (fn gen-join-key [{::eql/keys [gen-property] :as env}]
+                      (gen-property env))
 
-                 ::eql/gen-join-query
-                 (fn gen-join-query [{::eql/keys [gen-query] :as env}]
-                   (gen-query env))}
+                    ::eql/gen-join-query
+                    (fn gen-join-query [{::eql/keys [gen-query] :as env}]
+                      (gen-query env))}
     ::eql/gen-query))
 
 (comment
