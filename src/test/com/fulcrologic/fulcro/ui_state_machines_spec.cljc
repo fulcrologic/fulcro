@@ -837,16 +837,12 @@
    :ident         (fn [] [:component/id :child])
    :initial-state {:name "Bob"}})
 
-(def ui-child (comp/factory Child {:keyfn :id}))
 (defsc TestRoot [_ _]
   {:query         [{:root/child (comp/get-query Child)}]
    :initial-state {:root/child {}}})
 
 (specification "Integration test (using sync tx processing)"
-  (let [app     (app/fulcro-app {:submit-transaction! stx/sync-tx!
-                                 :render-root!        (constantly true)
-                                 :optimized-render!   (constantly true)})
-        _       (app/initialize-state! app TestRoot)
+  (let [app     (app/headless-synchronous-app TestRoot {})
         fget-in (fn [path] (get-in (app/current-state app) path))]
     (uism/begin! app test-machine2 ::id {:actor/child Child} {})
     (assertions
