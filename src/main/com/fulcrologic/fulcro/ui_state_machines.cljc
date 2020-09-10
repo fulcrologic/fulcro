@@ -13,7 +13,6 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [clojure.walk :as walk]
     [com.fulcrologic.guardrails.core :refer [>defn => | ? <- >def]]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
@@ -134,7 +133,6 @@
           event-data (dissoc event-data ::transact-options)]
       (when (nil? event-id)
         (log/error "Invalid (nil) event ID"))
-      (log/debug "Triggering" event-id "on" asm-id "with" event-data)
       (trigger-state-machine-event! env params)
       (app/schedule-render! app (or transact-options {})))
     true))
@@ -159,8 +157,7 @@
     ([this active-state-machine-id event-id] (trigger!! this active-state-machine-id event-id {}))
     ([this active-state-machine-id event-id extra-data]
      (let [{::keys [transact-options]} extra-data
-           app     (comp/any->app this)
-           render! (ah/app-algorithm app :render!)]
+           app (comp/any->app this)]
        (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
                                                             ::event-id   event-id
                                                             ::event-data extra-data})]
@@ -202,6 +199,11 @@
      ::active-timers         {}
      ::local-storage         {}}))
 
+(defn asm-active?
+  [app-ish id]
+  (let [state-map (app/current-state app-ish)]
+    (boolean (get-in state-map [::asm-id id]))))
+
 (>defn asm-path
   "Returns the path to an asm elements in an asm `env`."
   [{::keys [state-map asm-id] :as env} ks]
@@ -210,7 +212,7 @@
                (into [::state-map ::asm-id asm-id] ks)
                [::state-map ::asm-id asm-id ks])]
     (when (not (get-in state-map [::asm-id asm-id]))
-      (log/debug "Attempt to get an ASM path" ks "for a state machine that is not in Fulcro state. ASM ID: " asm-id))
+      (log/warn (ex-info "" {}) "Attempt to get an ASM path" ks "for a state machine that is not in Fulcro state. ASM ID: " asm-id))
     path))
 
 (>defn asm-value
@@ -241,7 +243,6 @@
   "Store a k/v pair with the active state machine (will only exist as long as it is active)"
   [env k v]
   [::env keyword? any? => ::env]
-  (log/debug "Storing" k "->" v "on" (asm-id env))
   (update-in env (asm-path env ::local-storage) assoc k v))
 
 (>defn retrieve
@@ -326,9 +327,7 @@
   ([env alias new-value]
    [::env ::alias any? => ::env]
    (if-let [real-path (resolve-alias env alias)]
-     (do
-       (log/debug "Updating value for " (asm-id env) "alias" alias "->" new-value)
-       (update env ::state-map assoc-in real-path new-value))
+     (update env ::state-map assoc-in real-path new-value)
      (do
        (log/error "Attempt to set a value on an invalid alias:" alias)
        env))))
@@ -499,7 +498,6 @@
      (let [path     (resolve-alias env alias)
            sub-path (butlast path)
            k        (last path)]
-       (log/debug "Dissoc of aliased value" alias "on" (asm-id env))
        (apply-action env #(update-in % sub-path dissoc k)))))
   ([env k & ks]
    [::env ::alias (s/* ::alias) => ::env]
@@ -521,7 +519,6 @@
   the ident if that ident is already in the list."
   [env ident & named-parameters]
   [::env eql/ident? (s/* (s/cat :name #{:prepend :append} :param keyword?)) => ::env]
-  (log/debug "Integrating" ident "on" (asm-id env))
   (let [actions (partition 2 named-parameters)]
     (reduce (fn [env [command alias-to-idents]]
               (let [alias-value                 (alias-value env alias-to-idents)
@@ -540,7 +537,6 @@
   "Removes an ident, if it exists, from an alias that points to a list of idents."
   [env ident alias-to-idents]
   [::env eql/ident? ::alias => ::env]
-  (log/debug "Removing" ident "from" alias-to-idents "on" (asm-id env))
   (let [new-list (fn [old-list]
                    (vec (filter #(not= ident %) old-list)))]
     (update-aliased env alias-to-idents new-list)))
@@ -562,7 +558,6 @@
   [::fulcro-app ::env ::actor-name (s/nilable comp/component-class?) ::load-options => nil?]
   (let [actor-ident (actor->ident env actor-name)
         cls         (or component-class (actor-class env actor-name))]
-    (log/debug "Starting actor load" actor-name "on" (asm-id env))
     (if (nil? cls)
       (log/error "Cannot run load. Counld not derive Fulcro class (and none was configured) for " actor-name)
       (df/load! app actor-ident cls load-options))
@@ -574,15 +569,12 @@
   [::fulcro-app ::query-key (s/nilable comp/component-class?) ::load-options => any?]
   (if (nil? query-key)
     (log/error "Cannot run load. query-key cannot be nil.")
-    (do
-      (log/debug "Starting load of" query-key)
-      (df/load! app query-key component-class load-options)))
+    (df/load! app query-key component-class load-options))
   nil)
 
 (>defn handle-load-error* [app load-request]
   [::fulcro-app ::load-options => nil?]
   (let [{::keys [asm-id error-event error-data]} (some-> load-request :post-mutation-params)]
-    (log/debug "Handling load error" asm-id ":" error-event)
     (if (and asm-id error-event)
       (comp/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
                                                                  ::event-id error-event}
@@ -903,7 +895,6 @@
    [(s/or :c comp/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
    (let [actors->idents          (derive-actor-idents actors)
          actors->component-names (derive-actor-components actors)]
-     (log/debug "begin!" instance-id)
      (comp/transact! this [(begin {::asm-id                instance-id
                                    ::state-machine-id      (::state-machine-id machine)
                                    ::event-data            started-event-data
@@ -989,14 +980,12 @@
                                           target (m/with-target target))))
        :result-action               m/default-result-action!
        :ok-action                   (fn [env]
-                                      (log/debug "Remote mutation " mutation "ok")
                                       (let [tid->rid    (tempid/result->tempid->realid (:body (:result env)))
                                             actor-ident (tempid/resolve-tempids actor-ident tid->rid)
                                             ok-data     (tempid/resolve-tempids ok-data tid->rid)
                                             asm-id      (tempid/resolve-tempids asm-id tid->rid)]
                                         (mtrigger! env actor-ident asm-id ok-event ok-data)))
        :error-action                (fn [env]
-                                      (log/debug "Remote mutation " mutation "error")
                                       (let [tid->rid    (tempid/result->tempid->realid (:body (:result env)))
                                             actor-ident (tempid/resolve-tempids actor-ident tid->rid)
                                             error-data  (tempid/resolve-tempids error-data tid->rid)
@@ -1139,7 +1128,6 @@
   "Run a mutation helper function (e.g. a fn of Fulcro state)."
   [env mutation-helper & args]
   [::env fn? (s/* any?) => ::env]
-  (log/debug "Applying mutation helper to state of" (asm-id env))
   (apply update env ::state-map mutation-helper args))
 
 (>defn get-active-state

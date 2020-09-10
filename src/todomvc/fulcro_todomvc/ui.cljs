@@ -83,7 +83,7 @@
                                      (comp/transact! component `[(api/todo-new-item ~{:list-id id
                                                                                       :id      (tmp/tempid)
                                                                                       :text    trimmed-text})]))))
-                  :onChange    (fn [evt] (mut/set-string! component :ui/new-item-text :event evt))
+                  :onChange    (fn [evt] (mut/set-string!! component :ui/new-item-text :event evt))
                   :placeholder "What needs to be done?"
                   :autoFocus   true}))))
 

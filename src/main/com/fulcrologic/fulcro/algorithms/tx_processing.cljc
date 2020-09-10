@@ -441,8 +441,6 @@
         ast             (if (and desired-ast query-transform)
                           (query-transform desired-ast)
                           desired-ast)]
-    (log/debug "Desired tx from tx:" (eql/ast->expr desired-ast true))
-    (log/debug "Desired tx at network layer:" (eql/ast->expr ast true))
     (cond-> tx-element
       desired-ast (assoc-in [::desired-ast-nodes remote] desired-ast)
       ast (assoc-in [::transmitted-ast-nodes remote] ast))))
@@ -473,7 +471,6 @@
         (swap! runtime-atom update-in [::send-queues remote] (fnil conj []) send-node)
         send-node)
       (do
-        (log/debug "Mutation" (some-> tx-node ::elements (get ele-idx) ::original-ast-node (eql/ast->expr true)) "returned false or nil. Skipping send.")
         (handler {:status-code 200 :body {}})
         nil))))
 
@@ -691,7 +688,6 @@
     (swap! runtime-atom assoc ::active-queue new-queue)
     (when (seq explicit-refresh)
       (swap! runtime-atom update :com.fulcrologic.fulcro.application/to-refresh accumulate explicit-refresh))
-    (log/debug "Scheduling a render")
     (schedule-render! app)
     nil))
 
@@ -734,15 +730,7 @@
         (swap! runtime-atom update ::active-queue conj node)
         (schedule-queue-processing! app 20)))
     (if (and component (comp/component? component) (comp/has-ident? component))
-      (do
-        ;; Tick the clock...can't access app/tick! without a circular ns ref...
-        (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc)
-        (binding [fdn/*denormalize-time* (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t)]
-          (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
-                ident     (comp/get-ident component)
-                query     (comp/get-query component state-map)
-                ui-props  (fdn/db->tree query (get-in state-map ident) state-map)]
-            (comp/tunnel-props! component ui-props))))
+      (comp/refresh-component! component)
       (when #?(:cljs js/goog.DEBUG :clj true)
         (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen.")))
     @resulting-node-id))
@@ -814,11 +802,9 @@
             (not= aid abort-id) (do
                                   (conj result send-node))
             active? (do
-                      (log/debug "Aborting an ACTIVE network request." abort-id)
                       (abort! remote abort-id)
                       result)
             :otherwise (do
-                         (log/debug "Aborting a QUEUED network request." abort-id)
                          (result-handler {:status-text "Cancelled" ::aborted? true})
                          result))))
       []
