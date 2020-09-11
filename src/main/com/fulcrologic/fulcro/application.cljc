@@ -347,6 +347,13 @@
   [::app => boolean?]
   (-> runtime-atom deref ::app-root boolean))
 
+(defn set-root!
+  "Set a root class to use on the app. Doing so allows much of the API to work before mounting the app."
+  ([app root {:keys [initialize-state?]}]
+   (swap! (::runtime-atom app) assoc ::root-class root)
+   (when initialize-state?
+     (initialize-state! app root))))
+
 (defn mount!
   "Mount the app.  If called on an already-mounted app this will have the effect of re-installing the root node so that
   hot code reload will refresh the UI (useful for development).
@@ -393,8 +400,7 @@
          (reset-mountpoint!)
          (do
            (swap! (::state-atom app) #(merge {:fulcro.inspect.core/app-id (comp/component-name root)} %))
-           (when initialize-state?
-             (initialize-state! app root))
+           (set-root! app root {:initialize-state? initialize-state?})
            (inspect/app-started! app)
            (when (and client-will-mount (not disable-client-did-mount?))
              (client-will-mount app))
@@ -495,13 +501,6 @@
   (let [app (comp/any->app app-ish)]
     (when-let [abort! (ah/app-algorithm app :abort!)]
       (abort! app abort-id))))
-
-(defn set-root!
-  "Set a root class to use on the app. Doing so allows much of the API to work before mounting the app."
-  ([app root {:keys [initialize-state?]}]
-   (swap! (::runtime-atom app) assoc ::root-class root)
-   (when initialize-state?
-     (initialize-state! app root))))
 
 (defn add-render-listener!
   "Add (or replace) a render listener named `nm`. `listener` is a `(fn [app options] )` that will be called

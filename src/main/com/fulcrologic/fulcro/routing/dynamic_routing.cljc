@@ -478,26 +478,9 @@
   to just over-render you can use a quoted `_` instead.
   "
   ([this-or-app]
-   (let [app        (comp/any->app this-or-app)
-         router     (app/root-class app)
-         state-map  (app/current-state app)
-         root-query (comp/get-query router state-map)
-         ast        (eql/query->ast root-query)
-         root       (or (ast-node-for-live-router app ast)
-                      (-> ast :children first))
-         result     (atom [])]
-     (loop [{:keys [component] :as node} root]
-       (when (and component (router? component))
-         (let [router-ident (comp/get-ident component {})
-               router-id    (-> router-ident second)
-               sm-env       (uism/state-machine-env state-map nil router-id :none {})
-               path-segment (uism/retrieve sm-env :path-segment)
-               next-router  (some #(ast-node-for-live-router app %) (:children node))]
-           (when (seq path-segment)
-             (swap! result into path-segment))
-           (when next-router
-             (recur next-router)))))
-     @result))
+   (if-let [cls (app/root-class (comp/any->app this-or-app))]
+     (current-route cls)
+     []))
   ([this-or-app relative-class-or-instance]
    (let [app        (comp/any->app this-or-app)
          state-map  (app/current-state app)
