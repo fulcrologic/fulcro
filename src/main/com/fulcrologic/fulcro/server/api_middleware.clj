@@ -149,7 +149,7 @@
   (let [baos (ByteArrayOutputStream.)
         w    (writer baos opts)
         _    (ct/write w x)
-        ret  (.toString baos)]
+        ret  (.toString baos "UTF-8")]
     (.reset baos)
     ret))
 
