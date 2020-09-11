@@ -78,14 +78,14 @@
 
 (>defn update-errors-on-ui-component!
   "A handler for mutation network results that will place an error, if detected in env, on the data at `ref`.
-  Errors are placed at `k` (defaults to `::m/mutation-error`).
+  Errors are placed at `k` (defaults to `:ui/mutation-error`).
 
   Typically used as part of the construction of a global default result handler for mutations.
 
   Swaps against app state and returns `env`."
   ([env]
    [::env => ::env]
-   (update-errors-on-ui-component! env ::mutation-error))
+   (update-errors-on-ui-component! env :ui/mutation-error))
   ([env k]
    [::env keyword? => ::env]
    (let [{:keys [app state result ref]} env
@@ -183,7 +183,7 @@
 
 ```
   (-> env
-    (update-errors-on-ui-component! ::mutation-error)
+    (update-errors-on-ui-component! :ui/mutation-error)
     (integrate-mutation-return-value!)
     (trigger-global-error-action!)
     (dispatch-ok-error-actions!))
@@ -195,7 +195,7 @@
   [env]
   [::env => ::env]
   (-> env
-    (update-errors-on-ui-component! ::mutation-error)
+    (update-errors-on-ui-component! :ui/mutation-error)
     (rewrite-tempids!)
     (integrate-mutation-return-value!)
     (trigger-global-error-action!)
