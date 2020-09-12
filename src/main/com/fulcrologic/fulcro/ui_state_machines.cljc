@@ -760,8 +760,9 @@
   Returns a vector of actor idents that should be refreshed."
   [{:keys [app state ref] :as mutation-env} {::keys [event-id event-data asm-id] :as params}]
   [::mutation-env ::trigger-descriptor => ::refresh-vector]
+  (log/debug "Trigger" asm-id event-id)
   (when-not (get-in @state [::asm-id asm-id])
-    (log/error "Attemped to trigger event " event-id "on state machine" asm-id ", but that state machine has not been started (call begin! first)."))
+    (log/error "Attempted to trigger event " event-id "on state machine" asm-id ", but that state machine has not been started (call begin! first)."))
   (let [sm-env       (state-machine-env @state ref asm-id event-id event-data app)
         handler      (active-state-handler sm-env)
         valued-env   (apply-event-value sm-env params)

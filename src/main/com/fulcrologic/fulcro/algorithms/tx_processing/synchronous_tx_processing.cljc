@@ -2,6 +2,8 @@
   "A transaction processing system that does as much synchronously as possible, and removes various elements
    of complexity that were inherited from Fulcro 2 in the standard tx processing.
 
+   See `with-synchronous-transactions` for how to install it.
+
    This tx processing system does as much work synchronously as possible, though it does try to preserve the
    call-order *semantics* of the standard transaction processing: That is to say that if the optimistic action
    of a transaction submits a new transaction then that new submission will run *after* the current already-in-progress
@@ -67,10 +69,10 @@
    applications should not use the feature, and this sync tx processing system does not support it. The call
    will succeed, but will behave as a normal `transact!`.
    "
+  #?(:cljs (:require-macros [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :refer [in-transaction]]))
   (:require
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.mutations :as m]
@@ -78,55 +80,80 @@
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.inspect.inspect-client :refer [ido ilet]]
     com.fulcrologic.fulcro.specs
-    [com.fulcrologic.guardrails.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
-(declare run-queue!)
+(defonce apps-in-tx (atom {}))
+
+(declare run-queue! available-work?)
+
+#?(:clj
+   (defmacro in-transaction [app-sym & body]
+     `(let [id# (:com.fulcrologic.fulcro.application/id ~app-sym)]
+        (swap! apps-in-tx update id# (fnil inc 0))
+        (try
+          ~@body
+          (finally
+            (swap! apps-in-tx update id# dec))))))
+
+(defn top-level?
+  "Returns true if the current thread is running non-nested transaction processing code."
+  [{:com.fulcrologic.fulcro.application/keys [id]}]
+  (= (-> apps-in-tx deref (get id 0)) 0))
+
+(defn swap-submission-queue! [app & args] (apply swap! (get-in app [::config ::submission-queue]) args))
+(defn reset-submission-queue! [app v] (reset! (get-in app [::config ::submission-queue]) v))
+(defn submission-queue [app] @(get-in app [::config ::submission-queue]))
+(defn swap-post-processing-steps! [app & args] (apply swap! (get-in app [::config ::post-processing-steps]) args))
+(defn reset-post-processing-steps! [app v] (reset! (get-in app [::config ::post-processing-steps]) v))
+(defn post-processing-steps [app] @(get-in app [::config ::post-processing-steps]))
+(defn swap-active-queue! [app & args] (apply swap! (get-in app [::config ::active-queue]) args))
+(defn reset-active-queue! [app v] (reset! (get-in app [::config ::active-queue]) v))
+(defn active-queue [app] @(get-in app [::config ::active-queue]))
+(defn swap-send-queue! [app remote & args] (apply swap! (get-in app [::config ::send-queues remote]) args))
+(defn reset-send-queue! [app remote v] (reset! (get-in app [::config ::send-queues remote]) v))
+(defn send-queue [app remote] @(get-in app [::config ::send-queues remote]))
 
 (defn run-after!
   "Add `f` as a function that will run after the current transaction has been fully processed."
   [app f]
-  (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update ::post-processing-steps (fnil conj []) f))
+  (swap-post-processing-steps! app (fnil conj []) f))
 
 (defn post-processing?
   "Is there post processing to do?"
   [app]
-  (boolean (seq (-> app :com.fulcrologic.fulcro.application/runtime-atom deref ::post-processing-steps))))
+  (boolean (seq (post-processing-steps app))))
 
 (defn do-post-processing!
   "Runs the queued post processing steps until the post-processing queue is empty."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}]
-  (loop [steps (::post-processing-steps @runtime-atom)]
-    (swap! runtime-atom assoc ::post-processing-steps [])
+  [app]
+  (loop [steps (post-processing-steps app)]
+    (reset-post-processing-steps! app [])
     (doseq [f steps]
       (try
         (f)
         (catch #?(:clj Exception :cljs :default) e
           (log/error e "Post processing step failed."))))
-    (when-let [next-steps (seq (::post-processing-steps @runtime-atom))]
+    (when-let [next-steps (seq (post-processing-steps app))]
       (recur next-steps))))
 
 (defn in-transaction?
   "Returns true if the current thread is in the midst of running the optimistic actions of a new transaction."
-  [app]
-  (boolean (-> app :com.fulcrologic.fulcro.application/runtime-atom deref ::running-action?)))
+  [{:com.fulcrologic.fulcro.application/keys [id] :as app}]
+  (not= 0 (get @apps-in-tx id 0)))
 
 (defn release-post-render-tasks!
   "Should be called after the application renders to ensure that transactions blocked until the next render become
    unblocked. Schedules an activation."
-  [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]}]
-  (swap! runtime-atom update ::txn/submission-queue
-    (fn [queue] (mapv (fn [node] (update node ::txn/options dissoc :after-render?)) queue))))
+  [app]
+  (swap-submission-queue! app (fn [queue] (mapv (fn [node] (update node ::txn/options dissoc :after-render?)) queue))))
 
-(>defn dispatch-result!
+(defn dispatch-result!
   "Figure out the dispatch routine to trigger for the given network result.  If it exists, send the result
   to it.
 
   Returns the tx-element with the remote marked complete."
   [app tx-node {::txn/keys [results dispatch desired-ast-nodes transmitted-ast-nodes original-ast-node] :as tx-element} remote]
-  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element keyword? => ::txn/tx-element]
   (let [result  (get results remote)
         handler (get dispatch :result-action)]
     (when handler
@@ -141,10 +168,9 @@
             (log/error e "The result-action mutation handler for mutation" (:dispatch-key original-ast-node) "threw an exception."))))))
   (update tx-element ::txn/complete? conj remote))
 
-(>defn distribute-element-results!
+(defn distribute-element-results!
   "Distribute results and mark the remotes for those elements as complete."
   [app tx-node {:keys [::txn/results ::txn/complete?] :as tx-element}]
-  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::txn/tx-element]
   (reduce
     (fn [new-element remote]
       (if (complete? remote)
@@ -168,45 +194,47 @@
 (defn distribute-results!
   "Side-effects against the app state to distribute the result for txn-id element at ele-idx. This will call the result
    handler and mark that remote as complete."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} txn-id ele-idx]
-  (let [active-queue (::txn/active-queue @runtime-atom)
+  [app txn-id ele-idx]
+  (let [active-queue (active-queue app)
         idx          (node-index active-queue txn-id)
         tx-node      (get active-queue idx)]
-    (swap! runtime-atom update-in [::txn/active-queue idx ::txn/elements ele-idx]
+    (swap-active-queue! app update-in [idx ::txn/elements ele-idx]
       #(distribute-element-results! app tx-node %))))
 
-(>defn record-result!
+(defn record-result!
   "Deal with a network result on the given txn/element."
-  ([{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} txn-id ele-idx remote result result-key]
-   [:com.fulcrologic.fulcro.application/app ::txn/id int? keyword? any? keyword? => any?]
-   (let [active-queue (::txn/active-queue @runtime-atom)
+  ([app txn-id ele-idx remote result result-key]
+   (let [active-queue (active-queue app)
          txn-idx      (node-index active-queue txn-id)
          not-found?   (or (>= txn-idx (count active-queue)) (not= txn-id (::txn/id (get active-queue txn-idx))))]
      (if not-found?
        (log/error "Network result for" remote "does not have a valid node on the active queue!")
-       (let []
-         (swap! runtime-atom assoc-in [::txn/active-queue txn-idx ::txn/elements ele-idx result-key remote] result)
-         (if (in-transaction? app)
-           (run-after! app #(distribute-results! app txn-id ele-idx))
-           (let [render! (ah/app-algorithm app :render!)]
-             (distribute-results! app txn-id ele-idx)
-             (when render!
-               (render! app))))))))
+       (do
+         (swap-active-queue! app assoc-in [txn-idx ::txn/elements ele-idx result-key remote] result)
+         (distribute-results! app txn-id ele-idx)))))
   ([app txn-id ele-idx remote result]
-   [:com.fulcrologic.fulcro.application/app ::txn/id int? keyword? any? => any?]
    (record-result! app txn-id ele-idx remote result ::txn/results)))
 
-(>defn add-send!
-  "Generate a new send node and add it to the appropriate send queue. Returns the new send node."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {::txn/keys [id options] :as tx-node} ele-idx remote]
-  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/idx :com.fulcrologic.fulcro.application/remote-name
-   => (s/nilable ::txn/send-node)]
+(defn remove-send!
+  "Removes the send node (if present) from the send queue on the given remote."
+  [app remote txn-id ele-idx]
+  (swap-send-queue! app remote (fn [old-queue]
+                                 (filterv (fn [{::txn/keys [id idx]}]
+                                            (not (and (= txn-id id) (= ele-idx idx)))) old-queue))))
+
+(defn add-send!
+  "Generate a new send node and add it to the appropriate send queue."
+  [app {::txn/keys [id options] :as tx-node} ele-idx remote]
   (let [update-handler (fn progress-handler* [result]
-                         (record-result! app id ele-idx remote result ::txn/progress))
+                         (in-transaction app
+                           (record-result! app id ele-idx remote result ::txn/progress)
+                           (run-queue! app {})))
         ast            (get-in tx-node [::txn/elements ele-idx ::txn/transmitted-ast-nodes remote])
         handler        (fn result-handler* [result]
-                         (record-result! app id ele-idx remote result)
-                         (txn/remove-send! app remote id ele-idx))
+                         (in-transaction app
+                           (record-result! app id ele-idx remote result)
+                           (remove-send! app remote id ele-idx)
+                           (run-queue! app {})))
         send-node      {::txn/id             id
                         ::txn/idx            ele-idx
                         ::txn/ast            ast
@@ -215,17 +243,13 @@
                         ::txn/result-handler handler
                         ::txn/update-handler update-handler}]
     (if ast
-      (do
-        (swap! runtime-atom update-in [::txn/send-queues remote] (fnil conj []) send-node)
-        send-node)
-      (do
-        (handler {:status-code 200 :body {}})
-        nil))))
+      (swap-send-queue! app remote (fnil conj []) send-node)
+      (handler {:status-code 200 :body {}}))
+    nil))
 
-(>defn queue-element-sends!
+(defn queue-element-sends!
   "Queue all (unqueued) remote actions for the given element.  Returns the (possibly updated) node."
   [app tx-node {::txn/keys [idx dispatch started?]}]
-  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::txn/tx-node]
   (let [remotes     (set/intersection (set (keys dispatch)) (txn/app->remote-names app))
         to-dispatch (set/difference remotes started?)]
     (reduce
@@ -240,20 +264,18 @@
       tx-node
       to-dispatch)))
 
-(>defn queue-sends!
+(defn queue-sends!
   "Finds any item(s) on the given node that are ready to be placed on the network queues and adds them. Non-optimistic
   multi-element nodes will only queue one remote operation at a time."
   [app {:keys [::txn/options ::txn/elements] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::txn/tx-node]
   (reduce
     (fn [node element]
       (queue-element-sends! app node element))
     tx-node
     elements))
 
-(>defn process-tx-node!
+(defn process-tx-node!
   [app {:keys [::txn/options] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => (s/nilable ::txn/tx-node)]
   (if (txn/fully-complete? app tx-node)
     nil
     (->> tx-node
@@ -261,62 +283,84 @@
       (queue-sends! app)
       (txn/update-progress! app))))
 
-(>defn process-queue!
+(defn process-send-queues!
+  "Process the send queues against the remotes, which will cause idle remotes with queued work to issue network requests."
+  [app]
+  (let [remote-names (txn/app->remote-names app)
+        operations   (atom [])]
+    (doseq [remote remote-names]
+      (let [send-queue (send-queue app remote)
+            [p serial] (txn/extract-parallel send-queue)
+            front      (first serial)]
+        ;; parallel items are removed from the queues, since they don't block anything
+        (doseq [item p]
+          (swap! operations conj #(txn/net-send! app item remote)))
+        ;; sequential items are kept in queue to prevent out-of-order operation
+        (if (::active? front)
+          (reset-send-queue! app remote serial)
+          (let [{::txn/keys [send-queue send-node]} (txn/combine-sends app remote serial)]
+            (when send-node
+              (swap! operations conj #(txn/net-send! app send-node remote)))
+            (reset-send-queue! app remote send-queue)))))
+    ;; Actual net sends are done after we set the queues, in case the remote behave synchronously and immediately gives
+    ;; results (like errors). Otherwise, nested send queue updates in those handlers could confuse our notion of what's going on.
+    (doseq [op @operations]
+      (op))))
+
+(defn process-queue!
   "Run through the active queue and do a processing step."
   [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom] :as app}]
-  [:com.fulcrologic.fulcro.application/app => any?]
-  (let [new-queue        (reduce
+  (let [old-queue        (active-queue app)
+        new-queue        (reduce
                            (fn *pstep [new-queue n]
                              (if-let [new-node (process-tx-node! app n)]
                                (conj new-queue new-node)
                                new-queue))
                            []
-                           (::txn/active-queue @runtime-atom))
+                           old-queue)
         accumulate       (fn [r items] (into (set r) items))
         remotes          (txn/app->remote-names app)
         explicit-refresh (txn/requested-refreshes app new-queue)
         remotes-active?  (txn/active-remotes new-queue remotes)]
+    (when (not= old-queue (active-queue app))
+      (log/error "Old queue changed!"))
     (swap! state-atom assoc :com.fulcrologic.fulcro.application/active-remotes remotes-active?)
-    (swap! runtime-atom assoc ::txn/active-queue new-queue)
+    (reset-active-queue! app new-queue)
     (when (seq explicit-refresh)
       (swap! runtime-atom update :com.fulcrologic.fulcro.application/to-refresh accumulate explicit-refresh))
-    (txn/process-send-queues! app)
+    (process-send-queues! app)
     nil))
 
 (defn available-work?
   "Returns true if the submission queue has work on it that can proceed without any restrictions."
-  [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app}]
-  (let [{ready false} (group-by (comp boolean :after-render? ::txn/options) (::txn/submission-queue @runtime-atom))]
+  [app]
+  (let [{ready false} (group-by (comp boolean :after-render? ::txn/options) (submission-queue app))]
     (boolean (seq ready))))
 
-(>defn activate-submissions!
+(defn activate-submissions!
   "Activate all of the transactions that have been submitted since the last activation. After the items are activated
   a single processing step will run for the active queue.
 
   Activation can be blocked by the tx-node options for things like waiting for the next render frame."
-  [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app}]
-  [:com.fulcrologic.fulcro.application/app => any?]
-  (let [{blocked true ready false} (group-by (comp boolean :after-render? ::txn/options) (::txn/submission-queue @runtime-atom))
+  [app]
+  (let [{blocked true ready false} (group-by (comp boolean :after-render? ::txn/options) (submission-queue app))
+        _                (reset-submission-queue! app (vec blocked))
         dispatched-nodes (mapv #(txn/dispatch-elements % (txn/build-env app %) m/mutate) ready)]
-    (swap! runtime-atom (fn [a]
-                          (-> a
-                            (update ::txn/active-queue #(reduce conj % dispatched-nodes))
-                            (assoc ::txn/submission-queue (vec blocked)))))
+    (swap-active-queue! app (fnil into []) dispatched-nodes)
     (process-queue! app)))
 
-(defn run-queue! [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {:keys [component synchronous?] :as options}]
+(defn run-all-immediate-work!
+  "Runs the submission queue. If the submission queue's optimistic actions submit more to the submission queue, then those
+   are processed as well until the submission queue remains empty. This can start network requests."
+  [app]
+  (try
+    (activate-submissions! app)
+    (catch #?(:cljs :default :clj Exception) e
+      (log/error e "Error processing tx queue!"))))
+
+(defn run-queue! [app {:keys [component synchronous?] :as options}]
   (loop []
-    (when (in-transaction? app)
-      (log/error "Running the queue recursively!"))
-    (try
-      (swap! runtime-atom assoc ::running-action? true)
-      (activate-submissions! app)
-      (when (post-processing? app)
-        (do-post-processing! app))
-      (catch #?(:cljs :default :clj Exception) e
-        (log/error e "Error processing tx queue!"))
-      (finally
-        (swap! runtime-atom assoc ::running-action? false)))
+    (run-all-immediate-work! app)
     (when (available-work? app)
       (recur)))
   (if (and synchronous? component)
@@ -325,19 +369,58 @@
       (render! app options)))
   (release-post-render-tasks! app)
   (when (available-work? app)
-    (recur app options)))
+    (recur app {})))
 
-(defn sync-tx!
-  "A plug-in `:submit-transaction!` for Fulcro applications that attempts to do as much work as
-  possible synchronously, including the processing of \"remotes\" that can behave synchronously. This processing system
+(defn sync-tx! [& args] (throw (ex-info "BREAKING CHANGE. Please use `with-synchronous-transaction` to add sync transaction support to your Fulcro app" {})))
+
+(defn submit-sync-tx!
+  ([app tx]
+   (submit-sync-tx! app tx {}))
+  ([{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} tx options]
+   (let [{:keys [refresh only-refresh ref] :as options} options
+         follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
+         node            (txn/tx-node tx options)
+         accumulate      (fn [r items] (into (set r) items))
+         refresh         (cond-> (set refresh)
+                           (seq follow-on-reads) (into follow-on-reads)
+                           ref (conj ref))]
+     (swap-submission-queue! app (fnil conj []) node)
+     (swap! runtime-atom (fn [s] (cond-> s
+                                   ;; refresh sets are cumulative because rendering is debounced
+                                   (seq refresh) (update :com.fulcrologic.fulcro.application/to-refresh accumulate refresh)
+                                   (seq only-refresh) (update :com.fulcrologic.fulcro.application/only-refresh accumulate only-refresh))))
+     (when-not (in-transaction? app)
+       (in-transaction app
+         (run-queue! app options)))
+     (::txn/id node))))
+
+(def abort!
+  "[app abort-id]
+
+   Implementation of abort when using this tx processing"
+  txn/abort!)
+
+(defn with-synchronous-transactions
+  "Installs synchronous transaction processing on a fulcro application.
+
+  ```
+  (defonce app (stx/with-synchronous-transactions
+                 (app/fulcro-app {...})))
+  ```
+
+  This plug-in attempts to do as much work as possible synchronously, including the processing of \"remotes\" that
+  can behave synchronously. This processing system
   preserves transactional ordering semantics for nested submissions, but cannot guarantee that the overall sequence of
   operations will exactly match what you'd see if using the standard tx processing.
 
-  The options map supports most of the same things as the standard tx processing, with the significant exception of
-  `:optimistic? false` (pessimistic transactions). It also *always* assumes synchronous operation.
+  The options map you can pass to `transact!` supports most of the same things as the standard tx processing, with the significant exception of
+  `:optimistic? false` (pessimistic transactions). It also *always* assumes synchronous operation, thought the
+  `synchronous?` option (if used) does imply that only the current component should be refreshed in the UI.
 
   - `:ref` - ident. The component ident to include in the transaction env.
   - `:component` - React element. The instance of the component that should appear in the transaction env.
+  - `:synchronous?` - When true, causes the rendering to only refresh the calling component (if possible), since the implication
+  is for fast-as-possible refresh semantics, even though this tx processing is already sync.
   - `:refresh` - A hint. Vector containing idents (of components) and keywords (of props). Things that have changed and should be re-rendered
     on screen. Only necessary when the underlying rendering algorithm won't auto-detect, such as when UI is derived from the
     state of other components or outside of the directly queried props. Interpretation depends on the renderer selected:
@@ -351,28 +434,15 @@
 
   Returns the transaction ID of the submitted transaction.
   "
-  ([app tx]
-   [:com.fulcrologic.fulcro.application/app ::txn/tx => ::txn/id]
-   (sync-tx! app tx {}))
-  ([{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} tx options]
-   [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
-   (let [{:keys [refresh only-refresh ref] :as options} options
-         follow-on-reads (into #{} (filter #(or (keyword? %) (eql/ident? %)) tx))
-         node            (txn/tx-node tx options)
-         accumulate      (fn [r items] (into (set r) items))
-         refresh         (cond-> (set refresh)
-                           (seq follow-on-reads) (into follow-on-reads)
-                           ref (conj ref))]
-     (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fn [v n] (conj (vec v) n)) node)
-                                   ;; refresh sets are cumulative because rendering is debounced
-                                   (seq refresh) (update :com.fulcrologic.fulcro.application/to-refresh accumulate refresh)
-                                   (seq only-refresh) (update :com.fulcrologic.fulcro.application/only-refresh accumulate only-refresh))))
-     (when-not (in-transaction? app)
-       (run-queue! app options))
-     (::txn/id node))))
-
-(def abort!
-  "[app abort-id]
-
-   Implementation of abort when using this tx processing"
-  txn/abort!)
+  [app]
+  (let [remotes     (-> app :com.fulcrologic.fulcro.application/runtime-atom deref
+                      :com.fulcrologic.fulcro.application/remotes keys)
+        send-queues (zipmap remotes (repeatedly #(atom [])))]
+    (-> app
+      (update :com.fulcrologic.fulcro.application/algorithms assoc
+        :com.fulcrologic.fulcro.algorithm/tx! submit-sync-tx!
+        :com.fulcrologic.fulcro.algorithm/abort! abort!)
+      (assoc ::config {::submission-queue      (atom [])
+                       ::post-processing-steps (atom [])
+                       ::active-queue          (atom [])
+                       ::send-queues           send-queues}))))

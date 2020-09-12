@@ -521,9 +521,9 @@
   ([faux-root]
    (headless-synchronous-app faux-root {}))
   ([faux-root options]
-   (let [app (fulcro-app (merge options
-                           {:submit-transaction! stx/sync-tx!
-                            :render-root!        (constantly true)
-                            :optimized-render!   (constantly true)}))]
+   (let [app (stx/with-synchronous-transactions
+               (fulcro-app (merge options
+                             {:render-root!      (constantly true)
+                              :optimized-render! (constantly true)})))]
      (initialize-state! app faux-root)
      app)))
