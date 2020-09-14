@@ -1,7 +1,6 @@
 (ns ^:no-doc com.fulcrologic.fulcro.inspect.inspect-ws
   (:require
     [cljs.core.async :as async :refer [>! <!] :refer-macros [go go-loop]]
-    [clojure.pprint :refer [pprint]]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.inspect.transit :as inspect.transit]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid :refer [TempId]]

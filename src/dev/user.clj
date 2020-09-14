@@ -1,6 +1,5 @@
 (ns user
   (:require
-    [clojure.pprint :refer [pprint]]
     [clojure.test :refer :all]
     [clojure.repl :refer [doc source]]
     [clojure.tools.namespace.repl :as tools-ns :refer [disable-reload! refresh clear set-refresh-dirs]]

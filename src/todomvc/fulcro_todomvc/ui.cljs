@@ -1,16 +1,12 @@
 (ns fulcro-todomvc.ui
   (:require
     [com.fulcrologic.fulcro.algorithms.tempid :as tmp]
-    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [fulcro-todomvc.api :as api]
-    [com.fulcrologic.fulcro.networking.http-remote :as http-remote]
-    [goog.object :as gobj]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.mutations :as m]))
+    [goog.object :as gobj]))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))
