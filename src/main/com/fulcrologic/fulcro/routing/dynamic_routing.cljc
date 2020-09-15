@@ -478,7 +478,7 @@
   to just over-render you can use a quoted `_` instead.
   "
   ([this-or-app]
-   (if-let [cls (app/root-class (comp/any->app this-or-app))]
+   (if-let [cls (some-> this-or-app (comp/any->app) (app/root-class))]
      (current-route cls)
      []))
   ([this-or-app relative-class-or-instance]
