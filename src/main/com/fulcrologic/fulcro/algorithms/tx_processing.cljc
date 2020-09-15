@@ -829,3 +829,31 @@
                           {}
                           remote-names)]
     (swap! runtime-atom assoc ::send-queues new-send-queues)))
+
+(defn abort-remote!
+  "Cause everything in the active network queue for remote to be cancelled. Any result that (finally) appears for aborted
+  items will be ignored. This will cause a hard error to be \"received\" as the result for everything
+  that is in the send queue of the given remote.
+
+  This function is mainly meant for use in development mode when dealing with a buggy remote implementation."
+  [app-ish remote]
+  (let [app            (comp/any->app app-ish)
+        {:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} (comp/any->app app)
+        {abort-network! :abort!
+         :as            the-remote} (get @runtime-atom [:com.fulcrologic.fulcro.application/remotes remote])
+        old-send-queue (get-in @runtime-atom [::send-queues remote])]
+    (swap! runtime-atom assoc-in [::send-queues remote] [])
+    (swap! state-atom update :com.fulcrologic.fulcro.application/active-remotes (fnil disj #{}) remote)
+    (doseq [{::keys [active? options result-handler] :as send-node} old-send-queue
+            aid (or (-> options ::abort-id) (-> options :abort-id))]
+      (try
+        (when active?
+          (if abort-network!
+            (abort-network! the-remote aid)
+            (log/warn "Remote does not support abort. Clearing the queue, but a spurious result may still appear.")))
+        (result-handler {:status-code 500
+                         :body        {}
+                         :status-text "Globally Aborted"
+                         ::aborted?   true})
+        (catch #?(:clj Exception :cljs :default) e
+          (log/error e "Failed to abort send node"))))))

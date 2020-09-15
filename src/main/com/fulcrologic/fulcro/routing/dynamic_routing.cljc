@@ -478,8 +478,8 @@
   to just over-render you can use a quoted `_` instead.
   "
   ([this-or-app]
-   (if-let [cls (some-> this-or-app (comp/any->app) (app/root-class))]
-     (current-route cls)
+   (if-let [cls (some-> this-or-app comp/any->app app/root-class)]
+     (current-route this-or-app cls)
      []))
   ([this-or-app relative-class-or-instance]
    (let [app        (comp/any->app this-or-app)
@@ -753,7 +753,8 @@
                                     `{:query         ~query
                                       :ident         ~ident-method
                                       :use-hooks?    false
-                                      :initial-state ~initial-state-lambda})]
+                                      :initial-state ~initial-state-lambda
+                                      :preserve-dynamic-query? true})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
           (let [~'current-state (uism/get-active-state ~'this ~id)

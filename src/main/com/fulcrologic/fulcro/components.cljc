@@ -152,6 +152,10 @@
     (keyword? classname) (get @component-registry classname)
     (symbol? classname) (let [k (keyword (namespace classname) (name classname))]
                           (get @component-registry k))
+    (and (string? classname)
+      (str/includes? classname "/")) (let [[nspc nm] (str/split classname "/")
+                                           k (keyword nspc nm)]
+                                       (get @component-registry k))
     :otherwise nil))
 
 (declare props)
@@ -1085,6 +1089,31 @@
         (when schedule-render! (schedule-render! app {:force-root? true})))
       (when #?(:clj false :cljs goog.DEBUG)
         (log/error "Unable to set query. Invalid arguments.")))))
+
+(defn refresh-dynamic-queries!
+  "Refresh the current dynamic queries in app state to reflect any updates to the static queries of the components.
+
+   This can be used at development time to update queries that have changed but that hot code reload does not
+   reflect (because there is a current saved query in state). This is *not* always what you want, since a component
+   may have a custom query whose prop-level elements are set to a particular thing on purpose.
+
+   An component that has `:preserve-dynamic-query? true` in its component options will be ignored by
+   this function."
+  ([app-ish cls force?]
+   (let [app (any->app app-ish)]
+     (let [preserve? (log/spy :info (and (not force?) (component-options cls :preserve-dynamic-query?)))]
+       (when-not preserve?
+         (set-query! app cls {:query (get-query cls {})})))))
+  ([app-ish]
+   (let [{:com.fulcrologic.fulcro.application/keys [state-atom] :as app} (any->app app-ish)
+         state-map  @state-atom
+         queries    (get state-map ::queries)
+         classnames (keys queries)]
+     (doseq [nm classnames
+             :let [cls       (registry-key->class nm)
+                   preserve? (component-options cls :preserve-dynamic-query?)]]
+       (when-not preserve?
+         (refresh-dynamic-queries! app cls true))))))
 
 (defn get-indexes
   "Get all of the indexes from a component instance or app. See also `ident->any`, `class->any`, etc."
