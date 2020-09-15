@@ -1101,7 +1101,7 @@
    this function."
   ([app-ish cls force?]
    (let [app (any->app app-ish)]
-     (let [preserve? (log/spy :info (and (not force?) (component-options cls :preserve-dynamic-query?)))]
+     (let [preserve? (and (not force?) (component-options cls :preserve-dynamic-query?))]
        (when-not preserve?
          (set-query! app cls {:query (get-query cls {})})))))
   ([app-ish]
