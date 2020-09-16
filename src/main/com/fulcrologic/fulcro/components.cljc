@@ -10,6 +10,7 @@
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
+    [taoensso.encore :as enc]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
@@ -153,7 +154,7 @@
     (symbol? classname) (let [k (keyword (namespace classname) (name classname))]
                           (get @component-registry k))
     (and (string? classname)
-      (str/includes? classname "/")) (let [[nspc nm] (str/split classname "/")
+      (str/includes? classname "/")) (let [[nspc nm] (str/split classname #"/")
                                            k (keyword nspc nm)]
                                        (get @component-registry k))
     :otherwise nil))
@@ -1020,9 +1021,13 @@
   with their query ID."
   [query]
   (let [metadata (meta query)]
-    (with-meta
-      (mapv link-element query)
-      metadata)))
+    (if (map? query)
+      (with-meta
+        (enc/map-vals (fn [ele] (let [{:keys [queryid]} (meta ele)] queryid)) query)
+        metadata)
+      (with-meta
+        (mapv link-element query)
+        metadata))))
 
 (defn normalize-query
   "Given a state map and a query, returns a state map with the query normalized into the database. Query fragments
@@ -1090,30 +1095,44 @@
       (when #?(:clj false :cljs goog.DEBUG)
         (log/error "Unable to set query. Invalid arguments.")))))
 
-(defn refresh-dynamic-queries!
-  "Refresh the current dynamic queries in app state to reflect any updates to the static queries of the components.
+(letfn [(--set-query! [app class-or-factory {:keys [query] :as params}]
+          (let [state-atom (:com.fulcrologic.fulcro.application/state-atom app)
+                queryid    (cond
+                             (string? class-or-factory) class-or-factory
+                             (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
+                             :otherwise (query-id class-or-factory nil))]
+            (if (and (string? queryid) (or query params))
+              (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
+              (when #?(:clj false :cljs goog.DEBUG)
+                (log/error "Unable to set query. Invalid arguments.")))))]
+  (defn refresh-dynamic-queries!
+    "Refresh the current dynamic queries in app state to reflect any updates to the static queries of the components.
 
-   This can be used at development time to update queries that have changed but that hot code reload does not
-   reflect (because there is a current saved query in state). This is *not* always what you want, since a component
-   may have a custom query whose prop-level elements are set to a particular thing on purpose.
+     This can be used at development time to update queries that have changed but that hot code reload does not
+     reflect (because there is a current saved query in state). This is *not* always what you want, since a component
+     may have a custom query whose prop-level elements are set to a particular thing on purpose.
 
-   An component that has `:preserve-dynamic-query? true` in its component options will be ignored by
-   this function."
-  ([app-ish cls force?]
-   (let [app (any->app app-ish)]
-     (let [preserve? (and (not force?) (component-options cls :preserve-dynamic-query?))]
-       (when-not preserve?
-         (set-query! app cls {:query (get-query cls {})})))))
-  ([app-ish]
-   (let [{:com.fulcrologic.fulcro.application/keys [state-atom] :as app} (any->app app-ish)
-         state-map  @state-atom
-         queries    (get state-map ::queries)
-         classnames (keys queries)]
-     (doseq [nm classnames
-             :let [cls       (registry-key->class nm)
-                   preserve? (component-options cls :preserve-dynamic-query?)]]
-       (when-not preserve?
-         (refresh-dynamic-queries! app cls true))))))
+     An component that has `:preserve-dynamic-query? true` in its component options will be ignored by
+     this function."
+    ([app-ish cls force?]
+     (let [app (any->app app-ish)]
+       (let [preserve? (and (not force?) (component-options cls :preserve-dynamic-query?))]
+         (when-not preserve?
+           (set-query! app cls {:query (get-query cls {})})))))
+    ([app-ish]
+     (let [{:com.fulcrologic.fulcro.application/keys [state-atom] :as app} (any->app app-ish)
+           state-map  @state-atom
+           queries    (get state-map ::queries)
+           classnames (keys queries)]
+       (doseq [nm classnames
+               :let [cls       (registry-key->class nm)
+                     preserve? (component-options cls :preserve-dynamic-query?)]]
+         (when-not preserve?
+           (--set-query! app cls {:query (get-query cls {})})))
+       (let [index-root!      (ah/app-algorithm app :index-root!)
+             schedule-render! (ah/app-algorithm app :schedule-render!)]
+         (when index-root! (index-root! app))
+         (when schedule-render! (schedule-render! app {:force-root? true})))))))
 
 (defn get-indexes
   "Get all of the indexes from a component instance or app. See also `ident->any`, `class->any`, etc."

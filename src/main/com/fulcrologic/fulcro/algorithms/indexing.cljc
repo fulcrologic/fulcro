@@ -93,17 +93,16 @@
   [this]
   (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
         get-ident (comp/component-options this :ident)]
-    (let [ident (when get-ident (get-ident this (comp/props this)))
-          cls   (comp/react-type this)]
+    (let [cls   (comp/react-type this)
+          props (comp/props this)
+          ident (when get-ident (get-ident this props))]
       (when #?(:cljs goog.DEBUG :clj true)
-        (when ident
-          (log/debug "Indexing component " ident))
         (when (and ident (not (eql/ident? ident)))
-          (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident))
+          (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident "using props" props))
         (when (and ident (nil? (second ident)))
           (log/info
             (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
-              " This warning can be safely ignored if that is intended."))))
+              " This warning can be safely ignored if that is intended.") "Props were" props)))
       (swap! runtime-atom index-component* this ident cls))))
 
 (defn- drop-component*
@@ -123,7 +122,7 @@
    (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
          cls (comp/react-type this)]
      (when (and #?(:cljs goog.DEBUG :clj true) ident)
-       (log/debug "Dropping component from index" ident))
+       (log/debug "Dropping component from index" (comp/component-name cls) ident))
      (when ident
        (swap! runtime-atom drop-component* this ident cls))))
   ([this]

@@ -3,7 +3,11 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [taoensso.timbre :as log]
     [fulcro-spec.core :refer [specification behavior component assertions when-mocking]]
-    #?(:cljs [goog.object :as gobj])))
+    #?(:cljs [goog.object :as gobj])
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]))
+
+(declare =>)
 
 (defsc A [_ _] {})
 
@@ -69,10 +73,12 @@
 
 (def ui-rootp (comp/factory RootP))
 
-(specification "link-query"
+(specification "link-query" :focus
   (assertions
     "Replaces nested queries with their string ID"
-    (comp/link-query (comp/get-query ui-root {})) => [:a {:join (comp/query-id Child nil)} {:union (comp/query-id Union nil)}]))
+    (comp/link-query (comp/get-query ui-root {})) => [:a {:join (comp/query-id Child nil)} {:union (comp/query-id Union nil)}]
+    (comp/link-query (comp/get-query Union {})) => {:u1 (comp/query-id UnionChildA nil)
+                                                    :u2 (comp/query-id UnionChildB nil)}))
 
 (specification "normalize-query"
   (let [union-child-a-id (comp/query-id UnionChildA nil)
@@ -233,3 +239,105 @@
       "preserves metadata on the query joins"
       (-> saved-query (nth 2) :x meta :component) => T2C1)))
 
+(defn rdq-union-ident [props] [(:type props) :singleton])
+
+(defsc RDQLeafA [this props]
+  {:query         [:type :leaf/x]
+   :ident         (fn [] (rdq-union-ident props))
+   :initial-state {:type :a}})
+
+(defsc RDQLeafB [this props]
+  {:query         [:type :leaf/y]
+   :ident         (fn [] (rdq-union-ident props))
+   :initial-state {:type :b}})
+
+(defsc RDQUnionOfLeaves [this {:keys [:leafb/x :leafb/y] :as props}]
+  {:query         (fn []
+                    {:a (comp/get-query RDQLeafA)
+                     :b (comp/get-query RDQLeafB)})
+   :initial-state (fn [_] (comp/get-initial-state RDQLeafA))
+   :ident         (fn [] (rdq-union-ident props))})
+
+(defsc RDQOther [this {:keys [:other/id :other/name] :as props}]
+  {:query         [:other/id :other/name]
+   :ident         :other/id
+   :initial-state {:other/id 42}})
+
+(defsc RDQRoot [this props]
+  {:query         [{:root/other (comp/get-query RDQOther)}
+                   {:root/union (comp/get-query RDQUnionOfLeaves)}]
+   :initial-state {:root/other {}
+                   :root/union {}}})
+
+(defsc RDQPlain [this props]
+  {:query         [:ui/thing]
+   :initial-state {}})
+
+(defsc RDQPlainPreserved [this props]
+  {:query                   [:ui/thing]
+   :preserve-dynamic-query? true
+   :initial-state           {}})
+
+
+(specification "refresh-dynamic-queries!" :focus
+  (component "Simple components"
+    (let [app (stx/with-synchronous-transactions (app/fulcro-app))]
+      (app/set-root! app RDQPlain {:initialize-state? true})
+      (comp/set-query! app RDQPlain {:query [:ui/other]})
+
+      (let [state-map (app/current-state app)]
+        (assertions
+          "Prior to refresh: Getting the root query is ok"
+          (comp/get-query RDQPlain state-map) => [:ui/other]))
+
+      (comp/refresh-dynamic-queries! app)
+
+      (let [state-map (app/current-state app)]
+        (assertions
+          "After refresh: Resets query to original"
+          (comp/get-query RDQPlain state-map) => [:ui/thing]))))
+
+  (component "Preserved query components"
+    (let [app (stx/with-synchronous-transactions (app/fulcro-app))]
+      (app/set-root! app RDQPlainPreserved {:initialize-state? true})
+      (comp/set-query! app RDQPlainPreserved {:query [:ui/other]})
+
+      (let [state-map (app/current-state app)]
+        (assertions
+          "Prior to refresh: Getting the root query is ok"
+          (comp/get-query RDQPlainPreserved state-map) => [:ui/other]))
+
+      (comp/refresh-dynamic-queries! app)
+
+      (let [state-map (app/current-state app)]
+        (assertions
+          "After refresh: Retains updated dynamic query"
+          (comp/get-query RDQPlainPreserved state-map) => [:ui/other]))))
+
+  (component "Union Query Components"
+    (let [app (stx/with-synchronous-transactions (app/fulcro-app))]
+      (app/set-root! app RDQRoot {:initialize-state? true})
+      (comp/set-query! app RDQRoot {:query [:ui/extra
+                                            {:root/other (comp/get-query RDQOther)}
+                                            {:root/union (comp/get-query RDQUnionOfLeaves)}]})
+
+      (let [state-map (app/current-state app)]
+        (assertions
+          "Prior to refresh: Getting the root query is ok"
+          (comp/get-query RDQRoot state-map)
+          => [:ui/extra
+              {:root/other [:other/id :other/name]}
+              {:root/union {:a [:type :leaf/x], :b [:type :leaf/y]}}]
+          "Prior to refresh: Getting the union query works"
+          (comp/get-query RDQUnionOfLeaves state-map)
+          => {:a [:type :leaf/x], :b [:type :leaf/y]}))
+
+      (log/info "********************************************************************************")
+      (comp/refresh-dynamic-queries! app)
+
+      (let [state-map (app/current-state app)]
+        (assertions
+          "After refresh: root query is reset, but denormalizes correctly"
+          (comp/get-query RDQRoot state-map)
+          => [{:root/other [:other/id :other/name]}
+              {:root/union {:a [:type :leaf/x], :b [:type :leaf/y]}}])))))
