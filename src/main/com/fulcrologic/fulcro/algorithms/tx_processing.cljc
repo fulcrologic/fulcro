@@ -321,7 +321,9 @@
                                  remote-set      (set/intersection remotes (set (keys dispatch)))
                                  exec?           (and action (not (or done? (complete? :action))))
                                  fully-complete? (and (or exec? (complete? :action)) (empty? (set/difference remote-set complete?)))
-                                 state-before    (-> app :com.fulcrologic.fulcro.application/state-atom deref)
+                                 state-id-before (inspect/current-history-id app)
+                                 state           (:com.fulcrologic.fulcro.application/state-atom app)
+                                 state-before    @state
                                  updated-element (if exec? (-> element
                                                              (assoc ::state-before-action state-before)
                                                              (update ::complete? conj :action)) element)
@@ -337,9 +339,11 @@
                                    (let [mutation-symbol (:dispatch-key original-ast-node)]
                                      (log/error e "The `action` section of mutation" mutation-symbol "threw an exception."))))
                                (ilet [tx (eql/ast->expr original-ast-node true)]
-                                 (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
-                                                                               :state-before state-before
-                                                                               :tx           tx})))
+                                 (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
+                                                                               :state-id-before state-id-before
+                                                                               :db-before       state-before
+                                                                               :db-after        @state
+                                                                               :tx              tx})))
                              new-acc)))
                        {:done? false :new-elements []}
                        elements)
@@ -353,22 +357,26 @@
                        (fn [new-elements element]
                          (let [{::keys [idx complete? dispatch original-ast-node]} element
                                {:keys [action]} dispatch
-                               exec?        (and action (not (complete? :action)))
-                               state-before (-> app :com.fulcrologic.fulcro.application/state-atom deref)
-                               updated-node (if exec? (-> element
-                                                        (assoc ::state-before-action state-before)
-                                                        (update ::complete? conj :action)) element)
-                               new-acc      (conj new-elements updated-node)
-                               env          (build-env app node {:ast original-ast-node})]
+                               exec?           (and action (not (complete? :action)))
+                               state-id-before (inspect/current-history-id app)
+                               state           (:com.fulcrologic.fulcro.application/state-atom app)
+                               state-before    @state
+                               updated-node    (if exec? (-> element
+                                                           (assoc ::state-before-action state-before)
+                                                           (update ::complete? conj :action)) element)
+                               new-acc         (conj new-elements updated-node)
+                               env             (build-env app node {:ast original-ast-node})]
                            (when exec?
                              (try
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
                                  (log/error e "The `action` section threw an exception for mutation: " (:dispatch-key original-ast-node))))
                              (ilet [tx (eql/ast->expr original-ast-node true)]
-                               (inspect/optimistic-action-finished! app env {:tx-id        (str id "-" idx)
-                                                                             :state-before state-before
-                                                                             :tx           tx})))
+                               (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
+                                                                             :state-id-before state-id-before
+                                                                             :db-before       state-before
+                                                                             :db-after        @state
+                                                                             :tx              tx})))
                            new-acc))
                        []
                        elements)]

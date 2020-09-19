@@ -182,6 +182,6 @@
    :query         [{:root/router (comp/get-query TopRouter)}]}
   (dom/div {}
     ;; Test button for custom types
-    #_(dom/button {:onClick (fn []
-                              (comp/transact! this [(api/store-point {:p (custom-types/Point. 4 9)})]))} "Store Point")
+    (dom/button {:onClick (fn []
+                            (comp/transact! this [(api/store-point {:p (custom-types/Point. 4 9)})]))} "Store Point")
     (ui-router router)))

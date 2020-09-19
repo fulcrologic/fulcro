@@ -8,10 +8,15 @@
                [com.fulcrologic.fulcro.inspect.diff :as diff]
                [com.fulcrologic.fulcro.inspect.transit :as encode]
                [cljs.core.async :as async]])
+    [clojure.data :as data]
     [taoensso.encore :as encore]
-    [taoensso.timbre :as log]))
+    [taoensso.timbre :as log]
+    [taoensso.encore :as enc]))
 
 #?(:cljs (goog-define INSPECT false))
+
+;; This is here so that you can include the element picker without killing React Native
+(defonce run-picker (atom nil))
 
 (declare handle-devtool-message)
 (defonce started?* (atom false))
@@ -54,41 +59,47 @@
   (let [tx! (ah/app-algorithm app :tx!)]
     (tx! app tx options)))
 
-
 (def MAX_HISTORY_SIZE 100)
 
-(defn- fixed-size-assoc [size db key value]
-  (let [{:fulcro.inspect.client/keys [history] :as db'}
-        (-> db
-          (assoc key value)
-          (update :fulcro.inspect.client/history (fnil conj []) key))]
-    (if (> (count history) size)
-      (-> db'
-        (dissoc (first history))
-        (update :fulcro.inspect.client/history #(vec (next %))))
-      db')))
+(defn current-history-id
+  "Current time in the recorded history of states"
+  [app]
+  (or (-> app (runtime-atom) deref ::time) 1))
 
-(defn- update-state-history
-  "Record a snapshot of history on the app itself for inspect to reference via events to do things like preview
-   history."
+(defn record-history-entry!
+  "Record a state change in this history. Returns the ID of the newly recorded entry."
   [app state]
-  (swap! (runtime-atom app) update :fulcro.inspect.client/state-history
-    #(fixed-size-assoc MAX_HISTORY_SIZE % (hash state) state)))
+  (let [now (current-history-id app)]
+    (swap! (runtime-atom app)
+      (fn [runtime]
+        (let [history        (::history runtime)
+              pruned-history (cond
+                               (nil? history) []
+                               (> (count history) MAX_HISTORY_SIZE) (subvec history 1)
+                               :else history)
+              new-history    (conj pruned-history {:id    now
+                                                   :value state})]
+          (assoc runtime
+            ::time (inc now)
+            ::history new-history))))
+    now))
 
-(defn db-from-history [app state-hash]
-  (some-> (runtime-atom app) deref :fulcro.inspect.client/state-history (get state-hash)))
+(defn get-history-entry [app id]
+  (let [history (-> app runtime-atom deref ::history)
+        entry   (first (filter
+                         (fn [{entry-id :id}] (= id entry-id))
+                         (seq history)))]
+    entry))
+
 
 (defn db-changed!
   "Notify Inspect that the database changed"
   [app old-state new-state]
   #?(:cljs
-     (let [app-uuid (app-uuid app)]
-       (update-state-history app new-state)
-       (let [diff (diff/diff old-state new-state)]
-         (post-message :fulcro.inspect.client/db-update {app-uuid-key                           app-uuid
-                                                         :fulcro.inspect.client/prev-state-hash (hash old-state)
-                                                         :fulcro.inspect.client/state-hash      (hash new-state)
-                                                         :fulcro.inspect.client/state-delta     diff})))))
+     (let [app-uuid (app-uuid app)
+           state-id (record-history-entry! app new-state)]
+       (post-message :fulcro.inspect.client/db-changed! {app-uuid-key                    app-uuid
+                                                         :fulcro.inspect.client/state-id state-id}))))
 
 (defn event-data [event]
   #?(:cljs (some-> event (gobj/getValueByKeys "data" "fulcro-inspect-devtool-message") encode/read)))
@@ -113,8 +124,6 @@
              (gobj/getValueByKeys event "data" "fulcro-inspect-start-consume"))
            (start-send-message-loop)))
        false)))
-
-
 
 (defn transact-inspector!
   ([tx]
@@ -177,21 +186,25 @@
          [`(fulcro.inspect.ui.network/request-finish ~{:fulcro.inspect.ui.network/request-id          tx-id
                                                        :fulcro.inspect.ui.network/request-finished-at finished
                                                        :fulcro.inspect.ui.network/error               error})]))))
-(defn handle-devtool-message [{:keys [type data]}]
+
+;; LANDMARK: Incoming message handler for Inspect
+(defn handle-devtool-message [{:keys [type data] :as message}]
+  (log/debug "Devtools Message received" message)
   #?(:cljs
      (case type
        :fulcro.inspect.client/request-page-apps
        (do
          (doseq [app (vals @apps*)]
            (let [state        (app-state app)
+                 state-id     (record-history-entry! app state)
                  remote-names (remotes app)]
              (post-message :fulcro.inspect.client/init-app
-               {app-uuid-key                         (app-uuid app)
-                :fulcro.inspect.core/app-id          (app-id app)
-                :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str)
-                                                       (keys remote-names))
-                :fulcro.inspect.client/initial-state state
-                :fulcro.inspect.client/state-hash    (hash state)}))))
+               {app-uuid-key                                (app-uuid app)
+                :fulcro.inspect.core/app-id                 (app-id app)
+                :fulcro.inspect.client/remotes              (sort-by (juxt #(not= :remote %) str)
+                                                              (keys remote-names))
+                :fulcro.inspect.client/initial-history-step {:id    state-id
+                                                             :value state}}))))
 
        :fulcro.inspect.client/reset-app-state
        (let [{:keys                     [target-state]
@@ -204,6 +217,22 @@
              (render! app {:force-root? true}))
            (log/info "Reset app on invalid uuid" app-uuid)))
 
+       ;; Remote tool has asked for the history step at id, and can accept a diff from the given closest entry
+       :fulcro.inspect.client/fetch-history-step
+       (let [{:keys                     [id based-on]
+              :fulcro.inspect.core/keys [app-uuid]} data]
+         (enc/when-let [app (get @apps* app-uuid)
+                        {:keys [value]} (get-history-entry app id)]
+           (let [prior-state (get-history-entry app based-on)
+                 diff        (when prior-state (diff/diff prior-state value))]
+             (post-message :fulcro.inspect.client/history-entry
+               (cond-> {app-uuid-key                  app-uuid
+                        :fulcro.inspect.core/state-id id}
+                 diff (assoc :fulcro.inspect.client/diff diff
+                             :based-on based-on)
+                 (not diff) (assoc :fulcro.inspect.client/state value))))))
+
+
        :fulcro.inspect.client/transact
        (let [{:keys                     [tx tx-ref]
               :fulcro.inspect.core/keys [app-uuid]} data]
@@ -214,12 +243,17 @@
            (log/error "Transact on invalid uuid" app-uuid)))
 
        :fulcro.inspect.client/pick-element
-       (log/error "Pick Element Not implemented for Inspect v3")
+       (if @run-picker
+         (@run-picker data)
+         (try
+           (js/alert "Element picker not installed. Add it to your preload.")
+           (catch :default _e
+             (log/error "Element picker not installed in app. You must add it to you preloads."))))
 
        :fulcro.inspect.client/show-dom-preview
        (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
                        app              (some-> @apps* (get app-uuid))
-                       historical-state (db-from-history app (:fulcro.inspect.client/state-hash data))
+                       historical-state (get-history-entry app (:fulcro.inspect.client/state-id data))
                        historical-app   (assoc app :com.fulcrologic.fulcro.application/state-atom (atom historical-state))
                        render!          (ah/app-algorithm app :render!)]
          (do
@@ -233,16 +267,16 @@
          (render! app {:force-root? true}))
 
        :fulcro.inspect.client/network-request
-       (let [{:keys                          [query]
+       (let [{:keys                          [query mutation]
               remote-name                    :fulcro.inspect.client/remote
               :fulcro.inspect.ui-parser/keys [msg-id]
               :fulcro.inspect.core/keys      [app-uuid]} data]
          (encore/when-let [app       (get @apps* app-uuid)
                            remote    (get (remotes app) remote-name)
                            transmit! (-> remote :transmit!)
-                           ast       (eql/query->ast query)
+                           ast       (eql/query->ast (or query mutation))
                            tx-id     (random-uuid)]
-           (send-started! app remote-name tx-id query)
+           (send-started! app remote-name tx-id (or query mutation))
            (transmit! remote {:com.fulcrologic.fulcro.algorithms.tx-processing/id             tx-id
                               :com.fulcrologic.fulcro.algorithms.tx-processing/ast            ast
                               :com.fulcrologic.fulcro.algorithms.tx-processing/idx            0
@@ -273,7 +307,7 @@
            (js/console.error error)))
 
        :fulcro.inspect.client/check-client-version
-       (post-message :fulcro.inspect.client/client-version {:version "2.2.5"})
+       (post-message :fulcro.inspect.client/client-version {:version "3.0.0"})
 
        (log/debug "Unknown message" type))))
 
@@ -299,13 +333,12 @@
              state*     (state-atom app)
              app-uuid   (fulcro-app-id app)]
          (swap! apps* assoc app-uuid app)
-         (update-state-history app @state*)
+         (record-history-entry! app @state*)
          (swap! state* assoc app-uuid-key app-uuid)
          (post-message :fulcro.inspect.client/init-app {app-uuid-key                         app-uuid
                                                         :fulcro.inspect.core/app-id          (app-id app)
                                                         :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) (keys networking))
-                                                        :fulcro.inspect.client/initial-state @state*
-                                                        :fulcro.inspect.client/state-hash    (hash @state*)})
+                                                        :fulcro.inspect.client/initial-state @state*})
          (add-watch state* app-uuid #(db-changed! app %3 %4))))))
 
 (defn optimistic-action-finished!
@@ -315,14 +348,16 @@
    env - The mutation env that completed."
   [app
    {:keys [component ref state com.fulcrologic.fulcro.algorithms.tx-processing/options]}
-   {:keys [tx-id tx state-before]}]
+   {:keys [tx-id tx state-id-before db-before db-after]}]
   #?(:cljs
      (let [component-name (get-component-name component)
+           current-id     (current-history-id app)
            tx             (cond-> {:fulcro.inspect.ui.transactions/tx-id                    tx-id
                                    :fulcro.history/client-time                              (js/Date.)
                                    :fulcro.history/tx                                       tx
-                                   :fulcro.history/db-before-hash                           (hash state-before)
-                                   :fulcro.history/db-after-hash                            (hash @state)
+                                   :fulcro.history/db-before-id                             state-id-before
+                                   :fulcro.history/db-after-id                              current-id
+                                   :fulcro.history/diff                                     (vec (take 2 (data/diff db-after db-before)))
                                    :fulcro.history/network-sends                            []
                                    :com.fulcrologic.fulcro.algorithms.tx-processing/options options}
                             component-name (assoc :component component-name)

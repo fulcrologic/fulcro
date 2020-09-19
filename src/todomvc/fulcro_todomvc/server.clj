@@ -102,7 +102,7 @@
    ::pc/params [:p]
    ::pc/output []}
   (log/spy :info "Store point" [(type p) p])
-  {})
+  {:p p})
 
 ;; How to go from :person/id to that person's details
 (pc/defresolver list-resolver [env params]
