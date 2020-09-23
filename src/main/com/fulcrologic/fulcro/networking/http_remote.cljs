@@ -122,7 +122,7 @@
       (log/error "Attempt to request alternate response from HTTP remote from multiple items in a single transaction. This could mean more than one transaction got combined into a single request."))
     (if (and alt (= 1 cnt) (contains? legal-response-types alt))
       (let [node         (update-in (first nodes) [:params] dissoc ::response-type)
-            updated-body [(eql/ast->query node)]]
+            updated-body (futil/ast->query node)]
         [updated-body alt])
       [body :default])))
 

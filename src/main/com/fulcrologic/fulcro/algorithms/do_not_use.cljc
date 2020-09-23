@@ -146,6 +146,7 @@
 (defn ast->query
   "Workaround for bug in EQL 0.0.9 and earlier"
   [ast]
-  (if (= :root (:type ast))
-    (eql/ast->query ast)
-    [(eql/ast->expr ast true)]))
+  (as-> (eql/ast->expr ast true) <>
+    (if (vector? <>)
+      <>
+      [<>])))

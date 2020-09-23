@@ -50,6 +50,7 @@
     [taoensso.timbre :as log]
     [taoensso.encore :as enc]
     [clojure.spec.alpha :as s]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
@@ -161,9 +162,7 @@
         ;; work with.
         {:keys [body transaction]} result
         mark-query    (if transmitted-ast
-                        (if (= :root (:type transmitted-ast))
-                          (eql/ast->query transmitted-ast)
-                          [(eql/ast->expr transmitted-ast true)])
+                        (futil/ast->query transmitted-ast)
                         transaction)
         body          (if (and body mark-query)
                         (merge/mark-missing body mark-query)
