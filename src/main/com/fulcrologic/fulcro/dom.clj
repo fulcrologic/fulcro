@@ -23,9 +23,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom-common :as cdom]
-    [clojure.string :as str]
-    [taoensso.timbre :as log]
-    [cljs.env :as cljs-env])
+    [clojure.string :as str])
   (:import
     (cljs.tagged_literals JSValue)
     (clojure.lang ExceptionInfo)))
@@ -189,7 +187,7 @@
 
 (defmacro gen-dom-macros
   ([emitter unwrapped-emitter]
-   (.println System/out (str "Using wrapped inputs? " (wrap-inputs?)))
+   ;; System out sometimes gets munged into actual js output, for whatever buggy reason
    (if (wrap-inputs?)
      `(do ~@(clojure.core/map (partial gen-dom-macro emitter) cdom/tags))
      `(do ~@(clojure.core/map (partial gen-dom-macro unwrapped-emitter) cdom/tags))))
@@ -213,10 +211,10 @@
   ([create-element-sym create-unwrapped-element-sym]
    (if (wrap-inputs?)
      (do
-       (log/info "Using Wrapped inputs")
+       (.println System/err "Using Wrapped inputs")
        `(do ~@(clojure.core/map (partial gen-client-dom-fn create-element-sym) cdom/tags)))
      (do
-       (log/info "Using RAW inputs. Remember to use `comp/transact!!` for sync updates on DOM events.")
+       (.println System/err "Using RAW inputs. Remember to use `comp/transact!!` for sync updates on DOM events.")
        `(do ~@(clojure.core/map (partial gen-client-dom-fn create-unwrapped-element-sym) cdom/tags))))))
 
 (gen-dom-macros com.fulcrologic.fulcro.dom/emit-tag com.fulcrologic.fulcro.dom/emit-tag-unwrapped)
