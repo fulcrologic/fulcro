@@ -1088,10 +1088,10 @@
    NOTE: In general a state machine should declare an actor for items in the machine and use `load-actor` instead of
    this function so that the state definitions themselves need not be coupled (via code) to the UI."
   ([env key-or-ident component-class-or-actor-name]
-   [::env ::query-key (s/or :a ::actor-name :c comp/component-class?) => ::env]
+   [::env ::query-key (? (s/or :a ::actor-name :c comp/component-class?)) => ::env]
    (load env key-or-ident component-class-or-actor-name {}))
   ([env key-or-ident component-class-or-actor-name options]
-   [::env ::query-key (s/or :a ::actor-name :c comp/component-class?) ::load-options => ::env]
+   [::env ::query-key (? (s/or :a ::actor-name :c comp/component-class?)) ::load-options => ::env]
    (let [options (convert-load-options env options)
          class   (if (keyword? component-class-or-actor-name)
                    (actor-class env component-class-or-actor-name)
