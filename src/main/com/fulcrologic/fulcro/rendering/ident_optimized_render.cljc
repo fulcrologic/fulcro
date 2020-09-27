@@ -33,11 +33,12 @@
   #?(:cljs
      (if (and c ident)
        (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
-             state-map @state-atom
-             query     (comp/get-query c state-map)
-             q         [{ident query}]
-             data-tree (when query (fdn/db->tree q state-map state-map)) ; denormalize time is set by app render
-             new-props (get data-tree ident)]
+             state-map      @state-atom
+             query          (comp/get-query c state-map)
+             q              [{ident query}]
+             prior-computed (or (comp/get-computed c) {})
+             data-tree      (when query (fdn/db->tree q state-map state-map)) ; denormalize time is set by app render
+             new-props      (comp/computed (get data-tree ident) prior-computed)]
          (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
          (comp/tunnel-props! c new-props))
        (let [root (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/app-root)]

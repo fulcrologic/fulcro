@@ -1663,13 +1663,14 @@
   is a synchronous call that will tunnel the props to the given component via an internal call to React setState."
   [component]
   (if (component? component)
-    (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} (any->app component)
-          state-map @state-atom]
+    (let [prior-computed (or (get-computed component) {})
+          {:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} (any->app component)
+          state-map      @state-atom]
       (swap! runtime-atom update :com.fulcrologic.fulcro.application/basis-t inc)
       (binding [fdn/*denormalize-time* (-> @runtime-atom :com.fulcrologic.fulcro.application/basis-t)]
         (let [ident    (get-ident component)
               query    (get-query component state-map)
-              ui-props (fdn/db->tree query (get-in state-map ident) state-map)]
+              ui-props (computed (fdn/db->tree query (get-in state-map ident) state-map) prior-computed)]
           (tunnel-props! component ui-props))))
     (log/error "Cannot re-render a non-component")))
 
