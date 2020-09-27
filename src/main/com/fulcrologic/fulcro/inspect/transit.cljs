@@ -20,19 +20,22 @@
                       (log/warn "Transit was unable to encode a value."))
                     "UNENCODED VALUE"))))
 
-(def write-handlers
-  {cljs.core/ExceptionInfo (ErrorHandler.)
-   "default"               (DefaultHandler.)})
+(defn write-handlers []
+  (merge {cljs.core/ExceptionInfo (ErrorHandler.)
+          "default"               (DefaultHandler.)}
+    (ft/write-handlers)))
 
-(def read-handlers
-  {"js-error" (fn [[msg data]] (ex-info msg data))})
+(defn read-handlers []
+  (merge
+    {"js-error" (fn [[msg data]] (ex-info msg data))}
+    (ft/read-handlers)))
 
 (defn read [str]
-  (let [reader (ft/reader {:handlers read-handlers})]
+  (let [reader (ft/reader {:handlers (read-handlers)})]
     (t/read reader str)))
 
 (defn write [x]
-  (let [writer (ft/writer {:handlers write-handlers})]
+  (let [writer (ft/writer {:handlers (write-handlers)})]
     (t/write writer x)))
 
 (extend-type ty/UUID IUUID)

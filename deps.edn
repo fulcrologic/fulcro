@@ -30,9 +30,9 @@
                         :extra-deps  {com.github.awkay/workspaces {:mvn/version "1.0.1"}}}
 
            :dev        {:extra-paths ["src/dev" "resources" "src/todomvc"]
-                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.11.2"}
+                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.11.4"}
                                       com.wsscode/pathom                {:mvn/version "2.2.31"}
-                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.1.1"}
+                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.2.0"}
                                       binaryage/devtools                {:mvn/version "1.0.0"}
                                       ring/ring-core                    {:mvn/version "1.8.1"}
                                       org.immutant/web                  {:mvn/version "2.1.10"}
