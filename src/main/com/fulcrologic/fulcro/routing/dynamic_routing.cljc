@@ -596,13 +596,13 @@
        :otherwise
        (do
          (signal-router-leaving app-or-comp relative-class-or-instance new-route timeouts-and-params)
-         (let [app        (comp/any->app app-or-comp)
-               state-map  (app/current-state app)
-               router     relative-class-or-instance
-               root-query (comp/get-query router state-map)
-               ast        (eql/query->ast root-query)
-               root       (ast-node-for-route ast new-route)
-               old-route  (current-route app relative-class-or-instance)]
+         (let [app             (comp/any->app app-or-comp)
+               state-map       (app/current-state app)
+               router          relative-class-or-instance
+               root-query      (comp/get-query router state-map)
+               ast             (eql/query->ast root-query)
+               root            (ast-node-for-route ast new-route)
+               routing-actions (atom (list))]
            (loop [{:keys [component]} root path new-route]
              (when (and component (router? component))
                (let [{:keys [target matching-prefix]} (route-target component path)
@@ -624,21 +624,26 @@
                                          {:path-segment matching-prefix
                                           :router       (vary-meta router-ident assoc :component component)
                                           :target       (vary-meta target-ident assoc :component target :params params)})]
-                 (if-not (uism/get-active-state app router-id)
-                   (do
-                     (let [state-map (comp/component->state-map app-or-comp)]
-                       (when-not (-> state-map ::id (get router-id))
-                         (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
-                     (uism/begin! app-or-comp RouterStateMachine router-id
-                       {:router (uism/with-actor-class router-ident component)}
-                       event-data))
-                   (uism/trigger! app router-id :route! event-data))
+                 ;; Route instructions queued into a list (which will reverse their order in the doseq below)
+                 (swap! routing-actions conj
+                   #(if-not (uism/get-active-state app router-id)
+                      (do
+                        (let [state-map (comp/component->state-map app-or-comp)]
+                          (when-not (-> state-map ::id (get router-id))
+                            (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
+                        (uism/begin! app-or-comp RouterStateMachine router-id
+                          {:router (uism/with-actor-class router-ident component)}
+                          event-data))
+                      (uism/trigger! app router-id :route! event-data)))
                  ;; make sure any transactions submitted from the completing action wait for a render of the state machine's
                  ;; startup or route effects before running.
                  (binding [comp/*after-render* true]
                    (completing-action))
                  (when (seq remaining-path)
-                   (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))))))))
+                   (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))
+           ;; Route instructions are sent depth first to prevent flicker
+           (doseq [action @routing-actions]
+             (action))))))))
 
 (def change-route-relative "DEPRECATED NAME: Use change-route-relative!" change-route-relative!)
 
