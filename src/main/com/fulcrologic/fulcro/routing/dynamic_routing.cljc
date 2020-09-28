@@ -391,8 +391,7 @@
   ([this-or-app relative-class-or-instance new-route timeouts-and-params]
    (let [app        (comp/any->app this-or-app)
          state-map  (app/current-state app)
-         router     relative-class-or-instance
-         root-query (comp/get-query router state-map)
+         root-query (comp/get-query relative-class-or-instance state-map)
          ast        (eql/query->ast root-query)
          root       (ast-node-for-route ast new-route)
          result     (atom [])]
@@ -457,7 +456,8 @@
          components (reverse @to-signal)
          result     (atom true)]
      (doseq [c components]
-       (swap! result #(and % (will-leave c (comp/props c)))))
+       (let [will-leave-result (will-leave c (comp/props c))]
+         (swap! result #(and % will-leave-result))))
      (when @result
        (doseq [t @to-cancel]
          (let [{:keys [component params]} (some-> t meta)]
@@ -523,28 +523,32 @@
 
 (defn target-denying-route-changes
   "This function will return the first mounted instance of a route target that is currently indicating it would
-  deny a route change."
-  [this-or-app]
-  (let [app        (comp/any->app this-or-app)
-        router     (app/root-class app)
-        state-map  (app/current-state app)
-        root-query (comp/get-query router state-map)
-        ast        (eql/query->ast root-query)
-        root       (or (ast-node-for-live-router app ast)
-                     (-> ast :children first))]
-    (loop [{router-class :component
-            :keys        [children]} root]
-      (when (and router-class (router? router-class))
-        (let [router-ident     (comp/get-ident router-class {})
-              active-target    (get-in state-map (conj router-ident ::current-route))
-              next-router      (some #(ast-node-for-live-router app %) children)
-              rejecting-target (when (vector? active-target)
-                                 (some (fn [c] (when (and
-                                                       (false? (allow-route-change? c))
-                                                       (not (force-route-flagged? c))) c)) (mounted-targets app router-class)))]
-          (cond
-            rejecting-target rejecting-target
-            next-router (recur next-router)))))))
+  deny a route change. If a `relative-class` is given then it only looks for targets that would deny a change within
+  that router's subtree."
+  ([this-or-app relative-class]
+   (let [app        (comp/any->app this-or-app)
+         state-map  (app/current-state app)
+         root-query (comp/get-query relative-class state-map)
+         ast        (eql/query->ast root-query)
+         root       (or (ast-node-for-live-router app ast)
+                      (-> ast :children first))]
+     (loop [{router-class :component
+             :keys        [children]} root]
+       (when (and router-class (router? router-class))
+         (let [router-ident     (comp/get-ident router-class {})
+               active-target    (get-in state-map (conj router-ident ::current-route))
+               next-router      (some #(ast-node-for-live-router app %) children)
+               rejecting-target (when (vector? active-target)
+                                  (some (fn [c] (when (and
+                                                        (false? (allow-route-change? c))
+                                                        (not (force-route-flagged? c))) c)) (mounted-targets app router-class)))]
+           (cond
+             rejecting-target rejecting-target
+             next-router (recur next-router)))))))
+  ([this-or-app]
+   (let [app    (comp/any->app this-or-app)
+         router (app/root-class app)]
+     (target-denying-route-changes app router))))
 
 (defn can-change-route?
   "Returns true if the active on-screen targets indicate they will allow navigation.
@@ -554,8 +558,8 @@
   is DEPRECATED (though the hook is NOT because it serves another purpose). If you side-effect in `:will-leave` this could cause strange
   behavior throughout the application.  It is recommended that your targets implement `:allow-route-change?` if they need
   to prevent routing, and only leverage `:will-leave` to do things like cancel in-progress loads."
-  [this-or-app]
-  (nil? (target-denying-route-changes this-or-app)))
+  ([this-or-app] (nil? (target-denying-route-changes this-or-app)))
+  ([this-or-app relative-class] (nil? (target-denying-route-changes this-or-app relative-class))))
 
 (defn change-route-relative!
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
@@ -569,8 +573,11 @@
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
-   (let [old-route (current-route app-or-comp relative-class-or-instance)
-         new-path  (proposed-new-path app-or-comp relative-class-or-instance new-route timeouts-and-params)]
+   (let [relative-class (if (comp/component? relative-class-or-instance)
+                          (comp/react-type relative-class-or-instance)
+                          relative-class-or-instance)
+         old-route      (current-route app-or-comp relative-class)
+         new-path       (proposed-new-path app-or-comp relative-class new-route timeouts-and-params)]
      (cond
        (and (= old-route new-route) (not (::force? timeouts-and-params)))
        (log/debug "Request to change route, but path is the current route. Ignoring change request.")
@@ -578,11 +585,11 @@
        (and #?(:clj true :cljs goog.DEBUG) (not (seq new-path)))
        (log/error "Could not find route targets for new-route" new-route)
 
-       (not (can-change-route? app-or-comp))
+       (not (can-change-route? app-or-comp relative-class))
        (let [app          (comp/any->app app-or-comp)
              target       (target-denying-route-changes app)
              route-denied (comp/component-options target :route-denied)]
-         (log/debug "Route request denied by on-screen target. Calling component's :route-denied (if defined).")
+         (log/debug "Route request denied by on-screen target" target ". Calling component's :route-denied (if defined).")
          (when route-denied
            (route-denied target relative-class-or-instance new-route)))
 
@@ -750,10 +757,10 @@
            options                (merge
                                     `{:componentDidMount (fn [this#] (validate-route-targets this#))}
                                     options
-                                    `{:query         ~query
-                                      :ident         ~ident-method
-                                      :use-hooks?    false
-                                      :initial-state ~initial-state-lambda
+                                    `{:query                   ~query
+                                      :ident                   ~ident-method
+                                      :use-hooks?              false
+                                      :initial-state           ~initial-state-lambda
                                       :preserve-dynamic-query? true})]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
@@ -762,6 +769,10 @@
                 ~'sm-env (uism/state-machine-env ~'state-map nil ~id :fake {})
                 ~'pending-path-segment (when (uism/asm-active? ~'this ~id) (uism/retrieve ~'sm-env :pending-path-segment))]
             ~render-cases)))))
+
+#?(:clj
+   (s/fdef defrouter
+     :args (s/cat :sym symbol? :arglist vector? :options map? :body (s/* any?))))
 
 #?(:clj
    (defmacro defrouter
@@ -794,10 +805,6 @@
      "
      [router-sym arglist options & body]
      (defrouter* &env (str (ns-name *ns*)) router-sym arglist options body)))
-
-#?(:clj
-   (s/fdef defrouter
-     :args (s/cat :sym symbol? :arglist vector? :options map? :body (s/* any?))))
 
 (defn all-reachable-routers
   "Returns a sequence of all of the routers reachable in the query of the app."
