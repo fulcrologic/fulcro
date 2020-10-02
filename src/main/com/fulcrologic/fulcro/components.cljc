@@ -1678,6 +1678,8 @@
   "Returns the nth parent of `this` (a React element). The optional `n` can be 0 (the immediate parent) or any positive
   integer. If this walks past root then this function returns nil."
   ([this n]
+   (when-not (component-instance? this)
+     (throw (ex-info "Cannot get parent. First argument is not a component instance." {:arg this})))
    (loop [element this
           level   n]
      (let [result (isoget-in element [:props :fulcro$parent])]

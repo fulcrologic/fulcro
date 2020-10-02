@@ -561,6 +561,48 @@
   ([this-or-app] (nil? (target-denying-route-changes this-or-app)))
   ([this-or-app relative-class] (nil? (target-denying-route-changes this-or-app relative-class))))
 
+(defn evaluate-relative-path
+  "Takes an on-screen *instance* of a react element and a new route (vector of strings) and returns a vector containing
+   either the original arguments, or an evaluation of relative navigation up the live routing tree.
+
+   If `new-route` starts with `:..` (any number of times) then this function finds (and returns) the parent *router*
+   and the new route stripped of `:..` prefix.
+
+   For example, say you were in a target instance that has a parent router, which in turn has a parent router called
+   `SomeRouter`. Then:
+
+   ```
+   (dr/evaluate-relative-path this [:.. :.. \"some-target\"])
+   => [SomeRouter [\"some-target\"]]
+   ```
+
+   This function does *not* work on classes. It is meant for live evaluation of on-screen instances to enable relative
+   routing based on the actual on-screen route targets.
+
+   CAN return `nil` for the router if no such parent is found.
+
+   Returns unmodified input argument if `new-route` does not begin with `:..`.
+   "
+  [relative-instance new-route]
+  (loop [current-instance    relative-instance
+         [lead-element & remainder :as path] new-route
+         looking-for-router? (= :.. lead-element)]
+    (cond
+      (or (nil? current-instance) (empty? path))
+      [current-instance path]
+
+      (and looking-for-router? (router? current-instance))
+      (recur current-instance remainder false)
+
+      looking-for-router?
+      (recur (comp/get-parent current-instance) path true)
+
+      (= :.. lead-element)
+      #_=> (recur (comp/get-parent current-instance) path true)
+
+      :else
+      #_=> [current-instance path])))
+
 (defn change-route-relative!
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
   of string components to pass through to the nearest child router as the new path. The first argument is any live component
@@ -573,7 +615,8 @@
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
-   (let [relative-class (if (comp/component? relative-class-or-instance)
+   (let [[relative-class-or-instance new-route] (evaluate-relative-path relative-class-or-instance new-route)
+         relative-class (if (comp/component? relative-class-or-instance)
                           (comp/react-type relative-class-or-instance)
                           relative-class-or-instance)
          old-route      (current-route app-or-comp relative-class)

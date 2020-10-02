@@ -6,7 +6,8 @@
                          :ns-regexp  "-cards$"
                          :output-dir "resources/public/js/workspaces"
                          :asset-path "/js/workspaces"
-                         :preloads   [com.fulcrologic.fulcro.inspect.websocket-preload]}
+                         :preloads   [com.fulcrologic.fulcro.inspect.websocket-preload
+                                      com.fulcrologic.fulcro.inspect.dom-picker-preload]}
 
             :todomvc    {:target     :browser
                          :output-dir "resources/public/js/todomvc"

@@ -5,6 +5,7 @@
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
@@ -13,7 +14,8 @@
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [edn-query-language.core :as eql]))
+    [edn-query-language.core :as eql]
+    [com.fulcrologic.fulcro.application :as app]))
 
 (defsc A1 [this {:keys [:id] :as props}]
   {:query               [:id]
@@ -26,7 +28,11 @@
    :allow-route-change? (fn [c] (log/info "A1 allow route change?") true)
    :initial-state       {:id "a1"}
    :ident               :id}
-  (dom/div "A1"))
+  (let [parent comp/*parent*]
+    (dom/div "A1"
+      (dom/button
+        {:onClick #(dr/change-route-relative! this this [:.. "a2"])}
+        "Go to sibling A2"))))
 
 (defsc A2 [this {:keys [:id] :as props}]
   {:query               [:id]
@@ -125,10 +131,12 @@
     (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b"]))} "B")
     (ui-router router)))
 
+(defonce SPA (atom nil))
 (ws/defcard nested-routing-demo
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       Root
      ::ct.fulcro/app        {:client-will-mount (fn [app]
+                                                  (reset! SPA app)
                                                   (dr/initialize! app)
                                                   (dr/change-route! app ["a" "a1"]))}}))
