@@ -586,13 +586,13 @@
   [relative-instance new-route]
   (loop [current-instance    relative-instance
          [lead-element & remainder :as path] new-route
-         looking-for-router? (= :.. lead-element)]
+         looking-for-router? ^Boolean (= :.. lead-element)]
     (cond
       (or (nil? current-instance) (empty? path))
       [current-instance path]
 
       (and looking-for-router? (router? current-instance))
-      (recur current-instance remainder false)
+      (recur current-instance (vec remainder) false)
 
       looking-for-router?
       (recur (comp/get-parent current-instance) path true)
@@ -601,7 +601,7 @@
       #_=> (recur (comp/get-parent current-instance) path true)
 
       :else
-      #_=> [current-instance path])))
+      [current-instance path])))
 
 (defn change-route-relative!
   "Change the route, starting at the given Fulcro class or instance (scanning for the first router from there).  `new-route` is a vector
