@@ -611,6 +611,13 @@
   When possible (i.e. no circular references to components) you can maintain better code navigation by
   generating `new-route` via `path-to`.  This will allow readers of your code to quickly jump to the actual
   components that implement the targets when reading the code.
+
+  You may include the special keyword `:..` any number of times at the beginning of `new-route` to indicate the
+  parent(s) of `relative-class-or-instance`, which allows you to do relative routing to a sibling.
+
+  ```
+  (dr/change-route-relative this this [:.. \"sibling-pattern\"])
+  ```
   "
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
