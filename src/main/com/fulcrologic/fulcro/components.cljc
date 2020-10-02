@@ -1674,3 +1674,15 @@
           (tunnel-props! component ui-props))))
     (log/error "Cannot re-render a non-component")))
 
+(defn get-parent
+  "Returns the nth parent of `this` (a React element). The optional `n` can be 0 (the immediate parent) or any positive
+  integer. If this walks past root then this function returns nil."
+  ([this n]
+   (loop [element this
+          level   n]
+     (let [result (isoget-in element [:props :fulcro$parent])]
+       (if (and result (pos-int? level))
+         (recur result (dec level))
+         result))))
+  ([this]
+   (get-parent this 0)))
