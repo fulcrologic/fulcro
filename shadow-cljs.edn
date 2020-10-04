@@ -14,7 +14,7 @@
                          :asset-path "/js/todomvc"
                          :dev        {:compiler-options {:external-config {:guardrails {}}}}
                          :modules    {:main {:entries [fulcro-todomvc.main]}}
-                         :devtools   {:preloads [com.fulcrologic.fulcro.inspect.websocket-preload
+                         :devtools   {:preloads [com.fulcrologic.fulcro.inspect.preload
                                                  com.fulcrologic.fulcro.inspect.dom-picker-preload]}}
 
             :test       {:target           :browser-test

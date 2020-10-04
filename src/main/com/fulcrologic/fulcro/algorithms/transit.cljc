@@ -13,26 +13,11 @@
                TransitFactory WriteHandler ReadHandler]
               [com.fulcrologic.fulcro.algorithms.tempid TempId])))
 
-#?(:cljs
-   (deftype TempIdHandler []
-     Object
-     (tag [_ _] tempid/tag)
-     (rep [_ r] (. r -id))
-     (stringRep [_ _] nil)))
-
-#?(:clj
-   (deftype TempIdHandler []
-     WriteHandler
-     (tag [_ _] tempid/tag)
-     (rep [_ r] (.-id ^TempId r))
-     (stringRep [_ r] (str tempid/tag "#" r))
-     (getVerboseHandler [_] nil)))
 
 (defonce transit-handlers
   (atom
-    {:writers {TempId (TempIdHandler.)}
-     :readers {tempid/tag #?(:clj  (reify ReadHandler (fromRep [_ id] (TempId. id)))
-                             :cljs (fn [id] (tempid/tempid id)))}}))
+    {:writers {}
+     :readers {}}))
 
 (defn read-handlers
   "Returns a map that can be used for the :handlers key of a transit reader, taken from the current type handler registry."
@@ -151,3 +136,8 @@
                               (update :readers merge (:reader t))
                               (update :writers merge (:writer t)))))
   nil)
+
+(defonce install-tempid-handler
+  (install-type-handler! (type-handler TempId tempid/tag
+                           (fn [^TempId tid] (.-id tid))
+                           (fn [uuid] (tempid/tempid uuid)))))
