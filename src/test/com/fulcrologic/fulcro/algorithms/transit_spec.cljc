@@ -35,7 +35,10 @@
     (assertions "Preserves metadata"
       (meta meta-rtrip) => {:x 1}
       (-> meta-rtrip :k meta) => {:y 2})
-    (assertions "Automatically uses the global type registry"
+    (assertions
+      "Registry auto-includes tempid support"
+      (tempid/tempid? (ft/transit-str->clj (ft/transit-clj->str (tempid/tempid)))) => true
+      "Automatically uses the global type registry"
       (.-v ^Cruft (ft/transit-str->clj (ft/transit-clj->str (Cruft. 42)))) => 42)))
 
 (comment

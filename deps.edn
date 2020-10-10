@@ -24,7 +24,7 @@
 
            :clj-tests  {:extra-paths ["src/test"]
                         :main-opts   ["-m" "kaocha.runner"]
-                        :extra-deps  {lambdaisland/kaocha {:mvn/version "1.0.632"}}}
+                        :extra-deps  {lambdaisland/kaocha {:mvn/version "1.0.700"}}}
 
            :workspaces {:extra-paths ["src/workspaces"]
                         :extra-deps  {com.github.awkay/workspaces {:mvn/version "1.0.1"}}}
