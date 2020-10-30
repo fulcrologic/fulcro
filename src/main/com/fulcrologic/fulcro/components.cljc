@@ -1214,10 +1214,10 @@
                           [{} args])]
        (vec children))
      :cljs
-     (let [[props children] (if (map? (first args))
-                              [(first args) (rest args)]
-                              [#js {} args])]
-       (apply js/React.createElement js/React.Fragment (clj->js props) (force-children children)))))
+     (let [[props & children] args]
+       (if (map? props)
+         (js/React.createElement js/React.Fragment (clj->js props) (force-children children))
+         (js/React.createElement js/React.Fragment #js {} (force-children args))))))
 
 #?(:clj
    (defmacro with-parent-context
