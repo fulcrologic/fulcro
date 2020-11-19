@@ -527,3 +527,19 @@
                               :optimized-render! (constantly true)})))]
      (initialize-state! app faux-root)
      app)))
+
+(defn set-remote!
+  "Add/replace a remote on the given app. `remote-name` is a keyword, and `remote` is a Fulcro remote (map containing
+  at least `transmit!`).
+
+  This function is *generally* safe to call at any time. Requests that are in-flight on an old version of the remote will complete
+  on that remote, and any that are queued will be processed by the new one; however, if the old remote supported abort
+  operations then an abort on in-flight requests of the old remote will not work (since you're replaced the remote that the details
+  about that request).
+
+  This function changes the content of the application's runtime atom so you do not need to capture the return value, which
+  is the app you passed in."
+  [app remote-name remote]
+  [::app keyword? map? => ::app]
+  (swap! (::runtime-atom app) assoc-in [::remotes remote-name] remote)
+  app)
