@@ -285,6 +285,13 @@
 (defn fulcro-http-remote
   "Create a remote that (by default) communicates with the given url (which defaults to `/api`).
 
+  The options map can contain:
+
+  * `:url` - The URL to contact
+  * `:request-middleware` - See below
+  * `:response-middleware` - See below
+  * `:make-xhrio` - A constructor function to build a goog.net.XhrIo object, initialized however you see fit.
+
   The request middleware is a `(fn [request] modified-request)`. The `request` will have `:url`, `:body`, `:method`, and `:headers`. The
   request middleware defaults to `wrap-fulcro-request` (which encodes the request in transit+json). The result of this
   middleware chain on the outgoing request becomes the real outgoing request. It is allowed to modify the `url`.
