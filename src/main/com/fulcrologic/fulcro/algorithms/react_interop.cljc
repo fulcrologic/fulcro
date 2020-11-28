@@ -1,8 +1,8 @@
 (ns com.fulcrologic.fulcro.algorithms.react-interop
   (:require
-    #?(:cljs [cljsjs.react])
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.dom :as dom]
+    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
+       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
     [taoensso.timbre :as log]))
 
 (defn react-factory
@@ -21,7 +21,7 @@
   [js-component-class]
   (fn [props & children]
     #?(:cljs
-       (apply js/React.createElement
+       (apply dom/create-element
          js-component-class
          (dom/convert-props props)
          children))))

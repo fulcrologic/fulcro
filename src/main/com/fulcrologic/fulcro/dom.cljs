@@ -108,7 +108,7 @@
   ([tag opts]
    (js/React.createElement tag opts))
   ([tag opts & children]
-   (js/React.createElement tag opts children)))
+   (apply js/React.createElement tag opts children)))
 
 (defn convert-props
   "Given props, which can be nil, a js-obj or a clj map: returns a js object."
