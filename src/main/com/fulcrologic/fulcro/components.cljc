@@ -1596,7 +1596,7 @@
       ;; pre-merge, use a lamba to modify new merged data with component needs
       :pre-merge (fn [{:keys [data-tree current-normalized state-map query]}] (merge {:ui/default-value :start} data-tree))
 
-      ; React Lifecycle Methods
+      ; React Lifecycle Methods (for the default, class-based components)
       :initLocalState            (fn [this props] ...) ; CAN BE used to call things as you might in a constructor. Return value is initial state.
       :shouldComponentUpdate     (fn [this next-props next-state] ...)
 
@@ -1631,6 +1631,10 @@
       NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
       that other libraries can control the sub-dom. If you do want to implement it, then old props can
       be obtained from (prim/props this), and old state via (gobj/get (. this -state) \"fulcro$state\").
+      
+      ; React Hooks support
+      ;; if true, creates a function-based instead of a class-based component, see the Developer's Guide for details
+      :use-hooks? true
 
       ; BODY forms. May be omitted IFF there is an options map, in order to generate a component that is used only for queries/normalization.
       (dom/div #js {:onClick onSelect} x))
