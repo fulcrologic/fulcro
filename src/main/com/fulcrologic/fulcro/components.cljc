@@ -480,7 +480,7 @@
   [render-fn component-options]
   #?(:cljs
      (let [k              (:componentName component-options)
-           faux-classname (str (or k (throw (ex-info "Missing :componentName for hooks component" {}))))]
+           faux-classname (str (or (str/join "/" [(namespace k) (name k)]) (throw (ex-info "Missing :componentName for hooks component" {}))))]
        (gobj/extend render-fn
          #js {:fulcro$options         component-options
               :displayName            faux-classname
