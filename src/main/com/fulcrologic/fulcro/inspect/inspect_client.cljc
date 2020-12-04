@@ -357,7 +357,6 @@
                                    :fulcro.history/tx                                       tx
                                    :fulcro.history/db-before-id                             state-id-before
                                    :fulcro.history/db-after-id                              current-id
-                                   :fulcro.history/diff                                     (vec (take 2 (data/diff db-after db-before)))
                                    :fulcro.history/network-sends                            []
                                    :com.fulcrologic.fulcro.algorithms.tx-processing/options options}
                             component-name (assoc :component component-name)
