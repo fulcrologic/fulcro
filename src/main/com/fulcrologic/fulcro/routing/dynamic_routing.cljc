@@ -676,19 +676,20 @@
                                           :target       (vary-meta target-ident assoc :component target :params params)})]
                  ;; Route instructions queued into a list (which will reverse their order in the doseq below)
                  (swap! routing-actions conj
-                   #(if-not (uism/get-active-state app router-id)
-                      (do
-                        (let [state-map (comp/component->state-map app-or-comp)]
-                          (when-not (-> state-map ::id (get router-id))
-                            (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
-                        (uism/begin! app-or-comp RouterStateMachine router-id
-                          {:router (uism/with-actor-class router-ident component)}
-                          event-data))
-                      (uism/trigger! app router-id :route! event-data)))
-                 ;; make sure any transactions submitted from the completing action wait for a render of the state machine's
-                 ;; startup or route effects before running.
-                 (binding [comp/*after-render* true]
-                   (completing-action))
+                   #(do
+                      (if-not (uism/get-active-state app router-id)
+                        (do
+                          (let [state-map (comp/component->state-map app-or-comp)]
+                            (when-not (-> state-map ::id (get router-id))
+                              (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
+                          (uism/begin! app-or-comp RouterStateMachine router-id
+                            {:router (uism/with-actor-class router-ident component)}
+                            event-data))
+                        (uism/trigger! app router-id :route! event-data))
+                      ;; make sure any transactions submitted from the completing action wait for a render of the state machine's
+                      ;; startup or route effects before running.
+                      (binding [comp/*after-render* true]
+                        (completing-action))))
                  (when (seq remaining-path)
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))
            ;; Route instructions are sent depth first to prevent flicker
