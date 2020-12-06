@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="CLJ" type="ClojureREPL" factoryName="Local" activateToolWindowBeforeRun="false">
     <module name="fulcro" />
@@ -10,5 +11,7 @@
     <setting name="aliases" value="" />
     <setting name="fixLineNumbers" value="false" />
     <method v="2" />
+    <setting name="displayName" value="CLJ" />
   </configuration>
 </component>
+

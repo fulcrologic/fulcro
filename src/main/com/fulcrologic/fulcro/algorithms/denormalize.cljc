@@ -1,6 +1,8 @@
 (ns com.fulcrologic.fulcro.algorithms.denormalize
   "The algorithm and support functions for converting a normalized Fulcro database to a tree of denormalized props."
   (:require
+    [taoensso.timbre :as log]
+    [clojure.set :as set]
     [edn-query-language.core :as eql]))
 
 (def ^:dynamic *denormalize-time* 0)
@@ -71,36 +73,50 @@
     (update-in parent-node [:children join-node-index :query] (fnil dec 1))))
 
 (defn- add-join! [n {:keys [query key] :as join-node} entity state-map parent-node idents-seen]
-  (let [link-join?      (lookup-ref? key)
-        v               (if link-join? (follow-ref state-map key) (get entity key))
-        key             (if (link-ref? key) (first key) key)
-        is-ref?         (lookup-ref? v)
-        join-entity     (if is-ref? (follow-ref state-map v) v)
-        to-many?        (and (not is-ref?) (vector? join-entity))
-        depth-based?    (int? query)
-        recursive?      (or depth-based? (= '... query))
-        stop-recursion? (and recursive? (or (= 0 query)
-                                          (and is-ref?
-                                            ;; NOTE: allows depth-based to ignore loops
-                                            (not depth-based?)
-                                            (contains? (get idents-seen key) v))))
-        parent-node     (if (and depth-based? (not stop-recursion?))
-                          (reduce-depth parent-node join-node)
-                          parent-node)
-        target-node     (if recursive? parent-node join-node)
+  (let [link-join?         (lookup-ref? key)
+        v                  (if link-join? (follow-ref state-map key) (get entity key))
+        key                (if (link-ref? key) (first key) key)
+        is-ref?            (lookup-ref? v)
+        join-entity        (if is-ref? (follow-ref state-map v) v)
+        to-many?           (and (not is-ref?) (vector? join-entity))
+        depth-based?       (int? query)
+        recursive?         (or depth-based? (= '... query))
+        stop-recursion?    (and recursive? (or (= 0 query)
+                                             (and is-ref?
+                                               ;; NOTE: allows depth-based to ignore loops
+                                               (not depth-based?)
+                                               (contains? (get idents-seen key) v))))
+        parent-node        (if (and depth-based? (not stop-recursion?))
+                             (reduce-depth parent-node join-node)
+                             parent-node)
+        target-node        (if recursive? parent-node join-node)
         ;; NOTE: fixed bug with old db->tree, so behavior is different
-        idents-seen     (if is-ref?
-                          (update idents-seen key (fnil conj #{}) v)
-                          idents-seen)]
+        parent-idents-seen idents-seen
+        idents-seen        (cond
+                             is-ref? (update idents-seen key (fnil conj #{}) v)
+                             (and to-many? (every? lookup-ref? v)) (update idents-seen key (fnil set/union #{}) (set v))
+                             :else idents-seen)]
     (cond
-      stop-recursion? n
+      stop-recursion? (do
+                        (when (and #?(:clj true :cljs goog.DEBUG) (not depth-based?))
+                          (log/warn "Loop detected in data graph at " entity ". Recursive query stopped."))
+                        n)
       to-many? (assoc! n key
                  (into []
                    (keep (fn [x]
-                           (let [e (if (lookup-ref? x)
-                                     (follow-ref state-map x)
-                                     x)]
-                             (denormalize target-node e state-map idents-seen))))
+                           (let [e               (if (lookup-ref? x)
+                                                   (follow-ref state-map x)
+                                                   x)
+                                 stop-recursion? (and recursive? (or (= 0 query)
+                                                                   (and (lookup-ref? x)
+                                                                     (not depth-based?)
+                                                                     (contains? (get parent-idents-seen key) x))))]
+                             (if stop-recursion?
+                               (do
+                                 (when #?(:clj true :cljs goog.DEBUG)
+                                   (log/warn "Loop detected in data graph at " e ". Recursive query stopped."))
+                                 nil)
+                               (denormalize target-node e state-map idents-seen)))))
                    join-entity))
       (and recursive? join-entity) (if depth-based?
                                      (let [join-node-index (reduce

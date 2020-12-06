@@ -10,7 +10,7 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as denorm]
     [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fp]
     [com.fulcrologic.fulcro.algorithms.normalize :refer [tree->db]]
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.wsscode.pathom.core :as p]
     [com.wsscode.pathom.test :as ptest]
     [edn-query-language.core :as eql]
@@ -18,6 +18,8 @@
     [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [fulcro-spec.diff :as diff]
     [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fpp]))
+
+(declare =>)
 
 ;; helpers
 
@@ -250,6 +252,59 @@
     (verify-db->tree-generated [{:A/A [{:A/A* {:A/A [:A/B]}}]}])
     => {:A/A {:A/A* [{}]}}))
 
+(defsc PersonA [_ _]
+  {:query (fn [] '[:person/id {:person/spouse ...}])
+   :ident :person/id})
+
+(defsc Person3 [_ _]
+  {:query (fn [] '[:person/id {:person/spouse 3}])
+   :ident :person/id})
+
+(defsc SelfParentedPerson [_ _]
+  {:query (fn [] '[:person/id {:person/children ...}])
+   :ident :person/id})
+
+(defsc SelfParentedPerson3 [_ _]
+  {:query (fn [] '[:person/id {:person/children 3}])
+   :ident :person/id})
+
+(specification "Infinite loop detection"
+  (let [db {:person/id {1 {:person/id 1 :person/spouse [:person/id 2]}
+                        2 {:person/id 2 :person/spouse [:person/id 1]}
+                        ;; I am my own parent...data error
+                        3 {:person/id 3 :person/children [[:person/id 4]]}
+                        4 {:person/id 4 :person/children [[:person/id 3]]}
+                        }}]
+    (component "To-many"
+      ;; Not supported
+      #_(component "n recursion"
+        (let [tree (denorm/db->tree (comp/get-query SelfParentedPerson3) (get-in db [:person/id 3]) db)]
+          (assertions
+            "Stops the recursion specified depth"
+            tree => {:person/id     1
+                     :person/spouse {:person/id     2
+                                     :person/spouse {:person/id     1
+                                                     :person/spouse {:person/id 2}}}})))
+      (component "... recursion"
+        (let [tree (denorm/db->tree (comp/get-query SelfParentedPerson) (get-in db [:person/id 3]) db)]
+          (assertions
+            "Stops the recursion after items have been seen once"
+            tree => {:person/id 3 :person/children [{:person/id 4 :person/children [{:person/id 3 :person/children []}]}]}))))
+    (component "To-one"
+      (component "n recursion"
+        (let [tree (denorm/db->tree (comp/get-query Person3) (get-in db [:person/id 1]) db)]
+          (assertions
+            "Stops the recursion specified depth"
+            tree => {:person/id     1
+                     :person/spouse {:person/id     2
+                                     :person/spouse {:person/id     1
+                                                     :person/spouse {:person/id 2}}}})))
+      (component "... recursion"
+        (let [tree (denorm/db->tree (comp/get-query PersonA) (get-in db [:person/id 1]) db)]
+          (assertions
+            "Stops the recursion after items have been seen once"
+            tree => {:person/id 1 :person/spouse {:person/id 2 :person/spouse {:person/id 1}}}))))
+    ))
 ;; generative
 
 (defn compare-tree-results [query]
