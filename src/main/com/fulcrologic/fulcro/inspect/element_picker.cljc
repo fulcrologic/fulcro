@@ -65,8 +65,9 @@
 (defn react-raw-instance [node]
   #?(:cljs
      (if-let [instance-key (->> (gobj/getKeys node)
-                             (filter #(str/starts-with? % "__reactInternalInstance$"))
-                             (first))]
+                                (filter #(or (str/starts-with? % "__reactInternalInstance$")
+                                             (str/starts-with? % "__reactFiber$")))
+                                (first))]
        (gobj/get node instance-key))))
 
 (defn react-instance [node]
