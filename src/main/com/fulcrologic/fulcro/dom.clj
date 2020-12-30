@@ -178,6 +178,7 @@
 
 (defn gen-dom-macro [emitter name]
   `(defmacro ~name ~(cdom/gen-docstring name true)
+     {:style/indent :defn}
      [& ~'args]
      (let [tag# ~(str name)]
        (try
