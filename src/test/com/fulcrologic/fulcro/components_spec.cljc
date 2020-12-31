@@ -14,6 +14,14 @@
    :extra-data    42}
   (dom/div "TODO"))
 
+(defsc AWithHooks [this props]
+  {:ident         :person/id
+   :query         [:person/id :person/name]
+   :initial-state {:person/id 1 :person/name "Tony"}
+   :extra-data    42
+   :use-hooks?    true}
+  (dom/div "TODO"))
+
 (defsc B [this props]
   {:ident         :person/id
    :query         [:person/id :person/name]
@@ -39,6 +47,7 @@
       (comp/get-ident A {:person/id 4}) => [:person/id 4]
       "Can be used to obtain the query"
       (comp/get-query A) => [:person/id :person/name]
+      (comp/get-query AWithHooks) => [:person/id :person/name]
       "Initial state"
       (comp/get-initial-state A) => {:person/name "Tony" :person/id 1}
       (comp/get-initial-state B {:id 22}) => {:person/name "Tony" :person/id 22}
