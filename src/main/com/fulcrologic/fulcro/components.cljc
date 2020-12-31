@@ -1545,7 +1545,7 @@
                                               hooks? (assoc :componentName fqkw)
                                               render-form (assoc :render render-form))]
        (cond
-         hooks?
+         (and (cljs? env) hooks?)
          `(do
             (defonce ~sym
               (fn [js-props#]
