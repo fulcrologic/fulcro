@@ -1532,7 +1532,7 @@
            ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-form                       (build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
            query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
-           hooks?                           (:use-hooks? options)
+           hooks?                           (and (cljs? env) (:use-hooks? options))
            render-form                      (if hooks?
                                               (build-hooks-render sym thissym propsym computedsym extra-args body)
                                               (build-render sym thissym propsym computedsym extra-args body))
@@ -1545,7 +1545,7 @@
                                               hooks? (assoc :componentName fqkw)
                                               render-form (assoc :render render-form))]
        (cond
-         (and (cljs? env) hooks?)
+         hooks?
          `(do
             (defonce ~sym
               (fn [js-props#]
