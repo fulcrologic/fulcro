@@ -839,7 +839,7 @@
      The options are:
 
      `:router-targets` - (REQUIRED) A *vector* of ui components that are router targets. The first one is considered the \"default\"
-     (purely for the purpose if initial state; you always need to explicitly route to a particular target).
+     (purely for the purpose of initial state; you always need to explicitly route to a particular target).
      Other defsc options - (LIMITED) You may not specify query/initial-state/protocols/ident, but you can define things like react
      lifecycle methods. See defsc.
      `:always-render-body?` - (OPTIONAL) When true this router expects that you will supply a render body, and
