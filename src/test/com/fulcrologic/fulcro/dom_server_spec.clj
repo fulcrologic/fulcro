@@ -7,6 +7,10 @@
 (defsc Sample [this props] (dom/div "Hello"))
 (def ui-sample (comp/factory Sample))
 
+(defsc SampleFragment [this props]
+  (comp/fragment (dom/p "a") (dom/p "b")))
+(def ui-sample-fragment (comp/factory SampleFragment))
+
 (specification "Server-side Rendering"
   (assertions
     "Simple tag rendering"
@@ -55,6 +59,9 @@
   (assertions
     "Allow multiple elements to be combined into a parent"
     (dom/render-to-str (dom/div (comp/fragment {:key 1} (dom/p "a") (dom/p "b"))))
+    =>
+    "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"271326992\"><p data-reactid=\"2\">a</p><p data-reactid=\"3\">b</p></div>"
+    (dom/render-to-str (dom/div (ui-sample-fragment {})))
     =>
     "<div data-reactroot=\"\" data-reactid=\"1\" data-react-checksum=\"271326992\"><p data-reactid=\"2\">a</p><p data-reactid=\"3\">b</p></div>"
 

@@ -189,6 +189,13 @@
     (vswap! react-id inc)
     sb))
 
+(defrecord ReactFragment [elements]
+  IReactDOMElement
+  (renderToString [this react-id sb]
+    (doseq [e (:elements this)]
+      (.renderToString e react-id sb))
+    sb))
+
 (defn text-node
   "HTML text node"
   [s]
@@ -201,6 +208,9 @@
 
 (defn- react-empty-node []
   (map->ReactEmpty {}))
+
+(defn react-fragment-node [elements]
+  (map->ReactFragment {:elements elements}))
 
 (defn- render-component [c]
   (if (or (nil? c) (element? c))
@@ -226,11 +236,14 @@
                              (let [c' (cond
                                         (element? c) c
 
-                                        (component-instance? c) (let [rendered (if-let [element (render-component c)]
-                                                                                 element
-                                                                                 (react-empty-node))]
-                                                                  (assoc rendered :react-key
-                                                                                  (some-> (:props c) :fulcro$reactKey)))
+                                        (component-instance? c) (let [rendered      (if-let [element (render-component c)]
+                                                                                      element
+                                                                                      (react-empty-node))
+                                                                      add-react-key (fn [c]
+                                                                                      (assoc c :react-key (some-> (:props c) :fulcro$reactKey)))]
+                                                                  (if (vector? rendered)
+                                                                    (react-fragment-node (mapv add-react-key rendered))
+                                                                    (add-react-key rendered)))
 
                                         (or (string? c) (number? c))
                                         (let [c (cond-> c (number? c) str)]
