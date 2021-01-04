@@ -255,7 +255,6 @@
   (swap! state update-in [:person/id 1 :person/children]
     (partial sort-idents-by @state) :person/first-name)
 
-  (update-caller!
   ```
 
   You can optionally pass a `comp-fn` which is as-described in `sort-by`.
@@ -263,7 +262,7 @@
   ([state-map vector-of-idents sortkey-fn comp-fn]
    [map? (s/every eql/ident? :kind vector?) ifn? ifn? => any?]
    (let [kfn (fn [ident] (sortkey-fn (get-in state-map ident)))]
-     (sort-by kfn comp-fn vector-of-idents)))
+     (vec (sort-by kfn comp-fn vector-of-idents))))
   ([state-map vector-of-idents sortkey-fn]
    [map? (s/every eql/ident? :kind vector?) ifn? => any?]
    (sort-idents-by state-map vector-of-idents sortkey-fn compare)))
