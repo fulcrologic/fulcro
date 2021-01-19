@@ -1421,7 +1421,7 @@
             (fn []
               (binding [*app*    (or *app* (isoget-in ~thissym ["props" "fulcro$app"]))
                         *depth*  (inc (or *depth* (isoget-in ~thissym ["props" "fulcro$depth"])))
-                        *shared* (shared *app*)
+                        *shared* (shared (or *app* (isoget-in ~thissym ["props" "fulcro$app"])))
                         *parent* ~thissym]
                 (let [~@computed-bindings
                       ~@extended-bindings]
