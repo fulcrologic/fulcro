@@ -74,6 +74,7 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.components :as comp]
@@ -244,7 +245,8 @@
                         ::txn/update-handler update-handler}]
     (if ast
       (swap-send-queue! app remote (fnil conj []) send-node)
-      (handler {:status-code 200 :body {}}))
+      ;; The handler would make a recursive call back to the queue processing, so we have to defer it if the AST wasn't set
+      (sched/defer #(handler {:status-code 200 :body {}}) 1))
     nil))
 
 (defn queue-element-sends!
