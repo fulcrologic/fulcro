@@ -436,10 +436,13 @@
                                     (let [action? (str/ends-with? (str handler-name) "action")]
                                       (into acc
                                         (if action?
-                                          [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
-                                                                            (binding [comp/*after-render* true]
-                                                                              ~@handler-body)
-                                                                            nil)]
+                                          [(keyword (name handler-name)) `(fn ~handler-name [env#]
+                                                                            ((fn ~handler-name ~handler-args
+                                                                               (binding [comp/*after-render* true
+                                                                                         comp/*shared*       (-> env# :app comp/shared)]
+                                                                                 ~@handler-body)
+                                                                               nil)
+                                                                             env#))]
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
                             []
                             sections)
