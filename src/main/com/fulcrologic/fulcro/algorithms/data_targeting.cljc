@@ -69,7 +69,7 @@
   - prepend: A vector (path) to a list in your app state where this new object's ident should be prepended. Will not place
   the ident if that ident is already in the list.
   - replace: A vector (path) to a specific location in app-state where this object's ident should be placed. Can target a to-one or to-many.
-   If the target is a vector element then that element must already exist in the vector.
+   If the target is a vector element index then that element must already exist in the vector.
 
   NOTE: `ident` does not have to be an ident if you want to place denormalized data.  It can really be anything.
 
