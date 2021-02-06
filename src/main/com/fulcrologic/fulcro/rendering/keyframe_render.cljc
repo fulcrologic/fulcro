@@ -3,7 +3,24 @@
   (:require
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [taoensso.timbre :as log]))
+
+(defn render-state!
+  "This function renders given state map over top of the current app. This allows you to render previews of state **without
+  actually changing the app state**. Used by Inspect for DOM preview. Forces a root-based render with no props diff optimization.
+  The app must already be mounted. Returns the result of render."
+  [app state-map]
+  (binding [comp/*blindly-render* true]
+    (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
+          {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom
+          r!        (or (ah/app-algorithm app :render-root!) #?(:cljs js/ReactDOM.render))
+          query     (comp/get-query root-class state-map)
+          data-tree (if query
+                      (fdn/db->tree query state-map state-map)
+                      state-map)]
+      (when (and r! root-factory)
+        (r! (root-factory data-tree) mount-node)))))
 
 (defn render!
   "Render the UI. The keyframe render runs a full UI query and then asks React to render the root component.

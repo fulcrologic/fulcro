@@ -4,6 +4,7 @@
   (:require
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.rendering.keyframe-render :refer [render-state!]]
     #?@(:cljs [[goog.object :as gobj]
                [com.fulcrologic.fulcro.inspect.diff :as diff]
                [com.fulcrologic.fulcro.inspect.transit :as encode]
@@ -11,7 +12,9 @@
     [clojure.data :as data]
     [taoensso.encore :as encore]
     [taoensso.timbre :as log]
-    [taoensso.encore :as enc]))
+    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.components :as comp]))
 
 #?(:cljs (goog-define INSPECT false))
 
@@ -211,9 +214,11 @@
               :fulcro.inspect.core/keys [app-uuid]} data]
          (if-let [app (get @apps* app-uuid)]
            (let [render! (ah/app-algorithm app :schedule-render!)]
-             (if target-state
-               (let [target-state (assoc target-state app-uuid-key app-uuid)]
-                 (reset! (state-atom app) target-state)))
+             (when (:id target-state)
+               (let [{:keys [id]} target-state]
+                 (enc/when-let [app (get @apps* app-uuid)
+                                {:keys [value]} (get-history-entry app id)]
+                   (reset! (state-atom app) value))))
              (render! app {:force-root? true}))
            (log/info "Reset app on invalid uuid" app-uuid)))
 
@@ -252,13 +257,15 @@
 
        :fulcro.inspect.client/show-dom-preview
        (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
-                       app              (some-> @apps* (get app-uuid))
-                       historical-state (get-history-entry app (:fulcro.inspect.client/state-id data))
-                       historical-app   (assoc app :com.fulcrologic.fulcro.application/state-atom (atom historical-state))
-                       render!          (ah/app-algorithm app :render!)]
-         (do
-           (render! historical-app {:force-root? true}))
-         (log/error "Unable to find app/state for preview."))
+                       app (some-> @apps* (get app-uuid))
+                       {:keys [value]} (get-history-entry app (:fulcro.inspect.client/state-id data))]
+         (if (map? value)
+           (binding [fdn/*denormalize-time* 900000000 ; force our props to seem like the most recent
+                     comp/*app*             app
+                     comp/*shared*          {} ;; TODO: don't have historical shared props...
+                     comp/*depth*           0]
+             (render-state! app value))
+           (log/error "Unable to find app/state for preview.")))
 
        :fulcro.inspect.client/hide-dom-preview
        (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
