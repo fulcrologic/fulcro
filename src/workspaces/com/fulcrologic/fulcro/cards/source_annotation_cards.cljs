@@ -3,10 +3,9 @@
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
     [nubank.workspaces.core :as ws]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.dom :as dom]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.dom :as dom]))
 
-(defsc Thing [this {:thing/keys [id] :as props}]
+(defsc SourceAnnotationDemo [this {:thing/keys [id] :as props}]
   {:query         [:thing/id]
    :ident         :thing/id
    :initial-state {:thing/id 1}}
@@ -27,7 +26,7 @@
       (dom/div :.foo {} (dom/div "five"))
       )))
 
-(ws/defcard thing-card
+(ws/defcard source-annotation-demo-card
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? true
-     ::ct.fulcro/root       Thing}))
+     ::ct.fulcro/root       SourceAnnotationDemo}))
