@@ -48,8 +48,8 @@
     :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/started
           :com.fulcrologic.fulcro.algorithms.tx-processing/finished]))
 
-(>def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler fn?)
-(>def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler fn?)
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler ifn?)
+(>def :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler ifn?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/active? boolean?)
 (>def :com.fulcrologic.fulcro.algorithms.tx-processing/parallel? boolean?)
 
@@ -106,21 +106,21 @@
                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/submission-queue
                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/active-queue
                                                                       :com.fulcrologic.fulcro.algorithms.tx-processing/send-queues]))
-(>def :com.fulcrologic.fulcro.algorithm/tx! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/optimized-render! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/render! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/merge* fn?)
-(>def :com.fulcrologic.fulcro.algorithm/remote-error? fn?)
-(>def :com.fulcrologic.fulcro.algorithm/schedule-render! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/global-eql-transform (s/nilable fn?))
-(>def :com.fulcrologic.fulcro.algorithm/shared-fn (s/nilable fn?))
-(>def :com.fulcrologic.fulcro.algorithm/global-error-action (s/nilable fn?))
-(>def :com.fulcrologic.fulcro.algorithm/default-result-action! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/index-root! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/index-component! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/drop-component! fn?)
-(>def :com.fulcrologic.fulcro.algorithm/props-middleware (s/nilable fn?))
-(>def :com.fulcrologic.fulcro.algorithm/render-middleware (s/nilable fn?))
+(>def :com.fulcrologic.fulcro.algorithm/tx! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/optimized-render! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/render! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/merge* ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/remote-error? ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/schedule-render! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/global-eql-transform (s/nilable ifn?))
+(>def :com.fulcrologic.fulcro.algorithm/shared-fn (s/nilable ifn?))
+(>def :com.fulcrologic.fulcro.algorithm/global-error-action (s/nilable ifn?))
+(>def :com.fulcrologic.fulcro.algorithm/default-result-action! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/index-root! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/index-component! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/drop-component! ifn?)
+(>def :com.fulcrologic.fulcro.algorithm/props-middleware (s/nilable ifn?))
+(>def :com.fulcrologic.fulcro.algorithm/render-middleware (s/nilable ifn?))
 
 (>def :com.fulcrologic.fulcro.application/algorithms
   (s/keys
