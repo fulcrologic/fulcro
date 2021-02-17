@@ -9,7 +9,8 @@
   {:query         [:thing/id]
    :ident         :thing/id
    :initial-state {:thing/id 1}}
-  (let [m {}]
+  (let [m {}
+        j #js {}]
     (dom/div
       (dom/p "nil")
       (dom/p :#paragraph "with css")
@@ -18,8 +19,9 @@
       (dom/div m "symbol")
       (dom/div (merge m {}) "expression")
       (dom/div #js {} "js-object")
+      (dom/div j "sym -> js-object")
       (dom/br)
-      (dom/div (dom/div "one"))
+      (dom/div (dom/div "one") (dom/div "one+"))
       (dom/div {} (dom/div "two"))
       (dom/div :.foo "three")
       (dom/div :.foo (dom/div "four"))

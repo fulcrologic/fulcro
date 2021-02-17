@@ -78,10 +78,12 @@
           source-attrs {:data-fulcro-source (str NS ":" line)}]
       (if-not NS attrs-expr
         (case attrs-type
-          :nil source-attrs
+          :nil         source-attrs
+          :js-object   attrs-expr
+          :map         (merge attrs-expr source-attrs)
           :runtime-map `(merge ~source-attrs ~attrs-expr)
-          :map (merge attrs-expr source-attrs)
-          attrs-expr)))))
+          `(let [a# ~attrs-expr]
+             (cond->> a# (map? a#) (merge ~source-attrs))))))))
 
 (defn emit-tag
   "PRIVATE.  DO NOT USE.
