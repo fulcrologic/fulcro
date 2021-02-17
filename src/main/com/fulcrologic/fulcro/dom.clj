@@ -28,6 +28,9 @@
     (cljs.tagged_literals JSValue)
     (clojure.lang ExceptionInfo)))
 
+(defn emit-fulcro-source-annotations? []
+  (not (false? (:html-source-annotations? (comp/current-config)))))
+
 (defn wrap-inputs? [] (not (false? (:wrap-inputs? (comp/current-config)))))
 
 (defn- map-of-literals? [v]
@@ -66,11 +69,25 @@
                                     :else [k v])))
               m)))
 
+(defn annotate-with-source-attributes [env form attrs-type attrs-expr]
+  (if-not (emit-fulcro-source-annotations?) attrs-expr
+    (let [NS   (if (comp/cljs? env)
+                 (some-> env :ns :name str)
+                 (name (ns-name *ns*)))
+          line (or (some-> form clojure.core/meta :line) "?")
+          source-attrs {:data-fulcro-source (str NS ":" line)}]
+      (if-not NS attrs-expr
+        (case attrs-type
+          :nil source-attrs
+          :runtime-map `(merge ~source-attrs ~attrs-expr)
+          :map (merge attrs-expr source-attrs)
+          attrs-expr)))))
+
 (defn emit-tag
   "PRIVATE.  DO NOT USE.
 
-  Helper function for generating CLJS DOM macros. is public for code gen problems."
-  [str-tag-name args]
+   Helper function for generating CLJS DOM macros. is public for code gen problems."
+  [str-tag-name args & [env form]]
   (let [conformed-args      (util/conform! ::dom-macro-args args)
         {attrs    :attrs
          children :children
@@ -82,7 +99,8 @@
                                       c
                                       `(comp/force-children ~c))) children)
         attrs-type          (or (first attrs) :nil)         ; attrs omitted == nil
-        attrs-value         (or (second attrs) {})
+        attrs-value         (annotate-with-source-attributes env form
+                              attrs-type (or (second attrs) {}))
         create-element      (case str-tag-name
                               "input" 'com.fulcrologic.fulcro.dom/macro-create-wrapped-form-element
                               "textarea" 'com.fulcrologic.fulcro.dom/macro-create-wrapped-form-element
@@ -113,8 +131,13 @@
          ~str-tag-name ~(into [attrs-value] raw-children) ~css)
 
       :nil
-      `(~create-element
-         ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
+      (if (seq attrs-value)
+        `(~create-element ~(JSValue. (into [str-tag-name (-> attrs-value
+                                                           (cdom/add-kwprops-to-props css)
+                                                           (clj-map->js-object))]
+                                       children)))
+        `(~create-element
+           ~(JSValue. (into [str-tag-name (JSValue. css-props)] children))))
 
       ;; pure children
       `(com.fulcrologic.fulcro.dom/macro-create-element
@@ -122,7 +145,7 @@
 
 (defn emit-tag-unwrapped
   "PRIVATE.  DO NOT USE. Same as emit-tag, but does no wrap inputs."
-  [str-tag-name args]
+  [str-tag-name args & [env form]]
   (let [conformed-args         (util/conform! ::dom-macro-args args)
         {attrs    :attrs
          children :children
@@ -134,7 +157,8 @@
                                          c
                                          `(comp/force-children ~c))) children)
         attrs-type             (or (first attrs) :nil)      ; attrs omitted == nil
-        attrs-value            (or (second attrs) {})
+        attrs-value            (annotate-with-source-attributes env form
+                                 attrs-type (or (second attrs) {}))
         raw-create-element     'com.fulcrologic.fulcro.dom/macro-create-element*
         runtime-create-element 'com.fulcrologic.fulcro.dom/macro-create-unwrapped-element
         classes-expression?    (and (= attrs-type :map) (contains? attrs-value :classes))
@@ -160,8 +184,13 @@
          ~str-tag-name ~(into [attrs-value] raw-children) ~css)
 
       :nil
-      `(~raw-create-element
-         ~(JSValue. (into [str-tag-name (JSValue. css-props)] children)))
+      (if (seq attrs-value)
+        `(~raw-create-element ~(JSValue. (into [str-tag-name (-> attrs-value
+                                                               (cdom/add-kwprops-to-props css)
+                                                               (clj-map->js-object))]
+                                           children)))
+        `(~raw-create-element
+           ~(JSValue. (into [str-tag-name (JSValue. css-props)] children))))
 
       ;; pure children
       `(~runtime-create-element
@@ -182,7 +211,7 @@
      [& ~'args]
      (let [tag# ~(str name)]
        (try
-         (~emitter tag# ~'args)
+         (~emitter tag# ~'args ~'&env ~'&form)
          (catch ExceptionInfo e#
            (throw (ex-info (syntax-error ~'&form e#) (ex-data e#))))))))
 
