@@ -29,7 +29,7 @@
     (clojure.lang ExceptionInfo)))
 
 (defn emit-fulcro-source-annotations? []
-  (not (false? (:html-source-annotations? (comp/current-config)))))
+  (true? (:html-source-annotations? (comp/current-config))))
 
 (defn wrap-inputs? [] (not (false? (:wrap-inputs? (comp/current-config)))))
 
