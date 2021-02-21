@@ -868,7 +868,12 @@
                     (log/warn "String ref on " (component-name class) " should be a function."))
 
                   (when (or (nil? props) (not (gobj/containsKey props "fulcro$value")))
-                    (log/error "Props middleware seems to have the corrupted props for " (component-name class))))))
+                    (log/error "Props middleware seems to have the corrupted props for " (component-name class)))
+
+                  (when-not (map? (gobj/get props "fulcro$value"))
+                    (log/error "Props passed to" (component-name class) "are of the type"
+                               (type (gobj/get props "fulcro$value"))
+                               "instead of a map. Perhaps you meant to `map` the component over the props?")))))
            (create-element class props children)))
        {:class     class
         :queryid   qid
