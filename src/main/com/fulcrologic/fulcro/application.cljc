@@ -17,6 +17,7 @@
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
     [clojure.string :as str]
+    [clojure.spec.alpha :as s]
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => | ?]]
     #?@(:cljs [[goog.object :as gobj]
@@ -181,13 +182,23 @@
                                       (= "ui" ident-ns)
                                       (str/starts-with? ident-ns "com.fulcrologic.fulcro.")))))))))
 
+(defn- check-root-query-valid [query]
+  (when (and #?(:clj true :cljs goog.DEBUG)
+             query
+             (false? (s/valid? ::eql/query query)))
+    (throw (ex-info (str "The composed root query is not valid EQL. See `(comp/get-query "
+                         (some-> query meta :component comp/component-name) ")`")
+                    {:query query, :root (some-> query meta :component)})))
+  query)
+
 (defn initialize-state!
   "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
   in the state atom of the app. Can be called before `mount!`, in which case you should tell mount not to (re) initialize
   state."
   [app root]
   (let [initial-db   (-> app ::state-atom deref)
-        root-query   (comp/get-query root initial-db)
+        root-query   (-> (comp/get-query root initial-db)
+                         check-root-query-valid)
         initial-tree (comp/get-initial-state root)
         db-from-ui   (if root-query
                        (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
@@ -397,7 +408,8 @@
                                      (render! app {:force-root? true
                                                    :hydrate?    hydrate?})))))]
        (if (mounted? app)
-         (reset-mountpoint!)
+         (do (check-root-query-valid (comp/get-query root)) ; b/c initialize-state is not called
+             (reset-mountpoint!))
          (do
            (swap! (::state-atom app) #(merge {:fulcro.inspect.core/app-id (comp/component-name root)} %))
            (set-root! app root {:initialize-state? initialize-state?})
