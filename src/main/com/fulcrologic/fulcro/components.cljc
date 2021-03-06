@@ -1356,6 +1356,43 @@
           (cons sym)
           (cons 'fn))))))
 
+
+
+#?(:clj
+   (defn- component-query [query-part]
+     (and (list? query-part)
+          (symbol? (first query-part))
+          (= "get-query" (name (first query-part)))
+          query-part)))
+
+#?(:clj
+   (defn- compile-time-query->checkable
+     "Try to simplify the compile-time query (as seen by the macro)
+     to something that EQL can check (`(get-query ..)` => a made-up vector).
+     Returns nil if this is not possible."
+     [query]
+     (try
+       (prewalk
+         (fn [form]
+           (cond
+             (component-query form)
+             [(keyword (str "subquery-of-" (some-> form second name)))]
+
+             (symbol? form)
+             (throw (ex-info "Cannot proceed, the query contains a symbol" {:sym form}))
+
+             :else
+             form))
+         query)
+       (catch Throwable _
+         nil))))
+
+#?(:clj
+   (defn- check-query-looks-valid [err-env comp-class compile-time-query]
+     (when (false? (some->> (compile-time-query->checkable compile-time-query)
+                            (s/valid? ::eql/query)))
+       (throw (ana/error err-env (str "The query of defsc " comp-class " does not seem to be valid EQL"))))))
+
 #?(:clj
    (defn- build-query-forms
      "Validate that the property destructuring and query make sense with each other."
@@ -1375,7 +1412,6 @@
                has-wildcard?         (some #{'*} template)
                to-sym                (fn [k] (symbol (namespace k) (name k)))
                illegal-syms          (mapv to-sym (set/difference destructured-keywords queried-keywords))
-               component-query       #(and (list? %) (= "get-query" (name (first %))) %)
                err-env               (merge env (meta template))]
            (when-let [child-query (some component-query template)]
              (throw (ana/error err-env (str "defsc " class ": `get-query` calls in :query can only be inside a join value, i.e. `{:some/key " child-query "}`"))))
@@ -1537,6 +1573,9 @@
            ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
            state-form                       (build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
            query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
+           _                                (when validate-query?
+                                              ;; after build-query-forms as it also does some useful checks
+                                              (check-query-looks-valid env sym (:template query-template-or-method)))
            hooks?                           (and (cljs? env) (:use-hooks? options))
            render-form                      (if hooks?
                                               (build-hooks-render sym thissym propsym computedsym extra-args body)
