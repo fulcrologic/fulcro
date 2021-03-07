@@ -1091,7 +1091,7 @@
                      (string? class-or-factory) class-or-factory
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
-    (util/check-query-valid (get-query class-or-factory))
+    (util/check-query-valid (get-query class-or-factory) component-name)
     (if (and (string? queryid) (or query params))
       (let [index-root!      (ah/app-algorithm app :index-root!)
             schedule-render! (ah/app-algorithm app :schedule-render!)]

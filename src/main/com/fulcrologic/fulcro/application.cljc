@@ -189,7 +189,7 @@
   [app root]
   (let [initial-db   (-> app ::state-atom deref)
         root-query   (-> (comp/get-query root initial-db)
-                         util/check-query-valid)
+                         (util/check-query-valid comp/component-name))
         initial-tree (comp/get-initial-state root)
         db-from-ui   (if root-query
                        (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
@@ -395,7 +395,7 @@
                                        ::root-factory root-factory
                                        ::root-class root)
                                      (update-shared! app)
-                                     (util/check-query-valid (comp/get-query root))
+                                     (util/check-query-valid (comp/get-query root) comp/component-name)
                                      (indexing/index-root! app) ; this may fail if query invalid
                                      (render! app {:force-root? true
                                                    :hydrate?    hydrate?})))))]
