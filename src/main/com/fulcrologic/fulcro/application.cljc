@@ -182,15 +182,6 @@
                                       (= "ui" ident-ns)
                                       (str/starts-with? ident-ns "com.fulcrologic.fulcro.")))))))))
 
-(defn- check-root-query-valid [query]
-  (when (and #?(:clj true :cljs goog.DEBUG)
-             query
-             (false? (s/valid? ::eql/query query)))
-    (log/error (str "The composed root query is not valid EQL. The app may crash. See `(comp/get-query "
-                    (some-> query meta :component comp/component-name) ")`")
-               query))
-  query)
-
 (defn initialize-state!
   "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
   in the state atom of the app. Can be called before `mount!`, in which case you should tell mount not to (re) initialize
@@ -198,7 +189,7 @@
   [app root]
   (let [initial-db   (-> app ::state-atom deref)
         root-query   (-> (comp/get-query root initial-db)
-                         check-root-query-valid)
+                         util/check-query-valid)
         initial-tree (comp/get-initial-state root)
         db-from-ui   (if root-query
                        (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
@@ -404,7 +395,7 @@
                                        ::root-factory root-factory
                                        ::root-class root)
                                      (update-shared! app)
-                                     (check-root-query-valid (comp/get-query root))
+                                     (util/check-query-valid (comp/get-query root))
                                      (indexing/index-root! app) ; this may fail if query invalid
                                      (render! app {:force-root? true
                                                    :hydrate?    hydrate?})))))]
