@@ -186,9 +186,9 @@
   (when (and #?(:clj true :cljs goog.DEBUG)
              query
              (false? (s/valid? ::eql/query query)))
-    (throw (ex-info (str "The composed root query is not valid EQL. See `(comp/get-query "
-                         (some-> query meta :component comp/component-name) ")`")
-                    {:query query, :root (some-> query meta :component)})))
+    (log/error (str "The composed root query is not valid EQL. The app may crash. See `(comp/get-query "
+                    (some-> query meta :component comp/component-name) ")`")
+               query))
   query)
 
 (defn initialize-state!
@@ -404,12 +404,12 @@
                                        ::root-factory root-factory
                                        ::root-class root)
                                      (update-shared! app)
-                                     (indexing/index-root! app)
+                                     (check-root-query-valid (comp/get-query root))
+                                     (indexing/index-root! app) ; this may fail if query invalid
                                      (render! app {:force-root? true
                                                    :hydrate?    hydrate?})))))]
        (if (mounted? app)
-         (do (check-root-query-valid (comp/get-query root)) ; b/c initialize-state is not called
-             (reset-mountpoint!))
+         (reset-mountpoint!)
          (do
            (swap! (::state-atom app) #(merge {:fulcro.inspect.core/app-id (comp/component-name root)} %))
            (set-root! app root {:initialize-state? initialize-state?})
