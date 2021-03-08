@@ -1754,8 +1754,10 @@
               query           (get-query c)
               constant-ident? (and (vector? ident) (second ident))]
           (when (and constant-ident?
-                  (not (has-initial-app-state? c)))
-            (log/warn "Component" (component-name c) "has a constant ident, but no initial state. This could cause this components props to"
+                  (not (has-initial-app-state? c))
+                  (not= "com.fulcrologic.fulcro.algorithms.form-state/FormConfig" (component-name c)))
+            (log/warn "Component" (component-name c) "has a constant ident (id in the ident is not nil for empty props),"
+              "but it has no initial state. This could cause this component's props to"
               "appear as nil unless you have a mutation or load that connects it to the graph after application startup."))
           (when (has-initial-app-state? c)
             (let [initial-keys (set (keys (get-initial-state c {})))
