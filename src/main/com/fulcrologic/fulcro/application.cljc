@@ -186,6 +186,8 @@
   in the state atom of the app. Can be called before `mount!`, in which case you should tell mount not to (re) initialize
   state."
   [app root]
+  (when #?(:clj true :cljs goog.DEBUG)
+    (comp/check-component-registry!))
   (let [initial-db   (-> app ::state-atom deref)
         root-query   (comp/get-query root initial-db)
         initial-tree (comp/get-initial-state root)

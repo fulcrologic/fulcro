@@ -872,8 +872,8 @@
 
                   (when-not ((fnil map? {}) (gobj/get props "fulcro$value"))
                     (log/error "Props passed to" (component-name class) "are of the type"
-                               (type (gobj/get props "fulcro$value"))
-                               "instead of a map. Perhaps you meant to `map` the component over the props?")))))
+                      (type (gobj/get props "fulcro$value"))
+                      "instead of a map. Perhaps you meant to `map` the component over the props?")))))
            (create-element class props children)))
        {:class     class
         :queryid   qid
@@ -1697,3 +1697,33 @@
          result))))
   ([this]
    (get-parent this 0)))
+
+(defn check-component-registry!
+  "Walks the complete list of components in the component registry and looks for problems. Used during dev mode to
+   detect common problems that can cause runtime misbehavior."
+  []
+  (when #?(:clj false :cljs goog.DEBUG)
+    (let [components (vals @component-registry)]
+      (doseq [c components]
+        (let [ident           (and (has-ident? c) (get-ident c {}))
+              query           (get-query c)
+              constant-ident? (and (vector? ident) (second ident))]
+          (when (and constant-ident?
+                  (not (has-initial-app-state? c)))
+            (log/warn "Component" (component-name c) "has a constant ident, but no initial state. This could cause this components props to"
+              "appear as nil unless you have a mutation or load that connects it to the graph after application startup."))
+          (when (has-initial-app-state? c)
+            (let [initial-keys (set (keys (get-initial-state c {})))
+                  join-map     (into {}
+                                 (comp
+                                   (filter #(and (= :join (:type %)) (keyword (:key %))))
+                                   (map (fn [{:keys [key component]}] [key component])))
+                                 (some->> query (eql/query->ast) :children))
+                  join-keys    (set (keys join-map))]
+              (when-let [missing-initial-keys (seq (set/difference join-keys initial-keys))]
+                (doseq [k missing-initial-keys
+                        :let [target (get join-map k)]]
+                  (when (has-initial-app-state? target)
+                    (log/warn "Component" (component-name c) "does not INCLUDE initial state for" (component-name target)
+                      "at join key" k "; however, " (component-name target) "HAS initial state. This probably means your initial state graph is incomplete"
+                      "and props on" (component-name target) "will be nil.")))))))))))
