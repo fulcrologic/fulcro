@@ -151,9 +151,9 @@
       <>
       [<>])))
 
-(defn- check-query-valid
+(defn dev-check-query
   "Runtime check that the (typically root) query looks valid
-  (though the Spec it uses might be both more strinct / more lax than the code
+  (though the Spec it uses might be both more strict / more lax than the code
   so do not take it absolutely.
   "
   [query component-name-fn]

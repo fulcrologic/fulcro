@@ -1091,12 +1091,12 @@
                      (string? class-or-factory) class-or-factory
                      (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
                      :otherwise (query-id class-or-factory nil))]
-    (util/check-query-valid (get-query class-or-factory) component-name)
     (if (and (string? queryid) (or query params))
       (let [index-root!      (ah/app-algorithm app :index-root!)
             schedule-render! (ah/app-algorithm app :schedule-render!)]
         (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
         (when index-root! (index-root! app))
+        (util/dev-check-query (get-query class-or-factory @state-atom) component-name)
         (when schedule-render! (schedule-render! app {:force-root? true})))
       (when #?(:clj false :cljs goog.DEBUG)
         (log/error "Unable to set query. Invalid arguments.")))))
