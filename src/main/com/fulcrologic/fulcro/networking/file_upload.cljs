@@ -97,7 +97,7 @@
                ast-to-send          (update ast :children #(mapv (fn [n] (update n :params dissoc ::uploads)) %))
                txn                  (eql/ast->query ast-to-send)
                form                 (js/FormData.)]
-           (.append form "upload-transaction" (t/transit-clj->str txn transit-options))
+           (.append form "upload-transaction" (t/transit-clj->str txn (assoc transit-options :metadata? false)))
            (doseq [{:keys [dispatch-key params]} (:children ast)]
              (when-let [uploads (::uploads params)]
                (doseq [{:file/keys [name content]} uploads]
