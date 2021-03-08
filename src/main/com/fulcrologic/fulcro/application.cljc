@@ -17,6 +17,7 @@
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [edn-query-language.core :as eql]
     [clojure.string :as str]
+    [clojure.spec.alpha :as s]
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => | ?]]
     #?@(:cljs [[goog.object :as gobj]
@@ -190,6 +191,7 @@
     (comp/check-component-registry!))
   (let [initial-db   (-> app ::state-atom deref)
         root-query   (comp/get-query root initial-db)
+        _            (util/dev-check-query root-query comp/component-name)
         initial-tree (comp/get-initial-state root)
         db-from-ui   (if root-query
                        (-> (fnorm/tree->db root-query initial-tree true (merge/pre-merge-transform initial-tree))
@@ -395,7 +397,8 @@
                                        ::root-factory root-factory
                                        ::root-class root)
                                      (update-shared! app)
-                                     (indexing/index-root! app)
+                                     (util/dev-check-query (comp/get-query root (current-state app)) comp/component-name)
+                                     (indexing/index-root! app) ; this may fail if query invalid
                                      (render! app {:force-root? true
                                                    :hydrate?    hydrate?})))))]
        (if (mounted? app)

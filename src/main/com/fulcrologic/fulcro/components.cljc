@@ -1096,6 +1096,7 @@
             schedule-render! (ah/app-algorithm app :schedule-render!)]
         (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
         (when index-root! (index-root! app))
+        (util/dev-check-query (get-query class-or-factory @state-atom) component-name)
         (when schedule-render! (schedule-render! app {:force-root? true})))
       (when #?(:clj false :cljs goog.DEBUG)
         (log/error "Unable to set query. Invalid arguments.")))))
