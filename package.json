@@ -5,13 +5,13 @@
   "main": "index.js",
   "directories": {},
   "devDependencies": {
-    "karma": "5.2.2",
+    "karma": "6.1.1",
     "karma-chrome-launcher": "3.1.0",
     "karma-cljs-test": "0.1.0",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "transit-js": "^0.8.867",
-    "shadow-cljs": "2.11.4"
+    "shadow-cljs": "2.11.21"
   },
   "repository": {
     "type": "git",
@@ -20,7 +20,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "highlight.js": "^9.18.3",
-    "react-grid-layout": "^0.16.6"
+    "highlight.js": "^10.6.0",
+    "react-grid-layout": "^1.2.2"
   }
 }
