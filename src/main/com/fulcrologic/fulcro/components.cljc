@@ -1357,14 +1357,12 @@
           (cons sym)
           (cons 'fn))))))
 
-
-
 #?(:clj
    (defn- component-query [query-part]
      (and (list? query-part)
-          (symbol? (first query-part))
-          (= "get-query" (name (first query-part)))
-          query-part)))
+       (symbol? (first query-part))
+       (= "get-query" (name (first query-part)))
+       query-part)))
 
 #?(:clj
    (defn- compile-time-query->checkable
@@ -1379,6 +1377,10 @@
              (component-query form)
              [(keyword (str "subquery-of-" (some-> form second name)))]
 
+             ;; Replace idents with idents that contain only keywords, so syms don't trip us up
+             (and (vector? form) (= 2 (count form)))
+             (mapv #(if (symbol? %) :placeholder %) form)
+
              (symbol? form)
              (throw (ex-info "Cannot proceed, the query contains a symbol" {:sym form}))
 
@@ -1390,9 +1392,12 @@
 
 #?(:clj
    (defn- check-query-looks-valid [err-env comp-class compile-time-query]
-     (when (false? (some->> (compile-time-query->checkable compile-time-query)
-                            (s/valid? ::eql/query)))
-       (throw (ana/error err-env (str "The query of defsc " comp-class " does not seem to be valid EQL"))))))
+     (let [checkable-query (compile-time-query->checkable compile-time-query)]
+       (when (false? (some->> checkable-query (s/valid? ::eql/query)))
+         (let [{:clojure.spec.alpha/keys [problems]} (s/explain-data ::eql/query checkable-query)
+               {:keys [in]} (first problems)]
+           (when (vector? in)
+             (throw (ana/error err-env (str "The element '" (get-in compile-time-query in) "' of the query of " comp-class " is not valid EQL")))))))))
 
 #?(:clj
    (defn- build-query-forms
