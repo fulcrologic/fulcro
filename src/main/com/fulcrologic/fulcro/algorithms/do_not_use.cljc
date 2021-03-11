@@ -19,7 +19,7 @@
             [java.util Base64]
             [java.nio.charset StandardCharsets])))
 
-(defn atom? [a] (instance? Atom a))
+(defn atom? [a] #?(:cljs (satisfies? IAtom a) :clj (instance? Atom a)))
 
 (defn join-entry [expr]
   (let [[k v] (if (seq? expr)
