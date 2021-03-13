@@ -7,7 +7,7 @@
                          :output-dir       "resources/public/js/workspaces"
                          :asset-path       "/js/workspaces"
                          :compiler-options {:external-config {:fulcro {:html-source-annotations? true}}}
-                         :preloads         [com.fulcrologic.fulcro.inspect.websocket-preload
+                         :preloads         [com.fulcrologic.fulcro.inspect.preload
                                             com.fulcrologic.fulcro.inspect.dom-picker-preload]}
 
             :todomvc    {:target     :browser
