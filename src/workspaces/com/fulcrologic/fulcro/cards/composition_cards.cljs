@@ -1,70 +1,50 @@
 (ns com.fulcrologic.fulcro.cards.composition-cards
   (:require
     [nubank.workspaces.card-types.react :as ct.react]
-    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
     [nubank.workspaces.core :as ws]
     [com.fulcrologic.fulcro-css.localized-dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.alpha.raw-components :as raw]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
-    ["react" :as react]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]))
+    [com.fulcrologic.fulcro.mutations :as m]))
 
-(defsc Counter [this props]
-  {:query         [:counter/id :counter/n]
-   :ident         :counter/id
-   :initial-state {:counter/id :param/id
-                   :counter/n  :param/n}})
-
-(defsc SampleRoot [this {:keys [x]}]
-  {:query         [:x]
-   :initial-state {:x 5}})
-
-(defonce APP (do
-               (let [app (app/fulcro-app)]
-                 (app/set-root! app SampleRoot {:initialize-state? true})
-                 app)))
+;; The raw fulcro-app has NO renderer installed. We're doing this example with nothing but raw react. Of course, this
+;; means you could embed it in *any* React-based system, since only hooks are required.
+(defonce APP (raw/fulcro-app {}))
 
 (m/defmutation bump [{:counter/keys [id]}]
   (action [{:keys [state]}]
     (swap! state update-in [:counter/id id :counter/n] inc)))
 
-(defn hook-demo-card [f]
-  (ct.fulcro/fulcro-card
-    {::ct.fulcro/root
-     (comp/configure-hooks-component!
-       f
-       {:componentName (keyword (gensym "hook-demo"))})
-     ::ct.fulcro/wrap-root?
-     false}))
+(defsc Counter [this props]
+  {:query         [:counter/id :counter/n]
+   :ident         :counter/id
+   :initial-state {:counter/id :param/id
+                   :counter/n  :param/n}
+   ;; Optional. Std components will work fine.
+   :use-hooks?    true}
+  (dom/button {:onClick #(comp/transact! this [(bump props)])}
+    (str (:counter/n props))))
 
-(defn- pcs [app component prior-props-tree]
-  (let [ident           (comp/get-ident component prior-props-tree)
-        state-map       (app/current-state app)
-        starting-entity (get-in state-map ident)
-        query           (comp/get-query component state-map)]
-    (fdn/db->tree query starting-entity state-map)))
+;; Important to use the right factory. This one establishes the stuff you need for nested Fulcro stuff to work
+;; according to the book.
+(def raw-counter (raw/factory APP Counter {:keyfn :counter/id}))
 
-(defn use-fulcro [app component initial-state-params]
-  (let [[current-props-tree set-state!] (hooks/use-state (comp/get-initial-state component initial-state-params))]
-    (hooks/use-effect
-      (fn [] (merge/merge-component! app component current-props-tree))
-      [])
-    {:props     (pcs app component current-props-tree)
-     :transact! (fn [tx]
-                  (comp/transact!! app tx)
-                  (set-state! (pcs app component current-props-tree)))}))
-
+;; A raw hooks component that uses a Fulcro sub-tree. See docstring on use-fulcro.
 (defn SampleComponent [props]
-  (let [{:keys [props transact!]} (use-fulcro APP Counter {:id 1 :n 100})]
-    (log/spy :info props)
-    (dom/button {:onClick #(transact! [(bump props)])} (str (:counter/n props)))))
+  (let [props (raw/use-fulcro APP Counter {:initial-state-params {:id 1 :n 100}
+                                           :keep-existing?       true})]
+    (raw-counter props)))
 
+;; Use some hooks state to make a toggle button so we can play with mount/unmount behavior
+(defn Top [props]
+  (let [[visible? set-visible?] (hooks/use-state false)]
+    (dom/div
+      (dom/button {:onClick #(set-visible? (not visible?))} "Toggle")
+      (when visible?
+        (dom/create-element SampleComponent {})))))
+
+;; Render a truly raw react hooks component in a plain react card
 (ws/defcard fulcro-composed-into-vanilla-react
   (ct.react/react-card
-    (dom/create-element SampleComponent {})
-    ))
+    (dom/create-element Top {})))

@@ -513,6 +513,11 @@
   [app nm listener]
   (swap! (::runtime-atom app) assoc-in [::render-listeners nm] listener))
 
+(defn remove-render-listener!
+  "Remove the render listener named `nm`."
+  [app nm]
+  (swap! (::runtime-atom app) update ::render-listeners dissoc nm))
+
 (defn headless-synchronous-app
   "Returns a new instance from `fulcro-app` that is pre-configured to use synchronous transaction processing
    and no rendering. This is particularly useful when you want to write integration tests around a Fulcro
