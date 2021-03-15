@@ -480,7 +480,9 @@
   [render-fn component-options]
   #?(:cljs
      (let [k              (:componentName component-options)
-           faux-classname (str (or (str/join "/" [(namespace k) (name k)]) (throw (ex-info "Missing :componentName for hooks component" {}))))]
+           faux-classname (if k
+                            (str (or (str/join "/" [(namespace k) (name k)]) (throw (ex-info "Missing :componentName for hooks component" {}))))
+                            "anonymous")]
        (gobj/extend render-fn
          #js {:fulcro$options         component-options
               :displayName            faux-classname
@@ -490,7 +492,8 @@
               :cljs$lang$ctorStr      faux-classname
               :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
               :fulcro$registryKey     (:componentName component-options)})
-       (register-component! k render-fn)
+       (when k
+         (register-component! k render-fn))
        render-fn)))
 
 (defn use-fulcro
@@ -702,7 +705,7 @@
                        :else class-or-factory)
            ;; Hot code reload. Avoid classes that were cached on metadata using the registry.
            class     (if #?(:cljs goog.DEBUG :clj false)
-                       (-> class class->registry-key registry-key->class)
+                       (or (-> class class->registry-key registry-key->class) class)
                        class)
            qualifier (if (is-factory? class-or-factory)
                        (-> class-or-factory meta :qualifier)

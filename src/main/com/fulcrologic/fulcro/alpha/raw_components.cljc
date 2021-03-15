@@ -1,5 +1,12 @@
 (ns com.fulcrologic.fulcro.alpha.raw-components
-  "Support for using Fulcro as a pure transaction/networking engine in React apps.
+  "
+  ********************************************************************************
+  ALPHA: This namespace will disappear once the API is stable and adopted. Until then, each release that changes the API
+  will use a new namespace to allow you to rely on a particular version. The final API will evolve new features and may
+  rename things, but should be trivial to port to.
+  ********************************************************************************
+
+  Support for using Fulcro as a pure transaction/networking engine in React apps.
 
   Basic usage:
 
