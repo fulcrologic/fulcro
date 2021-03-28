@@ -481,7 +481,7 @@
   #?(:cljs
      (let [k              (:componentName component-options)
            faux-classname (if k
-                            (str (or (str/join "/" [(namespace k) (name k)]) (throw (ex-info "Missing :componentName for hooks component" {}))))
+                            (str/join "/" [(namespace k) (name k)])
                             "anonymous")]
        (gobj/extend render-fn
          #js {:fulcro$options         component-options
@@ -693,8 +693,11 @@
   "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
-  ([class-or-factory] (get-query class-or-factory (or *query-state*
-                                                    (some-> *app* :com.fulcrologic.fulcro.application/state-atom deref) {})))
+  ([class-or-factory]
+   (if (= "anonymous" (component-name class-or-factory))    ; anonymous classes are not in the registry and do not support dyn queries
+     (query class-or-factory)
+     (get-query class-or-factory (or *query-state*
+                                   (some-> *app* :com.fulcrologic.fulcro.application/state-atom deref) {}))))
   ([class-or-factory state-map]
    (when (nil? class-or-factory)
      (throw (ex-info "nil passed to get-query" {})))

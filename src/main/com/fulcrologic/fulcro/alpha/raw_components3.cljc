@@ -1,4 +1,4 @@
-(ns com.fulcrologic.fulcro.alpha.raw-components2
+(ns com.fulcrologic.fulcro.alpha.raw-components3
   "
   ********************************************************************************
   ALPHA: This namespace will disappear once the API is stable and adopted. Until then, each release that changes the API
@@ -43,7 +43,7 @@
   complicated to add this extension, it is just that some parts of Fulcro (particularly the dyn routers) expect a
   fully-composed query.
   "
-  #?(:cljs (:require-macros com.fulcrologic.fulcro.alpha.raw-components2))
+  #?(:cljs (:require-macros com.fulcrologic.fulcro.alpha.raw-components3))
   (:require
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.components :as comp]
@@ -58,7 +58,10 @@
          [goog.object :as gobj]])
     [com.fulcrologic.fulcro.application :as app]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]))
+    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+    [com.fulcrologic.fulcro.ui-state-machines :as uism]))
 
 (defn- create-element
   "Create a DOM element for which there exists no corresponding function.
@@ -182,43 +185,7 @@
     (use-db-lifecycle app component current-props-tree set-state!)
     current-props-tree))
 
-(defn use-tree
-  "Use a normalized query an manual initial state to interface with Fulcro. Supply a normalized query (see `nq`)
-   and options. Returns the props from the Fulcro state for that query. You must supply either an ident of an
-   existing node in the database, or an `initial-tree` that will cause the normalized query to figure out the ident
-   to use.
 
-   The arguments are:
-
-   app - A Fulcro app
-   normalizing-component - An anonymous component created with `nc`. Also works with a component.
-   options - A map of options, containing:
-
-   * :initial-tree - An initial tree of data to use if the data isn't already in the Fulcro database. You must supply
-     this or the `:ident` of the data that is already there. This tree *will be normalized* according to the normalization
-     needs detected or supplied on the query by `nc`.
-   * :keep-existing? - A boolean. If true, then the `initial-tree` will not be written if the data is already in the
-     Fulcro database.
-   * :ident - Only needed if you are NOT initializing things with a tree.
-
-   Returns the current tree from the Fulcro database. The component using this function will automatically refresh
-   after Fulcro transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries). Use
-   your `app` as the parameter to `transact!`. Remember to wrap any use of stock Fulcro components in `with-fulcro`.
-  "
-  [app normalizing-component {:keys [ident initial-tree keep-existing?]}]
-  (let [[current-props-tree set-state!] (hooks/use-state
-                                          (let [ident     (or
-                                                            ident
-                                                            (when initial-tree
-                                                              (comp/get-ident normalizing-component initial-tree)))
-                                                state-map (app/current-state app)
-                                                exists?   (map? (get-in state-map ident))]
-                                            (cond
-                                              (and exists? keep-existing?) (pcs app normalizing-component (or ident {}))
-                                              initial-tree initial-tree
-                                              :else {})))]
-    (use-db-lifecycle app normalizing-component current-props-tree set-state!)
-    current-props-tree))
 
 #?(:clj
    (defmacro with-fulcro
@@ -235,32 +202,38 @@
 
 (defn use-initial-state [normalizing-query initial-state-tree options])
 
-(defn- id-key [children]
+(defn- ast-id-key [children]
   (:key
     (first
       (filter (fn [{:keys [type key]}]
                 (and
+                  (keyword? key)
                   (= :prop type)
                   (= "id" (name key))))
         children))))
 
-(defn- normalize* [{:keys [children] :as original-node}]
-  (let [detected-id-key (id-key children)
+(defn- normalize* [{:keys [children] :as original-node} {:keys [componentName] :as top-component-options}]
+  (let [detected-id-key (ast-id-key children)
         real-id-key     (or detected-id-key)
         component       (fn [& args])
         new-children    (mapv
                           (fn [{:keys [type] :as node}]
-                            (if (= type :join)
-                              (normalize* node)
+                            (if (and (= type :join) (not (:component node)))
+                              (normalize* node {})
                               node))
                           children)
         updated-node    (assoc original-node :children new-children :component component)
-        query           (eql/ast->query updated-node)
+        query           (if (= type :join)
+                          (eql/ast->query (assoc updated-node :type :root))
+                          (eql/ast->query updated-node))
         _               (comp/add-hook-options! component (cond-> (with-meta
-                                                                    {:query         (fn [& args] query)
-                                                                     "props"        {"fulcro$queryid" :anonymous}
-                                                                     :initial-state (fn [& args] {})}
+                                                                    (merge
+                                                                      {:initial-state (fn [& args] {})}
+                                                                      top-component-options
+                                                                      {:query  (fn [& args] query)
+                                                                       "props" {"fulcro$queryid" :anonymous}})
                                                                     {:query-id :anonymous})
+                                                            componentName (assoc :componentName componentName)
                                                             real-id-key (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))]
     updated-node))
 
@@ -275,31 +248,169 @@
    will create a normalizing query that expects the top-level values to be normalized by `:list/id` and the nested
    items to be normalized by `:item/id`. If there is more than one ID in your props, make sure the *first* one is
    the one to use for normalization.
+
+   The `top-component-options` becomes the options map of the component. You can include :componentName to push the
+   resulting anonymous component definition into the component registry, which is needed by some parts of Fulcro, like
+   UISM.
    "
-  [query]
-  (let [ast (eql/query->ast query)]
-    (:component (normalize* ast))))
+  ([query] (nc query {}))
+  ([query {:keys [componentName] :as top-component-options}]
+   (let [ast (eql/query->ast query)]
+     (:component (normalize* ast top-component-options)))))
 
-(comment
+(defn- normalize-form* [{:keys [children type] :as original-node} top-component-options]
+  (let [detected-id-key (or (ast-id-key children) (throw (ex-info "Query must have an ID field for normalization detection" {:query (eql/ast->query original-node)})))
+        _               detected-id-key
+        form-fields     (into #{}
+                          (comp
+                            (map :key)
+                            (filter #(and
+                                       (not (vector? %))
+                                       (not= "ui" (namespace %))
+                                       (not= % detected-id-key))))
+                          children)
+        children        (conj children (eql/expr->ast fs/form-config-join))
+        component       (fn [& args])
+        new-children    (mapv
+                          (fn [{:keys [type] :as node}]
+                            (if (and (= type :join) (not (:component node)))
+                              (normalize-form* node {})
+                              node))
+                          children)
+        updated-node    (assoc original-node :children new-children :component component)
+        query           (if (= type :join)
+                          (eql/ast->query (assoc updated-node :type :root))
+                          (eql/ast->query updated-node))
+        _               (comp/add-hook-options! component (cond-> (with-meta
+                                                                    (merge
+                                                                      {:initial-state (fn [& args] {})}
+                                                                      top-component-options
+                                                                      {:query       (fn [& args] query)
+                                                                       :ident       (fn [_ props] [detected-id-key (get props detected-id-key)])
+                                                                       :form-fields form-fields
+                                                                       "props"      {"fulcro$queryid" :anonymous}})
+                                                                    {:query-id :anonymous})))]
+    updated-node))
 
-  (let [component (nc [:item/id])]
-    (comp/get-query (log/spy :info component) {})
-    )
-  (let [component (nc [:list/id {:list/items [:item/id :item/name]}])]
-    (merge/merge-component {} component {:list/id    1
-                                         :list/items [{:item/id 1 :item/label "A"}
-                                                      {:item/id 2 :item/label "B"}]}))
+(defn formc
+  "Create an anonymous normalizing form component from EQL. Every level of the query must have an `:<???>/id` field which
+  is used to build the ident, and every non-id attribute will be considered part of the form. This auto-adds the necessary
+  form-state form-join, and populates the anonymous component with the `:form-fields` option. You can add additional
+  component options to the top-level anonymous component with `top-component-options`."
+  ([EQL] (formc EQL {}))
+  ([EQL top-component-options]
+   (let [ast (eql/query->ast EQL)]
+     (:component (normalize-form* ast top-component-options)))))
 
-  (let [component (nc [:list/id {:list/items [:item/id :item/name]}])
-        tree      {:list/id 42 :list/items [{:item/id 1 :item/name "A"} {:item/id 2 :item/name "B"}]}]
-    (fnorm/tree->db (comp/get-query component) tree true)
-    )
+(defn- use-db-lifecycle-tree [app component current-props-tree set-state!]
+  (let [[id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))]
+    (hooks/use-lifecycle
+      (fn []
+        (let [state-map (app/current-state app)
+              ident     (comp/get-ident component current-props-tree)
+              exists?   (map? (get-in state-map ident))]
+          (when-not exists?
+            (merge/merge-component! app component current-props-tree))
+          (app/add-render-listener! app id
+            (fn [app _]
+              (let [props (pcs app component ident)]
+                (set-state! props))))))
+      (fn [] (app/remove-render-listener! app id)))))
 
-  )
+(defn use-tree
+  "Use a root key and component as an I/O-compatible subtree managed by Fulcro. The `root-key` must be a unique
+   (namespace recommended) key among all keys used within the application, since the root of the database is where it
+   will live.
+
+   The `component` should be a real Fulcro component or a generated normalizing component from `nc`.
+
+   Returns the props, starting from `root-key`, that satisfy the query.
+  "
+  [app root-key component {:keys [initialize? initial-params]}]
+  (let [[id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))
+        [current-props set-props!] (hooks/use-state {})]
+    (hooks/use-lifecycle
+      (fn []
+        (when (and initialize? (not (contains? (app/current-state app) root-key)))
+          (swap! (::app/state-atom app) (fn [s]
+                                          (merge/merge-component s component
+                                            (comp/get-initial-state component (or initial-params {}))
+                                            :replace [root-key]))))
+        (let [get-props (fn use-tree-get-props* []
+                          (let [query     [{root-key (comp/get-query component)}]
+                                state-map (app/current-state app)]
+                            (fdn/db->tree query state-map state-map)))]
+          (set-props! (get-props))
+          (app/add-render-listener! app id (fn use-tree-set-props* [app _] (set-props! (get-props))))))
+      (fn use-tree-remove-render-listener* [] (app/remove-render-listener! app id)))
+    (get current-props root-key)))
+
+(defn id-key
+  "Returns the keyword of the most likely ID attribute in the given props (the one with the name `id`).
+  Returns nil if there isn't one."
+  [props]
+  (first (filter #(= "id" (name %)) (keys props))))
+
+(defn set-value!!
+  "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` to
+   derive the ident of the database entry."
+  [app current-props k v]
+  (let [ik    (id-key current-props)
+        ident [ik (get current-props ik)]]
+    (if (some nil? ident)
+      (log/error "Cannot set-value!! because current-props could not be used to derive the ident of the component." current-props)
+      (do
+        (comp/transact!! app `[(m/set-props ~{k v})] {:ref ident})))))
+
+(defn update-value!!
+  "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` as the basis
+   for the update, and to find the ident of the target."
+  [app current-props k f & args]
+  (let [ik        (id-key current-props)
+        ident     [ik (get current-props ik)]
+        old-value (get current-props k)
+        new-value (apply f old-value args)]
+    (if (some nil? ident)
+      (log/error "Cannot update-value!! because current-props could not be used to derive the ident of the component." current-props)
+      (do
+        (comp/transact!! app `[(m/set-props ~{k new-value})] {:ref ident})))))
 
 
-(comment
-  (let [current-user (use-tree :application/current-user [:user/id :user/email {:user/settings [:settings/id :settings/marketing?]}]
-                       {:load-if-missing? true
-                        :load-options     {}})]
-    ))
+(defn use-uism
+  "Use a UISM as an effect hook. This will set up the given state machine under the give ID, and start it. Your initial state
+   handler MUST set up actors and otherwise initialize based on initial-event-data. If the machine is already started at the
+   given ID then this effect will send it an `:event/remounted` event. This hook will send an `:event/unmounted` when the
+   component using this effect goes away.
+
+   You MUST include `:componentName` in each of your actor's options.
+
+   Returns the current state of the actors known by the state machine."
+  [app state-machine-definition id initial-event-data]
+  (let [state-map (app/current-state app)
+        {::uism/keys [active-state actor->ident actor->component-name]} (get-in state-map [::uism/asm-id id])
+        [listener-id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))
+        [_ local-render!] (hooks/use-state nil)]
+    (hooks/use-lifecycle
+      (fn []
+        (app/add-render-listener! app listener-id (fn [_ _] (local-render! (rand-int 10000000))))
+        (let [s        (app/current-state app)
+              started? (get-in s [::uism/asm-id id])]
+          (if started?
+            (uism/trigger!! app id :event/remounted)
+            (uism/begin! app state-machine-definition id initial-event-data))))
+      (fn []
+        (app/remove-render-listener! app listener-id)
+        (uism/trigger!! app id :event/unmounted)))
+    (reduce-kv
+      (fn [result actor ident]
+        (let [cname (actor->component-name actor)
+              cls   (comp/registry-key->class cname)
+              query (comp/get-query cls)
+              base  (get-in state-map ident)]
+          (assoc result actor (fdn/db->tree query (log/spy :info base) state-map))))
+      {:active-state active-state}
+      actor->ident)))
+
+
+
+

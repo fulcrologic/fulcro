@@ -718,7 +718,7 @@
 
    Returns the new component props or the final state map if no component was used in the transaction.
    "
-  [app tx {:keys [component] :as options}]
+  [app tx {:keys [component ref] :as options}]
   (let [mutation-nodes      (:children (eql/query->ast tx))
         ast-node->operation (zipmap mutation-nodes (map (fn [ast-node] (m/mutate {:ast ast-node})) mutation-nodes))
         {optimistic true
@@ -737,10 +737,11 @@
         (reset! resulting-node-id (::id node))
         (swap! runtime-atom update ::active-queue conj node)
         (schedule-queue-processing! app 20)))
-    (if (and component (comp/component? component) (comp/has-ident? component))
-      (comp/refresh-component! component)
-      (when #?(:cljs js/goog.DEBUG :clj true)
-        (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen.")))
+    (cond
+      (and component (comp/component? component) (comp/has-ident? component)) (comp/refresh-component! component)
+      ref (let [r! (ah/app-algorithm app :render!)] (when r! (r! app)))
+      :else (when #?(:cljs js/goog.DEBUG :clj true)
+              (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen.")))
     @resulting-node-id))
 
 (defn default-tx!
