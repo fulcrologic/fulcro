@@ -10,27 +10,32 @@
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
-    [taoensso.encore :as enc]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.guardrails.core :refer [>def]]
     [clojure.set :as set])
   #?(:clj
      (:import
        [clojure.lang Associative IDeref APersistentMap])))
 
-(defonce ^:private component-registry (atom {}))
-
 #?(:clj
    (defn current-config []
      (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
        config)))
 
-;; Used internally by get-query for resolving dynamic queries (was created to prevent the need for external API change in 3.x)
-(def ^:dynamic *query-state* nil)
+(def ^{:private true
+       :dynamic true} *after-render*
+  "MOVED. This var will NOT work. You must use the one in raw.components instead."
+  nil)
+
+(def ^{:private true
+       :dynamic true} *query-state*
+  "MOVED. This var will NOT work. You must use the one in raw.components instead."
+  nil)
 
 ;; Bound during Fulcro-driven renders to communicate critical information to components *on their initial render*.
 ;; Due to the nature of js and React there is no guarantee that future `render` (or lifecycle calls) will actually be done synchronously,
@@ -49,47 +54,24 @@
 ;; Also used when you force a root render.
 (def ^:dynamic *blindly-render* false)
 
-(defn ^:deprecated use-effect
-  "DEPRECATED: use from com.fulcrologic.fulcro.react.hooks
-
-  A simple wrapper around React/useEffect that auto-converts cljs arrays of deps to js."
-  ([f] #?(:cljs (js/React.useEffect f)))
-  ;; TODO: optimization: if this were a macro we could convert literal vectors at compile time. See DOM macros.
-  ([f deps] #?(:cljs (js/React.useEffect f (clj->js deps)))))
-
-(defn ^:deprecated use-state
-  "DEPRECATED: use from com.fulcrologic.fulcro.react.hooks
-  A simple wrapper around React/useState. Returns a cljs vector for easy destructuring"
-  [initial-value]
-  #?(:cljs (js->clj (js/React.useState initial-value))))
-
-(defn isoget-in
+(def isoget-in
   "Like get-in, but for js objects, and in CLJC. In clj, it is just get-in. In cljs it is
   gobj/getValueByKeys."
-  ([obj kvs]
-   (isoget-in obj kvs nil))
-  ([obj kvs default]
-   #?(:clj (get-in obj kvs default)
-      :cljs
-           (let [ks (mapv (fn [k] (some-> k name)) kvs)]
-             (or (apply gobj/getValueByKeys obj ks) default)))))
+  rc/isoget-in)
 
-(defn isoget
+(def isoget
   "Like get, but for js objects, and in CLJC. In clj, it is just `get`. In cljs it is
   `gobj/get`."
-  ([obj k] (isoget obj k nil))
-  ([obj k default]
-   #?(:clj  (get obj k default)
-      :cljs (or (gobj/get obj (some-> k (name))) default))))
+  rc/isoget)
 
+(def register-component!
+  "
+  [k component-class]
 
-(defn register-component!
-  "Add a component to Fulcro's component registry.  This is used by defsc to ensure that all Fulcro classes
+  Add a component to Fulcro's component registry.  This is used by defsc to ensure that all Fulcro classes
   that have been compiled (transitively required) will be accessible for lookup by fully-qualified symbol/keyword.
   Not meant for public use, unless you're creating your own component macro that doesn't directly leverage defsc."
-  [k component-class]
-  (swap! component-registry assoc k component-class)
-  component-class)
+  rc/register-component!)
 
 (defn force-children
   "Utility function that will force a lazy sequence of children (recursively) into realized
@@ -98,25 +80,20 @@
   (cond->> x
     (seq? x) (into [] (map force-children))))
 
-(defn newer-props
-  "Returns whichever of the given Fulcro props were most recently generated according to `denormalization-time`. This
-  is part of props 'tunnelling', an optimization to get updated props to instances without going through the root."
+(def newer-props
+  "
   [props-a props-b]
-  (cond
-    (nil? props-a) props-b
-    (nil? props-b) props-a
-    (> (or (fdn/denormalization-time props-a) 2) (or (fdn/denormalization-time props-b) 1)) props-a
-    :else props-b))
+
+  Returns whichever of the given Fulcro props were most recently generated according to `denormalization-time`. This
+  is part of props 'tunnelling', an optimization to get updated props to instances without going through the root."
+  rc/newer-props)
 
 (defn component-instance?
   "Returns true if the argument is a component. A component is defined as a *mounted component*.
    This function returns false for component classes, and also returns false for the output of a Fulcro component factory."
   #?(:cljs {:tag boolean})
   [x]
-  (if-not (nil? x)
-    #?(:clj  (true? (:fulcro$isComponent x))
-       :cljs (true? (gobj/get x "fulcro$isComponent")))
-    false))
+  (rc/component-instance? x))
 
 (def component?
   "Returns true if the argument is a component instance.
@@ -128,41 +105,30 @@
   "Returns true if the argument is a component class."
   #?(:cljs {:tag boolean})
   [x]
-  #?(:clj  (boolean (and (map? x) (::component-class? x)))
-     :cljs (boolean (gobj/containsKey x "fulcro$class"))))
+  (rc/component-class? x))
 
 (>def ::component-class component-class?)
 
-(defn component-name
+(def component-name
   "Returns a string version of the given react component's name. Works on component instances and classes."
-  [class]
-  (isoget class :displayName))
+  rc/component-name)
 
-(defn class->registry-key
+(def class->registry-key
   "Returns the registry key for the given component class."
-  [class]
-  (isoget class :fulcro$registryKey))
+  rc/class->registry-key)
 
-(defn registry-key->class
+(def registry-key->class
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
   been (transitively) required by your application.
 
   `classname` can be a fully-qualified keyword or symbol."
-  [classname]
-  (cond
-    (keyword? classname) (get @component-registry classname)
-    (symbol? classname) (let [k (keyword (namespace classname) (name classname))]
-                          (get @component-registry k))
-    (and (string? classname)
-      (str/includes? classname "/")) (let [[nspc nm] (str/split classname #"/")
-                                           k (keyword nspc nm)]
-                                       (get @component-registry k))
-    :otherwise nil))
+  rc/registry-key->class)
 
-(declare props)
+(def computed
+  "
+  [props computed-map]
 
-(defn computed
-  "Add computed properties to props. This will *replace* any pre-existing computed properties. Computed props are
+  Add computed properties to props. This will *replace* any pre-existing computed properties. Computed props are
   necessary when a parent component wishes to pass callbacks or other data to children that *have a query*. This
   is not necessary for \"stateless\" components, though it will work properly for both.
 
@@ -171,27 +137,11 @@
   from the parent. If you pass things like callbacks through normal props, then targeted updates will seem to \"lose
   track of\" them.
   "
-  [props computed-map]
-  (when-not (nil? props)
-    (if (vector? props)
-      (cond-> props
-        (not (empty? computed-map)) (vary-meta assoc :fulcro.client.primitives/computed computed-map))
-      (cond-> props
-        (not (empty? computed-map)) (assoc :fulcro.client.primitives/computed computed-map)))))
+  rc/computed)
 
-(defn get-computed
+(def get-computed
   "Return the computed properties on a component or its props. Note that it requires that the normal properties are not nil."
-  ([x]
-   (get-computed x []))
-  ([x k-or-ks]
-   (when-not (nil? x)
-     (let [props (cond-> x (component-instance? x) props)
-           ks    (into [:fulcro.client.primitives/computed]
-                   (cond-> k-or-ks
-                     (not (sequential? k-or-ks)) vector))]
-       (if (vector? props)
-         (-> props meta (get-in ks))
-         (get-in props ks))))))
+  rc/get-computed)
 
 (defn get-extra-props
   "Get any data (as a map) that props extensions have associated with the given Fulcro component. Extra props will
@@ -199,13 +149,9 @@
   [this]
   (isoget-in this [:props :fulcro$extra_props] {}))
 
-(defn props
+(def props
   "Return a component's props."
-  [component]
-  (let [props-from-parent    (isoget-in component [:props :fulcro$value])
-        computed-from-parent (get-computed props-from-parent)
-        props-from-updates   (computed (isoget-in component [:state :fulcro$value]) computed-from-parent)]
-    (newer-props props-from-parent props-from-updates)))
+  rc/props)
 
 (defn children
   "Get the sequence of react children of the given component."
@@ -218,22 +164,15 @@
   "Returns the component type, regardless of whether the component has been
    mounted"
   [x]
-  #?(:clj  (if (component-class? x) x (:fulcro$class x))
-     :cljs (or (gobj/get x "type") (type x))))
+  (rc/component-type x))
 
-(defn get-class
+(def get-class
   "Returns the react type (component class) of the given React element (instance). Is identity if used on a class."
-  [instance]
-  (react-type instance))
+  rc/get-class)
 
-(defn component-options
+(def component-options
   "Returns the map of options that was specified (via `defsc`) for the component class."
-  ([instance-or-class & ks]
-   (let [c       (react-type instance-or-class)
-         options (or (isoget instance-or-class :fulcro$options) (isoget c :fulcro$options))]
-     (if (seq options)
-       (get-in options (vec ks))
-       options))))
+  rc/component-options)
 
 (defn has-feature? #?(:cljs {:tag boolean}) [component option-key] (contains? (component-options component) option-key))
 (defn has-initial-app-state? #?(:cljs {:tag boolean}) [component] (has-feature? component :initial-state))
@@ -255,12 +194,7 @@
   "Attempt to coerce `x` to an app.  Legal inputs are a fulcro application, a mounted component,
   or an atom holding any of the above."
   [x]
-  (letfn [(fulcro-app? [x] (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom)))]
-    (cond
-      (component-instance? x) (get-raw-react-prop x :fulcro$app)
-      (fulcro-app? x) x
-      #?(:clj  (instance? IDeref x)
-         :cljs (satisfies? IDeref x)) (any->app (deref x)))))
+  (rc/any->app x))
 
 (defn raw->newest-props
   "Using raw react props/state returns the newest Fulcro props. This is part of \"props tunneling\", where component
@@ -280,6 +214,7 @@
    This function attempts to rely on the dynamic var *shared* (first), but will make a best-effort of
    finding shared props when run within a component's render or lifecycle. Passing your app will
    ensure this returns the current shared props."
+  ([] *shared*)
   ([comp-or-app]
    (shared comp-or-app []))
   ([comp-or-app k-or-ks]
@@ -478,23 +413,7 @@
   component-options *must* include a unique `:componentName` (keyword) that will be used for registering the given
   function as the faux class in the component registry."
   [render-fn component-options]
-  #?(:cljs
-     (let [k              (:componentName component-options)
-           faux-classname (if k
-                            (str (or (str/join "/" [(namespace k) (name k)]) (throw (ex-info "Missing :componentName for hooks component" {}))))
-                            "anonymous")]
-       (gobj/extend render-fn
-         #js {:fulcro$options         component-options
-              :displayName            faux-classname
-              :fulcro$class           render-fn
-              :type                   render-fn
-              :cljs$lang$type         true
-              :cljs$lang$ctorStr      faux-classname
-              :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
-              :fulcro$registryKey     (:componentName component-options)})
-       (when k
-         (register-component! k render-fn))
-       render-fn)))
+  (rc/configure-anonymous-component! render-fn component-options))
 
 (defn use-fulcro
   "Allows you to use a plain function as a Fulcro-managed React hooks component.
@@ -602,12 +521,12 @@
     ([component f & args]
      (update-fn component f args))))
 
-(defn get-initial-state
-  "Get the declared :initial-state value for a component."
-  ([class]
-   (some-> (initial-state class {}) (with-meta {:computed true})))
-  ([class params]
-   (some-> (initial-state class params) (with-meta {:computed true}))))
+(def get-initial-state
+  "
+  [cls] [cls params]
+
+  Get the declared :initial-state value for a component."
+  rc/get-initial-state)
 
 (defn computed-initial-state?
   "Returns true if the given initial state was returned from a call to get-initial-state. This is used by internal
@@ -615,28 +534,17 @@
   [s]
   (and (map? s) (some-> s meta :computed)))
 
-(defn get-ident
-  "Get the ident for a mounted component OR using a component class.
+(def get-ident
+  "
+  [x] [class props]
+
+  Get the ident for a mounted component OR using a component class.
 
   That arity-2 will return the ident using the supplied props map.
 
   The single-arity version should only be used with a mounted component (e.g. `this` from `render`), and will derive the
   props that were sent to it most recently."
-  ([x]
-   {:pre [(component-instance? x)]}
-   (if-let [m (props x)]
-     (ident x m)
-     (when #?(:clj false :cljs goog.DEBUG)
-       (log/warn "get-ident was invoked on " (component-name x) " with nil props (this could mean it wasn't yet mounted): " x "See https://book.fulcrologic.com/#warn-get-ident-with-nil-props"))))
-  ([class props]
-   (if-let [id (ident class props)]
-     (do
-       (when (and #?(:clj false :cljs goog.DEBUG) (not (eql/ident? id)))
-         (log/warn "get-ident returned an invalid ident:" id (:displayName (component-options class)) "See https://book.fulcrologic.com/#warn-get-ident-invalid-ident"))
-       (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
-     (when #?(:clj false :cljs goog.DEBUG)
-       (log/warn "get-ident called with something that is either not a class or does not implement ident: " class "See https://book.fulcrologic.com/#warn-get-ident-invalid-class")
-       nil))))
+  rc/get-ident)
 
 (defn tunnel-props!
   "CLJS-only.  When the `component` is mounted this will tunnel `new-props` to that component through React `setState`. If you're in
@@ -653,69 +561,23 @@
 (defn is-factory?
   "Returns true if the given argument is a component factory."
   [class-or-factory]
-  (and (fn? class-or-factory)
-    (-> class-or-factory meta (contains? :qualifier))))
+  (rc/is-factory? class-or-factory))
 
-(defn query-id
-  "Returns a string ID for the query of the given class with qualifier."
-  [class qualifier]
-  (if (nil? class)
-    (when #?(:clj false :cljs goog.DEBUG)
-      (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query) See https://book.fulcrologic.com/#err-comp-query-id-no-class" (ex-info "" {})))
-    (when-let [classname (component-name class)]
-      (str classname (when qualifier (str "$" qualifier))))))
+(def query-id "Returns a string ID for the query of the given class with qualifier."
+  rc/query-id)
 
-(defn denormalize-query
-  "Takes a state map that may contain normalized queries and a query ID. Returns the stored query or nil."
-  [state-map ID]
-  (let [get-stored-query (fn [id]
-                           (let [{:keys [query component-key]} (get-in state-map [::queries id])
-                                 component (registry-key->class component-key)]
-                             (when-not component (get-in state-map [::queries id]))
-                             (some-> query (vary-meta assoc :component component :queryid id))))]
-    (when-let [normalized-query (get-stored-query ID)]
-      (prewalk (fn [ele]
-                 (if-let [q (and (string? ele) (get-stored-query ele))]
-                   q
-                   ele)) normalized-query))))
-
-(defn- get-query-id
-  "Get the query id that is cached in the component's props."
-  [component]
-  (get-raw-react-prop component #?(:clj  :fulcro$queryid
-                                   :cljs "fulcro$queryid")))
-
-(defn get-query-by-id [state-map class queryid]
-  (let [query (or (denormalize-query state-map queryid) (query class))]
-    (with-meta query {:component class
-                      :queryid   queryid})))
+(def denormalize-query rc/denormalize-query)
+(def get-query-by-id rc/get-query-by-id)
 
 (defn get-query
   "Get the query for the given class or factory. If called without a state map, then you'll get the declared static
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
-  ([class-or-factory] (get-query class-or-factory (or *query-state*
-                                                    (some-> *app* :com.fulcrologic.fulcro.application/state-atom deref) {})))
+  ([class-or-factory]
+   (rc/get-query class-or-factory (or rc/*query-state*
+                                    (some-> *app* :com.fulcrologic.fulcro.application/state-atom deref) {})))
   ([class-or-factory state-map]
-   (when (nil? class-or-factory)
-     (throw (ex-info "nil passed to get-query" {})))
-   (binding [*query-state* state-map]
-     (let [class     (cond
-                       (is-factory? class-or-factory) (-> class-or-factory meta :class)
-                       (component-instance? class-or-factory) (react-type class-or-factory)
-                       :else class-or-factory)
-           ;; Hot code reload. Avoid classes that were cached on metadata using the registry.
-           class     (if #?(:cljs goog.DEBUG :clj false)
-                       (or (-> class class->registry-key registry-key->class) class)
-                       class)
-           qualifier (if (is-factory? class-or-factory)
-                       (-> class-or-factory meta :qualifier)
-                       nil)
-           queryid   (if (component-instance? class-or-factory)
-                       (get-query-id class-or-factory)
-                       (query-id class qualifier))]
-       (when (and class (has-query? class))
-         (get-query-by-id state-map class queryid))))))
+   (rc/get-query class-or-factory state-map)))
 
 (defn make-state-map
   "Build a component's initial state using the defsc initial-state-data from
@@ -899,13 +761,6 @@
           (apply real-factory (computed props computed-props) children)))
        (meta real-factory)))))
 
-(def ^:dynamic *after-render*
-  "Dynamic var that affects the activation of transactions run via `transact!`. Defaults to false. When set to true
-   this option prevents a transaction from running until after the next render is complete. This typically should not be set
-   to true in scenarios where you are unsure if a render will occur, since that could make the transaction appear to
-   \"hang\"."
-  false)
-
 (defn transact!
   "Submit a transaction for processing.
 
@@ -935,7 +790,7 @@
   when calling `transact!` from *within* another mutation to ensure that the effects of the current mutation finish
   before this transaction takes control of the CPU. This option defaults to `false`, but `defmutation` causes it to
   be set to true for any transactions run within mutation action sections. You can affect the default for this value
-  in a dynamic scope by binding `*after-render*` to true
+  in a dynamic scope by binding `rc/*after-render*` to true
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
@@ -943,16 +798,8 @@
 
   Returns the transaction ID of the submitted transaction.
   "
-  ([app-or-component tx options]
-   (when-let [app (any->app app-or-component)]
-     (let [tx!     (ah/app-algorithm app :tx!)
-           options (cond-> options
-                     (and (not (contains? options :after-render?)) (true? *after-render*)) (assoc :after-render? true)
-                     (and (nil? (:ref options)) (has-ident? app-or-component)) (assoc :ref (get-ident app-or-component))
-                     (and (nil? (:component options)) (component-instance? app-or-component)) (assoc :component app-or-component))]
-       (tx! app tx options))))
-  ([app-or-comp tx]
-   (transact! app-or-comp tx {})))
+  ([app-or-component tx options] (rc/transact! app-or-component tx options))
+  ([app-or-comp tx] (rc/transact! app-or-comp tx {})))
 
 (defn transact!!
   "Shorthand for exactly `(transact! component tx (merge options {:synchronous? true}))`.
@@ -978,83 +825,31 @@
 
   WARNING: Synchronous rendering does *not* refresh the full UI, only the component.
   "
-  ([component tx] (transact!! component tx {}))
+  ([component tx] (rc/transact!! component tx {}))
   ([component tx options]
-   (transact! component tx (merge options {:synchronous? true}))))
+   (rc/transact! component tx (merge options {:synchronous? true}))))
 
 (declare normalize-query)
 
-(defn link-element
-  "Part of internal implementation of dynamic queries."
-  [element]
-  (prewalk (fn link-element-helper [ele]
-             (let [{:keys [queryid]} (meta ele)]
-               (if queryid queryid ele))) element))
+(def link-element "Part of internal implementation of dynamic queries." rc/link-element)
 
-(defn normalize-query-elements
+(def normalize-query-elements
   "Part of internal implementation of dynamic queries.
 
   Determines if there are query elements in the `query` that need to be normalized. If so, it does so.
 
   Returns the new state map containing potentially-updated normalized queries."
-  [state-map query]
-  (reduce
-    (fn normalize-query-elements-reducer [state ele]
-      (try
-        (let [parameterized? (seq? ele)
-              raw-element    (if parameterized? (first ele) ele)]
-          (cond
-            (util/union? raw-element) (let [union-alternates            (first (vals raw-element))
-                                            union-meta                  (-> union-alternates meta)
-                                            normalized-union-alternates (-> (into {} (map link-element union-alternates))
-                                                                          (with-meta union-meta))
-                                            union-query-id              (-> union-alternates meta :queryid)
-                                            union-component-key         (-> union-alternates meta :component class->registry-key)]
-                                        (assert union-query-id "Union query has an ID. Did you use extended get-query?")
-                                        (util/deep-merge
-                                          {::queries {union-query-id {:query         normalized-union-alternates
-                                                                      :component-key union-component-key
-                                                                      :id            union-query-id}}}
-                                          (reduce (fn normalize-union-reducer [s [_ subquery]]
-                                                    (normalize-query s subquery)) state union-alternates)))
-            (and
-              (util/join? raw-element)
-              (util/recursion? (util/join-value raw-element))) state
-            (util/join? raw-element) (normalize-query state (util/join-value raw-element))
-            :else state))
-        (catch #?(:clj Exception :cljs :default) e
-          (when #?(:clj false :cljs goog.DEBUG)
-            (log/error e "Query normalization failed. Perhaps you tried to set a query with a syntax error? See https://book.fulcrologic.com/#err-comp-q-norm-failed")))))
-    state-map query))
+  rc/normalize-query-elements)
 
-(defn link-query
+(def link-query
   "Part of dyn query implementation. Find all of the elements (only at the top level) of the given query and replace them
   with their query ID."
-  [query]
-  (let [metadata (meta query)]
-    (if (map? query)
-      (with-meta
-        (enc/map-vals (fn [ele] (let [{:keys [queryid]} (meta ele)] queryid)) query)
-        metadata)
-      (with-meta
-        (mapv link-element query)
-        metadata))))
+  rc/link-query)
 
-(defn normalize-query
+(def normalize-query
   "Given a state map and a query, returns a state map with the query normalized into the database. Query fragments
   that already appear in the state will not be added.  Part of dynamic query implementation."
-  [state-map query]
-  (let [queryid       (some-> query meta :queryid)
-        component-key (class->registry-key (some-> query meta :component))
-        query'        (vary-meta query dissoc :queryid :component)
-        new-state     (normalize-query-elements state-map query')
-        new-state     (if (nil? (::queries new-state))
-                        (assoc new-state ::queries {})
-                        new-state)
-        top-query     (link-query query')]
-    (if (and queryid component-key)
-      (util/deep-merge {::queries {queryid {:query top-query :id queryid :component-key component-key}}} new-state)
-      new-state)))
+  rc/normalize-query)
 
 (defn set-query*
   "Put a query in app state.
@@ -1062,26 +857,7 @@
   NOTE: Indexes must be rebuilt after setting a query, so this function should primarily be used to build
   up an initial app state."
   [state-map class-or-factory {:keys [query] :as args}]
-  (let [queryid   (cond
-                    (nil? class-or-factory)
-                    nil
-
-                    (some-> class-or-factory meta (contains? :queryid))
-                    (some-> class-or-factory meta :queryid)
-
-                    :otherwise (query-id class-or-factory nil))
-        component (or (-> class-or-factory meta :class) class-or-factory)
-        setq*     (fn [state]
-                    (normalize-query
-                      (update state ::queries dissoc queryid)
-                      (vary-meta query assoc :queryid queryid :component component)))]
-    (if (string? queryid)
-      (cond-> state-map
-        (contains? args :query) (setq*))
-      (do
-        (when #?(:clj false :cljs goog.DEBUG)
-          (log/error "Set query failed. There was no query ID. Use a class or factory for the second argument. See https://book.fulcrologic.com/#err-comp-set-q-failed"))
-        state-map))))
+  (rc/set-query* state-map class-or-factory args))
 
 (defn set-query!
   "Public API for setting a dynamic query on a component. This function alters the query and rebuilds internal indexes.
@@ -1091,60 +867,19 @@
   * `opts` : A map with `query` and optionally `params` (substitutions on queries)
   "
   [x class-or-factory {:keys [query params] :as opts}]
-  (let [app        (any->app x)
-        state-atom (:com.fulcrologic.fulcro.application/state-atom app)
-        queryid    (cond
-                     (string? class-or-factory) class-or-factory
-                     (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
-                     :otherwise (query-id class-or-factory nil))]
-    (if (and (string? queryid) (or query params))
-      (let [index-root!      (ah/app-algorithm app :index-root!)
-            schedule-render! (ah/app-algorithm app :schedule-render!)]
-        (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
-        (when index-root! (index-root! app))
-        (util/dev-check-query (get-query class-or-factory @state-atom) component-name)
-        (when schedule-render! (schedule-render! app {:force-root? true})))
-      (when #?(:clj false :cljs goog.DEBUG)
-        (log/error "Unable to set query. Invalid arguments. See https://book.fulcrologic.com/#err-comp-unable-set-q")))))
+  (rc/set-query! x class-or-factory opts))
 
-(letfn [(--set-query! [app class-or-factory {:keys [query] :as params}]
-          (let [state-atom (:com.fulcrologic.fulcro.application/state-atom app)
-                queryid    (cond
-                             (string? class-or-factory) class-or-factory
-                             (some-> class-or-factory meta (contains? :queryid)) (some-> class-or-factory meta :queryid)
-                             :otherwise (query-id class-or-factory nil))]
-            (if (and (string? queryid) (or query params))
-              (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
-              (when #?(:clj false :cljs goog.DEBUG)
-                (log/error "Unable to set query. Invalid arguments. See https://book.fulcrologic.com/#err-comp-unable-set-q")))))]
-  (defn refresh-dynamic-queries!
-    "Refresh the current dynamic queries in app state to reflect any updates to the static queries of the components.
+(defn refresh-dynamic-queries!
+  "Refresh the current dynamic queries in app state to reflect any updates to the static queries of the components.
 
-     This can be used at development time to update queries that have changed but that hot code reload does not
-     reflect (because there is a current saved query in state). This is *not* always what you want, since a component
-     may have a custom query whose prop-level elements are set to a particular thing on purpose.
+   This can be used at development time to update queries that have changed but that hot code reload does not
+   reflect (because there is a current saved query in state). This is *not* always what you want, since a component
+   may have a custom query whose prop-level elements are set to a particular thing on purpose.
 
-     An component that has `:preserve-dynamic-query? true` in its component options will be ignored by
-     this function."
-    ([app-ish cls force?]
-     (let [app (any->app app-ish)]
-       (let [preserve? (and (not force?) (component-options cls :preserve-dynamic-query?))]
-         (when-not preserve?
-           (set-query! app cls {:query (get-query cls {})})))))
-    ([app-ish]
-     (let [{:com.fulcrologic.fulcro.application/keys [state-atom] :as app} (any->app app-ish)
-           state-map  @state-atom
-           queries    (get state-map ::queries)
-           classnames (keys queries)]
-       (doseq [nm classnames
-               :let [cls       (registry-key->class nm)
-                     preserve? (component-options cls :preserve-dynamic-query?)]]
-         (when-not preserve?
-           (--set-query! app cls {:query (get-query cls {})})))
-       (let [index-root!      (ah/app-algorithm app :index-root!)
-             schedule-render! (ah/app-algorithm app :schedule-render!)]
-         (when index-root! (index-root! app))
-         (when schedule-render! (schedule-render! app {:force-root? true})))))))
+   An component that has `:preserve-dynamic-query? true` in its component options will be ignored by
+   this function."
+  ([app-ish cls force?] (rc/refresh-dynamic-queries! app-ish cls force?))
+  ([app-ish] (rc/refresh-dynamic-queries! app-ish)))
 
 (defn get-indexes
   "Get all of the indexes from a component instance or app. See also `ident->any`, `class->any`, etc."
@@ -1289,10 +1024,10 @@
   NOTE: history events that trigger remote interactions are not compressible, since they may be needed for
   automatic network error recovery handling."
   ([app-ish tx]
-   (transact! app-ish tx {:compressible? true}))
+   (rc/transact! app-ish tx {:compressible? true}))
   ([app-ish ref tx]
-   (transact! app-ish tx {:compressible? true
-                          :ref           ref})))
+   (rc/transact! app-ish tx {:compressible? true
+                             :ref           ref})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; DEFSC MACRO SUPPORT. Most of this could be in a diff ns, but then hot code reload while working on the macro
@@ -1714,9 +1449,7 @@
            (throw e)
            (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
 
-(defn external-config
-  [app-ish k]
-  (some-> app-ish (any->app) (get-in [:com.fulcrologic.fulcro.application/config :external-config k])))
+(def external-config rc/external-config)
 
 (defn refresh-component!
   "Request that the given subtree starting a component be refreshed from the app database without re-rendering any parent. This
@@ -1749,34 +1482,7 @@
   ([this]
    (get-parent this 0)))
 
-(defn check-component-registry!
+(def check-component-registry!
   "Walks the complete list of components in the component registry and looks for problems. Used during dev mode to
    detect common problems that can cause runtime misbehavior."
-  []
-  (when #?(:clj false :cljs goog.DEBUG)
-    (let [components (vals @component-registry)]
-      (doseq [c components]
-        (let [ident           (and (has-ident? c) (get-ident c {}))
-              query           (get-query c)
-              constant-ident? (and (vector? ident) (second ident))]
-          (when (and constant-ident?
-                  (not (has-initial-app-state? c))
-                  (not= "com.fulcrologic.fulcro.algorithms.form-state/FormConfig" (component-name c)))
-            (log/warn "Component" (component-name c) "has a constant ident (id in the ident is not nil for empty props),"
-              "but it has no initial state. This could cause this component's props to"
-              "appear as nil unless you have a mutation or load that connects it to the graph after application startup. See https://book.fulcrologic.com/#warn-constant-ident-no-initial-state"))
-          (when (has-initial-app-state? c)
-            (let [initial-keys (set (keys (get-initial-state c {})))
-                  join-map     (into {}
-                                 (comp
-                                   (filter #(and (= :join (:type %)) (keyword (:key %))))
-                                   (map (fn [{:keys [key component]}] [key component])))
-                                 (some->> query (eql/query->ast) :children))
-                  join-keys    (set (keys join-map))]
-              (when-let [missing-initial-keys (seq (set/difference join-keys initial-keys))]
-                (doseq [k missing-initial-keys
-                        :let [target (get join-map k)]]
-                  (when (has-initial-app-state? target)
-                    (log/warn "Component" (component-name c) "does not INCLUDE initial state for" (component-name target)
-                      "at join key" k "; however, " (component-name target) "HAS initial state. This probably means your initial state graph is incomplete"
-                      "and props on" (component-name target) "will be nil. See https://book.fulcrologic.com/#warn-initial-state-incomplete")))))))))))
+  rc/check-component-registry!)

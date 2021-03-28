@@ -129,12 +129,12 @@
           :com.fulcrologic.fulcro.algorithm/index-component!
           :com.fulcrologic.fulcro.algorithm/index-root!
           :com.fulcrologic.fulcro.algorithm/merge*
-          :com.fulcrologic.fulcro.algorithm/optimized-render!
           :com.fulcrologic.fulcro.algorithm/remote-error?
           :com.fulcrologic.fulcro.algorithm/render!
           :com.fulcrologic.fulcro.algorithm/schedule-render!
           :com.fulcrologic.fulcro.algorithm/tx!]
     :opt [:com.fulcrologic.fulcro.algorithm/global-eql-transform
+          :com.fulcrologic.fulcro.algorithm/optimized-render!
           :com.fulcrologic.fulcro.algorithm/global-error-action
           :com.fulcrologic.fulcro.algorithm/props-middleware
           :com.fulcrologic.fulcro.algorithm/render-middleware

@@ -4,17 +4,13 @@
   (:require
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.rendering.keyframe-render :refer [render-state!]]
     #?@(:cljs [[goog.object :as gobj]
                [com.fulcrologic.fulcro.inspect.diff :as diff]
                [com.fulcrologic.fulcro.inspect.transit :as encode]
                [cljs.core.async :as async]])
-    [clojure.data :as data]
     [taoensso.encore :as encore]
     [taoensso.timbre :as log]
-    [taoensso.encore :as enc]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [taoensso.encore :as enc]))
 
 #?(:cljs (goog-define INSPECT false))
 
@@ -255,23 +251,24 @@
            (catch :default _e
              (log/error "Element picker not installed in app. You must add it to you preloads. See https://book.fulcrologic.com/#err-inspect-elm-picker-missing"))))
 
-       :fulcro.inspect.client/show-dom-preview
-       (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
-                       app (some-> @apps* (get app-uuid))
-                       {:keys [value]} (get-history-entry app (:fulcro.inspect.client/state-id data))]
-         (if (map? value)
-           (binding [fdn/*denormalize-time* 900000000 ; force our props to seem like the most recent
-                     comp/*app*             app
-                     comp/*shared*          {} ;; TODO: don't have historical shared props...
-                     comp/*depth*           0]
-             (render-state! app value))
+       ;; These couple us to react, and side-effect are often tied to React lifecycle, so they are not worth the glamor
+       #_#_:fulcro.inspect.client/show-dom-preview
+           (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
+                           app (some-> @apps* (get app-uuid))
+                           {:keys [value]} (get-history-entry app (:fulcro.inspect.client/state-id data))]
+             (if (map? value)
+               (binding [fdn/*denormalize-time* 900000000   ; force our props to seem like the most recent
+                         comp/*app*             app
+                         rc/*shared*            {}          ;; TODO: don't have historical shared props...
+                         comp/*depth*           0]
+                 (render-state! app value))
            (log/error "Unable to find app/state for preview. See https://book.fulcrologic.com/#err-inspect-cant-find-app")))
 
-       :fulcro.inspect.client/hide-dom-preview
-       (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
-                         app     (some-> @apps* (get app-uuid))
-                         render! (ah/app-algorithm app :render!)]
-         (render! app {:force-root? true}))
+       #_#_:fulcro.inspect.client/hide-dom-preview
+           (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
+                             app     (some-> @apps* (get app-uuid))
+                             render! (ah/app-algorithm app :render!)]
+             (render! app {:force-root? true}))
 
        :fulcro.inspect.client/network-request
        (let [{:keys                          [query mutation]

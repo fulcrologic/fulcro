@@ -1,6 +1,6 @@
 (ns com.fulcrologic.fulcro.application-spec
   (:require
-    [fulcro-spec.core :refer [specification provided! when-mocking! assertions behavior when-mocking component]]
+    [fulcro-spec.core :refer [specification provided! when-mocking! assertions behavior when-mocking component =>]]
     [clojure.spec.alpha :as s]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.specs]
@@ -13,7 +13,8 @@
 (deftest application-constructor
   (let [app (app/fulcro-app)]
     (assertions
-      (s/valid? ::app/app app) => true)))
+      "Conforms to the application spec"
+      (s/explain-data ::app/app app) => nil)))
 
 (specification "Static extensible configuration"
   (let [app (app/fulcro-app {:external-config {::x 1}})]

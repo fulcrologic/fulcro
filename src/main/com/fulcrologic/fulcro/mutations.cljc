@@ -40,10 +40,10 @@
 
   See the Developer's Guide for more information.
   "
-  #?(:cljs (:require-macros com.fulcrologic.fulcro.mutations))
+  #?(:cljs (:require-macros [com.fulcrologic.fulcro.mutations :refer [defmutation]]))
   (:require
     #?(:clj [cljs.analyzer :as ana])
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.dom.events :as evt]
     [com.fulcrologic.guardrails.core :refer [>def >defn =>]]
     [edn-query-language.core :as eql]
@@ -60,7 +60,7 @@
      (:import (clojure.lang IFn))))
 
 (>def ::env (s/keys :req-un [:com.fulcrologic.fulcro.application/app]))
-(>def ::returning comp/component-class?)
+(>def ::returning rc/component-class?)
 
 #?(:clj
    (deftype Mutation [sym]
@@ -222,27 +222,6 @@
      ([name target-symbol]
       `(def ~name (->Mutation '~target-symbol)))))
 
-#?(:cljs
-   (com.fulcrologic.fulcro.mutations/defmutation set-props
-     "
-     mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
-     Specifically, merge the given `params` into the state of the database object at the component's ident.
-     In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
-     "
-     [params]
-     (action [{:keys [state ref]}]
-       (when (nil? ref) (log/error "m/set-props requires component to have an ident. See https://book.fulcrologic.com/#err-mut-set-props-missing-ident"))
-       (swap! state update-in ref (fn [st] (merge st params))))))
-
-#?(:cljs
-   (com.fulcrologic.fulcro.mutations/defmutation toggle
-     "mutation: A helper method that toggles the true/false nature of a component's state by ident.
-      Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
-     [{:keys [field]}]
-     (action [{:keys [state ref]}]
-       (when (nil? ref) (log/error "m/toggle requires component to have an ident. See https://book.fulcrologic.com/#err-mut-toggle-missing-ident"))
-       (swap! state update-in (conj ref field) not))))
-
 (defmethod mutate :default [{:keys [ast]}]
   (log/error "Unknown app state mutation. Have you required the file with your mutations?" (:key ast) "See https://book.fulcrologic.com/#err-mut-unknown-mutation"))
 
@@ -250,24 +229,24 @@
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
   UI-related data (e.g. form checkbox checked status) and write clear top-level transactions for anything more complicated."
   [comp field]
-  (comp/transact! comp `[(toggle {:field ~field})] {:compressible? true}))
+  (rc/transact! comp `[(toggle {:field ~field})] {:compressible? true}))
 
 (defn toggle!!
   "Like toggle!, but synchronously refreshes `comp` and nothing else."
   [comp field]
-  (comp/transact!! comp `[(toggle {:field ~field})] {:compressible? true}))
+  (rc/transact!! comp `[(toggle {:field ~field})] {:compressible? true}))
 
 (defn set-value!
   "Set a raw value on the given `field` of a `component`. It is recommended you use this function only on
   UI-related data (e.g. form inputs that are used by the UI, and not persisted data). Changes made via these
   helpers are compressed in the history."
   [component field value]
-  (comp/transact! component `[(set-props ~{field value})] {:compressible? true}))
+  (rc/transact! component `[(set-props ~{field value})] {:compressible? true}))
 
 (defn set-value!!
   "Just like set-value!, but synchronously updates `component` and nothing else."
   [component field value]
-  (comp/transact!! component `[(set-props ~{field value})] {:compressible? true}))
+  (rc/transact!! component `[(set-props ~{field value})] {:compressible? true}))
 
 #?(:cljs
    (defn- ensure-integer
@@ -352,17 +331,27 @@
   `env` - The env of the mutation
   `class` - A component class that represents the return type.  You may supply a fully-qualified symbol instead of the
   actual class, and this method will look up the class for you (useful to avoid circular references).
+  `opts` (optional):
+   - `query-params` - Optional parameters to add to the generated query
 
   Returns an update `env`, and is a valid return value from mutation remote sections."
-  [env class]
-  (let [class (if (or (keyword? class) (symbol? class))
-                (comp/registry-key->class class)
-                class)]
-    (let [{:keys [state ast]} env
-          {:keys [key params query]} ast]
-      (let [updated-query (cond-> (comp/get-query class @state)
-                            query (vary-meta #(merge (meta query) %)))]
-        (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}]))))))
+  ([env class]
+   (returning env class nil))
+  ([env class {:keys [query-params]
+               :as   opts}]
+   (let [class (if (or (keyword? class) (symbol? class))
+                 (rc/registry-key->class class)
+                 class)]
+     (let [{:keys [state ast]} env
+           {:keys [key params query]} ast]
+       (let [component-query (rc/get-query class @state)
+             updated-query   (cond-> (eql/query->ast component-query)
+                               query-params (update-in [:children 0] assoc :params query-params)
+                               :then (eql/ast->query)
+                               query (vary-meta #(merge (meta query) %)))]
+         (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}])))))))
+
+
 
 (defn with-target
   "Set's a target for the return value from the mutation to be merged into. This can be combined with returning to define
@@ -437,7 +426,7 @@
                                       (into acc
                                         (if action?
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
-                                                                            (binding [comp/*after-render* true]
+                                                                                                    (binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
                                                                               ~@handler-body)
                                                                             nil)]
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
@@ -450,7 +439,7 @@
                             `{~(first handlers) ~@(rest handlers)}
                             `{~(first handlers) ~@(rest handlers)
                               :result-action    (fn [~'env]
-                                                  (binding [comp/*after-render* true]
+                                                                      (binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
                                                     (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                                       (~'default-action ~'env))))})
            doc            (or doc "")
@@ -517,3 +506,56 @@
        '([sym docstring? arglist handlers])} defmutation
      [& args]
      (defmutation* &env args)))
+
+(defmutation set-props
+  "Mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
+  Specifically, merge the given `params` into the state of the database object at the component's ident.
+  In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
+  "
+  [params]
+  (action [{:keys [state ref]}]
+    (when (nil? ref) (log/error "m/set-props requires component to have an ident. See https://book.fulcrologic.com/#err-mut-set-props-missing-ident"))
+    (swap! state update-in ref (fn [st] (merge st params)))))
+
+(defmutation toggle
+  "Mutation: A helper method that toggles the true/false nature of a component's state by ident.
+   Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
+  [{:keys [field]}]
+  (action [{:keys [state ref]}]
+    (when (nil? ref) (log/error "m/toggle requires component to have an ident. See https://book.fulcrologic.com/#err-mut-toggle-missing-ident"))
+    (swap! state update-in (conj ref field) not)))
+
+
+(defn raw-set-value!
+  "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` to
+   derive the ident of the database entry. The props must contain an ID key that can be used to derive the ident from
+   the current-props.
+
+   For example, `(raw-set-value! app {:person/id 42} :person/name \"bob\")` would have the effect of a mutation that
+   does an `(assoc-in state-db [:person/id 42 :person/name] \"bob\")`.
+   "
+  [app current-props k v]
+  (let [ik    (rc/id-key current-props)
+        ident [ik (get current-props ik)]]
+    (if (some nil? ident)
+      (log/error "Cannot raw-set-value! because current-props could not be used to derive the ident of the component." current-props)
+      (do
+        (rc/transact! app [(set-props {k v})] {:ref ident})))))
+
+(defn raw-update-value!
+  "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` as the basis
+   for the update, and to find the ident of the target. The `current-props` must contain an ID field that can be used to derive
+   the ident from the passed props.
+
+   For example, `(raw-update-value! app {:person/id 42} :person/age inc)` would have the effect of a mutation that
+   does an `(update-in state-db [:person/id 42 :person/age] inc)`.
+   "
+  [app current-props k f & args]
+  (let [ik        (rc/id-key current-props)
+        ident     [ik (get current-props ik)]
+        old-value (get current-props k)
+        new-value (apply f old-value args)]
+    (if (some nil? ident)
+      (log/error "Cannot raw-update-value! because current-props could not be used to derive the ident of the component." current-props)
+      (do
+        (rc/transact! app [(set-props {k new-value})] {:ref ident})))))

@@ -4,10 +4,9 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
-    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [fulcro-todomvc.api :as api]
-    [fulcro-todomvc.custom-types :as custom-types]
-    [goog.object :as gobj]))
+    [fulcro-todomvc.app :refer [app]]
+    [goog.object :as gobj] ))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))
@@ -80,7 +79,7 @@
                                      (comp/transact! component `[(api/todo-new-item ~{:list-id id
                                                                                       :id      (tmp/tempid)
                                                                                       :text    trimmed-text})]))))
-                  :onChange    (fn [evt] (mut/set-string!! component :ui/new-item-text :event evt))
+                  :onChange    (fn [evt] (mut/set-string! component :ui/new-item-text :event evt))
                   :placeholder "What needs to be done?"
                   :autoFocus   true}))))
 
@@ -151,37 +150,26 @@
 
 (def ui-todo-list (comp/factory TodoList))
 
-(defsc Application [this {:keys [todos] :as props}]
-  {:initial-state (fn [p] {:route :application
-                           :todos (comp/get-initial-state TodoList {})})
-   :route-segment ["app"]
-   :will-enter    (fn [_ _] (dr/route-immediate [:application :root]))
-   :will-leave    (fn [_ _] true)
-   :ident         (fn [] [:application :root])
-   :query         [:route {:todos (comp/get-query TodoList)}]}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Alternate root/application for trying out raw components mixed with Fulcro
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;(defn Application [_]
+;  (dom/div {}
+;    (let [todo-list (raw/use-root app :root/todo-mvo TodoList {:initialize? true})]
+;      (raw/with-fulcro app
+;        (ui-todo-list todo-list)))))
+;
+;(defsc Root [this {:root/keys [router] :as props}]
+;  {:use-hooks? true}
+;  (dom/div {}
+;    (raw/create-element Application)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Normal Fulcro Root
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defsc Root [this {:root/keys [todo] :as props}]
+  {:initial-state {:root/todo {}}
+   :query         [{:root/todo (comp/get-query TodoList)}]}
   (dom/div {}
-    (ui-todo-list todos)))
-
-(def ui-application (comp/factory Application))
-
-(defsc Other [this props]
-  {:query         [:route]
-   :ident         (fn [] [:other :root])
-   :route-segment ["other"]
-   :will-enter    (fn [_ _] (dr/route-immediate [:other :root]))
-   :will-leave    (fn [_ _] true)
-   :initial-state {:route :other}}
-  (dom/div "OTHER ROUTE"))
-
-(dr/defrouter TopRouter [this props] {:router-targets [Application Other]})
-
-(def ui-router (comp/factory TopRouter))
-
-(defsc Root [this {:root/keys [router] :as props}]
-  {:initial-state (fn [p] {:root/router (comp/get-initial-state TopRouter {})})
-   :query         [{:root/router (comp/get-query TopRouter)}]}
-  (dom/div {}
-    ;; Test button for custom types
-    (dom/button {:onClick (fn []
-                            (comp/transact! this [(api/store-point {:p (custom-types/Point. 4 9)})]))} "Store Point")
-    (ui-router router)))
+    (ui-todo-list todo)))

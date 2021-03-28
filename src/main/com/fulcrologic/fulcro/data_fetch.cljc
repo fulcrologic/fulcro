@@ -11,7 +11,7 @@
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.mutations :as m]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [>defn =>]]
@@ -85,7 +85,7 @@
          (or (eql/ident? server-property-or-ident) (keyword? server-property-or-ident))]}
   (let [state-map         (-> app :com.fulcrologic.fulcro.application/state-atom deref)
         transformed-query (if class-or-factory
-                            (cond-> (comp/get-query class-or-factory state-map)
+                            (cond-> (rc/get-query class-or-factory state-map)
                               (set? without) (elide-query-nodes without)
                               focus (eql/focus-subquery focus)
                               update-query update-query)
@@ -166,7 +166,7 @@
                               target (targeting/process-target source-key target))))
         (when (symbol? post-mutation)
           (log/debug "Doing post mutation " post-mutation)
-          (comp/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
+          (rc/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
         (when (fn? post-action)
           (log/debug "Doing post action")
           (post-action env))))))
@@ -197,7 +197,7 @@
         (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
           (global-error-action env))
         (when (symbol? fallback)
-          (comp/transact! app `[(~fallback ~env)]))))))
+          (rc/transact! app `[(~fallback ~env)]))))))
 
 (defmethod m/mutate `internal-load! [{:keys [ast] :as env}]
   (let [params     (get ast :params)
@@ -272,7 +272,7 @@
   "
   ([app-or-comp server-property-or-ident class-or-factory] (load! app-or-comp server-property-or-ident class-or-factory {}))
   ([app-or-comp server-property-or-ident class-or-factory config]
-   (let [app           (comp/any->app app-or-comp)
+   (let [app           (rc/any->app app-or-comp)
          txn-options   (get config ::txn/options {})
          {:keys [load-marker-default query-transform-default load-mutation]} (-> app :com.fulcrologic.fulcro.application/config)
          {:keys [parallel refresh] :as config} (merge
@@ -284,7 +284,7 @@
          abort-id      (:abort-id mutation-args)]
      (when query-transform-default
        (log/warn "Query-transform-default is a dangerous option that can break general merge behaviors. Do not use it. See https://book.fulcrologic.com/#warn-dont-use-query-transform-default"))
-     (comp/transact! app `[(~load-sym ~mutation-args)]
+     (rc/transact! app `[(~load-sym ~mutation-args)]
        (cond-> txn-options
          (seq refresh) (assoc :refresh refresh)
          (boolean? parallel) (assoc :parallel? parallel)
@@ -304,9 +304,9 @@
   a component that has a dynamic query unless you can base it on the original static query.
   "
   [component field-or-fields options]
-  (let [app          (comp/any->app component)
+  (let [app          (rc/any->app component)
         {:keys [parallel update-query]} options
-        ident        (comp/get-ident component)
+        ident        (rc/get-ident component)
         update-query (fn [q]
                        (cond-> (eql/focus-subquery q (if (vector? field-or-fields)
                                                        field-or-fields
@@ -314,18 +314,18 @@
                          update-query (update-query)))
         params       (load-params* app ident component (assoc options
                                                          :update-query update-query
-                                                         :source-key (comp/get-ident component)))
+                                                         :source-key (rc/get-ident component)))
         abort-id     (:abort-id params)]
-    (comp/transact! app [(list `internal-load! params)]
+    (rc/transact! app [(list `internal-load! params)]
       (cond-> {}
         (boolean? parallel) (assoc :parallel? parallel)
         abort-id (assoc ::txn/abort-id abort-id)))))
 
 (defn refresh!
   ([component load-options]
-   (load! component (comp/get-ident component) component load-options))
+   (load! component (rc/get-ident component) component load-options))
   ([component]
-   (load! component (comp/get-ident component) component)))
+   (load! component (rc/get-ident component) component)))
 
 (def load "DEPRECATED. Use `load!`" load!)
 (def load-field "DEPRECATED. Use `load-field!`" load-field!)

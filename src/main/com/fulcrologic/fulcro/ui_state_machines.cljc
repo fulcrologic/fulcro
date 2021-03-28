@@ -13,19 +13,20 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [com.fulcrologic.guardrails.core :refer [>defn => | ? <- >def]]
-    [taoensso.timbre :as log]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util :refer [atom?]]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.algorithms.lookup :as ah]))
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.guardrails.core :refer [>defn => | ? <- >def]]
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]))
 
 (declare asm-value trigger-state-machine-event! apply-action)
 (def mutation-delegate (m/->Mutation `mutation-delegate))
@@ -41,7 +42,7 @@
 ;; Active State Machine and ENV specs
 (>def ::state-map map?)
 (>def ::refresh-vector (s/with-gen (s/coll-of eql/ident? :kind vector?) #(s/gen [[:table 1] [:other :tab]])))
-(>def ::fulcro-app app/fulcro-app?)
+(>def ::fulcro-app rapp/fulcro-app?)
 (>def ::source-actor-ident eql/ident?)
 (>def ::actor-name keyword?)
 (>def ::actor->component-name (s/map-of ::actor-name keyword?))
@@ -134,7 +135,7 @@
       (when (nil? event-id)
         (log/error "Invalid (nil) event ID. See https://book.fulcrologic.com/#err-uism-invalid-eventid"))
       (trigger-state-machine-event! env params)
-      (app/schedule-render! app (or transact-options {})))
+      (rapp/schedule-render! app (or transact-options {})))
     true))
 
 (defn trigger!
@@ -144,9 +145,9 @@
   ([this active-state-machine-id event-id] (trigger! this active-state-machine-id event-id {}))
   ([this active-state-machine-id event-id extra-data]
    (let [{::keys [transact-options]} extra-data]
-     (comp/transact! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
-                                                         ::event-id   event-id
-                                                         ::event-data extra-data})]
+     (rc/transact! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
+                                                       ::event-id   event-id
+                                                       ::event-data extra-data})]
        (or transact-options {})))))
 
 (let [debounced! #?(:clj (fn [f] f)
@@ -157,14 +158,14 @@
     ([this active-state-machine-id event-id] (trigger!! this active-state-machine-id event-id {}))
     ([this active-state-machine-id event-id extra-data]
      (let [{::keys [transact-options]} extra-data
-           app (comp/any->app this)]
-       (comp/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
-                                                            ::event-id   event-id
-                                                            ::event-data extra-data})]
+           app (rc/any->app this)]
+       (rc/transact!! this [(trigger-state-machine-event {::asm-id     active-state-machine-id
+                                                          ::event-id   event-id
+                                                          ::event-data extra-data})]
          (or transact-options {}))
        ;; Schedule a future render to ensure entire UI updates, but since this was a sync render it could be rapidly followed
        ;; by others so we want to debounce it.
-       (debounced! #(app/schedule-render! app))))))
+       (debounced! #(rapp/schedule-render! app))))))
 
 (>defn asm-ident "Returns the ident of the active state machine with the given ID"
   [asm-id]
@@ -201,7 +202,7 @@
 
 (defn asm-active?
   [app-ish id]
-  (let [state-map (app/current-state app-ish)]
+  (let [state-map (rapp/current-state app-ish)]
     (boolean (get-in state-map [::asm-id id]))))
 
 (>defn asm-path
@@ -406,7 +407,7 @@
   ```
   "
   [ident class]
-  [eql/ident? comp/component-class? => eql/ident?]
+  [eql/ident? rc/component-class? => eql/ident?]
   (vary-meta ident assoc ::class class))
 
 (>defn any->actor-component-registry-key
@@ -420,11 +421,11 @@
   [v]
   [any? => (s/nilable keyword?)]
   (when-let [cls (cond
-                   (and (eql/ident? v) (comp/component-class? (some-> v meta ::class))) (some-> v meta ::class)
-                   (and (comp/component-instance? v) (-> (comp/get-ident v) second)) (comp/react-type v)
-                   (and (comp/component-class? v) (-> (comp/get-ident v {}) second)) v
+                   (and (eql/ident? v) (rc/component-class? (some-> v meta ::class))) (some-> v meta ::class)
+                   (and (rc/component-instance? v) (-> (rc/get-ident v) second)) (rc/component-type v)
+                   (and (rc/component-class? v) (-> (rc/get-ident v {}) second)) v
                    :otherwise nil)]
-    (let [str-name (comp/component-name cls)
+    (let [str-name (rc/component-name cls)
           [ns nm] (str/split str-name #"/")
           k        (keyword ns nm)]
       k)))
@@ -432,9 +433,9 @@
 (>defn actor-class
   "Returns the Fulcro component class that for the given actor, if set."
   [env actor-name]
-  [::env ::actor-name => (s/nilable comp/component-class?)]
+  [::env ::actor-name => (s/nilable rc/component-class?)]
   (let [actor->component-name (asm-value env ::actor->component-name)
-        cls                   (some-> actor-name actor->component-name comp/registry-key->class)]
+        cls                   (some-> actor-name actor->component-name rc/registry-key->class)]
     cls))
 
 (>defn reset-actor-ident
@@ -547,7 +548,7 @@
   (let [queued-mutations (::queued-mutations env)]
     (doseq [mutation-params queued-mutations
             :let [abort-id (::txn/abort-id mutation-params)]]
-      (comp/transact! app [(mutation-delegate mutation-params)]
+      (rc/transact! app [(mutation-delegate mutation-params)]
         (cond-> {}
           abort-id (assoc :abort-id abort-id))))
     nil))
@@ -555,7 +556,7 @@
 (>defn queue-actor-load!
   "Internal implementation. Queue a load of an actor."
   [app env actor-name component-class load-options]
-  [::fulcro-app ::env ::actor-name (s/nilable comp/component-class?) ::load-options => nil?]
+  [::fulcro-app ::env ::actor-name (s/nilable rc/component-class?) ::load-options => nil?]
   (let [actor-ident (actor->ident env actor-name)
         cls         (or component-class (actor-class env actor-name))]
     (if (nil? cls)
@@ -566,7 +567,7 @@
 (>defn queue-normal-load!
   "Internal implementation. Queue a load."
   [app query-key component-class load-options]
-  [::fulcro-app ::query-key (s/nilable comp/component-class?) ::load-options => any?]
+  [::fulcro-app ::query-key (s/nilable rc/component-class?) ::load-options => any?]
   (if (nil? query-key)
     (log/error "Cannot run load. query-key cannot be nil. See https://book.fulcrologic.com/#err-uism-load-nil-query-key")
     (df/load! app query-key component-class load-options))
@@ -576,13 +577,13 @@
   [::fulcro-app ::load-options => nil?]
   (let [{::keys [asm-id error-event error-data]} (some-> load-request :post-mutation-params)]
     (if (and asm-id error-event)
-      (comp/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
-                                                                 ::event-id error-event}
-                                                          error-data (assoc ::event-data error-data)))])
+      (rc/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
+                                                               ::event-id error-event}
+                                                        error-data (assoc ::event-data error-data)))])
       (do
         (log/warn "A fallback occurred, but no event was defined by the client. Sending generic ::uism/load-error event. See https://book.fulcrologic.com/#warn-uism-fallback-missing-event")
-        (comp/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
-                                                                   ::event-id ::load-error}))])))
+        (rc/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
+                                                                 ::event-id ::load-error}))])))
     nil))
 
 (defmutation handle-load-error [params]
@@ -592,8 +593,8 @@
 (>defn queue-loads! [app env]
   [::fulcro-app ::env => nil?]
   (let [queued-loads (::queued-loads env)]
-    (doseq [{::comp/keys [component-class]
-             ::keys      [actor-name query-key load-options] :as load-params} queued-loads]
+    (doseq [{:com.fulcrologic.fulcro.components/keys [component-class]
+             ::keys                                  [actor-name query-key load-options] :as load-params} queued-loads]
       (if actor-name                                        ; actor-centric load
         (queue-actor-load! app env actor-name component-class load-options)
         (queue-normal-load! app query-key component-class load-options)))
@@ -767,7 +768,7 @@
         handler      (active-state-handler sm-env)
         valued-env   (apply-event-value sm-env params)
         handled-env  (try
-                       (binding [comp/*after-render* true]
+                       (binding [rc/*after-render* true]
                          (handler (assoc valued-env ::fulcro-app app)))
                        (catch #?(:clj Exception :cljs :default) e
                          (log/error e "Handler for event" event-id "threw an exception for ASM ID" asm-id "See https://book.fulcrologic.com/#err-uism-evt-handler-exc")
@@ -842,24 +843,24 @@
                                                ::asm-id     asm-id
                                                ::event-data {}}
                                         event-data (assoc ::event-data event-data)))
-    (app/schedule-render! app)))
+    (rapp/schedule-render! app)))
 
 (>defn derive-actor-idents
   "Generate an actor->ident map."
   [actors]
   [(s/map-of ::actor-name (s/or
                             :ident eql/ident?
-                            :component comp/component-instance?
-                            :class comp/component-class?)) => ::actor->ident]
+                            :component rc/component-instance?
+                            :class rc/component-class?)) => ::actor->ident]
   (into {}
     ;; v can be an ident, component, or component class
     (keep (fn [[actor-id v]]
             (cond
-              (and (comp/component-instance? v) (-> (comp/get-ident v) second))
-              [actor-id (comp/get-ident v)]
+              (and (rc/component-instance? v) (-> (rc/get-ident v) second))
+              [actor-id (rc/get-ident v)]
 
-              (and (comp/component-class? v) (-> (comp/get-ident v {}) second))
-              [actor-id (comp/get-ident v {})]
+              (and (rc/component-class? v) (-> (rc/get-ident v {}) second))
+              [actor-id (rc/get-ident v {})]
 
               (eql/ident? v) [actor-id v]
               :otherwise (do
@@ -872,8 +873,8 @@
   [actors]
   [(s/map-of ::actor-name (s/or
                             :ident eql/ident?
-                            :component comp/component-instance?
-                            :class comp/component-class?)) => ::actor->component-name]
+                            :component rc/component-instance?
+                            :class rc/component-class?)) => ::actor->component-name]
   (into {}
     ;; v can be an ident, component, or component class
     (keep (fn [[actor-id v]]
@@ -890,17 +891,17 @@
   actors - A map of actor-names -> The ident, class, or react instance that represent them in the UI. Raw idents do not support SM loads.
   started-event-data - Data that will be sent with the ::uism/started event as ::uism/event-data"
   ([this machine instance-id actors]
-   [(s/or :c comp/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
+   [(s/or :c rc/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) => any?]
    (begin! this machine instance-id actors {}))
   ([this machine instance-id actors started-event-data]
-   [(s/or :c comp/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
+   [(s/or :c rc/component-instance? :r ::fulcro-app) ::state-machine-definition ::asm-id (s/map-of ::actor-name any?) ::event-data => any?]
    (let [actors->idents          (derive-actor-idents actors)
          actors->component-names (derive-actor-components actors)]
-     (comp/transact! this [(begin {::asm-id                instance-id
-                                   ::state-machine-id      (::state-machine-id machine)
-                                   ::event-data            started-event-data
-                                   ::actor->component-name actors->component-names
-                                   ::actor->ident          actors->idents})]))))
+     (rc/transact! this [(begin {::asm-id                instance-id
+                                 ::state-machine-id      (::state-machine-id machine)
+                                 ::event-data            started-event-data
+                                 ::actor->component-name actors->component-names
+                                 ::actor->ident          actors->idents})]))))
 
 #?(:clj
    (defmacro defstatemachine [name body]
@@ -958,9 +959,9 @@
 (let [mtrigger! (fn mutation-trigger* [{:keys [app result]} actor-ident asm-id event data]
                   (when (and asm-id event)
                     (let [event-data (assoc data ::mutation-result result)]
-                      (comp/transact! app [(trigger-state-machine-event {::asm-id     asm-id
-                                                                         ::event-id   event
-                                                                         ::event-data event-data})] {:ref actor-ident}))))]
+                      (rc/transact! app [(trigger-state-machine-event {::asm-id     asm-id
+                                                                       ::event-id   event
+                                                                       ::event-data event-data})] {:ref actor-ident}))))]
   (defmethod m/mutate `mutation-delegate [{:keys [state ast app] :as env}]
     ;; mutation can be run for figuring out remote
     (let [{::m/keys [returning]
@@ -1041,7 +1042,7 @@
 
 (>def ::load-options map?)
 (>def ::query-key (s/or :key keyword? :ident eql/ident?))
-(>def ::load (s/keys :opt [::query-key ::comp/component-class ::load-options]))
+(>def ::load (s/keys :opt [::query-key :com.fulcrologic.fulcro.components/component-class ::load-options]))
 (>def ::queued-loads (s/coll-of ::load))
 
 (>defn convert-load-options
@@ -1052,12 +1053,12 @@
         {:keys [marker]} options
         marker  (if (nil? marker) false marker)             ; force marker to false if it isn't set
         {::keys [asm-id]} env
-        options (-> (dissoc options ::ok-event ::ok-data ::error-event ::error-data ::comp/component-class
+        options (-> (dissoc options ::ok-event ::ok-data ::error-event ::error-data :com.fulcrologic.fulcro.components/component-class
                       ::target-alias ::target-actor)
                   (assoc :marker marker
-                         :abort-id asm-id
-                         :fallback `handle-load-error
-                         :post-mutation-params (merge ok-data {::asm-id asm-id}))
+                    :abort-id asm-id
+                    :fallback `handle-load-error
+                    :post-mutation-params (merge ok-data {::asm-id asm-id}))
                   (cond->
                     (or target-actor target-alias) (assoc :target (compute-target env options))
                     ok-event (->
@@ -1088,22 +1089,22 @@
    NOTE: In general a state machine should declare an actor for items in the machine and use `load-actor` instead of
    this function so that the state definitions themselves need not be coupled (via code) to the UI."
   ([env key-or-ident component-class-or-actor-name]
-   [::env ::query-key (? (s/or :a ::actor-name :c comp/component-class?)) => ::env]
+   [::env ::query-key (? (s/or :a ::actor-name :c rc/component-class?)) => ::env]
    (load env key-or-ident component-class-or-actor-name {}))
   ([env key-or-ident component-class-or-actor-name options]
-   [::env ::query-key (? (s/or :a ::actor-name :c comp/component-class?)) ::load-options => ::env]
+   [::env ::query-key (? (s/or :a ::actor-name :c rc/component-class?)) ::load-options => ::env]
    (let [options (convert-load-options env options)
          class   (if (keyword? component-class-or-actor-name)
                    (actor-class env component-class-or-actor-name)
                    component-class-or-actor-name)]
      (update env ::queued-loads (fnil conj []) (cond-> {}
-                                                 class (assoc ::comp/component-class class)
+                                                 class (assoc :com.fulcrologic.fulcro.components/component-class class)
                                                  key-or-ident (assoc ::query-key key-or-ident)
                                                  options (assoc ::load-options options))))))
 
 (>defn load-actor
   "Load (refresh) the given actor. If the actor *is not* on the UI, then you *must* specify
-   `:com.fulcrologic.fulcro.primitives/component-class` in the `options` map.
+   `:com.fulcrologic.fulcro.components/component-class` in the `options` map.
 
    options can contain the normal `df/load` parameters, and also:
 
@@ -1118,12 +1119,12 @@
   ([env actor-name]
    [::env ::actor-name => ::env]
    (load-actor env actor-name {}))
-  ([env actor-name {::comp/keys [component-class] :as options}]
+  ([env actor-name {:com.fulcrologic.fulcro.components/keys [component-class] :as options}]
    [::env ::actor-name ::load-options => ::env]
    (let [options (convert-load-options env options)]
      (update env ::queued-loads (fnil conj []) (cond-> {::actor-name   actor-name
                                                         ::load-options options}
-                                                 component-class (assoc ::comp/component-class component-class))))))
+                                                 component-class (assoc :com.fulcrologic.fulcro.components/component-class component-class))))))
 
 (>defn apply-action
   "Run a mutation helper function (e.g. a fn of Fulcro state)."
@@ -1145,9 +1146,71 @@
   ```
   "
   [this asm-id]
-  [(s/or :c comp/component-instance? :r ::fulcro-app) ::asm-id => (? keyword?)]
-  (let [state-map (-> this (comp/any->app) (app/current-state))]
+  [(s/or :c rc/component-instance? :r ::fulcro-app) ::asm-id => (? keyword?)]
+  (let [state-map (-> this (rc/any->app) (rapp/current-state))]
     (some-> state-map
       ::asm-id
       (get asm-id)
       ::active-state)))
+
+(defn add-uism!
+  "Add a UISM to Fulcro in a manner disconnected from React.
+
+   The options map should contain:
+
+   * `:state-machine-definition` - The state machine you want to create/use.
+   * `:id` - The ID you want to use for the instance of the state machine.
+   * `:receive-props` - A `(fn [props])` that is called whenever the state changes in a way that affects an actor. The
+                        `props` is a map that contains the actor props (by actor name `{:actor/x actor-x-props}`) and the current
+                        state of the state machine as `:active-state`.
+   * `:initial-event-data` - The data to pass to the initial event if the machine is started (not remounted).
+
+   This will set up the given state machine under the given ID, and start it (if not
+   already started). Your initial state handler MUST set up actors and otherwise initialize based on initial-event-data.
+
+   If the machine is already started at the given ID then this will send it an `:event/remounted` event.
+
+   You MUST include `:componentName` in each of your actor's normalizing component options (e.g. `(nc query {:componentName ::uniqueName})`)
+   because UISM requires component appear in the component registry (components cannot be safely stored in app state, just their
+   names).
+
+
+   NOTE: This function automatically supports a very fast variant of props change detection, so you will not receive
+   calls when there is a transaction that does not change the actors/active state of this UISM."
+  [app {:keys [state-machine-definition id receive-props initial-event-data]}]
+  (let [last-return-value (atom {})
+        last-ident        (atom {})]
+    (rapp/add-render-listener! app id
+      (fn [& args]
+        (let [state-map (rapp/current-state app)
+              {::keys [active-state actor->ident actor->component-name]} (get-in state-map [::asm-id id])
+              props     (reduce-kv
+                          (fn [result actor ident]
+                            (let [prior-ident (get @last-ident actor)
+                                  prior-props (get @last-return-value actor)]
+                              (swap! last-ident assoc actor ident)
+                              (if (or (not= prior-ident ident) (fdn/possibly-stale? state-map prior-props))
+                                (let [cname (actor->component-name actor)
+                                      cls   (rc/registry-key->class cname)
+                                      query (rc/get-query cls)]
+                                  (when-not cls
+                                    (log/error "You forgot to give actor" actor "a :componentName"))
+                                  (assoc result actor (fdn/traced-db->tree state-map ident query)))
+                                (assoc result actor prior-props))))
+                          {:active-state active-state}
+                          actor->ident)]
+          (when-not (= @last-return-value props)
+            (reset! last-return-value props)
+            (receive-props props))))))
+  (let [s        (rapp/current-state app)
+        started? (get-in s [::asm-id id])]
+    (if started?
+      (trigger! app id :event/remounted)
+      (begin! app state-machine-definition id initial-event-data))))
+
+(defn remove-uism!
+  "Remove a previously-added UISM from state and the render listener. The state machine will not receive any
+   (final) events."
+  [app id]
+  (rapp/remove-render-listener! app id)
+  (swap! (:com.fulcrologic.fulcro.application/state-atom app) update ::asm-id dissoc id))

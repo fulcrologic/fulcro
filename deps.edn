@@ -16,26 +16,29 @@
            cljsjs/react-dom           {:mvn/version "16.13.0-0"}
            cljsjs/react-dom-server    {:mvn/version "16.13.0-0"}
 
-           org.clojure/clojure        {:mvn/version "1.10.1" :scope "provided"}
-           org.clojure/clojurescript  {:mvn/version "1.10.773" :scope "provided"}
-           org.clojure/core.async     {:mvn/version "1.1.587"}}
+           org.clojure/clojure        {:mvn/version "1.10.3" :scope "provided"}
+           org.clojure/clojurescript  {:mvn/version "1.10.866" :scope "provided"}
+           org.clojure/core.async     {:mvn/version "1.3.610"}}
 
  :aliases {:test       {:extra-paths ["src/test"]
                         :extra-deps  {org.clojure/test.check  {:mvn/version "1.1.0"}
-                                      com.wsscode/pathom      {:mvn/version "2.2.31"}
-                                      fulcrologic/fulcro-spec {:mvn/version "3.1.11"}}}
+                                      com.wsscode/pathom      {:mvn/version "2.3.1"}
+                                      fulcrologic/fulcro-spec {:mvn/version "3.1.11"
+                                                               :exclusions  [com.fulcrologic/fulcro]}}}
 
            :clj-tests  {:extra-paths ["src/test"]
                         :main-opts   ["-m" "kaocha.runner"]
                         :extra-deps  {lambdaisland/kaocha {:mvn/version "1.0.732"}}}
 
            :workspaces {:extra-paths ["src/workspaces"]
-                        :extra-deps  {com.github.awkay/workspaces {:mvn/version "1.0.3"}}}
+                        :extra-deps  {com.github.awkay/workspaces {:mvn/version "1.0.3"
+                                                                   :exclusions [com.fulcrologic/fulcro]}}}
 
            :dev        {:extra-paths ["src/dev" "resources" "src/todomvc"]
-                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.11.21"}
-                                      com.wsscode/pathom                {:mvn/version "2.2.31"}
-                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.2.0"}
+                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.14.5"}
+                                      com.wsscode/pathom                {:mvn/version "2.3.1"}
+                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.2.0"
+                                                                         :exclusions [com.fulcrologic/fulcro]}
                                       binaryage/devtools                {:mvn/version "1.0.0"}
                                       ring/ring-core                    {:mvn/version "1.8.1"}
                                       org.immutant/web                  {:mvn/version "2.1.10"}

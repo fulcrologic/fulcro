@@ -14,8 +14,8 @@
     [clojure.zip :as zip]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [edn-query-language.core :as eql]
@@ -219,14 +219,13 @@
 (defn current-route-class
   "Get the class of the component that is currently being routed to."
   [this]
-  (let [state-map (comp/component->state-map this)
+  (let [state-map (app/current-state (comp/any->app this))
         class     (some->> (comp/get-query this state-map) eql/query->ast :children
                     (filter #(= ::current-route (:key %))) first :component)
         ;; Hot code reload support to avoid getting the cached class from old metadata
         class     (if #?(:cljs goog.DEBUG :clj false)
                     (-> class comp/class->registry-key comp/registry-key->class)
                     class)]
-
     class))
 
 (defn route-target
@@ -688,7 +687,7 @@
                         (uism/trigger! app router-id :route! event-data))
                       ;; make sure any transactions submitted from the completing action wait for a render of the state machine's
                       ;; startup or route effects before running.
-                      (binding [comp/*after-render* true]
+                      (binding [rc/*after-render* true]
                         (completing-action))))
                  (when (seq remaining-path)
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))

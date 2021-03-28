@@ -4,7 +4,8 @@
     [fulcro-spec.core :refer [specification assertions component]]
     [clojure.test :refer :all]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]))
 
 (declare =>)
 
@@ -18,11 +19,11 @@
         actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'other/boo [~'fulcro-mutation-env-symbol]
                      (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                        {:result-action (fn [~'env]
-                                         (binding [comp/*after-render* true]
+                                         (binding [rc/*after-render* true]
                                            (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                              (~'default-action ~'env))))
                         :action        (fn ~'action [~'env]
-                                         (clojure.core/binding [com.fulcrologic.fulcro.components/*after-render* true]
+                                         (clojure.core/binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
                                            (~'swap! ~'state)) nil)})))))
   (component "Overridden result action"
     (let [actual (m/defmutation* {}
@@ -33,7 +34,7 @@
         actual => `(defmethod com.fulcrologic.fulcro.mutations/mutate 'other/boo [~'fulcro-mutation-env-symbol]
                      (let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                        {:result-action (fn ~'result-action [~'env]
-                                         (clojure.core/binding [com.fulcrologic.fulcro.components/*after-render* true]
+                                         (clojure.core/binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
                                            (~'print "Hi")) nil)})))))
   (component "Mutation remotes"
     (let [actual (m/defmutation* {}
@@ -48,11 +49,11 @@
         (first method) => `defmethod
         body => `(let [~'params (-> ~'fulcro-mutation-env-symbol :ast :params)]
                    {:result-action (fn [~'env]
-                                     (binding [comp/*after-render* true]
+                                     (binding [rc/*after-render* true]
                                        (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                          (~'default-action ~'env))))
                     :remote        (fn ~'remote [~'env] true)
                     :rest          (fn ~'rest [~'env] true)
                     :action        (fn ~'action [~'env]
-                                     (binding [comp/*after-render* true]
+                                     (binding [rc/*after-render* true]
                                        (~'swap! ~'state)) nil)})))))

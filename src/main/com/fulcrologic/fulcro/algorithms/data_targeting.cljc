@@ -1,11 +1,11 @@
 (ns com.fulcrologic.fulcro.algorithms.data-targeting
   "The implementation of processing load/mutation result graph targeting."
   (:require
-    [clojure.spec.alpha :as s]
     [clojure.set :as set]
+    [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :as gw :refer [>defn => >def]]
-    [taoensso.timbre :as log]
-    [edn-query-language.core :as eql]))
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]))
 
 (>def ::target vector?)
 

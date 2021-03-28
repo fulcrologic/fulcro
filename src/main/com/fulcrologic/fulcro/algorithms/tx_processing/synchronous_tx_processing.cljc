@@ -72,15 +72,12 @@
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :refer [in-transaction]]))
   (:require
     [clojure.set :as set]
-    [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.inspect.inspect-client :refer [ido ilet]]
-    com.fulcrologic.fulcro.specs
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 

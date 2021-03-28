@@ -55,11 +55,11 @@
   "
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :refer [with-app-context]]))
   (:require
-    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
-    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
+    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     #?@(:cljs

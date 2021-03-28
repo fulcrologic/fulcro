@@ -1,18 +1,24 @@
 (ns com.fulcrologic.fulcro.cards.composition-cards
   (:require
-    [nubank.workspaces.card-types.react :as ct.react]
-    [nubank.workspaces.core :as ws]
-    [com.fulcrologic.fulcro-css.localized-dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [nubank.workspaces.model :as wsm]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.alpha.raw-components2 :as raw]
-    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect-client]
+    [nubank.workspaces.card-types.react :as ct.react]
+    [nubank.workspaces.core :as ws]
+    ["react-dom" :as react-dom]
     [taoensso.timbre :as log]))
 
 ;; The raw fulcro-app has NO renderer installed. We're doing this example with nothing but raw react. Of course, this
 ;; means you could embed it in *any* React-based system, since only hooks are required.
-(defonce APP (raw/fulcro-app {}))
+(defonce APP (let [app (rapp/fulcro-app {:batch-notifications (fn [render!] (react-dom/unstable_batchedUpdates render!))})]
+               (inspect-client/app-started! app)
+               app))
 
 (m/defmutation bump [{:counter/keys [id]}]
   (action [{:keys [state]}]
@@ -25,12 +31,12 @@
                    :counter/n  :param/n}
    ;; Optional. Std components will work fine.
    :use-hooks?    true}
-  (dom/button {:onClick #(comp/transact! this [(bump props)])}
+  (dom/button :.ui.red.button {:onClick #(comp/transact! this [(bump props)])}
     (str (:counter/n props))))
 
 ;; Important to use the right factory. This one establishes the stuff you need for nested Fulcro stuff to work
 ;; according to the book.
-(def raw-counter (raw/factory Counter {:keyfn :counter/id}))
+(def raw-counter (comp/factory Counter {:keyfn :counter/id}))
 
 (m/defmutation toggle [{:item/keys [id]}]
   (action [{:keys [state]}]
@@ -38,45 +44,51 @@
 
 ;; A raw hooks component that uses a Fulcro sub-tree. See docstring on use-fulcro.
 (defn SampleComponent [props]
-  (raw/with-fulcro APP
-    (let [counter-A (raw/use-component APP Counter {:initial-state-params {:id 1 :n 100}
-                                                    :keep-existing?       true})
-          ;; OR, don't even use a component!!!
-          list      (raw/use-tree APP (raw/nc [:list/id {:list/items [:item/id :item/label :item/complete?]}])
-                      {:keep-existing? true
-                       :initial-tree   {:list/id    1
-                                        :list/items [{:item/id 1 :item/label "A"}
-                                                     {:item/id 2 :item/label "B"}
-                                                     {:item/id 2 :item/label "B"}
-                                                     {:item/id 2 :item/label "B"}]}})
-          counter-B (raw/use-tree APP (raw/nc [:counter/id :counter/n]) {:initial-tree   {:counter/id 2 :counter/n 45}
-                                                                         :keep-existing? true})]
+  (comp/with-parent-context APP
+    (let [counter-A (hooks/use-component APP Counter {:initial-params {:id 1 :n 100}
+                                                      :initialize?    true
+                                                      :keep-existing? true})
+          ;; OR, don't even define a concrete component!!!
+          anon-list (rc/entity->component {:list/id    1
+                                           ;; A little tricky. :item/complete? HAS to be in at least the first one,
+                                           ;; or the generated query for the component will not include it.
+                                           :list/items [{:item/complete? false :item/id 1 :item/label "A"}
+                                                        {:item/id 2 :item/label "B"}
+                                                        {:item/id 2 :item/label "B"}
+                                                        {:item/id 2 :item/label "C"}]})
+          list      (hooks/use-component APP anon-list {:keep-existing? true
+                                                        :initialize?    true})
+          counter-B (hooks/use-component APP (rc/entity->component {:counter/id 2 :counter/n 45}) {:keep-existing? true
+                                                                                                   :initialize?    true})]
       (dom/div
         (raw-counter counter-A)
         ;; just render the data...you don't have to use Fulcro components at all
-        (dom/button {:onClick #(comp/transact! APP [(bump counter-B)])}
+        (dom/button :.ui.primary.button {:onClick #(comp/transact! APP [(bump counter-B)])}
           (str (:counter/n counter-B)))
 
-        (dom/ul
+        (dom/h3 "List")
+        (dom/ul :.ui.list
           (map-indexed
             (fn [idx {:item/keys [label complete?] :as item}]
-              (dom/li {:key (str idx)}
-                (dom/input {:type     "checkbox"
-                            :checked  (boolean complete?)
-                            :onChange (fn [] (comp/transact! APP [(toggle item)]))})
-                label))
+              (dom/li :.item {:key (str idx)}
+                (dom/div :.ui.checkbox
+                  (dom/input {:type     "checkbox"
+                              :checked  (boolean complete?)
+                              :onChange (fn [] (comp/transact! APP [(toggle item)]))})
+                  (dom/label label))))
             (:list/items list)))))))
 
 ;; Use some hooks state to make a toggle button so we can play with mount/unmount behavior
 (defn Top [props]
   (let [[visible? set-visible?] (hooks/use-state false)]
     (dom/div
-      (dom/button {:onClick #(set-visible? (not visible?))} "Toggle")
+      (dom/button :.ui.button {:onClick #(set-visible? (not visible?))} "Toggle")
       (when visible?
         (dom/create-element SampleComponent {})))))
 
 ;; Render a truly raw react hooks component in a plain react card
 (ws/defcard fulcro-composed-into-vanilla-react
+  {::wsm/align {:flex 1}}
   (ct.react/react-card
     (dom/create-element Top {})))
 
