@@ -190,7 +190,7 @@
   (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User {:post-mutation `initialize-form
                                                                     :marker        ::user})))
   (let [{:ui/keys   [saving?]
-         :user/keys [id name settings] :as u} (raw/use-tree raw-app :current-user User {})
+         :user/keys [id name settings] :as u} (raw/use-root raw-app :current-user User {})
         loading? (df/loading? (get-in u [df/marker-table ::user]))]
     (div :.ui.segment
       (h2 "Form")
@@ -294,9 +294,12 @@
      (merge global-events
        {:event/logout {::uism/handler
                        (fn [env]
-                         (-> env
-                           (uism/trigger-remote-mutation :actor/current-account `logout {})
-                           (uism/activate :state/gathering-credentials)))}})}}})
+                         (let [Session (uism/retrieve env :Session)]
+                           (-> env
+                             (uism/assoc-aliased :email "" :password "" :failed? false)
+                             (uism/reset-actor-ident :actor/current-account (uism/with-actor-class [:account/id :none] Session))
+                             (uism/trigger-remote-mutation :actor/current-account `logout {})
+                             (uism/activate :state/gathering-credentials))))}})}}})
 
 (defn ui-login-form [{:keys [email password failed?] :as login-form}]
   (div :.ui.form {:classes [(when failed? "error")]}
@@ -323,7 +326,9 @@
       ;; TODO: Not done yet...didn't have time to finish refining, but it looks like it'll work
       (case active-state
         :state/checking-session (div "Checking")
-        :state/logged-in (div (str "Hi" (:account/email current-account)))
+        :state/logged-in (div
+                           (str "Hi" (:account/email current-account))
+                           (button :.ui.button {:onClick #(uism/trigger! raw-app :sessions :event/logout)} "Logout"))
         :state/gathering-credentials (ui-login-form login-form)
         (div (str active-state))))))
 

@@ -151,7 +151,7 @@
                    :onClick (fn [] (set-tab! :settings))} "Settings"))))
 
 (defn UserForm [_js-props]
-  (let [{:user/keys [id name settings] :as u} (raw/use-tree raw-app :current-user User {})]
+  (let [{:user/keys [id name settings] :as u} (raw/use-root raw-app :current-user User {})]
     (div :.ui.segment
       (h2 "User")
       (div :.ui.form
@@ -169,7 +169,7 @@
   (remote [_] (m/returning _ (raw/nc [:settings/id :settings/marketing?]))))
 
 (defn SettingsForm [_js-props]
-  (let [{:user/keys [settings]} (raw/use-tree raw-app :current-user User {})
+  (let [{:user/keys [settings]} (raw/use-root raw-app :current-user User {})
         {:settings/keys [id marketing?]} settings]
     (div :.ui.segment
       (h2 "Settings")
@@ -187,7 +187,7 @@
 (defn RawReactWithFulcroIO [_]
   (raw/with-fulcro raw-app
     (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User)))
-    (let [{:menu/keys [current-tab] :as menu-props} (raw/use-tree raw-app :root/menu
+    (let [{:menu/keys [current-tab] :as menu-props} (raw/use-root raw-app :root/menu
                                                       (raw/nc [:component/id :menu/current-tab]
                                                         {:initial-state (fn [_] {:component/id ::menu :menu/current-tab :main})})
                                                       {:initialize? true})]

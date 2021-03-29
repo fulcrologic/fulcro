@@ -238,7 +238,7 @@
     updated-node))
 
 (defn nc
-  "Create a normalizing query component. By default the normalization will be auto-detected based on there being a prop at each
+  "Create an anonymous normalizing query component. By default the normalization will be auto-detected based on there being a prop at each
    entity level that has (any) namespace, but with the name `id`. For example:
 
    ```
@@ -252,6 +252,20 @@
    The `top-component-options` becomes the options map of the component. You can include :componentName to push the
    resulting anonymous component definition into the component registry, which is needed by some parts of Fulcro, like
    UISM.
+
+   NOTE: `nc` is recursive, and *does* compose if you want to name the components at various levels. It can be used with queries from
+   other defsc components:
+
+   ```
+   (def query (nc [:user/id
+                   :user/name
+                   ;; Generate an anonymous component that is available in the registry under ::Session
+                   {:user/session-details (nc [:session/id :session/last-login] {:componentName ::Session})}
+                   ;; Use a defsc query as the source
+                   {:user/settings (comp/get-query Settings)}
+                   ;; Autogenerates an anonymous address query component that has no name
+                   {:user/address [:address/id :address/street]}]))
+   ```
    "
   ([query] (nc query {}))
   ([query {:keys [componentName] :as top-component-options}]
@@ -293,10 +307,13 @@
     updated-node))
 
 (defn formc
-  "Create an anonymous normalizing form component from EQL. Every level of the query must have an `:<???>/id` field which
-  is used to build the ident, and every non-id attribute will be considered part of the form. This auto-adds the necessary
-  form-state form-join, and populates the anonymous component with the `:form-fields` option. You can add additional
-  component options to the top-level anonymous component with `top-component-options`."
+  "Create an anonymous normalizing form component from EQL. In this version every level of the query must
+   have an `:<???>/id` field which is used to build the ident, and every non-id attribute will be considered part
+   of the form. This auto-adds the necessary form-state form-join, and populates the anonymous component with the
+   `:form-fields` option. You can add additional component options to the top-level anonymous component with
+   `top-component-options`.
+
+   See also `nc`, which is similar but does not autogenerate form-related add-ins."
   ([EQL] (formc EQL {}))
   ([EQL top-component-options]
    (let [ast (eql/query->ast EQL)]
@@ -317,17 +334,17 @@
                 (set-state! props))))))
       (fn [] (app/remove-render-listener! app id)))))
 
-(defn use-tree
-  "Use a root key and component as an I/O-compatible subtree managed by Fulcro. The `root-key` must be a unique
+(defn use-root
+  "Use a root key and component as an subtree managed by Fulcro. The `root-key` must be a unique
    (namespace recommended) key among all keys used within the application, since the root of the database is where it
    will live.
 
-   The `component` should be a real Fulcro component or a generated normalizing component from `nc`.
+   The `component` should be a real Fulcro component or a generated normalizing component from `nc` (or similar).
 
-   Returns the props, starting from `root-key`, that satisfy the query.
+   Returns the props (not including `root-key`) that satisfy the query of `component`.
   "
   [app root-key component {:keys [initialize? initial-params]}]
-  (let [[id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))
+  (let [[listener-id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))
         [current-props set-props!] (hooks/use-state {})]
     (hooks/use-lifecycle
       (fn []
@@ -341,19 +358,20 @@
                                 state-map (app/current-state app)]
                             (fdn/db->tree query state-map state-map)))]
           (set-props! (get-props))
-          (app/add-render-listener! app id (fn use-tree-set-props* [app _] (set-props! (get-props))))))
-      (fn use-tree-remove-render-listener* [] (app/remove-render-listener! app id)))
+          (app/add-render-listener! app listener-id (fn use-tree-set-props* [app _] (set-props! (get-props))))))
+      (fn use-tree-remove-render-listener* [] (app/remove-render-listener! app listener-id)))
     (get current-props root-key)))
 
 (defn id-key
-  "Returns the keyword of the most likely ID attribute in the given props (the one with the name `id`).
+  "Returns the keyword of the most likely ID attribute in the given props (the first one with the `name` \"id\").
   Returns nil if there isn't one."
   [props]
   (first (filter #(= "id" (name %)) (keys props))))
 
 (defn set-value!!
   "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` to
-   derive the ident of the database entry."
+   derive the ident of the database entry. The props must contain an ID key that can be used to derive the ident from
+   the current-props."
   [app current-props k v]
   (let [ik    (id-key current-props)
         ident [ik (get current-props ik)]]
@@ -364,7 +382,8 @@
 
 (defn update-value!!
   "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` as the basis
-   for the update, and to find the ident of the target."
+   for the update, and to find the ident of the target. The `current-props` must contain an ID field that can be used to derive
+   the ident from the passed props."
   [app current-props k f & args]
   (let [ik        (id-key current-props)
         ident     [ik (get current-props ik)]
@@ -384,15 +403,25 @@
 
    You MUST include `:componentName` in each of your actor's options.
 
-   Returns the current state of the actors known by the state machine."
+   Returns a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`."
   [app state-machine-definition id initial-event-data]
-  (let [state-map (app/current-state app)
-        {::uism/keys [active-state actor->ident actor->component-name]} (get-in state-map [::uism/asm-id id])
-        [listener-id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))
-        [_ local-render!] (hooks/use-state nil)]
+  (let [[listener-id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))
+        [uism-data set-uism-data!] (hooks/use-state nil)]
     (hooks/use-lifecycle
       (fn []
-        (app/add-render-listener! app listener-id (fn [_ _] (local-render! (rand-int 10000000))))
+        (app/add-render-listener! app listener-id (fn [app _]
+                                                    (let [state-map (app/current-state app)
+                                                          {::uism/keys [active-state actor->ident actor->component-name]} (get-in state-map [::uism/asm-id id])
+                                                          props     (reduce-kv
+                                                                      (fn [result actor ident]
+                                                                        (let [cname (actor->component-name actor)
+                                                                              cls   (comp/registry-key->class cname)
+                                                                              query (comp/get-query cls)
+                                                                              base  (get-in state-map ident)]
+                                                                          (assoc result actor (fdn/db->tree query (log/spy :info base) state-map))))
+                                                                      {:active-state active-state}
+                                                                      actor->ident)]
+                                                      (set-uism-data! props))))
         (let [s        (app/current-state app)
               started? (get-in s [::uism/asm-id id])]
           (if started?
@@ -401,15 +430,7 @@
       (fn []
         (app/remove-render-listener! app listener-id)
         (uism/trigger!! app id :event/unmounted)))
-    (reduce-kv
-      (fn [result actor ident]
-        (let [cname (actor->component-name actor)
-              cls   (comp/registry-key->class cname)
-              query (comp/get-query cls)
-              base  (get-in state-map ident)]
-          (assoc result actor (fdn/db->tree query (log/spy :info base) state-map))))
-      {:active-state active-state}
-      actor->ident)))
+    uism-data))
 
 
 
