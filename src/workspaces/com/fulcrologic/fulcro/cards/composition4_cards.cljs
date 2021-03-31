@@ -156,9 +156,11 @@
                       {:user/settings [:settings/id :settings/marketing?]}]))
 
 (comment
-  (comp/get-query User)
+  (comp/component-options User)
+  (comp/get-ident User {:user/id 34})
+  (comp/get-initial-state User {})
+  (comp/get-ident User {:user/id 34})
   (-> (comp/get-query User) (meta) (:component) (comp/get-query))
-  (-> (comp/get-query User) (get-in [2 :user/settings]) (meta) (:component) (comp/get-query) meta :component comp/get-query)
   )
 
 (m/defmutation initialize-form [_]

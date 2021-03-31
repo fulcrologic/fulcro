@@ -319,21 +319,6 @@
    (let [ast (eql/query->ast EQL)]
      (:component (normalize-form* ast top-component-options)))))
 
-(defn- use-db-lifecycle-tree [app component current-props-tree set-state!]
-  (let [[id _] (hooks/use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))]
-    (hooks/use-lifecycle
-      (fn []
-        (let [state-map (app/current-state app)
-              ident     (comp/get-ident component current-props-tree)
-              exists?   (map? (get-in state-map ident))]
-          (when-not exists?
-            (merge/merge-component! app component current-props-tree))
-          (app/add-render-listener! app id
-            (fn [app _]
-              (let [props (pcs app component ident)]
-                (set-state! props))))))
-      (fn [] (app/remove-render-listener! app id)))))
-
 (defn use-root
   "Use a root key and component as an subtree managed by Fulcro. The `root-key` must be a unique
    (namespace recommended) key among all keys used within the application, since the root of the database is where it
@@ -349,16 +334,16 @@
     (hooks/use-lifecycle
       (fn []
         (when (and initialize? (not (contains? (app/current-state app) root-key)))
-          (swap! (::app/state-atom app) (fn [s]
+          (swap! (::app/state-atom app) (fn use-root-merge* [s]
                                           (merge/merge-component s component
                                             (comp/get-initial-state component (or initial-params {}))
                                             :replace [root-key]))))
-        (let [get-props (fn use-tree-get-props* []
+        (let [get-props (fn use-root-get-props* []
                           (let [query     [{root-key (comp/get-query component)}]
                                 state-map (app/current-state app)]
                             (fdn/db->tree query state-map state-map)))]
           (set-props! (get-props))
-          (app/add-render-listener! app listener-id (fn use-tree-set-props* [app _] (set-props! (get-props))))))
+          (app/add-render-listener! app listener-id (fn use-root-render-listener* [app _] (set-props! (get-props))))))
       (fn use-tree-remove-render-listener* [] (app/remove-render-listener! app listener-id)))
     (get current-props root-key)))
 
@@ -394,14 +379,17 @@
       (do
         (comp/transact!! app `[(m/set-props ~{k new-value})] {:ref ident})))))
 
-
 (defn use-uism
-  "Use a UISM as an effect hook. This will set up the given state machine under the give ID, and start it. Your initial state
-   handler MUST set up actors and otherwise initialize based on initial-event-data. If the machine is already started at the
-   given ID then this effect will send it an `:event/remounted` event. This hook will send an `:event/unmounted` when the
-   component using this effect goes away.
+  "Use a UISM as an effect hook. This will set up the given state machine under the given ID, and start it (if not
+   already started). Your initial state handler MUST set up actors and otherwise initialize based on initial-event-data.
 
-   You MUST include `:componentName` in each of your actor's options.
+   If the machine is already started at the given ID then this effect will send it an `:event/remounted` event.
+   This hook will send an `:event/unmounted` when the component using this effect goes away. In both cases you may choose
+   to ignore the event.
+
+   You MUST include `:componentName` in each of your actor's normalizing component options (e.g. `(nc query {:componentName ::uniqueName})`)
+   because UISM requires component appear in the component registry (components cannot be safely stored in app state, just their
+   names).
 
    Returns a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`."
   [app state-machine-definition id initial-event-data]
