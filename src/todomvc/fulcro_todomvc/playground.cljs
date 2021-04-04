@@ -255,6 +255,7 @@
       (dom/button {:onClick (fn []
                               (comp/update-state! this update :n inc))} "Click me!"))))
 
+#?(:cljs
 (defn ui-sample [props & children]
   (let [{:keys [::app/middleware]} *reconciler*
         ep-mw       (get middleware :extra-props-middleware)
@@ -262,7 +263,7 @@
                       (this-as this (ep-mw this)))]
     (dom/create-element Sample #js {"fulcro$value"       props
                                     "fulcro$extra_props" extra-props
-                                    "fulcro$reconciler"  *reconciler*})))
+                                       "fulcro$reconciler"  *reconciler*}))))
 
 (defn wrap-my-extra
   ([] (fn [this] {:some-value 1}))

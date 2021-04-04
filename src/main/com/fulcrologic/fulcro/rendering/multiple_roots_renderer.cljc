@@ -170,6 +170,7 @@
                     comp/*depth*  d#]
             ~@body)))))
 
+#?(:cljs
 (defn floating-root-react-class
   "Generate a plain React class that can render a Fulcro UIRoot. NOTE: The UIRoot must register/deregister itself
   in the component lifecycle:
@@ -202,7 +203,7 @@
                                                    state-map (some-> fulcro-app :com.fulcrologic.fulcro.application/state-atom deref)
                                                    props     (fdn/db->tree query state-map state-map)]
                                                (ui-root props {:js-props js-props})))))))})))
-    cls))
+       cls)))
 
 (defn floating-root-factory
   "Create a factory that renders a floating root in a normal Fulcro context (body of a Fulcro component). This factory

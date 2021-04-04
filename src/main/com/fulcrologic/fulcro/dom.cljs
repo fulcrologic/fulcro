@@ -148,6 +148,7 @@
   (let [tag (.-tagName element)]
     (and tag (form-elements? (str/lower-case tag)))))
 
+#?(:cljs
 (defn wrap-form-element [element]
   (let [ctor (fn [props]
                (this-as this
@@ -200,7 +201,7 @@
                   (gobj/set p "inputRef" r)
                   (gobj/remove p "ref")
                   (apply real-factory p children)))
-              (apply real-factory props children))))))))
+                 (apply real-factory props children)))))))))
 
 
 (def wrapped-input "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "input"))

@@ -12,6 +12,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.dom.events :as evt]))
 
+#?(:cljs
 (defn StringBufferedInput
   "Create a new type of input that can be derived from a string. `kw` is a fully-qualified keyword name for the new
   class (which will be used to register it in the component registry), and `model->string` and `string->model` are
@@ -69,13 +70,14 @@
                       onBlur (assoc :onBlur (fn [evt]
                                               (onBlur (-> evt evt/target-value string->model)))))))))))})
     (comp/register-component! kw cls)
-    cls))
+       cls)))
 
 (defn symbol-chars
   "Returns `s` with all non-digits stripped."
   [s]
   (str/replace s #"[\s\t:]" ""))
 
+#?(:cljs
 (def ui-keyword-input
   "A keyword input. Used just like a DOM input, but requires you supply nil or a keyword for `:value`, and
    will send a keyword to `onChange` and `onBlur`. Any other attributes in props are passed directly to the
@@ -83,7 +85,7 @@
   (comp/factory (StringBufferedInput ::KeywordInput {:model->string #(str (some-> % name))
                                                      :string-filter symbol-chars
                                                      :string->model #(when (seq %)
-                                                                       (some-> % keyword))})))
+                                                                          (some-> % keyword))}))))
 (defn to-int
   "Convert a string `s`"
   [s]
@@ -104,6 +106,7 @@
     (str/join
       (filter digits (seq s)))))
 
+#?(:cljs
 (def ui-int-input
   "An integer input. Can be used like `dom/input` but onChange and onBlur handlers will be passed an int instead of
   a raw react event, and you should supply an int for `:value` instead of a string.  You may set the `:type` to text
@@ -111,5 +114,4 @@
   All other attributes passed in props are passed through to the contained `dom/input`."
   (comp/factory (StringBufferedInput ::IntInput {:model->string str
                                                  :string->model to-int
-                                                 :string-filter just-digits})))
-
+                                                    :string-filter just-digits}))))

@@ -75,6 +75,7 @@
     (inspect/app-started! app)
     app))
 
+#?(:cljs
 (defn factory
   "A Fulcro component factory for RAW React usage.
 
@@ -111,7 +112,7 @@
               (create-element class props children)))))
       {:class     class
        :queryid   qid
-       :qualifier qualifier})))
+          :qualifier qualifier}))))
 
 (defn- pcs [app component prior-props-tree-or-ident]
   (let [ident           (if (eql/ident? prior-props-tree-or-ident)
@@ -160,7 +161,8 @@
                                               initial-state-params (comp/get-initial-state component initial-state-params)
                                               (comp/has-initial-app-state? component) (comp/get-initial-state component {})
                                               :else {})))
-        [id _] (hooks/use-state (random-uuid))]
+        [id _] (hooks/use-state #?(:clj  (java.util.UUID/randomUUID)
+                                   :cljs (random-uuid)))]
     (hooks/use-lifecycle
       (fn []
         (let [state-map (app/current-state app)
