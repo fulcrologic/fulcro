@@ -406,7 +406,9 @@
                                                                               cls   (comp/registry-key->class cname)
                                                                               query (comp/get-query cls)
                                                                               base  (get-in state-map ident)]
-                                                                          (assoc result actor (fdn/db->tree query (log/spy :info base) state-map))))
+                                                                          (when-not cls
+                                                                            (log/error "You forgot to give actor" actor "a :componentName"))
+                                                                          (assoc result actor (fdn/db->tree query base state-map))))
                                                                       {:active-state active-state}
                                                                       actor->ident)]
                                                       (set-uism-data! props))))

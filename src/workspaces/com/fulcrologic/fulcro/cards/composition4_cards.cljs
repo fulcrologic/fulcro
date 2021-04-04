@@ -108,8 +108,8 @@
                      (fn [a] (and (= password (:account/password a)) (= email (:account/email a))))
                      accounts))]
     (when (log/spy :info "Found account" account)
-      (reset! session-id (:account/id account)))
-    account))
+      (reset! session-id (:account/id account))
+      account)))
 
 (pc/defmutation server-logout [_ _]
   {::pc/sym `logout}
@@ -244,8 +244,6 @@
                             Session   (raw/nc [:account/id :account/email] {:componentName ::Session})]
                         (log/info "initial handler" (::uism/event-id env))
                         (-> env
-                          (uism/store :Session Session)
-                          (uism/store :LoginForm LoginForm)
                           (uism/apply-action assoc-in [:account/id :none] {:account/id :none})
                           (uism/apply-action assoc-in [:component/id ::LoginForm] {:component/id ::LoginForm :email "" :password "" :failed? false})
                           (uism/reset-actor-ident :actor/current-account (uism/with-actor-class [:account/id :none] Session))
@@ -257,24 +255,24 @@
     :state/checking-session
     {::uism/events
      (merge global-events
-       {:event/done            {::uism/handler
-                                (fn [env]
-                                  (let [id (uism/actor-value env :actor/current-account :account/id)]
-                                    (cond-> env
-                                      (pos-int? id) (uism/activate :state/logged-in)
-                                      :else (uism/activate :state/gathering-credentials))))}
-        :event/logged-in       {::uism/handler
-                                (fn [{::uism/keys [state-map] :as env}]
-                                  (let [session-ident (get state-map :current-session)
-                                        Session       (uism/retrieve env :Session)]
-                                    (-> env
-                                      (uism/reset-actor-ident :actor/current-account (uism/with-actor-class session-ident Session))
-                                      (uism/activate :state/logged-in))))}
-        :event/bad-credentials {::uism/handler
-                                (fn [env]
-                                  (-> env
-                                    (uism/assoc-aliased :failed? true)
-                                    (uism/activate :state/gathering-credentials)))}})}
+       {:event/done       {::uism/handler
+                           (fn [env]
+                             (let [id (uism/actor-value env :actor/current-account :account/id)]
+                               (cond-> env
+                                 (pos-int? id) (uism/activate :state/logged-in)
+                                 :else (uism/activate :state/gathering-credentials))))}
+        :event/post-login {::uism/handler
+                           (fn [{::uism/keys [state-map] :as env}]
+                             (let [session-ident (get state-map :current-session)
+                                   Session       (uism/actor-class env :actor/current-account)
+                                   logged-in?    (pos-int? (second session-ident))]
+                               (if logged-in?
+                                 (-> env
+                                   (uism/reset-actor-ident :actor/current-account (uism/with-actor-class session-ident Session))
+                                   (uism/activate :state/logged-in))
+                                 (-> env
+                                   (uism/assoc-aliased :failed? true)
+                                   (uism/activate :state/gathering-credentials)))))}})}
 
     :state/gathering-credentials
     {::uism/events
@@ -285,10 +283,10 @@
                           (uism/assoc-aliased :failed? false)
                           (uism/trigger-remote-mutation :actor/login-form `login {:email             (uism/alias-value env :email)
                                                                                   :password          (uism/alias-value env :password)
-                                                                                  ::m/returning      (uism/actor-class env ::Session)
+                                                                                  ::m/returning      (uism/actor-class env :actor/current-account)
                                                                                   ::dt/target        [:current-session]
-                                                                                  ::uism/ok-event    :event/logged-in
-                                                                                  ::uism/error-event :event/bad-credentials})
+                                                                                  ::uism/ok-event    :event/post-login
+                                                                                  ::uism/error-event :event/post-login})
                           (uism/activate :state/checking-session)))}})}
 
     :state/logged-in
@@ -296,43 +294,45 @@
      (merge global-events
        {:event/logout {::uism/handler
                        (fn [env]
-                         (let [Session (uism/retrieve env :Session)]
+                         (let [Session (uism/actor-class env :actor/current-account)]
                            (-> env
                              (uism/assoc-aliased :email "" :password "" :failed? false)
                              (uism/reset-actor-ident :actor/current-account (uism/with-actor-class [:account/id :none] Session))
                              (uism/trigger-remote-mutation :actor/current-account `logout {})
                              (uism/activate :state/gathering-credentials))))}})}}})
 
-(defn ui-login-form [{:keys [email password failed?] :as login-form}]
-  (div :.ui.form {:classes [(when failed? "error")]}
-    (div :.field
-      (label "Email")
-      (input {:value    (or email "")
-              :onChange (fn [evt] (raw/set-value!! raw-app login-form :email (evt/target-value evt)))}))
-    (div :.field
-      (label "Password")
-      (input {:type     "password"
-              :onChange (fn [evt] (raw/set-value!! raw-app login-form :password (evt/target-value evt)))
-              :value    (or password "")}))
-    (div :.ui.error.message
-      "Invalid credentials. Please try again.")
-    (div :.field
-      (button {:onClick (fn [] (uism/trigger! raw-app :sessions :event/login {}))} "Login"))))
+(defn ui-login-form [{:keys [email password failed?] :as login-form} checking?]
+  (div :.ui.segment
+    (h2 "Username is bob@example.com, password is letmein")
+    (div :.ui.form {:classes [(when failed? "error")
+                              (when checking? "loading")]}
+      (div :.field
+        (label "Email")
+        (input {:value    (or email "")
+                :onChange (fn [evt] (raw/set-value!! raw-app login-form :email (evt/target-value evt)))}))
+      (div :.field
+        (label "Password")
+        (input {:type     "password"
+                :onChange (fn [evt] (raw/set-value!! raw-app login-form :password (evt/target-value evt)))
+                :value    (or password "")}))
+      (div :.ui.error.message
+        "Invalid credentials. Please try again.")
+      (div :.field
+        (button :.ui.primary.button {:onClick (fn [] (uism/trigger! raw-app :sessions :event/login {}))} "Login")))))
 
 (defn RootUISMSessions [_]
-  (raw/with-fulcro raw-app
-    (let [{:actor/keys [login-form current-account]
-           :keys       [active-state]
-           :as         actors} (raw/use-uism raw-app session-machine :sessions {})]
-      (log/info "Actor content" (with-out-str (pprint actors)))
-      ;; TODO: Not done yet...didn't have time to finish refining, but it looks like it'll work
-      (case active-state
-        :state/checking-session (div "Checking")
-        :state/logged-in (div
-                           (str "Hi" (:account/email current-account))
-                           (button :.ui.button {:onClick #(uism/trigger! raw-app :sessions :event/logout)} "Logout"))
-        :state/gathering-credentials (ui-login-form login-form)
-        (div (str active-state))))))
+  (let [{:actor/keys [login-form current-account]
+         :keys       [active-state]
+         :as         actors} (raw/use-uism raw-app session-machine :sessions {})]
+    (log/info "Actor content" (with-out-str (pprint actors)))
+    ;; TODO: Not done yet...didn't have time to finish refining, but it looks like it'll work
+    (case active-state
+      :state/logged-in (div :.ui.segment
+                         (dom/p {} (str "Hi," (:account/email current-account)))
+                         (button :.ui.red.button {:onClick #(uism/trigger! raw-app :sessions :event/logout)} "Logout"))
+      (:state/checking-session :state/gathering-credentials) (ui-login-form login-form (= :state/checking-session active-state))
+      (div (str active-state)))
+    ))
 
 (ws/defcard raw-uism-card
   {::wsm/align {:flex 1}}
