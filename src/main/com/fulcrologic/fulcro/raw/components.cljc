@@ -221,35 +221,36 @@
 (defn pre-merge [this data] (when (has-feature? this :pre-merge) ((component-options this :pre-merge) data)))
 
 (defn configure-anonymous-component!
-  "Make a given `cls` (a plain fn) act like a a Fulcro component with the given component options map. Registers the
+  "Make a given `render-fn` (a plain fn) act like a a Fulcro component with the given component options map. Registers the
   new component in the component-registry. Component options MUST contain :componentName as be a fully-qualified
   keyword to name the component in the registry.
 
   component-options *must* include a unique `:componentName` (keyword) that will be used for registering the given
-  function as the faux class in the component registry."
+  function as the faux class in the component registry.
+
+  IMPORTANT: In CLJS this function adds extra things to the mutable js fn. In CLJ, components are just maps, and this
+  side-effect cannot modify it. As such it returns the configured component so you can use it in CLJ."
   [render-fn component-options]
   (let [k              (:componentName component-options)
         faux-classname (if k
                          (str/join "/" [(namespace k) (name k)])
-                         "anonymous")]
-    #?(:clj  (vary-meta render-fn merge
-               {:fulcro$options     component-options
-                :displayName        faux-classname
-                :fulcro$class       render-fn
-                :type               render-fn
-                :fulcro$registryKey (:componentName component-options)})
-       :cljs (gobj/extend render-fn
-               #js {:fulcro$options         component-options
-                    :displayName            faux-classname
-                    :fulcro$class           render-fn
-                    :type                   render-fn
-                    :cljs$lang$type         true
-                    :cljs$lang$ctorStr      faux-classname
-                    :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
-                    :fulcro$registryKey     (:componentName component-options)}))
+                         "anonymous")
+        result #?(:clj {::component-class?  true
+                        :fulcro$options     component-options
+                        :fulcro$registryKey k
+                        :displayName        faux-classname}
+                  :cljs (gobj/extend render-fn
+                          #js {:fulcro$options         component-options
+                               :displayName            faux-classname
+                               :fulcro$class           render-fn
+                               :type                   render-fn
+                               :cljs$lang$type         true
+                               :cljs$lang$ctorStr      faux-classname
+                               :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
+                               :fulcro$registryKey     (:componentName component-options)}))]
     (when k
-      (register-component! k render-fn))
-    render-fn))
+      (register-component! k #?(:cljs render-fn :clj result)))
+    #?(:cljs render-fn :clj result)))
 
 (defn get-initial-state
   "Get the declared :initial-state value for a component."
@@ -464,8 +465,8 @@
                                         (assert union-query-id "Union query has an ID. Did you use extended get-query?")
                                         (util/deep-merge
                                           {:com.fulcrologic.fulcro.components/queries {union-query-id {:query         normalized-union-alternates
-                                                                      :component-key union-component-key
-                                                                      :id            union-query-id}}}
+                                                                                                       :component-key union-component-key
+                                                                                                       :id            union-query-id}}}
                                           (reduce (fn normalize-union-reducer [s [_ subquery]]
                                                     (normalize-query s subquery)) state union-alternates)))
             (and
@@ -670,16 +671,13 @@
                               (normalize* node {})
                               node))
                           children)
-        updated-node    (assoc original-node :children new-children :component component)
-        query           (if (= type :join)
-                          (eql/ast->query (assoc updated-node :type :root))
-                          (eql/ast->query updated-node))
-        _               (configure-anonymous-component! component
+        qatom           (atom nil)
+        component       (configure-anonymous-component! component
                           (cond-> (with-meta
                                     (merge
                                       {:initial-state (fn [& args] {})}
                                       top-component-options
-                                      {:query  (fn [& args] query)
+                                      {:query  (fn [& args] @qatom)
                                        "props" {"fulcro$queryid" :anonymous}})
                                     {:query-id :anonymous})
 
@@ -687,7 +685,12 @@
 
                             (and real-id-key
                               (not (contains? top-component-options :ident)))
-                            (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))]
+                            (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))
+        updated-node    (assoc original-node :children new-children :component component)
+        query           (if (= type :join)
+                          (eql/ast->query (assoc updated-node :type :root))
+                          (eql/ast->query updated-node))
+        _               (reset! qatom query)]
     updated-node))
 
 (defn nc

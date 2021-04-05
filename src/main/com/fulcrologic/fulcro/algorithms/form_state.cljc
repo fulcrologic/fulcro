@@ -678,19 +678,21 @@
                               (normalize-form* node {})
                               node))
                           children)
+        qatom           (atom nil)
+        component       (rc/configure-anonymous-component! component (cond-> (with-meta
+                                                                               (merge
+                                                                                 {:initial-state (fn [& args] {})}
+                                                                                 top-component-options
+                                                                                 {:query       (fn [& args] @qatom)
+                                                                                  :ident       (fn [_ props] [detected-id-key (get props detected-id-key)])
+                                                                                  :form-fields form-fields
+                                                                                  "props"      {"fulcro$queryid" :anonymous}})
+                                                                               {:query-id :anonymous})))
         updated-node    (assoc original-node :children new-children :component component)
         query           (if (= type :join)
                           (eql/ast->query (assoc updated-node :type :root))
                           (eql/ast->query updated-node))
-        _               (rc/configure-anonymous-component! component (cond-> (with-meta
-                                                                                 (merge
-                                                                                   {:initial-state (fn [& args] {})}
-                                                                                   top-component-options
-                                                                                   {:query       (fn [& args] query)
-                                                                                    :ident       (fn [_ props] [detected-id-key (get props detected-id-key)])
-                                                                                    :form-fields form-fields
-                                                                                    "props"      {"fulcro$queryid" :anonymous}})
-                                                                                 {:query-id :anonymous})))]
+        _               (reset! qatom query)]
     updated-node))
 
 (defn formc

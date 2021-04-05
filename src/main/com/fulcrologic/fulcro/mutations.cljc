@@ -437,7 +437,7 @@
                                       (into acc
                                         (if action?
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
-                                                                            (binding [rc/*after-render* true]
+                                                                            (binding [com.fulcrologic.fulcro.components/*after-render* true]
                                                                               ~@handler-body)
                                                                             nil)]
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
@@ -450,7 +450,7 @@
                             `{~(first handlers) ~@(rest handlers)}
                             `{~(first handlers) ~@(rest handlers)
                               :result-action    (fn [~'env]
-                                                  (binding [rc/*after-render* true]
+                                                  (binding [com.fulcrologic.fulcro.components/*after-render* true]
                                                     (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                                       (~'default-action ~'env))))})
            doc            (or doc "")
