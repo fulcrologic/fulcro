@@ -231,22 +231,21 @@
             shared-fn] :as options}]
    (rapp/fulcro-app
      (-> options
-       (assoc-in [::algorithms :com.fulcrologic.fulcro.algorithm/core-render!]
-         (or core-render!
-           (fn [app {:keys [root-props-changed?] :as options}]
-             (let [{::keys [runtime-atom]} app
-                   {::keys [root-class]} (some-> runtime-atom deref)]
-               (when root-class
-                 (let [optimized-render! (ah/app-algorithm app :optimized-render!)
-                       shared-props      (get @runtime-atom ::shared-props)]
-                   (binding [fdn/*denormalize-time* (basis-t app)
-                             comp/*app*             app
-                             rc/*shared*            shared-props
-                             comp/*depth*           0]
-                     (if optimized-render!
-                       (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
-                       (log/debug "Render skipped. No optimized render is configured.")))))))))
-       (assoc-in [::algorithms :com.fulcrologic.fulcro.algorithm/optimized-render!] (or optimized-render! mrr/render!))))))
+       (assoc :core-render! (or core-render!
+                              (fn [app {:keys [root-props-changed?] :as options}]
+                                (let [{::keys [runtime-atom]} app
+                                      {::keys [root-class]} (some-> runtime-atom deref)]
+                                  (when root-class
+                                    (let [optimized-render! (ah/app-algorithm app :optimized-render!)
+                                          shared-props      (get @runtime-atom ::shared-props)]
+                                      (binding [fdn/*denormalize-time* (basis-t app)
+                                                comp/*app*             app
+                                                rc/*shared*            shared-props
+                                                comp/*depth*           0]
+                                        (if optimized-render!
+                                          (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
+                                          (log/debug "Render skipped. No optimized render is configured."))))))))
+         :optimized-render! (or optimized-render! mrr/render!))))))
 
 (>defn fulcro-app?
   "Returns true if the given `x` is a Fulcro application."

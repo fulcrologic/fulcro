@@ -223,6 +223,7 @@
      Developer's Guide
    * `:query-transform-default` - DEPRECATED. This will break things in unexpected ways. Prefer `:global-eql-transform`.
    * `:load-marker-default` - A default value to use for load markers. Defaults to false.
+   * `:core-render!` - A (fn [app] side-effect) that is called by schedule render.
    * `:render-root!` - The function to call in order to render the root of your application. Defaults
      to `js/ReactDOM.render`.
    * `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
@@ -240,6 +241,7 @@
             global-eql-transform
             global-error-action
             default-result-action!
+            core-render!
             optimized-render!
             render-root!
             hydrate-root!
@@ -270,6 +272,7 @@
                                                         :load-mutation           load-mutation}
       :com.fulcrologic.fulcro.application/algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
                                                         :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
+                                                        :com.fulcrologic.fulcro.algorithm/core-render!           (or core-render! identity)
                                                         :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! identity)
                                                         :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
                                                         :com.fulcrologic.fulcro.algorithm/shared-fn              shared-fn
