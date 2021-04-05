@@ -177,65 +177,21 @@
 (def ^:deprecated default-tx! txn/default-tx!)
 
 (defn fulcro-app
-  "Create a new Fulcro application.
+  "Create a new Fulcro application. See com.fulcrologic.fulcro.application/fulcro-app for the React-based initializer.
 
-  This version creates an app that is not attached to React, and has no default root or optimized render.
+  This version creates an app that is not attached to React, and has no default root or optimized render. The
+  map of initial options is the same *except* that react-centric options are obviously ignore, and also:
 
-  `options`: A map of initial options
+   * `:optimized-render!` - A `(fn ([app]) ([app txn-options]))` that can analyze the state of the application and optimally refresh the screen. Defaults to a no-op.
+     This function is normally called from core-render!, and therefore is useless unless you define a `core-render!` that calls it.
+   * `:core-render!` - A (fn [app txn-options] side-effect) that is called by schedule render. If you fail to supply this on a raw app, then
+     NO rendering will happen; however, render listeners will still be called.
 
-   * `:initial-db` a *map* containing a *normalized* Fulcro app db.  Normally Fulcro will populate app state with
-     your component tree's initial state.  Use `mount!` options to toggle the initial state pull from root.
-   * `:optimized-render!` - A function that can analyze the state of the application and optimally refresh the screen.
-     Defaults to `multiple-roots-renderer` (highly recommended), but other options are available in the rendering package.
-     Further customizations are
-     also possible.  Most applications will likely be best with the default. Standard Fulcro components are also pure
-     (unless you supply `shouldComponentUpdate` to change that) to prevent rendering when props have not changed.
-   * `default-result-action!` - A `(fn [env])` that will be used in your mutations defined with `defmutation` as the
-     default `:result-action` when none is supplied. Normally defaults to a function that supports mutation joins, targeting,
-     and ok/error actions. WARNING: Overriding this is for advanced users and can break important functionality. The
-     default is value for this option is `com.fulcrologic.fulcro.mutations/default-result-action!`, which could be used
-     as an element of your own custom implementation.
-   * `:global-eql-transform` - A `(fn [AST] new-AST)` that will be asked to rewrite the AST of all transactions just
-     before they are placed on the network layer.
-   * `:client-will-mount` - A `(fn [app])` that is called after the application is fully initialized, but just before
-   it mounts. This is triggered when you call `app/mount!`, but after all internals have been properly initialized.
-   * `:client-did-mount` - A `(fn [app])` that is called when the application mounts the first time. WARNING: Due to
-     the async nature of js and React this function is not guaranteed to be called after the application is
-     completely on the DOM.  If you need that guarantee then consider using `:componentDidMount` on your application's
-     root component.
-   * `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
-     a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
-   * `:shared` - A (static) map of data that should be visible in all components through `comp/shared`.
-   * `:shared-fn` - A function on root props that can select/augment shared whenever a forced root render
-     or explicit call to `app/update-shared!` happens.
-   * `:props-middleware` - A function that can add data to the 4th (optional) argument of
-     `defsc`.  Useful for allowing users to quickly destructure extra data created by
-     component extensions. See the fulcro-garden-css project on github for an example usage.
-   * `:render-middleware` - A `(fn [this real-render])`. If supplied it will be called for every Fulcro component
-     render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
-     function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
-     `this` is the component being rendered.
-   * `:remote-error?` - A `(fn [result] boolean)`. It can examine the network result and should only return
-     true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
-     the normal remotes.  The default version of this returns true if the status code isn't 200.
-   * `:global-error-action` - A `(fn [env] ...)` that is run on any remote error (as defined by `remote-error?`).
-   * `:load-mutation` - A symbol. Defines which mutation to use as an implementation of low-level load operations. See
-     Developer's Guide
-   * `:query-transform-default` - DEPRECATED. This will break things in unexpected ways. Prefer `:global-eql-transform`.
-   * `:load-marker-default` - A default value to use for load markers. Defaults to false.
-   * `:core-render!` - A (fn [app] side-effect) that is called by schedule render.
-   * `:render-root!` - The function to call in order to render the root of your application. Defaults
-     to `js/ReactDOM.render`.
-   * `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
-     to `js/ReactDOM.hydrate`.
-   * `:unmount-root!` - The function to call in order to unmount the root of your application. Defaults
-     to `js/ReactDOM.unmountComponentAtNode`.
-   * `:root-class` - The component class that will be the root. This can be specified just with `mount!`, but
-   giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`.
-   * `:submit-transaction!` - A function to implement how to submit transactions. This allows you to override how transactions
-     are processed in Fulcro.  Calls to `comp/transact!` will come through this algorithm.
-   * `:abort-transaction!` - The function that can abort submitted transactions. Must be provided if you override
-     `:submit-transaction!`, since the two are related."
+  Note that raw apps are not mounted, but are instead ready to be used immediately.  If you want to use inspect, then
+  you must call `(inspect/client-started! app)` yourself.
+
+  Indexing is available, but normally runs from React lifecycle, so unless you're using this with React indexes will be non-managed.
+  "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
             global-eql-transform
