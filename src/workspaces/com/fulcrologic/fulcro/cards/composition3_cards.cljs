@@ -10,7 +10,8 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.alpha.raw-components3 :as raw]
+    [com.fulcrologic.fulcro.alpha.raw-components3 :as rc3]
+    [com.fulcrologic.fulcro.alpha.raw :as raw]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
     [com.fulcrologic.fulcro.mutations :as m]
@@ -114,7 +115,7 @@
 
 ;; Important to use the right factory. This one establishes the stuff you need for nested Fulcro stuff to work
 ;; according to the book.
-(def raw-counter (raw/factory Counter {:keyfn :counter/id}))
+(def raw-counter (rc3/factory Counter {:keyfn :counter/id}))
 
 (m/defmutation toggle [{:item/keys [id]}]
   (action [{:keys [state]}]
@@ -123,7 +124,7 @@
 ;; A raw hooks component that uses a Fulcro sub-tree. See docstring on use-fulcro.
 (defn Top [props]
   (raw/with-fulcro raw-app
-    (let [counter (raw/use-component raw-app Counter {:initial-state-params {:id 1 :n 42} :keep-existing? true})]
+    (let [counter (rc3/use-component raw-app Counter {:initial-state-params {:id 1 :n 42} :keep-existing? true})]
       (div
         (raw-counter counter)))))
 
@@ -151,7 +152,7 @@
                    :onClick (fn [] (set-tab! :settings))} "Settings"))))
 
 (defn UserForm [_js-props]
-  (let [{:user/keys [id name settings] :as u} (raw/use-root raw-app :current-user User {})]
+  (let [{:user/keys [id name settings] :as u} (rc3/use-root raw-app :current-user User {})]
     (div :.ui.segment
       (h2 "User")
       (div :.ui.form
@@ -169,7 +170,7 @@
   (remote [_] (m/returning _ (raw/nc [:settings/id :settings/marketing?]))))
 
 (defn SettingsForm [_js-props]
-  (let [{:user/keys [settings]} (raw/use-root raw-app :current-user User {})
+  (let [{:user/keys [settings]} (rc3/use-root raw-app :current-user User {})
         {:settings/keys [id marketing?]} settings]
     (div :.ui.segment
       (h2 "Settings")
@@ -187,7 +188,7 @@
 (defn RawReactWithFulcroIO [_]
   (raw/with-fulcro raw-app
     (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User)))
-    (let [{:menu/keys [current-tab] :as menu-props} (raw/use-root raw-app :root/menu
+    (let [{:menu/keys [current-tab] :as menu-props} (rc3/use-root raw-app :root/menu
                                                       (raw/nc [:component/id :menu/current-tab]
                                                         {:initial-state (fn [_] {:component/id ::menu :menu/current-tab :main})})
                                                       {:initialize? true})]

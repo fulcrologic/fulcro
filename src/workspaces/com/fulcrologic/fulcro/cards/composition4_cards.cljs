@@ -11,7 +11,8 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.alpha.raw-components3 :as raw]
+    [com.fulcrologic.fulcro.alpha.raw-components3 :as rc3]
+    [com.fulcrologic.fulcro.alpha.raw :as raw]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
     [com.fulcrologic.fulcro.mutations :as m]
@@ -86,7 +87,7 @@
   nil)
 
 ;; For the UISM DEMO
-(defonce session-id (atom nil))                             ; pretend like we have server state to remember client
+(defonce session-id (atom 1000))                            ; pretend like we have server state to remember client
 
 (pc/defresolver account-resolver [_ {:account/keys [id]}]
   {::pc/input  #{:account/id}
@@ -192,7 +193,7 @@
   (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User {:post-mutation `initialize-form
                                                                     :marker        ::user})))
   (let [{:ui/keys   [saving?]
-         :user/keys [id name settings] :as u} (raw/use-root raw-app :current-user User {})
+         :user/keys [id name settings] :as u} (rc3/use-root raw-app :current-user User {})
         loading? (df/loading? (get-in u [df/marker-table ::user]))]
     (div :.ui.segment
       (h2 "Form")
@@ -256,11 +257,13 @@
     {::uism/events
      (merge global-events
        {:event/done       {::uism/handler
-                           (fn [env]
-                             (let [id (uism/actor-value env :actor/current-account :account/id)]
+                           (fn [{::uism/keys [state-map] :as env}]
+                             (let [id (log/spy :info (some-> state-map :current-session second))]
                                (cond-> env
-                                 (pos-int? id) (uism/activate :state/logged-in)
-                                 :else (uism/activate :state/gathering-credentials))))}
+                                 (pos-int? id) (->
+                                                 (uism/reset-actor-ident :actor/current-account [:account/id id])
+                                                 (uism/activate :state/logged-in))
+                                 (not (pos-int? id)) (uism/activate :state/gathering-credentials))))}
         :event/post-login {::uism/handler
                            (fn [{::uism/keys [state-map] :as env}]
                              (let [session-ident (get state-map :current-session)
@@ -296,6 +299,7 @@
                        (fn [env]
                          (let [Session (uism/actor-class env :actor/current-account)]
                            (-> env
+                             (uism/apply-action assoc :account/id {:none {}})
                              (uism/assoc-aliased :email "" :password "" :failed? false)
                              (uism/reset-actor-ident :actor/current-account (uism/with-actor-class [:account/id :none] Session))
                              (uism/trigger-remote-mutation :actor/current-account `logout {})
@@ -323,16 +327,15 @@
 (defn RootUISMSessions [_]
   (let [{:actor/keys [login-form current-account]
          :keys       [active-state]
-         :as         actors} (raw/use-uism raw-app session-machine :sessions {})]
-    (log/info "Actor content" (with-out-str (pprint actors)))
+         :as         sm} (rc3/use-uism raw-app session-machine :sessions {})]
+    (log/info "UISM content" (with-out-str (pprint sm)))
     ;; TODO: Not done yet...didn't have time to finish refining, but it looks like it'll work
     (case active-state
       :state/logged-in (div :.ui.segment
                          (dom/p {} (str "Hi," (:account/email current-account)))
                          (button :.ui.red.button {:onClick #(uism/trigger! raw-app :sessions :event/logout)} "Logout"))
       (:state/checking-session :state/gathering-credentials) (ui-login-form login-form (= :state/checking-session active-state))
-      (div (str active-state)))
-    ))
+      (div (str active-state)))))
 
 (ws/defcard raw-uism-card
   {::wsm/align {:flex 1}}
