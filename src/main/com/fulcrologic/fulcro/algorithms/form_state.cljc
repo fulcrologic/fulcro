@@ -33,7 +33,7 @@
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
+    [com.fulcrologic.fulcro.raw.components :as rc]))
 
 (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 
@@ -50,8 +50,8 @@
 (>defn get-form-fields
   "Returns the set of defined form fields for the given component class (or instance)."
   [class]
-  [comp/component-class? => (s/nilable ::fields)]
-  (comp/component-options class :form-fields))
+  [rc/component-class? => (s/nilable ::fields)]
+  (rc/component-options class :form-fields))
 
 (>defn form-id
   "Returns the form database table ID for the given entity ident."
@@ -60,20 +60,18 @@
   {:table (first entity-ident)
    :row   (second entity-ident)})
 
-(defsc FormConfig
-  "A component supporting normalization of form state configuration. Use Fulcro Inspect for viewing that data.
-  Rendering isn't supported on this component so it will work with React Native.
-  Can also render the form config, if that is useful to you."
-  [this {:keys [::id ::complete? ::fields ::subforms ::pristine-state]}]
-  {:query [::id ::fields ::complete? ::subforms ::pristine-state]
-   :ident (fn []
-            [::forms-by-ident {:table (first id)
-                               :row   (second id)}])})
+(def FormConfig
+  "A normalizing component supporting normalization of form state configuration. Not really for direct use."
+  (rc/nc [::id ::fields ::complete? ::subforms ::pristine-state]
+    {:componentName ::FormConfig
+     :ident         (fn [_ {::keys [id]}]
+                      [::forms-by-ident {:table (first id)
+                                         :row   (second id)}])}))
 
 (def form-config-join
   "A query join to ::form-config. This should be added to the query of a component that is
   using form state support."
-  {::config (comp/get-query FormConfig)})
+  {::config (rc/get-query FormConfig)})
 
 (>defn form-config
   "Generate a form config given:
@@ -94,7 +92,7 @@
 
 (defn- derive-form-info [class]
   (let [query-nodes         (some-> class
-                              (comp/get-query)
+                              (rc/get-query)
                               (eql/query->ast)
                               :children)
         query-nodes-by-key  (into {}
@@ -113,10 +111,10 @@
                               (map (fn [k] [k (with-meta {} {:component (join-component k)})]))
                               subform-keys)]
     (when (and has-fields? (not queries-for-config?))
-      (throw (ex-info (str "Attempt to add form configuration to " (comp/component-name class) ", but it does not query for config!")
+      (throw (ex-info (str "Attempt to add form configuration to " (rc/component-name class) ", but it does not query for config!")
                {:offending-component class})))
     (when (and (not has-fields?) queries-for-config?)
-      (throw (ex-info (str "Attempt to add form configuration to " (comp/component-name class) ", but it does not declare any fields!")
+      (throw (ex-info (str "Attempt to add form configuration to " (rc/component-name class) ", but it does not declare any fields!")
                {:offending-component class})))
     [fields subforms subform-keys]))
 
@@ -133,15 +131,15 @@
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   ([class entity]
-   [comp/component-class? map? => map?]
+   [rc/component-class? map? => map?]
    (add-form-config class entity {}))
   ([class entity {:keys [destructive?] :as opts}]
-   [comp/component-class? map? map? => map?]
+   [rc/component-class? map? map? => map?]
    (let [[fields subform-classmap subform-keys] (derive-form-info class)
          local-entity (if (or (not (contains? entity ::config)) destructive?)
                         (let [pristine-state (select-keys entity fields)
                               subform-ident  (fn [k entity] (some-> (get subform-classmap k) meta
-                                                              :component (comp/get-ident entity)))
+                                                              :component (rc/get-ident entity)))
                               subform-keys   (-> subform-classmap keys set)
                               subform-refs   (reduce
                                                (fn [refs k]
@@ -155,7 +153,7 @@
                                                {}
                                                subform-keys)
                               pristine-state (merge pristine-state subform-refs)
-                              config         {::id             (comp/get-ident class entity)
+                              config         {::id             (rc/get-ident class entity)
                                               ::fields         fields
                                               ::pristine-state pristine-state
                                               ::subforms       (or subform-classmap {})}]
@@ -164,7 +162,7 @@
      (reduce
        (fn [resulting-entity k]
          (let [c           (some-> subform-classmap (get k) meta :component)
-               has-fields? (boolean (seq (comp/component-options c :form-fields)))
+               has-fields? (boolean (seq (rc/component-options c :form-fields)))
                child       (get resulting-entity k)]
            (try
              (cond
@@ -172,7 +170,7 @@
                (and c has-fields? child) (assoc resulting-entity k (add-form-config c child opts))
                :else resulting-entity)
              (catch #?(:clj Exception :cljs :default) e
-               (throw (ex-info (str "Subform " (comp/component-name c) " of " (comp/component-name class) " failed to initialize.")
+               (throw (ex-info (str "Subform " (rc/component-name c) " of " (rc/component-name class) " failed to initialize.")
                         {:nested-exception e}))))))
        local-entity
        subform-keys))))
@@ -191,10 +189,10 @@
 
   Returns an updated state map with normalized form configuration in place for the entity."
   ([state-map class entity-ident]
-   [map? comp/component-class? eql/ident? => map?]
+   [map? rc/component-class? eql/ident? => map?]
    (add-form-config* state-map class entity-ident {}))
   ([state-map class entity-ident {:keys [destructive?] :as opts}]
-   [map? comp/component-class? eql/ident? map? => map?]
+   [map? rc/component-class? eql/ident? map? => map?]
    (let [[fields subform-classmap subform-keys] (derive-form-info class)
          entity            (get-in state-map entity-ident)
          updated-state-map (if (or destructive? (not (contains? entity ::config)))
@@ -224,7 +222,7 @@
 
                  :else smap)
                (catch #?(:clj Exception :cljs :default) e
-                 (throw (ex-info (str "Subform " (comp/component-name subform-class) " of " (comp/component-name class) " failed to initialize.")
+                 (throw (ex-info (str "Subform " (rc/component-name subform-class) " of " (rc/component-name class) " failed to initialize.")
                           {:nested-exception e}))))))
          updated-state-map
          subform-keys)))))
@@ -459,7 +457,7 @@
    [map? boolean? map? => map?]
    (let [{:keys [::id ::fields ::pristine-state ::subforms] :as config} (get ui-entity ::config)
          subform-keys       (-> subforms keys set)
-         subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (comp/get-ident entity)))
+         subform-ident      (fn [k entity] (some-> (get subforms k) meta :component (rc/get-ident entity)))
          new-entity?        (or new-entity? (tempid/tempid? (second id)))
          delta              (into {} (keep (fn [k]
                                              (let [before (get pristine-state k)
@@ -660,3 +658,56 @@
   (-> state-map
     (mark-complete* form-ident)
     (fns/ui->props form-class form-ident)))
+
+(defn- normalize-form* [{:keys [children type] :as original-node} top-component-options]
+  (let [detected-id-key (or (rc/ast-id-key children) (throw (ex-info "Query must have an ID field for normalization detection" {:query (eql/ast->query original-node)})))
+        _               detected-id-key
+        form-fields     (into #{}
+                          (comp
+                            (map :key)
+                            (filter #(and
+                                       (not (vector? %))
+                                       (not= "ui" (namespace %))
+                                       (not= % detected-id-key))))
+                          children)
+        children        (conj children (eql/expr->ast form-config-join))
+        component       (fn [& args])
+        new-children    (mapv
+                          (fn [{:keys [type] :as node}]
+                            (if (and (= type :join) (not (:component node)))
+                              (normalize-form* node {})
+                              node))
+                          children)
+        updated-node    (assoc original-node :children new-children :component component)
+        query           (if (= type :join)
+                          (eql/ast->query (assoc updated-node :type :root))
+                          (eql/ast->query updated-node))
+        _               (rc/configure-anonymous-component! component (cond-> (with-meta
+                                                                                 (merge
+                                                                                   {:initial-state (fn [& args] {})}
+                                                                                   top-component-options
+                                                                                   {:query       (fn [& args] query)
+                                                                                    :ident       (fn [_ props] [detected-id-key (get props detected-id-key)])
+                                                                                    :form-fields form-fields
+                                                                                    "props"      {"fulcro$queryid" :anonymous}})
+                                                                                 {:query-id :anonymous})))]
+    updated-node))
+
+(defn formc
+  "Create an anonymous normalizing form component from EQL. Every level of the query MUST
+   have an `:<???>/id` field which is used to build the ident, and every non-id attribute will be considered part
+   of the form except:
+
+   * Props in the namespace `ui` like `:ui/checked?`
+   * Idents list `[:component/id :thing]`
+   * Root links like `[:root/key '_]`
+
+   This function also auto-adds the necessary form-state form join, and populates the anonymous component with the
+   `:form-fields` option. You can add additional component options to the top-level anonymous component with
+   `top-component-options`.
+
+   See also `nc`, which is similar but does not autogenerate form-related add-ins."
+  ([EQL] (formc EQL {}))
+  ([EQL top-component-options]
+   (let [ast (eql/query->ast EQL)]
+     (:component (normalize-form* ast top-component-options)))))

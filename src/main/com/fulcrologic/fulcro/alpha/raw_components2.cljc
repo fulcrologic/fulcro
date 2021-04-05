@@ -47,6 +47,7 @@
   (:require
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -229,7 +230,7 @@
      [app & body]
      `(binding [comp/*app*    ~app
                 comp/*depth*  0
-                comp/*shared* (comp/shared ~app)
+                rc/*shared* (comp/shared ~app)
                 comp/*parent* nil]
         ~@body)))
 

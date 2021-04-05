@@ -14,7 +14,6 @@
     [clojure.zip :as zip]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
@@ -219,14 +218,13 @@
 (defn current-route-class
   "Get the class of the component that is currently being routed to."
   [this]
-  (let [state-map (comp/component->state-map this)
+  (let [state-map (app/current-state (comp/any->app this))
         class     (some->> (comp/get-query this state-map) eql/query->ast :children
                     (filter #(= ::current-route (:key %))) first :component)
         ;; Hot code reload support to avoid getting the cached class from old metadata
         class     (if #?(:cljs goog.DEBUG :clj false)
                     (-> class comp/class->registry-key comp/registry-key->class)
                     class)]
-
     class))
 
 (defn route-target

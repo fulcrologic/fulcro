@@ -217,9 +217,7 @@
 
 (def ui-user-form (interop/react-factory UserForm))
 
-(defn RawReactWithFulcroIO [_]
-  (raw/with-fulcro raw-app
-    (ui-user-form)))
+(defn RawReactWithFulcroIO [_] (ui-user-form))
 
 (ws/defcard fulcro-io-composed-in-raw-react
   {::wsm/align {:flex 1}}

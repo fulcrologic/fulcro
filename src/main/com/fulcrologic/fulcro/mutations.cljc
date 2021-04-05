@@ -43,7 +43,7 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.mutations))
   (:require
     #?(:clj [cljs.analyzer :as ana])
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.dom.events :as evt]
     [com.fulcrologic.guardrails.core :refer [>def >defn =>]]
     [edn-query-language.core :as eql]
@@ -60,7 +60,7 @@
      (:import (clojure.lang IFn))))
 
 (>def ::env (s/keys :req-un [:com.fulcrologic.fulcro.application/app]))
-(>def ::returning comp/component-class?)
+(>def ::returning rc/component-class?)
 
 #?(:clj
    (deftype Mutation [sym]
@@ -250,24 +250,24 @@
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on
   UI-related data (e.g. form checkbox checked status) and write clear top-level transactions for anything more complicated."
   [comp field]
-  (comp/transact! comp `[(toggle {:field ~field})] {:compressible? true}))
+  (rc/transact! comp `[(toggle {:field ~field})] {:compressible? true}))
 
 (defn toggle!!
   "Like toggle!, but synchronously refreshes `comp` and nothing else."
   [comp field]
-  (comp/transact!! comp `[(toggle {:field ~field})] {:compressible? true}))
+  (rc/transact!! comp `[(toggle {:field ~field})] {:compressible? true}))
 
 (defn set-value!
   "Set a raw value on the given `field` of a `component`. It is recommended you use this function only on
   UI-related data (e.g. form inputs that are used by the UI, and not persisted data). Changes made via these
   helpers are compressed in the history."
   [component field value]
-  (comp/transact! component `[(set-props ~{field value})] {:compressible? true}))
+  (rc/transact! component `[(set-props ~{field value})] {:compressible? true}))
 
 (defn set-value!!
   "Just like set-value!, but synchronously updates `component` and nothing else."
   [component field value]
-  (comp/transact!! component `[(set-props ~{field value})] {:compressible? true}))
+  (rc/transact!! component `[(set-props ~{field value})] {:compressible? true}))
 
 #?(:cljs
    (defn- ensure-integer
@@ -356,11 +356,11 @@
   Returns an update `env`, and is a valid return value from mutation remote sections."
   [env class]
   (let [class (if (or (keyword? class) (symbol? class))
-                (comp/registry-key->class class)
+                (rc/registry-key->class class)
                 class)]
     (let [{:keys [state ast]} env
           {:keys [key params query]} ast]
-      (let [updated-query (cond-> (comp/get-query class @state)
+      (let [updated-query (cond-> (rc/get-query class @state)
                             query (vary-meta #(merge (meta query) %)))]
         (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}]))))))
 
@@ -437,7 +437,7 @@
                                       (into acc
                                         (if action?
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
-                                                                            (binding [comp/*after-render* true]
+                                                                            (binding [rc/*after-render* true]
                                                                               ~@handler-body)
                                                                             nil)]
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
@@ -450,7 +450,7 @@
                             `{~(first handlers) ~@(rest handlers)}
                             `{~(first handlers) ~@(rest handlers)
                               :result-action    (fn [~'env]
-                                                  (binding [comp/*after-render* true]
+                                                  (binding [rc/*after-render* true]
                                                     (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                                       (~'default-action ~'env))))})
            doc            (or doc "")

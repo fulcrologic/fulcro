@@ -7,6 +7,8 @@
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
     [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.mutations :as m]
@@ -437,11 +439,11 @@
                                                                     mutation-2-descriptor])]
       (behavior "Walks the list of queued mutations in env"
         (when-mocking!
-          (comp/transact! comp tx options)
+          (rc/transact! comp tx options)
           =1x=> (assertions
                   "Calls transact with the (1st) mutation delegate and the mutation descriptor "
                   tx => `[(uism/mutation-delegate ~mutation-1-descriptor)])
-          (comp/transact! comp tx options)
+          (rc/transact! comp tx options)
           =1x=> (assertions
                   "Calls transact with the (2nd) mutation delegate and the mutation descriptor "
                   tx => `[(uism/mutation-delegate ~mutation-2-descriptor)])
@@ -473,7 +475,7 @@
   (specification "handle-load-error*"
     (behavior "When there is an error event in the original load request (post mutation params)"
       (when-mocking
-        (comp/transact! r tx) => (let [{:keys [params]} (-> tx eql/query->ast1)
+        (rc/transact! r tx) => (let [{:keys [params]} (-> tx eql/query->ast1)
                                        {::uism/keys [event-id event-data asm-id]} params]
                                    (assertions
                                      "it triggers that event with the error data"
@@ -485,7 +487,7 @@
                                                                              ::uism/error-data  {:y 1}}})))
     (behavior "When the error event is not present in the original load request (post mutation params)"
       (when-mocking
-        (comp/transact! r tx) => (let [{:keys [params]} (-> tx eql/query->ast1)
+        (rc/transact! r tx) => (let [{:keys [params]} (-> tx eql/query->ast1)
                                        {::uism/keys [event-id event-data asm-id]} params]
                                    (assertions
                                      "it triggers ::uism/load-error"
@@ -604,7 +606,7 @@
                                                                   (= mutation-env menv) => true
                                                                   p => trigger)
                                                                 [[:table 1]])
-        (app/schedule-render! app options) => (assertions
+        (rapp/schedule-render! app options) => (assertions
                                                 "Queues the actors for UI refresh"
                                                 (nil? app) => false)
 
@@ -758,7 +760,7 @@
                                                             (::uism/event-id p) => ::uism/started
                                                             (::uism/asm-id p) => :fake)
                                                           [[:A 1]])
-          (app/schedule-render! app) => (assertions
+          (rapp/schedule-render! app) => (assertions
                                           "Updates the UI"
                                           (nil? app) => false)
 
@@ -770,7 +772,7 @@
     #?(:cljs
        (component "(the wrapper function begin!)"
          (when-mocking
-           (comp/transact! t tx) => (assertions
+           (rc/transact! t tx) => (assertions
                                       "runs fulcro transact on the begin mutation"
                                       (ffirst tx) => `uism/begin)
 

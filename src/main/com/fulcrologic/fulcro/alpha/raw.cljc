@@ -1,11 +1,10 @@
 (ns com.fulcrologic.fulcro.alpha.raw
-  #?(:cljs (:require-macros [com.fulcrologic.fulcro.alpha.raw :refer [with-fulcro]]))
   (:require
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.application :as app]
+    [com.fulcrologic.fulcro.raw.components :as comp]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
@@ -43,15 +42,15 @@
         query           (if (= type :join)
                           (eql/ast->query (assoc updated-node :type :root))
                           (eql/ast->query updated-node))
-        _               (comp/add-hook-options! component (cond-> (with-meta
-                                                                    (merge
-                                                                      {:initial-state (fn [& args] {})}
-                                                                      top-component-options
-                                                                      {:query  (fn [& args] query)
-                                                                       "props" {"fulcro$queryid" :anonymous}})
-                                                                    {:query-id :anonymous})
-                                                            componentName (assoc :componentName componentName)
-                                                            real-id-key (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))]
+        _               (comp/configure-anonymous-component! component (cond-> (with-meta
+                                                                                 (merge
+                                                                                   {:initial-state (fn [& args] {})}
+                                                                                   top-component-options
+                                                                                   {:query  (fn [& args] query)
+                                                                                    "props" {"fulcro$queryid" :anonymous}})
+                                                                                 {:query-id :anonymous})
+                                                                         componentName (assoc :componentName componentName)
+                                                                         real-id-key (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))]
     updated-node))
 
 (defn nc
@@ -113,15 +112,15 @@
         query           (if (= type :join)
                           (eql/ast->query (assoc updated-node :type :root))
                           (eql/ast->query updated-node))
-        _               (comp/add-hook-options! component (cond-> (with-meta
-                                                                    (merge
-                                                                      {:initial-state (fn [& args] {})}
-                                                                      top-component-options
-                                                                      {:query       (fn [& args] query)
-                                                                       :ident       (fn [_ props] [detected-id-key (get props detected-id-key)])
-                                                                       :form-fields form-fields
-                                                                       "props"      {"fulcro$queryid" :anonymous}})
-                                                                    {:query-id :anonymous})))]
+        _               (comp/configure-anonymous-component! component (cond-> (with-meta
+                                                                                 (merge
+                                                                                   {:initial-state (fn [& args] {})}
+                                                                                   top-component-options
+                                                                                   {:query       (fn [& args] query)
+                                                                                    :ident       (fn [_ props] [detected-id-key (get props detected-id-key)])
+                                                                                    :form-fields form-fields
+                                                                                    "props"      {"fulcro$queryid" :anonymous}})
+                                                                                 {:query-id :anonymous})))]
     updated-node))
 
 (defn formc
@@ -243,27 +242,4 @@
       (do
         (comp/transact!! app `[(m/set-props ~{k new-value})] {:ref ident})))))
 
-#?(:clj
-   (defmacro with-fulcro
-     "Wraps the given body with the correct internal bindings so that Fulcro internals
-     will work when that body is not rendered by Fulcro (e.g. async render from controlling component, rendered by
-     non-Fulcro parent.
-     "
-     [app & body]
-     `(binding [comp/*app*    ~app
-                comp/*depth*  0
-                comp/*shared* (comp/shared ~app)
-                comp/*parent* nil]
-        ~@body)))
 
-(defn ^:export using-fulcro
-  "Runs `callback` immediately, but within the context of a Fulcro app. Use this from js to get the same effect as
-   `with-fulcro`:
-
-   ```
-   using_fulcro(fulcroapp, () => <div>...</div>);
-   ```
-   "
-  [app callback]
-  (with-fulcro app
-    (callback)))

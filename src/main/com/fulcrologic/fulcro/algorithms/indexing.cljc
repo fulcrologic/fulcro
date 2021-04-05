@@ -4,7 +4,7 @@
    like targeted refresh. You are allowed to use the indexes to find components for whatever
    purpose suits your needs (e.g. looking at component options)."
   (:require
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
@@ -18,7 +18,7 @@
   [prop->classes {parent-component :component
                   parent-children  :children
                   :as              ast}]
-  (let [parent-key      (comp/class->registry-key parent-component)
+  (let [parent-key      (rc/class->registry-key parent-component)
         parent-children (seq parent-children)
         update-index    (fn [idx k c] (update idx k (fnil conj #{}) c))]
     (if parent-children
@@ -62,7 +62,7 @@
   (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} app
         {:com.fulcrologic.fulcro.application/keys [root-class]} @runtime-atom
         state-map       @state-atom
-        root-query      (comp/get-query root-class state-map)
+        root-query      (rc/get-query root-class state-map)
         ast             (eql/query->ast root-query)
         prop->classes   (index-query root-query)
         idents-in-joins (into #{} (filter eql/ident?) (keys prop->classes))
@@ -76,7 +76,7 @@
                             (assoc-in [:com.fulcrologic.fulcro.application/indexes :prop->classes] prop->classes))))))
 
 (defn- index-component* [runtime-state instance ident cls]
-  (let [k (comp/class->registry-key cls)]
+  (let [k (rc/class->registry-key cls)]
     (cond-> runtime-state
       k (update-in
           [:com.fulcrologic.fulcro.application/indexes :class->components k]
@@ -91,23 +91,23 @@
   "Add a component instance to the app index. This adds the component to the `class->components` and
    `ident->components` indexes."
   [this]
-  (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
-        get-ident (comp/component-options this :ident)]
-    (let [cls   (comp/react-type this)
-          props (comp/props this)
+  (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (rc/any->app this)
+        get-ident (rc/component-options this :ident)]
+    (let [cls   (rc/component-type this)
+          props (rc/props this)
           ident (when get-ident (get-ident this props))]
       (when #?(:cljs goog.DEBUG :clj true)
         (when (and ident (not (eql/ident? ident)))
-          (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident "using props" props))
+          (log/error "Component" (rc/component-name this) "supplied an invalid ident" ident "using props" props))
         (when (and ident (nil? (second ident)))
           (log/info
-            (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
+            (str "component " (rc/component-name this) "'s ident (" ident ") has a `nil` second element."
               " This warning can be safely ignored if that is intended.") "Props were" props)))
       (swap! runtime-atom index-component* this ident cls))))
 
 (defn- drop-component*
   [runtime-state instance ident cls]
-  (let [k (comp/class->registry-key cls)]
+  (let [k (rc/class->registry-key cls)]
     (cond-> (update-in runtime-state [:com.fulcrologic.fulcro.application/indexes :class->components k]
               disj instance)
       ident (update-in
@@ -119,14 +119,14 @@
   "Remove the component instance from the indexes. If ident is supplied it uses that, otherwise it gets the
   ident from the component itself."
   ([this ident]
-   (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (comp/any->app this)
-         cls (comp/react-type this)]
+   (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (rc/any->app this)
+         cls (rc/component-type this)]
      (when (and #?(:cljs goog.DEBUG :clj true) ident)
-       (log/debug "Dropping component from index" (comp/component-name cls) ident))
+       (log/debug "Dropping component from index" (rc/component-name cls) ident))
      (when ident
        (swap! runtime-atom drop-component* this ident cls))))
   ([this]
-   (let [old-ident (comp/get-ident this)]
+   (let [old-ident (rc/get-ident this)]
      (drop-component! this old-ident))))
 
 (defmutation reindex

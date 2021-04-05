@@ -1,9 +1,9 @@
 (ns com.fulcrologic.fulcro.algorithms.denormalize
   "The algorithm and support functions for converting a normalized Fulcro database to a tree of denormalized props."
   (:require
-    [taoensso.timbre :as log]
     [clojure.set :as set]
-    [edn-query-language.core :as eql]))
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]))
 
 (def ^:dynamic *denormalize-time* 0)
 

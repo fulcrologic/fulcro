@@ -7,6 +7,7 @@
     [clojure.pprint :refer [pprint]]
     [com.fulcrologic.fulcro.algorithms.tempid :refer [uuid]]
     [com.fulcrologic.guardrails.core :refer [>defn =>]]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
@@ -735,7 +736,7 @@
 
   (behavior "When the handler is missing (ignored result)"
     (when-mocking
-      (app/schedule-render! a) => nil
+      (rapp/schedule-render! a) => nil
 
       (let [app         (mock-app)
             tx-node     (-> (txn/tx-node `[(f {})])
@@ -894,7 +895,7 @@
                                            "Processes each node through process-tx-node!"
                                            (::txn/id n) => (uuid 2))
                                          nil)
-      (app/schedule-render! a) => nil
+      (rapp/schedule-render! a) => nil
 
       (let [{::app/keys [state-atom runtime-atom] :as app} (mock-app)
             active-queue [(assoc (txn/tx-node `[(f {})]) ::txn/id (uuid 1))

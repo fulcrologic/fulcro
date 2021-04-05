@@ -1,70 +1,63 @@
-(ns com.fulcrologic.fulcro.application
+(ns com.fulcrologic.fulcro.raw.application
   (:require
-    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
+    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
-    [com.fulcrologic.fulcro.raw.application :as rapp]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
-    com.fulcrologic.fulcro.specs
-    [com.fulcrologic.guardrails.core :refer [>defn => | ?]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.mutations :as mut]
+    [com.fulcrologic.fulcro.raw.components :as comp]
+    [edn-query-language.core :as eql]
     #?@(:cljs [[goog.object :as gobj]
                [goog.functions :refer [debounce]]
                [goog.dom :as gdom]])
-    [taoensso.encore :as enc]
     [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
 
-(>defn basis-t
+(defn basis-t
   "Return the current basis time of the app."
   [app]
-  [::app => pos-int?]
-  (rapp/basis-t app))
+  (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/basis-t))
 
-(>defn current-state
+(defn current-state
   "Get the current value of the application state database. If called without arguments it will attempt to find the app
    in the dynamically-bound comp/*app*, which is bound during render."
-  ([app-or-component]
-   [any? => map?]
-   (rapp/current-state app-or-component))
-  ([]
-   [=> (? map?)]
-   (some-> comp/*app* ::state-atom deref)))
+  [app-or-component]
+  (let [app (comp/any->app app-or-component)]
+    (-> app :com.fulcrologic.fulcro.application/state-atom deref)))
 
-(>defn tick!
+(defn tick!
   "Move the basis-t forward one tick. For internal use in internal algorithms. Fulcro
   uses this to add metadata to props so it can detect the newer of two version of props."
   [app]
-  [::app => any?]
-  (rapp/tick! app))
+  (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/basis-t inc))
 
-(>defn update-shared!
+(defn update-shared!
   "Force shared props to be recalculated. This updates the shared props on the app, and future renders will see the
    updated values. This is a no-op if no shared-fn is defined on the app. If you're using React 16+ consider using
    Context instead of shared."
-  [{::keys [runtime-atom] :as app}]
-  [::app => any?]
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}]
   (try
     (if-let [shared-fn (ah/app-algorithm app :shared-fn)]
-      (let [shared       (-> app ::runtime-atom deref ::static-shared-props)
+      (let [shared       (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/static-shared-props)
             state        (current-state app)
-            root-class   (-> app ::runtime-atom deref ::root-class)
+            root-class   (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/root-class)
             query        (comp/get-query root-class state)
             v            (fdn/db->tree query state state)
             shared-props (merge shared (shared-fn v))]
-        (swap! runtime-atom assoc ::shared-props shared-props))
-      (swap! runtime-atom assoc ::shared-props (-> app ::runtime-atom deref ::static-shared-props)))
+        (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/shared-props shared-props))
+      (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/shared-props (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/static-shared-props)))
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 
-(>defn root-props-changed?
+(defn root-props-changed?
   "Returns true if the props queries directly by the root component of the app (if mounted) have changed since the last
   render.  This is a shallow analysis such that, for example, a join from root (in a normalized db) will be checked as a difference
   of idents that the root prop points to.  This can be used for determining if things like shared-fn need to be re-run,
@@ -73,21 +66,18 @@
   This is a naivé algorithm that is essentially `select-keys` on the root props. It does not interpret the query in
   any way."
   [app]
-  [::app => boolean?]
-  (let [{::keys [runtime-atom state-atom]} app
-        {::keys [root-class indexes]} @runtime-atom]
+  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
+        {:com.fulcrologic.fulcro.application/keys [root-class indexes]} @runtime-atom]
     (if-not (comp/get-query root-class @state-atom)
       true
       (let [state-map       @state-atom
-            prior-state-map (-> runtime-atom deref ::last-rendered-state)
+            prior-state-map (-> runtime-atom deref :com.fulcrologic.fulcro.application/last-rendered-state)
             root-props      (:root-props indexes)
             root-old        (select-keys prior-state-map root-props)
             root-new        (select-keys state-map root-props)]
         (not= root-old root-new)))))
 
-(declare schedule-render! mounted?)
-
-(def render!
+(defn render!
   "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
 
   This is the central processing for render and cannot be overridden. `schedule-render!` will always invoke
@@ -99,21 +89,47 @@
   - anything your selected rendering optization system allows.  Shared props are updated via `shared-fn`
   only on `force-root?` and when (shallow) root props change.
   "
-  rapp/render!)
+  ([app]
+   (render! app {:force-root? false}))
+  ([app {:keys [force-root?] :as options}]
+   (tick! app)
+   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
+         {:com.fulcrologic.fulcro.application/keys [root-class]} (some-> runtime-atom deref)]
+     (when root-class
+       (let [core-render!        (ah/app-algorithm app :core-render!)
+             root-props-changed? (root-props-changed? app)]
+         (when (or force-root? root-props-changed?)
+           (update-shared! app))
+         (when core-render!
+           (core-render! app (merge options {:root-props-changed? root-props-changed?})))
+         (swap! runtime-atom assoc
+           :com.fulcrologic.fulcro.application/last-rendered-state @state-atom
+           :com.fulcrologic.fulcro.application/only-refresh #{}
+           :com.fulcrologic.fulcro.application/to-refresh #{})))
+     (doseq [render-listener (-> runtime-atom deref :com.fulcrologic.fulcro.application/render-listeners vals)]
+       (try
+         (render-listener app options)
+         (catch #?(:clj Exception :cljs :default) e
+           (log/error e "Render listener failed.")))))))
 
-(def schedule-render!
-  "
-  [app] [app options]
+(let [go! #?(:cljs (debounce (fn [app options]
+                               (sched/schedule-animation! app :com.fulcrologic.fulcro.application/render-scheduled? #(render! app options))) 16)
+             :clj (fn [app options]
+                    (sched/schedule-animation! app :com.fulcrologic.fulcro.application/render-scheduled? #(render! app options))))]
+  (defn schedule-render!
+    "Schedule a render on the next animation frame."
+    ([app]
+     (schedule-render! app {:force-root? false}))
+    ([app options]
+     (go! app options))))
 
-  Schedule a render on the next animation frame."
-  rapp/schedule-render!)
-
-(def default-remote-error?
+(defn default-remote-error?
   "Default detection of network errors. Returns true if the status-code of the given result
   map is not 200."
-  rapp/default-remote-error?)
+  [{:keys [status-code]}]
+  (not= 200 status-code))
 
-(def default-global-eql-transform
+(defn default-global-eql-transform
   "The default query transform function.  It makes sure the following items on a component query
   are never sent to the server:
 
@@ -123,7 +139,22 @@
 
   Takes an AST and returns the modified AST.
   "
-  rapp/default-global-eql-transform)
+  [ast]
+  (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
+    (df/elide-ast-nodes ast (fn [k]
+                              (let [ns       (some-> k kw-namespace)
+                                    ident-ns (when (eql/ident? k) (some-> (first k) kw-namespace))]
+                                (or
+                                  (and
+                                    (string? ns)
+                                    (or
+                                      (= "ui" ns)
+                                      (str/starts-with? ns "com.fulcrologic.fulcro.")))
+                                  (and
+                                    (string? ident-ns)
+                                    (or
+                                      (= "ui" ident-ns)
+                                      (str/starts-with? ident-ns "com.fulcrologic.fulcro.")))))))))
 
 (defn initialize-state!
   "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
@@ -132,7 +163,7 @@
   [app root]
   (when #?(:clj true :cljs goog.DEBUG)
     (comp/check-component-registry!))
-  (let [initial-db   (-> app ::state-atom deref)
+  (let [initial-db   (-> app :com.fulcrologic.fulcro.application/state-atom deref)
         root-query   (comp/get-query root initial-db)
         _            (util/dev-check-query root-query comp/component-name)
         initial-tree (comp/get-initial-state root)
@@ -141,12 +172,14 @@
                          (merge/merge-alternate-union-elements root))
                        initial-tree)
         db           (util/deep-merge initial-db db-from-ui)]
-    (reset! (::state-atom app) db)))
+    (reset! (:com.fulcrologic.fulcro.application/state-atom app) db)))
 
 (def ^:deprecated default-tx! txn/default-tx!)
 
 (defn fulcro-app
   "Create a new Fulcro application.
+
+  This version creates an app that is not attached to React, and has no default root or optimized render.
 
   `options`: A map of initial options
 
@@ -190,8 +223,6 @@
      Developer's Guide
    * `:query-transform-default` - DEPRECATED. This will break things in unexpected ways. Prefer `:global-eql-transform`.
    * `:load-marker-default` - A default value to use for load markers. Defaults to false.
-   * `:core-render!` - A `(fn [app options])` that is mean to side-effect and render your application. Normally does
-     binding of React-based dynamic vars and calls `optimized-render!`.
    * `:render-root!` - The function to call in order to render the root of your application. Defaults
      to `js/ReactDOM.render`.
    * `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
@@ -209,7 +240,6 @@
             global-eql-transform
             global-error-action
             default-result-action!
-            core-render!
             optimized-render!
             render-root!
             hydrate-root!
@@ -229,161 +259,66 @@
             shared
             external-config
             shared-fn] :as options}]
-   (rapp/fulcro-app
-     (-> options
-       (assoc-in [::algorithms :com.fulcrologic.fulcro.algorithm/core-render!]
-         (or core-render!
-           (fn [app {:keys [root-props-changed?] :as options}]
-             (let [{::keys [runtime-atom]} app
-                   {::keys [root-class]} (some-> runtime-atom deref)]
-               (when root-class
-                 (let [optimized-render! (ah/app-algorithm app :optimized-render!)
-                       shared-props      (get @runtime-atom ::shared-props)]
-                   (binding [fdn/*denormalize-time* (basis-t app)
-                             comp/*app*             app
-                             rc/*shared*            shared-props
-                             comp/*depth*           0]
-                     (if optimized-render!
-                       (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
-                       (log/debug "Render skipped. No optimized render is configured.")))))))))
-       (assoc-in [::algorithms :com.fulcrologic.fulcro.algorithm/optimized-render!] (or optimized-render! mrr/render!))))))
+   (let [tx! (or submit-transaction! txn/default-tx!)]
+     {:com.fulcrologic.fulcro.application/id           (tempid/uuid)
+      :com.fulcrologic.fulcro.application/state-atom   (atom (or initial-db {}))
+      :com.fulcrologic.fulcro.application/config       {:load-marker-default     load-marker-default
+                                                        :client-did-mount        (or client-did-mount (:started-callback options))
+                                                        :client-will-mount       client-will-mount
+                                                        :external-config         external-config
+                                                        :query-transform-default query-transform-default
+                                                        :load-mutation           load-mutation}
+      :com.fulcrologic.fulcro.application/algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
+                                                        :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
+                                                        :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! identity)
+                                                        :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
+                                                        :com.fulcrologic.fulcro.algorithm/shared-fn              shared-fn
+                                                        :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
+                                                        :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
+                                                        :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
+                                                        :com.fulcrologic.fulcro.algorithm/render!                render!
+                                                        :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
+                                                        :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
+                                                        :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
+                                                        :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
+                                                        :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
+                                                        :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
+                                                        :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
+                                                        :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
+                                                        :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
+                                                        :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
+                                                        :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
+      :com.fulcrologic.fulcro.application/runtime-atom (atom
+                                                         {:com.fulcrologic.fulcro.application/app-root            nil
+                                                          :com.fulcrologic.fulcro.application/mount-node          nil
+                                                          :com.fulcrologic.fulcro.application/root-class          root-class
+                                                          :com.fulcrologic.fulcro.application/root-factory        nil
+                                                          :com.fulcrologic.fulcro.application/basis-t             1
+                                                          :com.fulcrologic.fulcro.application/last-rendered-state {}
 
-(>defn fulcro-app?
+                                                          :com.fulcrologic.fulcro.application/static-shared-props shared
+                                                          :com.fulcrologic.fulcro.application/shared-props        {}
+
+                                                          :com.fulcrologic.fulcro.application/remotes             (or remotes
+                                                                                                                    {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
+                                                                                                                                           (log/fatal "Remote requested, but no remote defined.")
+                                                                                                                                           (result-handler {:status-code 418 :body {}}))}})
+                                                          :com.fulcrologic.fulcro.application/indexes             {:ident->components {}}
+                                                          :com.fulcrologic.fulcro.application/mutate              mut/mutate
+                                                          :com.fulcrologic.fulcro.application/render-listeners    (cond-> {}
+                                                                                                                    (= tx! txn/default-tx!) (assoc ::txn/after-render txn/application-rendered!))
+                                                          ::txn/activation-scheduled?                             false
+                                                          ::txn/queue-processing-scheduled?                       false
+                                                          ::txn/sends-scheduled?                                  false
+                                                          ::txn/submission-queue                                  []
+                                                          ::txn/active-queue                                      []
+                                                          ::txn/send-queues                                       {}})})))
+
+(defn fulcro-app?
   "Returns true if the given `x` is a Fulcro application."
   [x]
-  [any? => boolean?]
-  (rapp/fulcro-app? x))
-
-(>defn mounted?
-  "Is the given app currently mounted on the DOM?"
-  [{:keys [::runtime-atom]}]
-  [::app => boolean?]
-  (-> runtime-atom deref ::app-root boolean))
-
-(defn set-root!
-  "Set a root class to use on the app. Doing so allows much of the API to work before mounting the app."
-  ([app root {:keys [initialize-state?]}]
-   (swap! (::runtime-atom app) assoc ::root-class root)
-   (when initialize-state?
-     (initialize-state! app root))))
-
-(defn mount!
-  "Mount the app.  If called on an already-mounted app this will have the effect of re-installing the root node so that
-  hot code reload will refresh the UI (useful for development).
-
-  - `app`  The Fulcro app
-  - `root`  The Root UI component
-  - `node` The (string) ID or DOM node on which to mount.
-  - `options` An optional map with additional mount options.
-
-
-  `options` can include:
-
-  - `:disable-client-did-mount?` (default false) - When false a true mount (as opposed to redundant) call of this function will
-  invoke the application's `:client-did-mount` callback.
-  - `:initialize-state?` (default true) - If NOT mounted already: Pulls the initial state tree from root component,
-  normalizes it, and installs it as the application's state.  If there was data supplied as an initial-db, then this
-  new initial state will be *merged* with that initial-db.
-  - `:hydrate?` (default false) - Indicates that the DOM will already contain content from the
-    server that should be attached instead of overwritten. See ReactDOM.hydrate.
-  "
-  ([app root node]
-   (mount! app root node {:initialize-state? true}))
-  ([app root node {:keys [initialize-state? hydrate? disable-client-did-mount?]}]
-   (if (comp/has-ident? root)
-     (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
-    are tempted to do things like `merge!` against Root then that component should *not* be considered Root: make another layer in your UI.")
-     (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
-           {:keys [client-did-mount client-will-mount]} (::config app)
-           reset-mountpoint! (fn []
-                               (let [dom-node     (if (string? node) #?(:cljs (gdom/getElement node)) node)
-                                     root-factory (comp/factory root)]
-                                 (if (nil? dom-node)
-                                   (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
-                                   (do
-                                     (swap! (::runtime-atom app) assoc
-                                       ::mount-node dom-node
-                                       ::root-factory root-factory
-                                       ::root-class root)
-                                     (update-shared! app)
-                                     (util/dev-check-query (comp/get-query root (current-state app)) comp/component-name)
-                                     (indexing/index-root! app) ; this may fail if query invalid
-                                     (render! app {:force-root? true
-                                                   :hydrate?    hydrate?})))))]
-       (if (mounted? app)
-         (reset-mountpoint!)
-         (do
-           (swap! (::state-atom app) #(merge {:fulcro.inspect.core/app-id (comp/component-name root)} %))
-           (set-root! app root {:initialize-state? initialize-state?})
-           (inspect/app-started! app)
-           (when (and client-will-mount (not disable-client-did-mount?))
-             (client-will-mount app))
-           (reset-mountpoint!)
-           (when (and client-did-mount (not disable-client-did-mount?))
-             (when-not disable-client-did-mount?
-               (client-did-mount app)))))))))
-
-(defn unmount!
-  "Removes the app from its mount point. If you want to re-mount a running app, then you should pass
-   `:initialize-state? false` when you re-mount it and also consider the `:disable-client-did-mount?` option."
-  [app]
-  (enc/if-let [unmount (or (ah/app-algorithm app :unmount-root!) #?(:cljs (some-> js/ReactDOM .-unmountComponentAtNode)))
-               node    (some-> app ::runtime-atom deref ::mount-node)]
-    (do
-      (unmount node)
-      (swap! (::runtime-atom app) dissoc ::mount-node ::app-root)
-      true)
-    (do
-      (log/warn "Cannot umount application because either the umount function is missing or the node was not recorded. Perhaps it wasn't mounted?")
-      false)))
-
-(defn remount!
-  "Remount the currently-mounted root onto a new DOM node. This is a convenience for umount/mount.
-   The options map is sent to `mount!`, and defaults to:
-
-   ```
-   {:initialize-state? false
-    :hydrate? false
-    :disable-client-did-mount? true}
-   ```
-   "
-  ([app new-node]
-   (remount! app new-node {:initialize-state?         false
-                           :hydrate?                  false
-                           :disable-client-did-mount? true}))
-  ([app new-node options]
-   (let [{::keys [root-class]} (some-> app ::runtime-atom deref)]
-     (unmount! app)
-     (mount! app root-class new-node (merge {:initialize-state?         false
-                                             :hydrate?                  false
-                                             :disable-client-did-mount? true} options)))))
-
-(defn app-root
-  "Returns the current app root, if mounted. WARNING: The `:client-did-mount` in the app settings will *not* see a value
-   from this function due to the async nature of React. If you need to call this at app startup use the `:componentDidMount`
-   lifecycle method of your root component (at which point this will return the same thing as `this` in that method)."
-  [app]
-  (-> app ::runtime-atom deref ::app-root))
-
-(defn root-class
-  "Returns the current app root class, if mounted."
-  [app]
-  (-> app ::runtime-atom deref ::root-class))
-
-(defn force-root-render!
-  "Force a re-render of the root. Runs a root query, disables shouldComponentUpdate, and renders the root component.
-   This effectively forces React to do a full VDOM diff. Useful for things like UI refresh on hot code reload and
-   changing locales where there are no real data changes, but the UI still needs to refresh.
-
-   Argument can be anything that comp/any->app accepts.
-
-   WARNING: This disables all Fulcro rendering optimizations, so it is much slower than other ways of refreshing the app.
-   Use `schedule-render!` to request a normal optimized render."
-  [app-ish]
-  (when-let [app (comp/any->app app-ish)]
-    (update-shared! app)
-    (binding [comp/*blindly-render* true]
-      (render! app {:force-root? true}))))
+  (boolean
+    (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom) (contains? x :com.fulcrologic.fulcro.application/runtime-atom))))
 
 (defn abort!
   "Attempt to abort the send queue entries with the given abort ID.
@@ -412,18 +347,20 @@
   - `abort-id`: The abort ID of the operations to be aborted.
   "
   [app-ish abort-id]
-  (rapp/abort! app-ish abort-id))
+  (let [app (comp/any->app app-ish)]
+    (when-let [abort! (ah/app-algorithm app :abort!)]
+      (abort! app abort-id))))
 
 (defn add-render-listener!
   "Add (or replace) a render listener named `nm`. `listener` is a `(fn [app options] )` that will be called
    after each render."
   [app nm listener]
-  (rapp/add-render-listener! app nm listener))
+  (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) assoc-in [:com.fulcrologic.fulcro.application/render-listeners nm] listener))
 
 (defn remove-render-listener!
   "Remove the render listener named `nm`."
   [app nm]
-  (rapp/remove-render-listener! app nm))
+  (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update :com.fulcrologic.fulcro.application/render-listeners dissoc nm))
 
 (defn headless-synchronous-app
   "Returns a new instance from `fulcro-app` that is pre-configured to use synchronous transaction processing
@@ -457,6 +394,5 @@
   This function changes the content of the application's runtime atom so you do not need to capture the return value, which
   is the app you passed in."
   [app remote-name remote]
-  [::app keyword? map? => ::app]
-  (swap! (::runtime-atom app) assoc-in [::remotes remote-name] remote)
+  (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) assoc-in [:com.fulcrologic.fulcro.application/remotes remote-name] remote)
   app)

@@ -123,10 +123,9 @@
 
 ;; A raw hooks component that uses a Fulcro sub-tree. See docstring on use-fulcro.
 (defn Top [props]
-  (raw/with-fulcro raw-app
-    (let [counter (rc3/use-component raw-app Counter {:initial-state-params {:id 1 :n 42} :keep-existing? true})]
-      (div
-        (raw-counter counter)))))
+  (let [counter (rc3/use-component raw-app Counter {:initial-state-params {:id 1 :n 42} :keep-existing? true})]
+    (div
+      (raw-counter counter))))
 
 ;; Render a truly raw react hooks component in a plain react card
 (ws/defcard fulcro-composed-into-vanilla-react
@@ -186,17 +185,16 @@
 
 ;; Raw hook that uses I/O
 (defn RawReactWithFulcroIO [_]
-  (raw/with-fulcro raw-app
-    (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User)))
-    (let [{:menu/keys [current-tab] :as menu-props} (rc3/use-root raw-app :root/menu
-                                                      (raw/nc [:component/id :menu/current-tab]
-                                                        {:initial-state (fn [_] {:component/id ::menu :menu/current-tab :main})})
-                                                      {:initialize? true})]
-      (div
-        (menu menu-props)
-        (if (= current-tab :main)
-          (ui-user-form)
-          (ui-settings-form))))))
+  (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User)))
+  (let [{:menu/keys [current-tab] :as menu-props} (rc3/use-root raw-app :root/menu
+                                                    (raw/nc [:component/id :menu/current-tab]
+                                                      {:initial-state (fn [_] {:component/id ::menu :menu/current-tab :main})})
+                                                    {:initialize? true})]
+    (div
+      (menu menu-props)
+      (if (= current-tab :main)
+        (ui-user-form)
+        (ui-settings-form)))))
 
 (ws/defcard fulcro-io-composed-in-raw-react
   {::wsm/align {:flex 1}}
