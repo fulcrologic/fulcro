@@ -1,14 +1,12 @@
 (ns com.fulcrologic.fulcro.alpha.raw
   (:require
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.raw.application :as app]
     [com.fulcrologic.fulcro.raw.components :as comp]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
-    [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
 (defn fulcro-app
@@ -17,130 +15,6 @@
   (let [app (app/fulcro-app (merge {:optimized-render! nil} options))]
     (inspect/app-started! app)
     app))
-
-(defn- ast-id-key [children]
-  (:key
-    (first
-      (filter (fn [{:keys [type key]}]
-                (and
-                  (keyword? key)
-                  (= :prop type)
-                  (= "id" (name key))))
-        children))))
-
-(defn- normalize* [{:keys [children] :as original-node} {:keys [componentName] :as top-component-options}]
-  (let [detected-id-key (ast-id-key children)
-        real-id-key     (or detected-id-key)
-        component       (fn [& args])
-        new-children    (mapv
-                          (fn [{:keys [type] :as node}]
-                            (if (and (= type :join) (not (:component node)))
-                              (normalize* node {})
-                              node))
-                          children)
-        updated-node    (assoc original-node :children new-children :component component)
-        query           (if (= type :join)
-                          (eql/ast->query (assoc updated-node :type :root))
-                          (eql/ast->query updated-node))
-        _               (comp/configure-anonymous-component! component (cond-> (with-meta
-                                                                                 (merge
-                                                                                   {:initial-state (fn [& args] {})}
-                                                                                   top-component-options
-                                                                                   {:query  (fn [& args] query)
-                                                                                    "props" {"fulcro$queryid" :anonymous}})
-                                                                                 {:query-id :anonymous})
-                                                                         componentName (assoc :componentName componentName)
-                                                                         real-id-key (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))]
-    updated-node))
-
-(defn nc
-  "Create an anonymous normalizing query component. By default the normalization will be auto-detected based on there being a prop at each
-   entity level that has (any) namespace, but with the name `id`. For example:
-
-   ```
-   [:list/id :list/name {:list/items [:item/id :item/complete? :item/label]}]
-   ```
-
-   will create a normalizing query that expects the top-level values to be normalized by `:list/id` and the nested
-   items to be normalized by `:item/id`. If there is more than one ID in your props, make sure the *first* one is
-   the one to use for normalization.
-
-   The `top-component-options` becomes the options map of the component.
-
-   You can include :componentName to push the resulting anonymous component definition into the component registry, which
-   is needed by some parts of Fulcro, like UISM.
-
-   NOTE: `nc` is recursive, and *does* compose if you want to name the components at various levels. It can be used with queries from
-   other defsc components:
-
-   ```
-   (def query (nc [:user/id
-                   :user/name
-                   ;; Generate an anonymous component that is available in the registry under ::Session
-                   {:user/session-details (nc [:session/id :session/last-login] {:componentName ::Session})}
-                   ;; Use a defsc query as the source
-                   {:user/settings (comp/get-query Settings)}
-                   ;; Autogenerates an anonymous address query component that has no name
-                   {:user/address [:address/id :address/street]}]))
-   ```
-   "
-  ([query] (nc query {}))
-  ([query {:keys [componentName] :as top-component-options}]
-   (let [ast (eql/query->ast query)]
-     (:component (normalize* ast top-component-options)))))
-
-(defn- normalize-form* [{:keys [children type] :as original-node} top-component-options]
-  (let [detected-id-key (or (ast-id-key children) (throw (ex-info "Query must have an ID field for normalization detection" {:query (eql/ast->query original-node)})))
-        _               detected-id-key
-        form-fields     (into #{}
-                          (comp
-                            (map :key)
-                            (filter #(and
-                                       (not (vector? %))
-                                       (not= "ui" (namespace %))
-                                       (not= % detected-id-key))))
-                          children)
-        children        (conj children (eql/expr->ast fs/form-config-join))
-        component       (fn [& args])
-        new-children    (mapv
-                          (fn [{:keys [type] :as node}]
-                            (if (and (= type :join) (not (:component node)))
-                              (normalize-form* node {})
-                              node))
-                          children)
-        updated-node    (assoc original-node :children new-children :component component)
-        query           (if (= type :join)
-                          (eql/ast->query (assoc updated-node :type :root))
-                          (eql/ast->query updated-node))
-        _               (comp/configure-anonymous-component! component (cond-> (with-meta
-                                                                                 (merge
-                                                                                   {:initial-state (fn [& args] {})}
-                                                                                   top-component-options
-                                                                                   {:query       (fn [& args] query)
-                                                                                    :ident       (fn [_ props] [detected-id-key (get props detected-id-key)])
-                                                                                    :form-fields form-fields
-                                                                                    "props"      {"fulcro$queryid" :anonymous}})
-                                                                                 {:query-id :anonymous})))]
-    updated-node))
-
-(defn formc
-  "Create an anonymous normalizing form component from EQL. Every level of the query MUST
-   have an `:<???>/id` field which is used to build the ident, and every non-id attribute will be considered part
-   of the form except:
-
-   * Props in the namespace `ui` like `:ui/checked?`
-   * Idents list `[:component/id :thing]`
-   * Root links like `[:root/key '_]`
-
-   This function also auto-adds the necessary form-state form join, and populates the anonymous component with the
-   `:form-fields` option. You can add additional component options to the top-level anonymous component with
-   `top-component-options`.
-
-   See also `nc`, which is similar but does not autogenerate form-related add-ins."
-  ([EQL] (formc EQL {}))
-  ([EQL top-component-options]
-   (let [ast (eql/query->ast EQL)]
-     (:component (normalize-form* ast top-component-options)))))
 
 (defn add-uism!
   "Add a UISM to Fulcro. This will set up the given state machine under the given ID, and start it (if not
