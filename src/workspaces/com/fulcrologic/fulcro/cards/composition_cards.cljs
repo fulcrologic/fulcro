@@ -45,6 +45,7 @@
 (defn SampleComponent [props]
   (comp/with-parent-context APP
     (let [counter-A (hooks/use-component APP Counter {:initial-params {:id 1 :n 100}
+                                                      :initialize?    true
                                                       :keep-existing? true})
           ;; OR, don't even define a concrete component!!!
           anon-list (rc/entity->component {:list/id    1
@@ -54,8 +55,10 @@
                                                         {:item/id 2 :item/label "B"}
                                                         {:item/id 2 :item/label "B"}
                                                         {:item/id 2 :item/label "B"}]})
-          list      (hooks/use-component APP anon-list {:keep-existing? true})
-          counter-B (hooks/use-component APP (rc/entity->component {:counter/id 2 :counter/n 45}) {:keep-existing? true})]
+          list      (hooks/use-component APP anon-list {:keep-existing? true
+                                                        :initialize?    true})
+          counter-B (hooks/use-component APP (rc/entity->component {:counter/id 2 :counter/n 45}) {:keep-existing? true
+                                                                                                   :initialize?    true})]
       (dom/div
         (raw-counter counter-A)
         ;; just render the data...you don't have to use Fulcro components at all
