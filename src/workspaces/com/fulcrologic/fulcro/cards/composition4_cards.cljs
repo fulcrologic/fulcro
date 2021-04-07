@@ -240,7 +240,6 @@
     {::uism/handler (fn [env]
                       (let [LoginForm (rc/nc [:component/id :email :password :failed?] {:componentName ::LoginForm})
                             Session   (rc/nc [:account/id :account/email] {:componentName ::Session})]
-                        (log/info "initial handler" (::uism/event-id env))
                         (-> env
                           (uism/apply-action assoc-in [:account/id :none] {:account/id :none})
                           (uism/apply-action assoc-in [:component/id ::LoginForm] {:component/id ::LoginForm :email "" :password "" :failed? false})
@@ -255,7 +254,7 @@
      (merge global-events
        {:event/done       {::uism/handler
                            (fn [{::uism/keys [state-map] :as env}]
-                             (let [id (log/spy :info (some-> state-map :current-session second))]
+                             (let [id (some-> state-map :current-session second)]
                                (cond-> env
                                  (pos-int? id) (->
                                                  (uism/reset-actor-ident :actor/current-account [:account/id id])
@@ -325,7 +324,6 @@
   (let [{:actor/keys [login-form current-account]
          :keys       [active-state]
          :as         sm} (hooks/use-uism raw-app session-machine :sessions {})]
-    (log/info "UISM content" (with-out-str (pprint sm)))
     ;; TODO: Not done yet...didn't have time to finish refining, but it looks like it'll work
     (case active-state
       :state/logged-in (div :.ui.segment

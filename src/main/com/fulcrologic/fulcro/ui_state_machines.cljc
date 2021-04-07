@@ -1183,9 +1183,9 @@
                         {:active-state active-state}
                         actor->ident)]
         (receive-props props))))
-  (let [s        (log/spy :info (rapp/current-state app))
-        started? (get-in s (log/spy :info [::asm-id id]))]
-    (if (log/spy :info started?)
+  (let [s        (rapp/current-state app)
+        started? (get-in s [::asm-id id])]
+    (if started?
       (trigger! app id :event/remounted)
       (begin! app state-machine-definition id initial-event-data))))
 
