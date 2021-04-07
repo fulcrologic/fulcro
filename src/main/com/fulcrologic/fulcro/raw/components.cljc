@@ -649,6 +649,12 @@
                       "at join key" k "; however, " (component-name target) "HAS initial state. This probably means your initial state graph is incomplete"
                       "and props on" (component-name target) "will be nil.")))))))))))
 
+(defn id-key
+  "Returns the keyword of the most likely ID attribute in the given props (the first one with the `name` \"id\").
+  Returns nil if there isn't one. This is useful when trying to derive an ident from a sample tree of data, for example."
+  [props]
+  (first (filter #(= "id" (name %)) (keys props))))
+
 (defn ast-id-key
   "Returns the first child from a list of EQL AST nodes that looks like an entity ID key."
   [children]
@@ -728,3 +734,88 @@
   ([query {:keys [componentName] :as top-component-options}]
    (let [ast (eql/query->ast query)]
      (:component (normalize* ast top-component-options)))))
+
+(defn entity->component
+  "Creates a normalizing component from an entity tree. Every sub-element of the tree provided will generate an anonymous
+   normalizing component if that element has an ID field. For to-many relations only the first item is used for query/ident
+   generation.
+
+   The returned anonymous component will have initial state that matches the provided entity data tree.
+
+   This means you can use a sample tree to generate both the initial state for a subtree of your app and the components
+   necessary to do I/O on that tree.
+
+   This kind of component will *not* be registered in the component registry unless you pass a :componentName
+   via the top-component-options (such a component cannot be used with things that
+   require the registry, such as dynamic queries and UI state machines).
+   "
+  ([entity-data-tree]
+   (entity->component entity-data-tree {}))
+  ([entity-data-tree top-level-options]
+   (let [{:keys [joins initial-state attrs]} (reduce-kv
+                                               (fn [result k v]
+                                                 (cond
+                                                   (and (vector? v) (every? map? v))
+                                                   (let [c (entity->component (first v))]
+                                                     (-> result
+                                                       (update :initial-state assoc k v)
+                                                       (update :joins assoc k (query c))))
+                                                   (map? v) (let [c (entity->component v)]
+                                                              (-> result
+                                                                (update :initial-state assoc k v)
+                                                                (update :joins assoc k (query c))))
+                                                   :else (-> result
+                                                           (update :initial-state assoc k v)
+                                                           (update :attrs conj k))))
+                                               {:attrs         #{}
+                                                :initial-state {}
+                                                :joins         {}}
+                                               entity-data-tree)
+         query (into (vec attrs)
+                 (map (fn build-subquery* [[join-key subquery]] {join-key subquery}))
+                 joins)]
+     (nc query (merge
+                 {:initial-state (fn [& args] initial-state)}
+                 top-level-options)))))
+
+(letfn [(get-subquery-component*
+          [c ast-nodes query-path]
+          (if (empty? ast-nodes)
+            c
+            (let [k  (first query-path)
+                  ks (rest query-path)
+                  {:keys [component children] :as node} (first (filter #(= k (:key %)) ast-nodes))]
+              (if (seq ks)
+                (recur component children ks)
+                component))))]
+
+  (defn get-subquery-component
+    "Obtains the normalizing component that is associated with the given query path on the given component.
+
+    For example `(get-subquery-component Person [:person/addresses])` would return the component for
+    the `:person/addresses` join. If state-map is supplied then dynamic query support is possible; otherwise it
+    will be the original static query."
+    ([component query-path]
+     (get-subquery-component component query-path {}))
+    ([component query-path state-map]
+     (let [query     (get-query component state-map)
+           ast-nodes (-> query eql/query->ast :children)]
+       (get-subquery-component* component ast-nodes query-path)))))
+
+(comment
+  (def Person (entity->component
+                {:person/id        1
+                 :ui/checked?      true
+                 :person/name      "Bob"
+                 :person/addresses [{:ui/autocomplete ""
+                                     :address/id      11
+                                     :address/street  "111 Main St"}
+                                    {:ui/autocomplete ""
+                                     :address/id      12
+                                     :address/street  "222 Main St"}]}
+                {:componentName ::MyThing}))
+
+  (def Address (get-subquery-component Person [:person/addresses]))
+
+  (get-ident Address {:address/id 99})
+  )

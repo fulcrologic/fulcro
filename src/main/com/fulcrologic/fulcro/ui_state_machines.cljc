@@ -14,6 +14,7 @@
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util :refer [atom?]]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
@@ -593,7 +594,7 @@
   [::fulcro-app ::env => nil?]
   (let [queued-loads (::queued-loads env)]
     (doseq [{:com.fulcrologic.fulcro.components/keys [component-class]
-             ::keys    [actor-name query-key load-options] :as load-params} queued-loads]
+             ::keys                                  [actor-name query-key load-options] :as load-params} queued-loads]
       (if actor-name                                        ; actor-centric load
         (queue-actor-load! app env actor-name component-class load-options)
         (queue-normal-load! app query-key component-class load-options)))
@@ -1151,3 +1152,45 @@
       ::asm-id
       (get asm-id)
       ::active-state)))
+
+(defn add-uism!
+  "Add a UISM to Fulcro in a manner disconnected from React.
+
+   This will set up the given state machine under the given ID, and start it (if not
+   already started). Your initial state handler MUST set up actors and otherwise initialize based on initial-event-data.
+
+   If the machine is already started at the given ID then this will send it an `:event/remounted` event.
+
+   You MUST include `:componentName` in each of your actor's normalizing component options (e.g. `(nc query {:componentName ::uniqueName})`)
+   because UISM requires component appear in the component registry (components cannot be safely stored in app state, just their
+   names).
+
+   Calls `receive-props` with a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`."
+  [app {:keys [state-machine-definition id receive-props initial-event-data]}]
+  (rapp/add-render-listener! app id
+    (fn [& args]
+      (let [state-map (rapp/current-state app)
+            {::keys [active-state actor->ident actor->component-name]} (get-in state-map [::asm-id id])
+            props     (reduce-kv
+                        (fn [result actor ident]
+                          (let [cname (actor->component-name actor)
+                                cls   (rc/registry-key->class cname)
+                                query (rc/get-query cls)
+                                base  (get-in state-map ident)]
+                            (when-not cls
+                              (log/error "You forgot to give actor" actor "a :componentName"))
+                            (assoc result actor (fdn/db->tree query base state-map))))
+                        {:active-state active-state}
+                        actor->ident)]
+        (receive-props props))))
+  (let [s        (log/spy :info (rapp/current-state app))
+        started? (get-in s (log/spy :info [::asm-id id]))]
+    (if (log/spy :info started?)
+      (trigger! app id :event/remounted)
+      (begin! app state-machine-definition id initial-event-data))))
+
+(defn remove-uism!
+  "Remove a previously-added UISM from state and the render listener."
+  [app id]
+  (rapp/remove-render-listener! app id)
+  (swap! (:com.fulcrologic.fulcro.application/state-atom app) update ::asm-id dissoc id))

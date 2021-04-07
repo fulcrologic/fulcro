@@ -355,3 +355,64 @@
   [app remote-name remote]
   (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) assoc-in [:com.fulcrologic.fulcro.application/remotes remote-name] remote)
   app)
+
+(defn add-root!
+  "Use a root key and component as a subtree managed by Fulcro. This establishes props updates to non-React UI,
+   and is not rendered by normal Fulcro rendering. You can integrate with React using `use-root` from the hooks ns.
+
+   The `root-key` must be a unique (namespace recommended) key among all keys used within the application,
+   since the root of the database is where it will live.
+
+   The `component` should be a real Fulcro component or a generated normalizing component from `nc` (or similar).
+
+   Calls `receive-props` with the props (not including `root-key`) that satisfy the query of `component`.
+  "
+  [app root-key component {:keys [receive-props initialize? keep-existing? initial-params]}]
+  (when (and initialize? (not (and keep-existing? (contains? (current-state app) root-key))))
+    (swap! (:com.fulcrologic.fulcro.application/state-atom app) (fn use-root-merge* [s]
+                                                                  (merge/merge-component s component
+                                                                    (comp/get-initial-state component (or initial-params {}))
+                                                                    :replace [root-key]))))
+  (let [get-props (fn use-root-get-props* []
+                    (let [query     [{root-key (comp/get-query component)}]
+                          state-map (current-state app)]
+                      (fdn/db->tree query state-map state-map)))]
+    (receive-props (get-props))
+    (add-render-listener! app root-key (fn use-root-render-listener* [app _]
+                                         (receive-props (get-props))))))
+
+(defn remove-root!
+  "Remove a root key managed subtree from Fulcro"
+  [app root-key]
+  (remove-render-listener! app root-key))
+
+(defn add-component!
+  "Use a component (that has initial state) as a subtree managed by Fulcro. This establishes props updates to non-React UI,
+   and is not rendered by normal Fulcro rendering.
+
+   The `component` should be a real Fulcro component or a generated normalizing component from `nc` (or similar) that
+   has initial state. .
+
+   Calls `receive-props` with the props (not including `root-key`) that satisfy the query of `component`.
+  "
+  [app component {:keys [receive-props initialize? keep-existing? initial-params]}]
+  (let [initial-entity (comp/get-initial-state component initial-params)
+        ident          (comp/get-ident component initial-entity)
+        current-value  (get-in (current-state app) ident)
+        exists?        (and (map? current-value) (seq current-value))]
+    (when (and initialize? (not (and exists? (not keep-existing?))))
+      (swap! (:com.fulcrologic.fulcro.application/state-atom app) merge/merge-component component initial-entity))
+    (let [get-props (fn []
+                      (let [state-map (current-state app)
+                            query     (comp/get-query component state-map)
+                            entity    (get-in state-map ident)]
+                        (fdn/db->tree query entity state-map)))]
+      (receive-props (get-props))
+      (add-render-listener! app ident (fn [app _] (receive-props (get-props)))))))
+
+(defn remove-component!
+  "Remove a root key managed subtree from Fulcro"
+  [app component]
+  (let [initial-entity (comp/get-initial-state component {})
+        ident          (comp/get-ident component initial-entity)]
+    (remove-render-listener! app ident)))

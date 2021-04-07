@@ -10,8 +10,8 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.alpha.raw-components3 :as rc3]
-    [com.fulcrologic.fulcro.alpha.raw :as raw]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
     [com.fulcrologic.fulcro.mutations :as m]
@@ -45,7 +45,6 @@
 (pc/defresolver user-resolver [_ {:user/keys [id]}]
   {::pc/input  #{:user/id}
    ::pc/output [:user/name :user/email :user/age {:user/settings [:settings/id]}]}
-  (log/spy :info id)
   (try
     (-> @pretend-server-database
       (get-in [:user/id id])
@@ -115,7 +114,7 @@
 
 ;; Important to use the right factory. This one establishes the stuff you need for nested Fulcro stuff to work
 ;; according to the book.
-(def raw-counter (rc3/factory Counter {:keyfn :counter/id}))
+(def raw-counter (comp/factory Counter {:keyfn :counter/id}))
 
 (m/defmutation toggle [{:item/keys [id]}]
   (action [{:keys [state]}]
@@ -123,18 +122,21 @@
 
 ;; A raw hooks component that uses a Fulcro sub-tree. See docstring on use-fulcro.
 (defn Top [props]
-  (let [counter (rc3/use-component raw-app Counter {:initial-state-params {:id 1 :n 42} :keep-existing? true})]
-    (div
-      (raw-counter counter))))
+  (comp/with-parent-context raw-app
+    (let [counter (hooks/use-component raw-app Counter {:initial-params {:id 1 :n 42}
+                                                        :initialize?    true
+                                                        :keep-existing? true})]
+      (div
+        (raw-counter counter)))))
 
 ;; Render a truly raw react hooks component in a plain react card
 (ws/defcard fulcro-composed-into-vanilla-react
   (ct.react/react-card
     (dom/create-element Top {})))
 
-(def User (raw/nc [:user/id :user/name
-                   {:user/settings
-                    [:settings/id :settings/marketing?]}]))
+(def User (rc/nc [:user/id :user/name
+                  {:user/settings
+                   [:settings/id :settings/marketing?]}]))
 
 (m/defmutation update-user [user-props]
   (action [{:keys [state]}]
@@ -143,7 +145,7 @@
   (remote [env] (m/returning env User)))
 
 (defn menu [{:menu/keys [current-tab]}]
-  (let [set-tab! (fn [t] (raw/set-value!! raw-app {:component/id ::menu} :menu/current-tab t))]
+  (let [set-tab! (fn [t] (m/raw-set-value! raw-app {:component/id ::menu} :menu/current-tab t))]
     (div :.ui.horizontal.pointing.menu
       (div :.item {:classes [(when (= current-tab :main) "active")]
                    :onClick (fn [] (set-tab! :main))} "Main")
@@ -151,7 +153,7 @@
                    :onClick (fn [] (set-tab! :settings))} "Settings"))))
 
 (defn UserForm [_js-props]
-  (let [{:user/keys [id name settings] :as u} (rc3/use-root raw-app :current-user User {})]
+  (let [{:user/keys [id name settings] :as u} (hooks/use-root raw-app :current-user User {})]
     (div :.ui.segment
       (h2 "User")
       (div :.ui.form
@@ -159,17 +161,17 @@
           (label "Name")
           (input {:value    (or name "")
                   :onBlur   (fn [evt] (comp/transact! raw-app [(update-user (select-keys u [:user/id :user/name]))]))
-                  :onChange (fn [evt] (raw/set-value!! raw-app u :user/name (evt/target-value evt)))}))))))
+                  :onChange (fn [evt] (m/raw-set-value! raw-app u :user/name (evt/target-value evt)))}))))))
 
 (def ui-user-form (interop/react-factory UserForm))
 
 (m/defmutation update-settings [{:settings/keys [id marketing?] :as settings}]
   (action [{:keys [state]}]
     (swap! state update-in [:settings/id id] merge settings))
-  (remote [_] (m/returning _ (raw/nc [:settings/id :settings/marketing?]))))
+  (remote [_] (m/returning _ (rc/nc [:settings/id :settings/marketing?]))))
 
 (defn SettingsForm [_js-props]
-  (let [{:user/keys [settings]} (rc3/use-root raw-app :current-user User {})
+  (let [{:user/keys [settings]} (hooks/use-root raw-app :current-user User {})
         {:settings/keys [id marketing?]} settings]
     (div :.ui.segment
       (h2 "Settings")
@@ -186,10 +188,11 @@
 ;; Raw hook that uses I/O
 (defn RawReactWithFulcroIO [_]
   (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User)))
-  (let [{:menu/keys [current-tab] :as menu-props} (rc3/use-root raw-app :root/menu
-                                                    (raw/nc [:component/id :menu/current-tab]
+  (let [{:menu/keys [current-tab] :as menu-props} (hooks/use-root raw-app :root/menu
+                                                    (rc/nc [:component/id :menu/current-tab]
                                                       {:initial-state (fn [_] {:component/id ::menu :menu/current-tab :main})})
-                                                    {:initialize? true})]
+                                                    {:keep-existing? true
+                                                     :initialize?    true})]
     (div
       (menu menu-props)
       (if (= current-tab :main)

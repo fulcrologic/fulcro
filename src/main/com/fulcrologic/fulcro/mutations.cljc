@@ -40,7 +40,7 @@
 
   See the Developer's Guide for more information.
   "
-  #?(:cljs (:require-macros com.fulcrologic.fulcro.mutations))
+  #?(:cljs (:require-macros [com.fulcrologic.fulcro.mutations :refer [defmutation]]))
   (:require
     #?(:clj [cljs.analyzer :as ana])
     [com.fulcrologic.fulcro.raw.components :as rc]
@@ -221,27 +221,6 @@
      In IntelliJ, use Resolve-as `def` to get proper IDE integration."
      ([name target-symbol]
       `(def ~name (->Mutation '~target-symbol)))))
-
-#?(:cljs
-   (com.fulcrologic.fulcro.mutations/defmutation set-props
-     "
-     mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
-     Specifically, merge the given `params` into the state of the database object at the component's ident.
-     In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
-     "
-     [params]
-     (action [{:keys [state ref]}]
-       (when (nil? ref) (log/error "ui/set-props requires component to have an ident."))
-       (swap! state update-in ref (fn [st] (merge st params))))))
-
-#?(:cljs
-   (com.fulcrologic.fulcro.mutations/defmutation toggle
-     "mutation: A helper method that toggles the true/false nature of a component's state by ident.
-      Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
-     [{:keys [field]}]
-     (action [{:keys [state ref]}]
-       (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
-       (swap! state update-in (conj ref field) not))))
 
 (defmethod mutate :default [{:keys [ast]}]
   (log/error "Unknown app state mutation. Have you required the file with your mutations?" (:key ast)))
@@ -517,3 +496,56 @@
        '([sym docstring? arglist handlers])} defmutation
      [& args]
      (defmutation* &env args)))
+
+(defmutation set-props
+  "Mutation: A convenience helper, generally used 'bit twiddle' the data on a particular database table (using the component's ident).
+  Specifically, merge the given `params` into the state of the database object at the component's ident.
+  In general, it is recommended this be used for ui-only properties that have no real use outside of the component.
+  "
+  [params]
+  (action [{:keys [state ref]}]
+    (when (nil? ref) (log/error "ui/set-props requires component to have an ident."))
+    (swap! state update-in ref (fn [st] (merge st params)))))
+
+(defmutation toggle
+  "Mutation: A helper method that toggles the true/false nature of a component's state by ident.
+   Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
+  [{:keys [field]}]
+  (action [{:keys [state ref]}]
+    (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
+    (swap! state update-in (conj ref field) not)))
+
+
+(defn raw-set-value!
+  "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` to
+   derive the ident of the database entry. The props must contain an ID key that can be used to derive the ident from
+   the current-props.
+
+   For example, `(raw-set-value! app {:person/id 42} :person/name \"bob\")` would have the effect of a mutation that
+   does an `(assoc-in state-db [:person/id 42 :person/name] \"bob\")`.
+   "
+  [app current-props k v]
+  (let [ik    (rc/id-key current-props)
+        ident [ik (get current-props ik)]]
+    (if (some nil? ident)
+      (log/error "Cannot raw-set-value! because current-props could not be used to derive the ident of the component." current-props)
+      (do
+        (rc/transact! app [(set-props {k v})] {:ref ident})))))
+
+(defn raw-update-value!
+  "Run a transaction that will update the given k/v pair in the props of the database. Uses the `current-props` as the basis
+   for the update, and to find the ident of the target. The `current-props` must contain an ID field that can be used to derive
+   the ident from the passed props.
+
+   For example, `(raw-update-value! app {:person/id 42} :person/age inc)` would have the effect of a mutation that
+   does an `(update-in state-db [:person/id 42 :person/age] inc)`.
+   "
+  [app current-props k f & args]
+  (let [ik        (rc/id-key current-props)
+        ident     [ik (get current-props ik)]
+        old-value (get current-props k)
+        new-value (apply f old-value args)]
+    (if (some nil? ident)
+      (log/error "Cannot raw-update-value! because current-props could not be used to derive the ident of the component." current-props)
+      (do
+        (rc/transact! app [(set-props {k new-value})] {:ref ident})))))

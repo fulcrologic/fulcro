@@ -12,9 +12,15 @@
         [[goog.object :as gobj]
          cljsjs.react])
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.ui-state-machines :as uism]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
-    [taoensso.encore :as enc])
+    [edn-query-language.core :as eql]
+    [taoensso.encore :as enc]
+    [taoensso.timbre :as log])
   #?(:clj (:import (cljs.tagged_literals JSValue))))
 
 (defn useState
@@ -168,7 +174,7 @@
                               #?(:clj [componentName nil] :cljs #js [componentName nil])))]
   (defn use-fulcro-mount
     "
-    Generate a new sub-root.
+    Generate a new sub-root that is controlled and rendered by Fulcro's multi-root-renderer.
 
     ```
     ;; important, you must use hooks (`defhc` or `:use-hooks? true`)
@@ -212,3 +218,105 @@
                                        state    (-> parent-this comp/any->app :com.fulcrologic.fulcro.application/state-atom)]
                                    (swap! state dissoc join-key))))]
       (aget key-and-root 1))))
+
+(defn- pcs [app component prior-props-tree-or-ident]
+  (let [ident           (if (eql/ident? prior-props-tree-or-ident)
+                          prior-props-tree-or-ident
+                          (comp/get-ident component prior-props-tree-or-ident))
+        state-map       (rapp/current-state app)
+        starting-entity (get-in state-map ident)
+        query           (comp/get-query component state-map)]
+    (fdn/db->tree query starting-entity state-map)))
+
+(defn- use-db-lifecycle [app component current-props-tree set-state!]
+  (let [[id _] (use-state #?(:cljs (random-uuid) :clj (java.util.UUID/randomUUID)))]
+    (use-lifecycle
+      (fn []
+        (let [state-map (rapp/current-state app)
+              ident     (comp/get-ident component current-props-tree)
+              exists?   (map? (get-in state-map ident))]
+          (when-not exists?
+            (merge/merge-component! app component current-props-tree))
+          (rapp/add-render-listener! app id
+            (fn [app _]
+              (let [props (pcs app component ident)]
+                (set-state! props))))))
+      (fn [] (rapp/remove-render-listener! app id)))))
+
+(defn use-component
+  "Use Fulcro from raw React. This is a Hook effect/state combo that will connect you to the transaction/network/data
+  processing of Fulcro, but will not rely on Fulcro's render. Thus, you can embed the use of the returned props in any
+  stock React context. Technically, you do not have to use Fulcro components for rendering, but they are necessary to define the
+  query/ident/initial-state for startup and normalization.
+
+  The arguments are:
+
+  app - A Fulcro app
+  component - A component with query/ident. Queries MUST have co-located normalization info. You
+              can create this with normal `defsc` or as an anonymous component via `raw.components/nc`.
+  options - A map of options, containing:
+
+  * :initial-state-params - The parameters to use when getting the initial state of the component. See `comp/get-initial-state`.
+    If no initial state exists on the top-level component, then an empty map will be used. This will mean your props will be
+    empty to start.
+  * :keep-existing? - A boolean. If true, then the state of the component will not be initialized if there
+    is already data at the component's ident (which will be computed using the initial state params provided, if
+    necessary).
+  * :ident - Only needed if you are NOT initializing state, AND the component has a dynamic ident.
+
+  Returns the props from the Fulcro database. The component using this function will automatically refresh after Fulcro
+  transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries).
+  "
+  [app component
+   {:keys [initialize? initial-params]
+    :or {initialize? true
+         initial-params {}} :as options}]
+  (let [[current-props set-props!] (use-state (comp/get-initial-state component (or {} initial-params)))]
+    (use-lifecycle
+      (fn [] (rapp/add-component! app component (merge options {:receive-props set-props!})))
+      (fn use-tree-remove-render-listener* [] (rapp/remove-component! app component)))
+    current-props))
+
+(defn use-root
+  "Use a root key and component as a subtree managed by Fulcro. The `root-key` must be a unique
+   (namespace recommended) key among all keys used within the application, since the root of the database is where it
+   will live.
+
+   The `component` should be a real Fulcro component or a generated normalizing component from `nc` (or similar).
+
+   Returns the props (not including `root-key`) that satisfy the query of `component`.
+  "
+  [app root-key component {:keys [initialize? initial-params] :as options}]
+  (let [[current-props set-props!] (use-state (comp/get-initial-state component (or initial-params {})))]
+    (use-lifecycle
+      (fn [] (rapp/add-root! app root-key component (merge options {:receive-props set-props!})))
+      (fn use-tree-remove-render-listener* [] (rapp/remove-root! app root-key)))
+    (get current-props root-key)))
+
+(defn use-uism
+  "Use a UISM as an effect hook. This will set up the given state machine under the given ID, and start it (if not
+   already started). Your initial state handler MUST set up actors and otherwise initialize based on initial-event-data.
+
+   If the machine is already started at the given ID then this effect will send it an `:event/remounted` event.
+   This hook will send an `:event/unmounted` when the component using this effect goes away. In both cases you may choose
+   to ignore the event.
+
+   You MUST include `:componentName` in each of your actor's normalizing component options (e.g. `(nc query {:componentName ::uniqueName})`)
+   because UISM requires component appear in the component registry (components cannot be safely stored in app state, just their
+   names).
+
+   Returns a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`."
+  [app state-machine-definition id initial-event-data]
+  (let [[uism-data set-uism-data!] (use-state nil)]
+    (use-lifecycle
+      (fn []
+        (uism/add-uism! app {:state-machine-definition state-machine-definition
+                             :id                       id
+                             :receive-props            set-uism-data!
+                             :initial-event-data       initial-event-data}))
+      (fn [] (uism/remove-uism! app id)))
+    uism-data))
+
+
+
+

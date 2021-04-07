@@ -11,8 +11,7 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.alpha.raw-components3 :as rc3]
-    [com.fulcrologic.fulcro.alpha.raw :as raw]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
     [com.fulcrologic.fulcro.mutations :as m]
@@ -152,9 +151,9 @@
     (def User (raw/nc [:user/id :user/name fs/form-config-join {:user/settings (comp/get-query Settings)}] {:form-fields #{:user/name
                                                                                                                            :user/settings}}))
 
-(def User (raw/formc [:ui/saving? [df/marker-table '_]
-                      :user/id :user/name
-                      {:user/settings [:settings/id :settings/marketing?]}]))
+(def User (fs/formc [:ui/saving? [df/marker-table '_]
+                     :user/id :user/name
+                     {:user/settings [:settings/id :settings/marketing?]}]))
 
 (comment
   (comp/component-options User)
@@ -178,7 +177,7 @@
 (m/defmutation save-form [form]
   (action [{:keys [state] :as env}]
     (set-saving! env true)
-    (let [idk (raw/id-key form)
+    (let [idk (rc/id-key form)
           id  (get form idk)]
       (when (and idk id)
         (swap! state fs/entity->pristine* [idk id]))))
@@ -193,7 +192,7 @@
   (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User {:post-mutation `initialize-form
                                                                     :marker        ::user})))
   (let [{:ui/keys   [saving?]
-         :user/keys [id name settings] :as u} (rc3/use-root raw-app :current-user User {})
+         :user/keys [id name settings] :as u} (hooks/use-root raw-app :current-user User {})
         loading? (df/loading? (get-in u [df/marker-table ::user]))]
     (div :.ui.segment
       (h2 "Form")
@@ -201,11 +200,11 @@
         (div :.field
           (label "Name")
           (input {:value    (or name "")
-                  :onChange (fn [evt] (raw/set-value!! raw-app u :user/name (evt/target-value evt)))}))
+                  :onChange (fn [evt] (m/raw-set-value! raw-app u :user/name (evt/target-value evt)))}))
         (let [{:settings/keys [marketing?]} settings]
           (div :.ui.checkbox
             (input {:type     "checkbox"
-                    :onChange (fn [_] (raw/update-value!! raw-app settings :settings/marketing? not))
+                    :onChange (fn [_] (m/raw-update-value! raw-app settings :settings/marketing? not))
                     :checked  (boolean marketing?)})
             (label "Marketing Emails?")))
         (div :.field
@@ -239,8 +238,8 @@
    ::uism/states
    {:initial
     {::uism/handler (fn [env]
-                      (let [LoginForm (raw/nc [:component/id :email :password :failed?] {:componentName ::LoginForm})
-                            Session   (raw/nc [:account/id :account/email] {:componentName ::Session})]
+                      (let [LoginForm (rc/nc [:component/id :email :password :failed?] {:componentName ::LoginForm})
+                            Session   (rc/nc [:account/id :account/email] {:componentName ::Session})]
                         (log/info "initial handler" (::uism/event-id env))
                         (-> env
                           (uism/apply-action assoc-in [:account/id :none] {:account/id :none})
@@ -311,11 +310,11 @@
       (div :.field
         (label "Email")
         (input {:value    (or email "")
-                :onChange (fn [evt] (raw/set-value!! raw-app login-form :email (evt/target-value evt)))}))
+                :onChange (fn [evt] (m/raw-set-value! raw-app login-form :email (evt/target-value evt)))}))
       (div :.field
         (label "Password")
         (input {:type     "password"
-                :onChange (fn [evt] (raw/set-value!! raw-app login-form :password (evt/target-value evt)))
+                :onChange (fn [evt] (m/raw-set-value! raw-app login-form :password (evt/target-value evt)))
                 :value    (or password "")}))
       (div :.ui.error.message
         "Invalid credentials. Please try again.")
@@ -325,7 +324,7 @@
 (defn RootUISMSessions [_]
   (let [{:actor/keys [login-form current-account]
          :keys       [active-state]
-         :as         sm} (rc3/use-uism raw-app session-machine :sessions {})]
+         :as         sm} (hooks/use-uism raw-app session-machine :sessions {})]
     (log/info "UISM content" (with-out-str (pprint sm)))
     ;; TODO: Not done yet...didn't have time to finish refining, but it looks like it'll work
     (case active-state
