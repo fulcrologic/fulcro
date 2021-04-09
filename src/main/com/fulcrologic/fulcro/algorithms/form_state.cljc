@@ -551,7 +551,7 @@
          form-config-path (if (eql/ident? (get-in state-map form-config-path))
                             (get-in state-map form-config-path)
                             (do
-                              (log/error (str "FORM NOT NORMALIZED: " entity-ident))
+                              (log/error (str "FORM NOT NORMALIZED: " entity-ident "See https://book.fulcrologic.com/#err-fs-form-not-normalized"))
                               form-config-path))
          complete-path    (conj form-config-path ::complete?)]
      (update-in state-map complete-path (fnil conj #{}) field)))

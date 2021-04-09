@@ -69,7 +69,7 @@
     (let [parse-result (try
                          (query-processor query)
                          (catch Exception e
-                           (log/error e "Parser threw an exception on" query)
+                           (log/error e "Parser threw an exception on" query " See https://book.fulcrologic.com/#err-parser-errored-on-query")
                            e))]
       (if (instance? Throwable parse-result)
         {:status 500 :body "Internal server error. Parser threw an exception. See server logs for details."}

@@ -20,7 +20,7 @@
           (.setItem store k value)
           true)
         (catch :default e
-          (log/error e "Local storage denied." edn)
+          (log/error e "Local storage denied." edn "See https://book.fulcrologic.com/#err-edn-store-denied")
           false))))
   (-load-all [this]
     (async/go
@@ -29,7 +29,7 @@
           (fn [id] {:id id :value (some-> (.getItem js/localStorage (key-of this id)) (transit/transit-str->clj))})
           (async/<! (des/-all-ids this)))
         (catch :default e
-          (log/error e "Cannot list items in storage.")
+          (log/error e "Cannot list items in storage. See https://book.fulcrologic.com/#err-edn-store-list-failed")
           []))))
   (-all-ids [this]
     (async/go
@@ -41,7 +41,7 @@
                         (id-of this k)))
               (for [idx (range nitems)] (.key js/localStorage idx)))))
         (catch :default e
-          (log/error e "Cannot list items in storage.")
+          (log/error e "Cannot list items in storage. See https://book.fulcrologic.com/#err-edn-store-list-failed")
           []))))
   (-load-edn! [this id]
     (async/go
@@ -49,7 +49,7 @@
         (let [k (key-of this id)]
           (some-> (.getItem js/localStorage k) (transit/transit-str->clj)))
         (catch :default e
-          (log/error e "Load failed.")
+          (log/error e "Load failed. See https://book.fulcrologic.com/#err-edn-store-load-failed")
           nil))))
   (-exists? [this id]
     (async/go
@@ -63,7 +63,7 @@
           (.removeItem js/localStorage k)
           true)
         (catch :default e
-          (log/error e "Delete failed.")
+          (log/error e "Delete failed. See https://book.fulcrologic.com/#err-edn-store-delete-failed")
           false))))
   (-update-edn! [this id xform]
     (async/go
@@ -73,7 +73,7 @@
           (when-not (nil? new)
             (des/-save-edn! this id new)))
         (catch :default e
-          (log/error e "Cannot update edn."))))))
+          (log/error e "Cannot update edn. See https://book.fulcrologic.com/#err-edn-store-update-failed"))))))
 
 (defn- id-of [^BrowserEDNStore store store-key]
   (let [prefix (.-prefix store)

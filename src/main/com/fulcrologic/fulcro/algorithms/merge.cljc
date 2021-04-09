@@ -160,7 +160,7 @@
   (try
     (mark-missing-impl result query)
     (catch #?(:clj Exception :cljs :default) e
-      (log/error e "Unable to mark missing on result. Returning unmarked result")
+      (log/error e "Unable to mark missing on result. Returning unmarked result. See https://book.fulcrologic.com/#err-merge-unable2mark")
       result)))
 
 (defn- sweep-one
@@ -422,7 +422,7 @@
         (integrate-targets)
         (dissoc ::merge)))
     (do
-      (log/error "Cannot merge component " component " because it does not have an ident!")
+      (log/error "Cannot merge component " component " because it does not have an ident! See https://book.fulcrologic.com/#err-merge-comp-missing-ident")
       state-map)))
 
 (defn merge-component!
@@ -458,7 +458,7 @@
   [app component object-data & named-parameters]
   (when-let [app (comp/any->app app)]
     (if-not (comp/has-ident? component)
-      (log/error "merge-component!: component must implement Ident. Merge skipped.")
+      (log/error "merge-component!: component must implement Ident. Merge skipped. See https://book.fulcrologic.com/#err-merge-comp-missing-ident2")
       (let [state   (:com.fulcrologic.fulcro.application/state-atom app)
             render! (ah/app-algorithm app :schedule-render!)]
         (swap! state (fn [s] (apply merge-component s component object-data named-parameters)))

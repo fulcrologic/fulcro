@@ -180,7 +180,7 @@
             (when (and state-value element-value (not= (type state-value) (type element-value)))
               (log/warn "There is a mismatch for the data type of the value on an input with value " element-value
                 ". This will cause the input to miss refreshes. In general you should force the :value of an input to
-                be a string since that is how values are stored on most real DOM elements.")))
+                be a string since that is how values are stored on most real DOM elements. See https://book.fulcrologic.com/#warn-dom-type-mismatch")))
           (if (not= state-value element-value)
             (update-state this new-props element-value)
             (update-state this new-props (gobj/get new-props "value")))))

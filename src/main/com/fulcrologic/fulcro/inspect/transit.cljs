@@ -17,7 +17,7 @@
                   (str v)
                   (catch :default e
                     (when goog.DEBUG
-                      (log/warn "Transit was unable to encode a value."))
+                      (log/warn "Transit was unable to encode a value. See https://book.fulcrologic.com/#warn-transit-encode-failed"))
                     "UNENCODED VALUE"))))
 
 (defn write-handlers []

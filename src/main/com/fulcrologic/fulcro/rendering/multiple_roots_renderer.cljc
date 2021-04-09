@@ -89,7 +89,7 @@
            (schedule-render! app {:force-root? true}))
          (log/debug "Adding root of type " k)
          (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update-in [::known-roots k] (fnil conj #{}) react-instance))
-       (log/error "Register-root cannot find app. Pass your Fulcro app via options.")))))
+       (log/error "Register-root cannot find app. Pass your Fulcro app via options. See https://book.fulcrologic.com/#err-mrr-reg-root-no-app")))))
 
 (defn deregister-root!
   "Deregister a mounted root that should no longer be managed."
@@ -102,7 +102,7 @@
              k     (comp/class->registry-key class)]
          (log/debug "Adding root of type " k)
          (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) update-in [::known-roots k] disj react-instance))
-       (log/error "Deregister-root cannot find app. Pass your Fulcro app via options.")))))
+       (log/error "Deregister-root cannot find app. Pass your Fulcro app via options. See https://book.fulcrologic.com/#err-mrr-dereg-root-no-app")))))
 
 (defn render-roots! [app options]
   (let [state-map   (some-> app :com.fulcrologic.fulcro.application/state-atom deref)

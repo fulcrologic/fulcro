@@ -32,7 +32,7 @@
   #?(:cljs (try
              (async/put! send-ch [type data])
              (catch :default e
-               (log/error "Cannot send to inspect. Channel closed.")))))
+               (log/error "Cannot send to inspect. Channel closed. See https://book.fulcrologic.com/#err-inspect-ch-closed")))))
 
 (defn cljs?
   "Returns true when env is a cljs macro &env"
@@ -245,7 +245,7 @@
            (if tx-ref
              (comp-transact! app tx {:ref tx-ref})
              (comp-transact! app tx {}))
-           (log/error "Transact on invalid uuid" app-uuid)))
+           (log/error "Transact on invalid uuid" app-uuid "See https://book.fulcrologic.com/#err-inspect-invalid-app-uuid")))
 
        :fulcro.inspect.client/pick-element
        (if @run-picker
@@ -253,7 +253,7 @@
          (try
            (js/alert "Element picker not installed. Add it to your preload.")
            (catch :default _e
-             (log/error "Element picker not installed in app. You must add it to you preloads."))))
+             (log/error "Element picker not installed in app. You must add it to you preloads. See https://book.fulcrologic.com/#err-inspect-elm-picker-missing"))))
 
        :fulcro.inspect.client/show-dom-preview
        (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
@@ -265,7 +265,7 @@
                      comp/*shared*          {} ;; TODO: don't have historical shared props...
                      comp/*depth*           0]
              (render-state! app value))
-           (log/error "Unable to find app/state for preview.")))
+           (log/error "Unable to find app/state for preview. See https://book.fulcrologic.com/#err-inspect-cant-find-app")))
 
        :fulcro.inspect.client/hide-dom-preview
        (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data

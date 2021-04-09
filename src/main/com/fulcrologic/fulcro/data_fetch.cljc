@@ -60,7 +60,7 @@
     (when-not (or union-elision? (elision-predicate key))
       (when (and union-elision? (<= (count children) 2))
         (log/warn "Unions are not designed to be used with fewer than two children. Check your calls to Fulcro
-        load functions where the :without set contains " (pr-str union-key)))
+        load functions where the :without set contains " (pr-str union-key) "See https://book.fulcrologic.com/#warn-union-needs-more-children"))
       (let [new-ast (update ast :children (fn [c] (vec (keep #(elide-ast-nodes % elision-predicate) c))))]
         (if (seq (:children new-ast))
           new-ast
@@ -97,12 +97,12 @@
                             :else [server-property-or-ident])
         marker            (if (true? marker)
                             (do
-                              (log/warn "Boolean load marker no longer supported.")
+                              (log/warn "Boolean load marker no longer supported. See https://book.fulcrologic.com/#warn-boolean-marker-not-supported")
                               false)
                             marker)]
     (when (and target (not (targeting/special-target? target)) (= 2 (count target)))
       (log/warn "Data load targets of two elements imply that you are targeting a table entry. That is probably"
-        "incorrect. Normalization targets tables. Targeting is for creating missing edges, which are usually 3-tuples."))
+        "incorrect. Normalization targets tables. Targeting is for creating missing edges, which are usually 3-tuples. See https://book.fulcrologic.com/#warn-data-load-targets-table"))
     {:query                query
      :source-key           server-property-or-ident
      :remote               remote
@@ -283,7 +283,7 @@
          mutation-args (load-params* app server-property-or-ident class-or-factory config)
          abort-id      (:abort-id mutation-args)]
      (when query-transform-default
-       (log/warn "Query-transform-default is a dangerous option that can break general merge behaviors. Do not use it."))
+       (log/warn "Query-transform-default is a dangerous option that can break general merge behaviors. Do not use it. See https://book.fulcrologic.com/#warn-dont-use-query-transform-default"))
      (comp/transact! app `[(~load-sym ~mutation-args)]
        (cond-> txn-options
          (seq refresh) (assoc :refresh refresh)

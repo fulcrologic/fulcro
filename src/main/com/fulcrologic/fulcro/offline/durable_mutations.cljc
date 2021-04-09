@@ -119,7 +119,7 @@
                                                  :options      (assoc options ::tempid->real-id t->r)}))
                    (log/debug "Saved rewritten" txn "at id" id)
                    (do
-                     (log/error "Save failed. Running transaction now, non-durably.")
+                     (log/error "Save failed. Running transaction now, non-durably. See https://book.fulcrologic.com/#err-dm-save-failed")
                      (normal-transact! app txn options))))
                id)
              (do
@@ -181,7 +181,7 @@
   (let [{::keys [id]} options]
     (when-not id
       (log/error "The transaction that submitted this mutation did not assign it a persistent store ID."
-        "This probably means you did not submit it as a durable mutation."))
+        "This probably means you did not submit it as a durable mutation. See https://book.fulcrologic.com/#err-dm-missing-store-id"))
     (when-let [storage (current-mutation-store app)]
       (des/-delete! storage id))))
 
@@ -195,7 +195,7 @@
         remote-error? (ah/app-algorithm app :remote-error?)]
     (when durable?
       (if-not id
-        (log/error "INTERNAL ERROR: TXN ID MISSING!")
+        (log/error "INTERNAL ERROR: TXN ID MISSING! See https://book.fulcrologic.com/#err-dm-int-txn-id-missing")
         (async/go
           (let [store (current-mutation-store app)]
             (when-not (empty? tempid->real-id)
@@ -207,7 +207,7 @@
                             (des/-update-edn! store id (fn [{:keys [attempt] :as entry}]
                                                          (assoc entry :attempt (inc attempt)
                                                                       :last-attempt (inst-ms (now))))))
-                  (log/error "Failed to update durable mutation!")))
+                  (log/error "Failed to update durable mutation! See https://book.fulcrologic.com/#err-dm-update-failed")))
               (do
                 (log/debug "Persistent mutation completed on server. Removing it from storage")
                 (cancel-mutation! env)))
@@ -296,7 +296,7 @@
   ([app-ish txn options]
    (when #?(:clj true :cljs js/goog.DEBUG)
      (when-not (= 1 (count txn))
-       (log/warn "Write-through transactions with multiple mutations will be rewritten to submit one per mutation.")))
+       (log/warn "Write-through transactions with multiple mutations will be rewritten to submit one per mutation. See https://book.fulcrologic.com/#warn-multiple-mutations-rewritten")))
    (doseq [element txn]
      (when-not (keyword? element)                           ; ignore F2-style follow-on reads
        (comp/transact! app-ish [element] (assoc options ::durable? true))))))

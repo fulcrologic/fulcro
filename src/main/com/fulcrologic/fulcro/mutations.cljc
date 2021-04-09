@@ -231,7 +231,7 @@
      "
      [params]
      (action [{:keys [state ref]}]
-       (when (nil? ref) (log/error "ui/set-props requires component to have an ident."))
+       (when (nil? ref) (log/error "m/set-props requires component to have an ident. See https://book.fulcrologic.com/#err-mut-set-props-missing-ident"))
        (swap! state update-in ref (fn [st] (merge st params))))))
 
 #?(:cljs
@@ -240,11 +240,11 @@
       Use for local UI data only. Use your own mutations for things that have a good abstract meaning. "
      [{:keys [field]}]
      (action [{:keys [state ref]}]
-       (when (nil? ref) (log/error "ui/toggle requires component to have an ident."))
+       (when (nil? ref) (log/error "m/toggle requires component to have an ident. See https://book.fulcrologic.com/#err-mut-toggle-missing-ident"))
        (swap! state update-in (conj ref field) not))))
 
 (defmethod mutate :default [{:keys [ast]}]
-  (log/error "Unknown app state mutation. Have you required the file with your mutations?" (:key ast)))
+  (log/error "Unknown app state mutation. Have you required the file with your mutations?" (:key ast) "See https://book.fulcrologic.com/#err-mut-unknown-mutation"))
 
 (defn toggle!
   "Toggle the given boolean `field` on the specified component. It is recommended you use this function only on

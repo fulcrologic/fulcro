@@ -132,7 +132,7 @@
           {:keys [synchronous?]} tx-options
           event-data (dissoc event-data ::transact-options)]
       (when (nil? event-id)
-        (log/error "Invalid (nil) event ID"))
+        (log/error "Invalid (nil) event ID. See https://book.fulcrologic.com/#err-uism-invalid-eventid"))
       (trigger-state-machine-event! env params)
       (app/schedule-render! app (or transact-options {})))
     true))
@@ -212,7 +212,7 @@
                (into [::state-map ::asm-id asm-id] ks)
                [::state-map ::asm-id asm-id ks])]
     (when (not (get-in state-map [::asm-id asm-id]))
-      (log/warn (ex-info "" {}) "Attempt to get an ASM path" ks "for a state machine that is not in Fulcro state. ASM ID: " asm-id))
+      (log/warn (ex-info "" {}) "Attempt to get an ASM path" ks "for a state machine that is not in Fulcro state. ASM ID: " asm-id "See https://book.fulcrologic.com/#warn-uism-sm-not-in-state"))
     path))
 
 (>defn asm-value
@@ -236,7 +236,7 @@
       (log/debug "Activating state " state-id "on" (asm-id env))
       (assoc-in env (asm-path env ::active-state) state-id))
     (do
-      (log/error "Activate called for invalid state: " state-id "on" (asm-id env))
+      (log/error "Activate called for invalid state: " state-id "on" (asm-id env) "See https://book.fulcrologic.com/#err-uism-activate-invalid-state")
       env)))
 
 (>defn store
@@ -311,7 +311,7 @@
   (if-let [real-path (resolve-alias env alias)]
     (get-in state-map real-path)
     (do
-      (log/error "Unable to find alias in state machine:" alias)
+      (log/error "Unable to find alias in state machine:" alias "See https://book.fulcrologic.com/#err-uism-unknown-alias")
       nil)))
 
 (>defn set-aliased-value
@@ -559,7 +559,7 @@
   (let [actor-ident (actor->ident env actor-name)
         cls         (or component-class (actor-class env actor-name))]
     (if (nil? cls)
-      (log/error "Cannot run load. Counld not derive Fulcro class (and none was configured) for " actor-name)
+      (log/error "Cannot run load. Counld not derive Fulcro class (and none was configured) for " actor-name "See https://book.fulcrologic.com/#err-uism-load-cant-find-fulcro-class")
       (df/load! app actor-ident cls load-options))
     nil))
 
@@ -568,7 +568,7 @@
   [app query-key component-class load-options]
   [::fulcro-app ::query-key (s/nilable comp/component-class?) ::load-options => any?]
   (if (nil? query-key)
-    (log/error "Cannot run load. query-key cannot be nil.")
+    (log/error "Cannot run load. query-key cannot be nil. See https://book.fulcrologic.com/#err-uism-load-nil-query-key")
     (df/load! app query-key component-class load-options))
   nil)
 
@@ -580,7 +580,7 @@
                                                                  ::event-id error-event}
                                                           error-data (assoc ::event-data error-data)))])
       (do
-        (log/warn "A fallback occurred, but no event was defined by the client. Sending generic ::uism/load-error event.")
+        (log/warn "A fallback occurred, but no event was defined by the client. Sending generic ::uism/load-error event. See https://book.fulcrologic.com/#warn-uism-fallback-missing-event")
         (comp/transact! app [(trigger-state-machine-event (cond-> {::asm-id   asm-id
                                                                    ::event-id ::load-error}))])))
     nil))
@@ -681,7 +681,7 @@
     (if handler
       handler
       (let [{::keys [event-id]} env]
-        (log/warn "UNEXPECTED EVENT: Did not find a way to handle event" event-id "in the current active state:" current-state)
+        (log/warn "UNEXPECTED EVENT: Did not find a way to handle event" event-id "in the current active state:" current-state "See https://book.fulcrologic.com/#warn-uism-unexpected-event")
         identity))))
 
 (>defn ui-refresh-list
@@ -726,7 +726,7 @@
       (fn [env timer-id]
         (let [cancel-predicate (some-> (get-in active-timers [timer-id ::cancel-on]) meta :cancel-on)]
           (when-not cancel-predicate
-            (log/error "INTERNAL ERROR: Cancel predicate was nil for timer " timer-id))
+            (log/error "INTERNAL ERROR: Cancel predicate was nil for timer " timer-id "See https://book.fulcrologic.com/#err-uism-cancel-pred-nil"))
           (if (and cancel-predicate (cancel-predicate event-id))
             (do
               (log/debug "Cancelling timer " timer-id "on" (asm-id env) "due to event" event-id)
@@ -762,7 +762,7 @@
   [::mutation-env ::trigger-descriptor => ::refresh-vector]
   (log/debug "Trigger" asm-id event-id)
   (when-not (get-in @state [::asm-id asm-id])
-    (log/error "Attempted to trigger event " event-id "on state machine" asm-id ", but that state machine has not been started (call begin! first)."))
+    (log/error "Attempted to trigger event " event-id "on state machine" asm-id ", but that state machine has not been started (call begin! first). See https://book.fulcrologic.com/#err-uism-trigger-not-started-machine"))
   (let [sm-env       (state-machine-env @state ref asm-id event-id event-data app)
         handler      (active-state-handler sm-env)
         valued-env   (apply-event-value sm-env params)
@@ -770,7 +770,7 @@
                        (binding [comp/*after-render* true]
                          (handler (assoc valued-env ::fulcro-app app)))
                        (catch #?(:clj Exception :cljs :default) e
-                         (log/error e "Handler for event" event-id "threw an exception for ASM ID" asm-id)
+                         (log/error e "Handler for event" event-id "threw an exception for ASM ID" asm-id "See https://book.fulcrologic.com/#err-uism-evt-handler-exc")
                          nil))
         final-env    (as-> (or handled-env valued-env) e
                        (clear-timeouts-on-event! e event-id)
@@ -863,7 +863,7 @@
 
               (eql/ident? v) [actor-id v]
               :otherwise (do
-                           (log/error "The value given for actor" actor-id "had (or was) an invalid ident:" v)
+                           (log/error "The value given for actor" actor-id "had (or was) an invalid ident:" v "See https://book.fulcrologic.com/#err-uism-actor-invalid-ident")
                            nil))))
     actors))
 

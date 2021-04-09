@@ -90,12 +90,12 @@
                                  to-many?       (and (seq path-to-vector) (vector? (get-in state path-to-vector)))
                                  index          (last data-path)
                                  vector         (get-in state path-to-vector)]
-                             (when-not (vector? data-path) (log/error "Replacement path must be a vector. You passed: " data-path))
+                             (when-not (vector? data-path) (log/error "Replacement path must be a vector. You passed: " data-path "See https://book.fulcrologic.com/#err-targ-repl-path-not-vec"))
                              (when to-many?
                                (cond
-                                 (not (vector? vector)) (log/error "Path for replacement must be a vector")
-                                 (not (number? index)) (log/error "Path for replacement must end in a vector index")
-                                 (not (contains? vector index)) (log/error "Target vector for replacement does not have an item at index " index)))
+                                 (not (vector? vector)) (log/error "Path for replacement must be a vector. See https://book.fulcrologic.com/#err-targ-multi-repl-must-be-vec")
+                                 (not (number? index)) (log/error "Path for replacement must end in a vector index. See https://book.fulcrologic.com/#err-targ-multi-repl-must-end-with-idx")
+                                 (not (contains? vector index)) (log/error "Target vector for replacement does not have an item at index " index ". See https://book.fulcrologic.com/#err-targ-multi-repl-no-such-idx")))
                              (assoc-in state data-path ident))
                   state)))
       state actions)))
@@ -149,7 +149,7 @@
                    (replacement-target? target) (integrate-ident* item-to-place :replace target))
 
                  :else (do
-                         (log/warn "Target processing found an unsupported case.")
+                         (log/warn "Target processing found an unsupported case. See https://book.fulcrologic.com/#warn-target-unsuported-case")
                          state-map))))]
      (cond-> (process-target-impl state-map source-path target)
        (and remove-source? (not (eql/ident? source-path))) (dissoc source-path)))))

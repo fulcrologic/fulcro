@@ -39,7 +39,7 @@
              prior-computed (or (comp/get-computed c) {})
              data-tree      (when query (fdn/db->tree q state-map state-map)) ; denormalize time is set by app render
              new-props      (comp/computed (get data-tree ident) prior-computed)]
-         (when-not query (log/error "Query was empty. Refresh failed for " (type c)))
+         (when-not query (log/error "Query was empty. Refresh failed for " (type c) "See https://book.fulcrologic.com/#err-id-opt-render-empty-query"))
          (comp/tunnel-props! c new-props))
        (let [root (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/app-root)]
          (when (not= c root)

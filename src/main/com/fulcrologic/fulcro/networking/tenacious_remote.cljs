@@ -25,7 +25,7 @@
                                 (log/debug "Remote communication attempt" attempt "failed. Waiting" tm "ms before retry.")
                                 (js/setTimeout #(send* app (assoc send-node ::attempt attempt)) tm))
                               (do
-                                (log/warn "Tenacious remote exceeded retry limit" max-attempts)
+                                (log/warn "Tenacious remote exceeded retry limit" max-attempts "See https://book.fulcrologic.com/#warn-remote-retry-limit-exceeded")
                                 (result-handler result)))))
             handler     (fn [result]
                           (if (network-error? result)
