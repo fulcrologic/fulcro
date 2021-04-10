@@ -333,15 +333,22 @@
   actual class, and this method will look up the class for you (useful to avoid circular references).
 
   Returns an update `env`, and is a valid return value from mutation remote sections."
-  [env class]
-  (let [class (if (or (keyword? class) (symbol? class))
-                (rc/registry-key->class class)
-                class)]
-    (let [{:keys [state ast]} env
-          {:keys [key params query]} ast]
-      (let [updated-query (cond-> (rc/get-query class @state)
-                            query (vary-meta #(merge (meta query) %)))]
-        (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}]))))))
+  ([env class]
+   (returning env class nil))
+  ([env class query-params]
+   (let [class (if (or (keyword? class) (symbol? class))
+                 (rc/registry-key->class class)
+                 class)]
+     (let [{:keys [state ast]} env
+           {:keys [key params query]} ast]
+       (let [component-query (rc/get-query class @state)
+             updated-query   (cond-> (eql/query->ast component-query)
+                               query-params (update-in [:children 0] assoc :params query-params)
+                               :then (eql/ast->query)
+                               query (vary-meta #(merge (meta query) %)))]
+         (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}])))))))
+
+
 
 (defn with-target
   "Set's a target for the return value from the mutation to be merged into. This can be combined with returning to define

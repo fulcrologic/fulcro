@@ -153,7 +153,7 @@
                    :onClick (fn [] (set-tab! :settings))} "Settings"))))
 
 (defn UserForm [_js-props]
-  (let [{:user/keys [id name settings] :as u} (hooks/use-root raw-app :current-user User {})]
+  (let [{:user/keys [name] :as u} (hooks/use-root raw-app :current-user User {})]
     (div :.ui.segment
       (h2 "User")
       (div :.ui.form
@@ -185,12 +185,13 @@
 
 (def ui-settings-form (interop/react-factory SettingsForm))
 
+(def MainMenu (rc/entity->component {:component/id ::menu :menu/current-tab :main}))
+
 ;; Raw hook that uses I/O
 (defn RawReactWithFulcroIO [_]
   (hooks/use-lifecycle (fn [] (df/load! raw-app :current-user User)))
   (let [{:menu/keys [current-tab] :as menu-props} (hooks/use-root raw-app :root/menu
-                                                    (rc/nc [:component/id :menu/current-tab]
-                                                      {:initial-state (fn [_] {:component/id ::menu :menu/current-tab :main})})
+                                                    MainMenu
                                                     {:keep-existing? true
                                                      :initialize?    true})]
     (div

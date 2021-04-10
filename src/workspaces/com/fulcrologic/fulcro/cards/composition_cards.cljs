@@ -54,7 +54,7 @@
                                            :list/items [{:item/complete? false :item/id 1 :item/label "A"}
                                                         {:item/id 2 :item/label "B"}
                                                         {:item/id 2 :item/label "B"}
-                                                        {:item/id 2 :item/label "B"}]})
+                                                        {:item/id 2 :item/label "C"}]})
           list      (hooks/use-component APP anon-list {:keep-existing? true
                                                         :initialize?    true})
           counter-B (hooks/use-component APP (rc/entity->component {:counter/id 2 :counter/n 45}) {:keep-existing? true
