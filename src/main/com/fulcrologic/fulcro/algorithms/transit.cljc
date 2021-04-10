@@ -85,8 +85,11 @@
     will turn on/off metadata support. Defaults to on."
   ([data] (transit-clj->str data {}))
   ([data opts]
-   (let [opts (cond-> (dissoc opts :metadata?)
-                (not (false? (:metadata? opts))) (assoc :transform t/write-meta))]
+   ;; Support for Datomic Cloud, which uses an older version of transit with no write-meta
+   (let [write-meta #?(:cljs t/write-meta
+                       :clj (resolve `t/write-meta))
+         opts               (cond-> (dissoc opts :metadata?)
+                              (and write-meta (not (false? (:metadata? opts)))) (assoc :transform write-meta))]
      #?(:cljs (t/write (writer opts) data)
         :clj
               (with-open [out (java.io.ByteArrayOutputStream.)]
