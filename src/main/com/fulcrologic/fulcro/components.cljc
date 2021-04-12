@@ -875,7 +875,7 @@
 
                   (when-not ((fnil map? {}) (gobj/get props "fulcro$value"))
                     (log/error "Props passed to" (component-name class) "are of the type"
-                      (type (gobj/get props "fulcro$value"))
+                      (type->str (type (gobj/get props "fulcro$value")))
                       "instead of a map. Perhaps you meant to `map` the component over the props?")))))
            (create-element class props children)))
        {:class     class
