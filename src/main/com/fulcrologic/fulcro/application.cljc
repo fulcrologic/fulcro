@@ -240,7 +240,7 @@
                                           shared-props      (get @runtime-atom ::shared-props)]
                                       (binding [fdn/*denormalize-time* (basis-t app)
                                                 comp/*app*             app
-                                                rc/*shared*            shared-props
+                                                comp/*shared*            shared-props
                                                 comp/*depth*           0]
                                         (if optimized-render!
                                           (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))

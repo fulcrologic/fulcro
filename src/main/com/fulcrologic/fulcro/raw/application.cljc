@@ -53,7 +53,8 @@
             v            (fdn/db->tree query state state)
             shared-props (merge shared (shared-fn v))]
         (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/shared-props shared-props))
-      (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/shared-props (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/static-shared-props)))
+      (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/shared-props
+        (-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/static-shared-props)))
     (catch #?(:cljs :default :clj Throwable) e
       (log/error e "Cannot compute shared"))))
 

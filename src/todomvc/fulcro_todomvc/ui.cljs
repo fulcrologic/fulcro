@@ -6,9 +6,7 @@
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
     [fulcro-todomvc.api :as api]
     [fulcro-todomvc.app :refer [app]]
-    [goog.object :as gobj]
-    [com.fulcrologic.fulcro.alpha.raw-components3 :as raw]
-    [taoensso.timbre :as log]))
+    [goog.object :as gobj] ))
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))

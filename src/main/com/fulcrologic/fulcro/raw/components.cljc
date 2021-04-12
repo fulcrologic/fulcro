@@ -22,8 +22,6 @@
 
 ;; Used internally by get-query for resolving dynamic queries (was created to prevent the need for external API change in 3.x)
 (def ^:dynamic *query-state* nil)
-;; Needed by raw.application
-(def ^:dynamic *shared* nil)
 
 (defn isoget-in
   "Like get-in, but for js objects, and in CLJC. In clj, it is just get-in. In cljs it is
@@ -89,13 +87,10 @@
    :shared-fn app options. NOTE: Shared props only update on root render and by explicit calls to
    `app/update-shared!`.
 
-   This function attempts to rely on the dynamic var *shared* (first), but will make a best-effort of
-   finding shared props when run within a component's render or lifecycle. Passing your app will
-   ensure this returns the current shared props."
-  ([comp-or-app]
-   (shared comp-or-app []))
+   This version does not rely on the dynamic var *shared*, which is only available from the react-based components ns."
+  ([comp-or-app] (shared comp-or-app []))
   ([comp-or-app k-or-ks]
-   (let [shared (or *shared* (some-> (any->app comp-or-app) :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props))
+   (let [shared (some-> (any->app comp-or-app) :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props)
          ks     (cond-> k-or-ks
                   (not (sequential? k-or-ks)) vector)]
      (cond-> shared

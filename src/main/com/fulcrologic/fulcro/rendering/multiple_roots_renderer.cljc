@@ -58,7 +58,6 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     [edn-query-language.core :as eql]
@@ -167,7 +166,7 @@
        `(let [app# (or comp/*app* ~fulcro-app)
               d#   (or comp/*depth* 0)]
           (binding [comp/*app*    app#
-                    rc/*shared* (comp/shared app#)
+                    comp/*shared* (comp/shared app#)
                     comp/*depth*  d#]
             ~@body)))))
 

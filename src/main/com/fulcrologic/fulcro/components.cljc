@@ -37,6 +37,7 @@
 (def ^:dynamic *app* nil)
 (def ^:dynamic *parent* nil)
 (def ^:dynamic *depth* nil)
+(def ^:dynamic *shared* nil)
 
 ;; Used by default shouldComponentUpdate. If set to `true`, then SCU will return true. This is used by hot code reload
 ;; to know when it should re-render even if props have not changed so you can see the effects of rendering code changes.
@@ -210,18 +211,23 @@
                  opt-props  (gobj/get raw-state "fulcro$value")]
              (newer-props next-props opt-props))))
 
-(def shared
-  "
-  [c-or-app] [c-or-app k]
-
-   Return the global shared properties of the root. See :shared and
+(defn shared
+  "Return the global shared properties of the root. See :shared and
    :shared-fn app options. NOTE: Shared props only update on root render and by explicit calls to
    `app/update-shared!`.
 
    This function attempts to rely on the dynamic var *shared* (first), but will make a best-effort of
    finding shared props when run within a component's render or lifecycle. Passing your app will
    ensure this returns the current shared props."
-  rc/shared)
+  ([] *shared*)
+  ([comp-or-app]
+   (shared comp-or-app []))
+  ([comp-or-app k-or-ks]
+   (let [shared (or *shared* (some-> (any->app comp-or-app) :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props))
+         ks     (cond-> k-or-ks
+                  (not (sequential? k-or-ks)) vector)]
+     (cond-> shared
+       (not (empty? ks)) (get-in ks)))))
 
 (letfn
   [(wrap-props-state-handler
@@ -328,7 +334,7 @@
             (if-let [app (any->app this)]
               (binding [*app*       app
                         *depth*     (inc (depth this))
-                        rc/*shared* (shared this)
+                        *shared* (shared this)
                         *parent*    this]
                 (apply render this args))
               (log/fatal "Cannot find app on component!"))))))]
@@ -665,7 +671,7 @@
                        (fn []
                          (binding [*app*       (or *app* (any->app this))
                                    *depth*     (inc (depth this))
-                                   rc/*shared* (shared *app*)
+                                   *shared* (shared *app*)
                                    *parent*    this]
                            (f this props))))))]
     (reset! cls-atom js-fn)
@@ -994,7 +1000,7 @@
               p#      (or *parent* parent#)]
           (binding [*app*       app#
                     *depth*     d#
-                    rc/*shared* s#
+                    *shared* s#
                     *parent*    p#]
             ~@body)))))
 
@@ -1212,7 +1218,7 @@
             (fn []
               (binding [*app*       (or *app* (isoget-in ~thissym ["props" "fulcro$app"]))
                         *depth*     (inc (or *depth* (isoget-in ~thissym ["props" "fulcro$depth"])))
-                        rc/*shared* (shared (or *app* (isoget-in ~thissym ["props" "fulcro$app"])))
+                        *shared* (shared (or *app* (isoget-in ~thissym ["props" "fulcro$app"])))
                         *parent*    ~thissym]
                 (let [~@computed-bindings
                       ~@extended-bindings]
