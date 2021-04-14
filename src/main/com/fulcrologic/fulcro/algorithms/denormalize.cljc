@@ -6,6 +6,7 @@
     [taoensso.timbre :as log]))
 
 (def ^:dynamic *denormalize-time* 0)
+(def ^:dynamic *root-keys-and-idents* nil)
 
 (defn link-ref?
   "Is the given `v` a link ref query (e.g. `[:table '_]) element."
@@ -26,8 +27,14 @@
   lookup refs."
   [state-map [table id :as ref]]
   (if (= '_ id)
-    (get state-map table)
-    (get-in state-map ref)))
+    (do
+      (when *root-keys-and-idents*
+        (swap! *root-keys-and-idents* conj! table))
+      (get state-map table))
+    (do
+      (when *root-keys-and-idents*
+        (swap! *root-keys-and-idents* conj! ref))
+      (get-in state-map ref))))
 
 (defn ref-key
   "Returns the key to use in results for the given ref (ident of lookup ref). For link refs this is just
@@ -240,3 +247,45 @@
   "Gets the time at which the given props were processed by `db->tree`, if known."
   [props]
   (some-> props meta ::time))
+
+(defn traced-db->tree
+  "Similar to `db->tree`; however, the returned props will have annotated metadata the indicates what root keys and
+   idents were visited during the conversion to a tree, along with the source state map that was used. Such props can
+   be used with `possibly-stale?` to do very fast checks to see if an update is needed when `state-map` changes."
+  [state-map root-key-or-ident query]
+  (binding [*root-keys-and-idents* (atom (transient #{root-key-or-ident}))]
+    (let [starting-point (if (keyword? root-key-or-ident) state-map (get-in state-map root-key-or-ident))
+          query          (if (keyword? root-key-or-ident) [{root-key-or-ident query}] query)
+          result         (db->tree query starting-point state-map)]
+      (vary-meta result assoc
+        ::visited (persistent! @*root-keys-and-idents*)
+        ::source-state-map state-map))))
+
+(defn possibly-stale?
+  "Returns true if the given `prior-props` are likely to be stale with respect to the `current-state-map`. This function
+   returns true unless the `prior-props` were generated with `traced-db->tree` and have not since lost their metadata.
+
+   When called with properly-annotated props this function can do a very fast and accurate check to indicate if the props
+   seem out of date. Runs N `identical?` checks (which are reference compares) where N is the number of root keys and idents
+   that were traversed to originally build prior-props.
+
+   This is not proof that the props have changed, but the false indicators will all be `true`, meaning it is a safe (and
+   faster) replacement for the comparisions that `shouldComponentUpdate` usually use.
+   "
+  [current-state-map prior-props]
+  (let [{::keys [visited source-state-map]} (meta prior-props)]
+    (if (nil? source-state-map)
+      true
+      (reduce
+        (fn [_ path]
+          (let [old-value (if (keyword? path)
+                            (get source-state-map path)
+                            (get-in source-state-map path))
+                new-value (if (keyword? path)
+                            (get current-state-map path)
+                            (get-in current-state-map path))]
+            (if (identical? old-value new-value)
+              false
+              (reduced true))))
+        false
+        visited))))

@@ -7,7 +7,7 @@
     [clojure.test.check.generators :as gen]
     [clojure.test.check.properties :as props #?@(:cljs [:refer-macros [for-all]])]
     [clojure.walk :as walk]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as denorm]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as denorm :refer [traced-db->tree possibly-stale?]]
     [com.fulcrologic.fulcro.algorithms.legacy-db-tree :as fp]
     [com.fulcrologic.fulcro.algorithms.normalize :refer [tree->db]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
@@ -278,13 +278,13 @@
     (component "To-many"
       ;; Not supported
       #_(component "n recursion"
-        (let [tree (denorm/db->tree (comp/get-query SelfParentedPerson3) (get-in db [:person/id 3]) db)]
-          (assertions
-            "Stops the recursion specified depth"
-            tree => {:person/id     1
-                     :person/spouse {:person/id     2
-                                     :person/spouse {:person/id     1
-                                                     :person/spouse {:person/id 2}}}})))
+          (let [tree (denorm/db->tree (comp/get-query SelfParentedPerson3) (get-in db [:person/id 3]) db)]
+            (assertions
+              "Stops the recursion specified depth"
+              tree => {:person/id     1
+                       :person/spouse {:person/id     2
+                                       :person/spouse {:person/id     1
+                                                       :person/spouse {:person/id 2}}}})))
       (component "... recursion"
         (let [tree (denorm/db->tree (comp/get-query SelfParentedPerson) (get-in db [:person/id 3]) db)]
           (assertions
@@ -462,3 +462,151 @@
   (debug-query-case [#:A{:a [#:A{:A [{[:A/A 0] []}]}]}])
   (debug-query-case [{[:A/A 0] {:A/A []}}])
   (debug-query-case [{:A/A [{[:a/A 0] []}]}]))
+
+(defn visited [s k q] (-> (traced-db->tree s k q)
+                        meta
+                        ::denorm/visited))
+
+(specification "traced-db->tree"
+  (assertions
+    "simple cases"
+    (visited {:foo "bar"} :foo [:foo]) => #{:foo}
+
+    "denormalized joins"
+    (visited {:foo {:bar "baz" :extra "data"}} :foo [:bar]) => #{:foo}
+
+    "normalized joins"
+    (visited {:foo   [:point 123]
+              :point {123 {:bar "baz" :extra "data"}}}
+      :foo [:bar])
+    => #{:foo [:point 123]}
+
+    "join to many"
+    (visited {:foo [[:x 1] [:x 2] [:x 3]]
+              :x   {1 {:x 1} 2 {:x 2} 3 {:x 3}}}
+      :foo [:x])
+    => #{:foo [:x 1] [:x 2] [:x 3]}
+
+    "unions"
+    (visited
+      {:j [:c 2]
+       :a {1 {:a 1 :b "b"}}
+       :c {2 {:c 2 :d "d"}}
+       :e {3 {:e 3 :f "f"}}}
+      :j
+      [{:a [:a :b]
+        :c [:c :d]
+        :e [:e :f]}])
+    => #{:j [:c 2]}
+
+    (visited
+      {:j [[:e 3]
+           [:c 2]]
+       :a {1 {:a 1 :b "b"}}
+       :c {2 {:c 2 :d "d"}}
+       :e {3 {:e 3 :f "f"}}}
+      :j
+      [{:a [:a :b]
+        :c [:c :d]
+        :e [:e :f]}])
+    => #{:j [:e 3] [:c 2]}
+
+    "clean ident get"
+    (visited {:foo [:point 123]}
+      [:point 123]
+      [])
+    => #{[:point 123]}
+
+    (visited {:entry {:data "foo"}
+              :point {123 {:bar "baz" :extra "data"}}}
+      :entry
+      [[:point 123]])
+    => #{:entry [:point 123]}
+
+    "ident join"
+    (visited {:entry {:data "foo"}
+              :point {123 {:bar "baz" :extra "data"}}}
+      [:point 123]
+      [:bar])
+    => #{[:point 123]}
+
+    "... recursion"
+    (visited {:root  [:entry 1]
+              :entry {1 {:id 1 :message "foo" :parent [:entry 2]}
+                      2 {:id 2 :message "foo" :parent [:entry 3]}
+                      3 {:id 3 :message "foo"}}}
+      :root
+      '[:message {:parent ...}])
+    => #{:root [:entry 1] [:entry 2] [:entry 3]}
+
+    "... recursion with nil ref"
+    (visited {:root  [:entry 1]
+              :entry {1 {:id 1 :message "foo" :parent [:entry 2]}
+                      2 {:id 2 :message "foo" :parent [:entry 3]}
+                      3 {:id 3 :message "foo" :parent nil}}}
+      :root
+      '[:message {:parent ...}])
+    => #{:root [:entry 1] [:entry 2] [:entry 3]}
+
+    "numeric recursion depth"
+    (visited
+      {:root  {:id 1 :message "foo" :parent [:entry 1]}
+       :entry {1 {:id 1 :message "foo" :parent [:entry 2]}
+               2 {:id 2 :message "foo" :parent [:entry 3]}
+               3 {:id 3 :message "foo" :parent [:entry 1]}}}
+      :root
+      '[:message {:parent 1}])
+    => #{:root [:entry 2] [:entry 1]}
+
+    "recursion cycle"
+    (visited {:root  {:id 1 :message "foo" :parent [:entry 1]}
+              :entry {1 {:id 1 :message "foo" :parent [:entry 2]}
+                      2 {:id 2 :message "foo" :parent [:entry 3]}
+                      3 {:id 3 :message "foo" :parent [:entry 1]}}}
+      :root
+      '[:id :message {:parent ...}])
+    => #{:root [:entry 1] [:entry 2] [:entry 3]}
+
+    "link queries as props"
+    (visited
+      {:root/value 42
+       :point      {123 {}}}
+      [:point 123]
+      [[:root/value '_]])
+    => #{[:point 123] :root/value}
+
+    "link queries on joins"
+    (visited
+      {:x          22
+       :point      {1 {}}
+       :thing      [:point 1]
+       :root/value {:a 1 :b 2}}
+      :thing
+      [:x {[:root/value '_] [:a]}])
+    => #{:thing [:point 1] :root/value}))
+
+(specification "possibly-stale?"
+  (let [original-state {:people   [[:person 1] [:person 2]]
+                        :root/key 42
+                        :person   {1 {:name "bob"}
+                                   2 {:name "emily"}
+                                   3 {:name "sally"}
+                                   4 {:name "barbara"}}}
+        set-age        (fn [n] (assoc-in original-state [:person n :age] 90))
+        props          (traced-db->tree original-state :people [:name])]
+    (assertions
+      "Returns false when the state has not changed at all"
+      (possibly-stale? original-state props) => false
+      "Returns true for nil props"
+      (possibly-stale? original-state nil) => true
+      "Returns true when the props themselves are not annotated properly"
+      (possibly-stale? {} {}) => true)
+
+    (assertions
+      "returns true if any of the visited nodes isn't identical to the original"
+      (possibly-stale? (set-age 1) props) => true
+      (possibly-stale? (set-age 2) props) => true
+      "returns true if a traversed root-key changes"
+      (possibly-stale? (assoc original-state :people [[:person 4]]) props) => true
+      "returns false if there are changes to unvisited things"
+      (possibly-stale? (set-age 3) props) => false)))

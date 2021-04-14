@@ -1165,24 +1165,32 @@
    because UISM requires component appear in the component registry (components cannot be safely stored in app state, just their
    names).
 
-   Calls `receive-props` with a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`."
+   Calls `receive-props` with a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`.
+
+   NOTE: This function automatically supports a very fast variant of props change detection, so you will not receive
+   calls when there is a transaction that does not change the actors/active state of this UISM."
   [app {:keys [state-machine-definition id receive-props initial-event-data]}]
-  (rapp/add-render-listener! app id
-    (fn [& args]
-      (let [state-map (rapp/current-state app)
-            {::keys [active-state actor->ident actor->component-name]} (get-in state-map [::asm-id id])
-            props     (reduce-kv
-                        (fn [result actor ident]
-                          (let [cname (actor->component-name actor)
-                                cls   (rc/registry-key->class cname)
-                                query (rc/get-query cls)
-                                base  (get-in state-map ident)]
-                            (when-not cls
-                              (log/error "You forgot to give actor" actor "a :componentName"))
-                            (assoc result actor (fdn/db->tree query base state-map))))
-                        {:active-state active-state}
-                        actor->ident)]
-        (receive-props props))))
+  (let [last-return-value (atom {})]
+    (rapp/add-render-listener! app id
+      (fn [& args]
+        (let [state-map (rapp/current-state app)
+              {::keys [active-state actor->ident actor->component-name]} (get-in state-map [::asm-id id])
+              props     (reduce-kv
+                          (fn [result actor ident]
+                            (let [prior-props (get @last-return-value actor)]
+                              (if (fdn/possibly-stale? state-map prior-props)
+                                (let [cname (actor->component-name actor)
+                                      cls   (rc/registry-key->class cname)
+                                      query (rc/get-query cls)]
+                                  (when-not cls
+                                    (log/error "You forgot to give actor" actor "a :componentName"))
+                                  (assoc result actor (fdn/traced-db->tree state-map ident query)))
+                                (assoc result actor prior-props))))
+                          {:active-state active-state}
+                          actor->ident)]
+          (when-not (= @last-return-value props)
+            (reset! last-return-value props)
+            (receive-props props))))))
   (let [s        (rapp/current-state app)
         started? (get-in s [::asm-id id])]
     (if started?

@@ -367,6 +367,9 @@
    The `component` should be a real Fulcro component or a generated normalizing component from `nc` (or similar).
 
    Calls `receive-props` with the props (not including `root-key`) that satisfy the query of `component`.
+
+   NOTE: This function tracks prior props and is capable of a very fast staleness check. It will not call your callback
+   unless it detects an actual change to the data of interest to your UI.
   "
   [app root-key component {:keys [receive-props initialize? keep-existing? initial-params]}]
   (when (and initialize? (not (and keep-existing? (contains? (current-state app) root-key))))
@@ -374,13 +377,20 @@
                                                                   (merge/merge-component s component
                                                                     (comp/get-initial-state component (or initial-params {}))
                                                                     :replace [root-key]))))
-  (let [get-props (fn use-root-get-props* []
-                    (let [query     [{root-key (comp/get-query component)}]
-                          state-map (current-state app)]
-                      (fdn/db->tree query state-map state-map)))]
+  (let [prior-props (atom nil)
+        get-props   (fn use-root-get-props* []
+                      (let [state-map (current-state app)]
+                        (if (fdn/possibly-stale? state-map @prior-props)
+                          (let [query (comp/get-query component)]
+                            (fdn/traced-db->tree state-map root-key query))
+                          @prior-props)))]
     (receive-props (get-props))
     (add-render-listener! app root-key (fn use-root-render-listener* [app _]
-                                         (receive-props (get-props))))))
+                                         (let [props (get-props)]
+                                           (when-not (identical? props @prior-props)
+                                             (log/info "props updated" root-key)
+                                             (reset! prior-props props)
+                                             (receive-props props)))))))
 
 (defn remove-root!
   "Remove a root key managed subtree from Fulcro"
@@ -403,13 +413,19 @@
         exists?        (and (map? current-value) (seq current-value))]
     (when (and initialize? (not (and exists? (not keep-existing?))))
       (swap! (:com.fulcrologic.fulcro.application/state-atom app) merge/merge-component component initial-entity))
-    (let [get-props (fn []
-                      (let [state-map (current-state app)
-                            query     (comp/get-query component state-map)
-                            entity    (get-in state-map ident)]
-                        (fdn/db->tree query entity state-map)))]
+    (let [prior-props (atom nil)
+          get-props   (fn []
+                        (let [state-map (current-state app)
+                              query     (comp/get-query component state-map)]
+                          (if (fdn/possibly-stale? state-map @prior-props)
+                            (fdn/traced-db->tree state-map ident query)
+                            @prior-props)))]
       (receive-props (get-props))
-      (add-render-listener! app ident (fn [app _] (receive-props (get-props)))))))
+      (add-render-listener! app ident (fn [app _]
+                                        (let [props (get-props)]
+                                          (when-not (identical? @prior-props props)
+                                            (reset! prior-props props)
+                                            (receive-props props))))))))
 
 (defn remove-component!
   "Remove a root key managed subtree from Fulcro"
