@@ -462,3 +462,49 @@
   (debug-query-case [#:A{:a [#:A{:A [{[:A/A 0] []}]}]}])
   (debug-query-case [{[:A/A 0] {:A/A []}}])
   (debug-query-case [{:A/A [{[:a/A 0] []}]}]))
+
+(defsc RecursiveUnion
+  [this props]
+
+  {:query
+   (fn []
+     {:entity.type.a/id
+      [:entity.type.a/id
+       :a-key
+       {:child '...}]
+
+      :entity.type.b/id
+      [:entity.type.b/id
+       :b-key]})
+
+   :ident
+   (fn []
+     (cond
+
+       (contains? props :entity.type.a/id)
+       [:entity.type.a/id (:entity.type.a/id props)]
+
+       (contains? props :entity.type.b/id)
+       [:entity.type.b/id (:entity.type.b/id props)]))})
+
+(defsc Thing
+  [this props]
+  {:query [:component/id
+           {:entity (comp/get-query RecursiveUnion)}]
+   :ident :component/id})
+
+(specification "Recursive union components correctly denormalise children"
+  (let [db {:component/id {:thing {:component/id :thing
+                                   :entity [:entity.type.a/id 1]}}
+            :entity.type.a/id {1 {:entity.type.a/id 1
+                                  :child [:entity.type.b/id 1]
+                                  :a-key "a-key-value"}}
+            :entity.type.b/id {1 {:entity.type.b/id 1
+                                  :b-key "b-key-value"}}}]
+    (let [tree (denorm/db->tree
+                (comp/get-query Thing)
+                (get-in db [:component/id :thing])
+                db)]
+      (assertions
+        "Denormalisation of recursive unions use the expected type query"
+        (get-in tree [:entity :child :b-key]) => "b-key-value"))))
