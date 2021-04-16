@@ -151,7 +151,7 @@
         (inspect/send-started! app remote-name (::id send-node) tx))
       (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
-        (log/error e "Send threw an exception for tx:" (futil/ast->query (::ast send-node)))
+        (log/error e "Send threw an exception for tx:" (futil/ast->query (::ast send-node)) "See https://book.fulcrologic.com/#err-txp-send-exc")
         (try
           (inspect/ido
             (inspect/send-failed! app (::id send-node) "Transmit Exception"))
@@ -160,7 +160,7 @@
           (catch #?(:cljs :default :clj Exception) e
             (log/fatal e "Error handler failed to handle exception!")))))
     (do
-      (log/error "Transmit was not defined on remote" remote-name)
+      (log/error "Transmit was not defined on remote" remote-name "See https://book.fulcrologic.com/#err-txp-remote-lacks-transmit")
       ((::result-handler send-node) {:status-code 500
                                      :message     "Transmit missing on remote."}))))
 
@@ -244,7 +244,7 @@
                        (try
                          (dispatch-fn env)
                          (catch #?(:clj Exception :cljs :default) e
-                           (log/error e "Dispatch for mutation" (some-> env :ast futil/ast->query) "failed with an exception. No dispatch generated.")
+                           (log/error e "Dispatch for mutation" (some-> env :ast futil/ast->query) "failed with an exception. No dispatch generated. See https://book.fulcrologic.com/#err-txp-mut-dispatch-exc")
                            {})))
         dispatch     (fn dispatch* [{:keys [::original-ast-node] :as ele}]
                        (let [{:keys [type]} original-ast-node
@@ -337,7 +337,7 @@
                                    (action env))
                                  (catch #?(:cljs :default :clj Exception) e
                                    (let [mutation-symbol (:dispatch-key original-ast-node)]
-                                     (log/error e "The `action` section of mutation" mutation-symbol "threw an exception."))))
+                                     (log/error e "The `action` section of mutation" mutation-symbol "threw an exception. See https://book.fulcrologic.com/#err-txp-mut-action-exc"))))
                                (ilet [tx (eql/ast->expr original-ast-node true)]
                                  (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
                                                                                :state-id-before state-id-before
@@ -370,7 +370,7 @@
                              (try
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
-                                 (log/error e "The `action` section threw an exception for mutation: " (:dispatch-key original-ast-node))))
+                                 (log/error e "The `action` section threw an exception for mutation: " (:dispatch-key original-ast-node) "See https://book.fulcrologic.com/#err-txp-mut-action-exc2")))
                              (ilet [tx (eql/ast->expr original-ast-node true)]
                                (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
                                                                              :state-id-before state-id-before
@@ -418,7 +418,7 @@
                         active-queue)
          not-found?   (or (>= txn-idx (count active-queue)) (not= txn-id (::id (get active-queue txn-idx))))]
      (if not-found?
-       (log/error "Network result for" remote "does not have a valid node on the active queue!")
+       (log/error "Network result for" remote "does not have a valid node on the active queue! See https://book.fulcrologic.com/#err-txp-res-lacks-valid-node")
        (swap! runtime-atom assoc-in [::active-queue txn-idx ::elements ele-idx result-key remote] result))))
   ([app txn-id ele-idx remote result]
    [:com.fulcrologic.fulcro.application/app ::id int? keyword? any? => any?]
@@ -439,7 +439,7 @@
                           (and (map? remote-desire) (contains? remote-desire :ast)) (:ast remote-desire)
                           (and (map? remote-desire) (contains? remote-desire :type)) remote-desire
                           :else (do
-                                  (log/error "Remote dispatch for" remote "returned an invalid value." remote-desire)
+                                  (log/error "Remote dispatch for" remote "returned an invalid value." remote-desire "See https://book.fulcrologic.com/#err-txp-remote-dispatch-invalid-res")
                                   remote-desire))
         ;; The EQL transform from fulcro app config ONLY affects the network layer (the AST we put on the send node).
         ;; The response gets dispatched on network return, but the original query
@@ -571,7 +571,7 @@
         (try
           (handler env)
           (catch #?(:cljs :default :clj Exception) e
-            (log/error e "The result-action mutation handler for mutation" (:dispatch-key original-ast-node) "threw an exception."))))))
+            (log/error e "The result-action mutation handler for mutation" (:dispatch-key original-ast-node) "threw an exception. See https://book.fulcrologic.com/#err-txp-mut-res-action-exc"))))))
   (update tx-element ::complete? conj remote))
 
 (defn distribute-element-results!
@@ -611,7 +611,7 @@
               (try
                 (action env)
                 (catch #?(:cljs :default :clj Exception) e
-                  (log/error e "Progress action threw an exception in mutation" (:dispatch-key original-ast-node)))))))
+                  (log/error e "Progress action threw an exception in mutation" (:dispatch-key original-ast-node) "See https://book.fulcrologic.com/#err-txp-progress-action-exc"))))))
         (update-in node [::elements idx] dissoc ::progress))
       tx-node
       elements)))
@@ -740,7 +740,7 @@
     (if (and component (comp/component? component) (comp/has-ident? component))
       (comp/refresh-component! component)
       (when #?(:cljs js/goog.DEBUG :clj true)
-        (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen.")))
+        (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen. See https://book.fulcrologic.com/#warn-tx-missing-ident")))
     @resulting-node-id))
 
 (defn default-tx!
@@ -818,7 +818,7 @@
       []
       send-queue)
     (do
-      (log/error "Cannot abort network requests. The remote has no abort support!")
+      (log/error "Cannot abort network requests. The remote has no abort support! See https://book.fulcrologic.com/#err-txp-cant-abort")
       send-queue)))
 
 (defn abort!
@@ -858,10 +858,10 @@
         (when active?
           (if abort-network!
             (abort-network! the-remote aid)
-            (log/warn "Remote does not support abort. Clearing the queue, but a spurious result may still appear.")))
+            (log/warn "Remote does not support abort. Clearing the queue, but a spurious result may still appear. See https://book.fulcrologic.com/#warn-tx-remote-abort-not-supported")))
         (result-handler {:status-code 500
                          :body        {}
                          :status-text "Globally Aborted"
                          ::aborted?   true})
         (catch #?(:clj Exception :cljs :default) e
-          (log/error e "Failed to abort send node"))))))
+          (log/error e "Failed to abort send node. See https://book.fulcrologic.com/#err-txp-abort-failed"))))))

@@ -134,7 +134,7 @@
       (try
         (f)
         (catch #?(:clj Exception :cljs :default) e
-          (log/error e "Post processing step failed."))))
+          (log/error e "Post processing step failed. See https://book.fulcrologic.com/#err-stp-postproc-failed"))))
     (when-let [next-steps (seq (post-processing-steps app))]
       (recur next-steps))))
 
@@ -166,7 +166,7 @@
         (try
           (handler env)
           (catch #?(:cljs :default :clj Exception) e
-            (log/error e "The result-action mutation handler for mutation" (:dispatch-key original-ast-node) "threw an exception."))))))
+            (log/error e "The result-action mutation handler for mutation" (:dispatch-key original-ast-node) "threw an exception. See https://book.fulcrologic.com/#err-stp-res-action-exc"))))))
   (update tx-element ::txn/complete? conj remote))
 
 (defn distribute-element-results!
@@ -209,7 +209,7 @@
          txn-idx      (node-index active-queue txn-id)
          not-found?   (or (>= txn-idx (count active-queue)) (not= txn-id (::txn/id (get active-queue txn-idx))))]
      (if not-found?
-       (log/error "Network result for" remote "does not have a valid node on the active queue!")
+       (log/error "Network result for" remote "does not have a valid node on the active queue! See https://book.fulcrologic.com/#err-stp-res-lacks-valid-node")
        (do
          (swap-active-queue! app assoc-in [txn-idx ::txn/elements ele-idx result-key remote] result)
          (distribute-results! app txn-id ele-idx)))))
@@ -325,7 +325,7 @@
         explicit-refresh (txn/requested-refreshes app new-queue)
         remotes-active?  (txn/active-remotes new-queue remotes)]
     (when (not= old-queue (active-queue app))
-      (log/error "Old queue changed!"))
+      (log/error "Old queue changed! See https://book.fulcrologic.com/#err-stp-old-queue-chng"))
     (swap! state-atom assoc :com.fulcrologic.fulcro.application/active-remotes remotes-active?)
     (reset-active-queue! app new-queue)
     (when (seq explicit-refresh)
@@ -358,7 +358,7 @@
   (try
     (activate-submissions! app)
     (catch #?(:cljs :default :clj Exception) e
-      (log/error e "Error processing tx queue!"))))
+      (log/error e "Error processing tx queue! See https://book.fulcrologic.com/#err-stp-err-processing-tx-q"))))
 
 (defn run-queue! [app {:keys [component synchronous?] :as options}]
   (loop []

@@ -109,7 +109,7 @@
              (assoc :body form :method :post :response-type response-type)
              (update :headers dissoc "Content-Type")))
          (catch :default e
-           (log/error e "Exception while converting mutation with file uploads.")
+           (log/error e "Exception while converting mutation with file uploads. See https://book.fulcrologic.com/#err-fu-mut-convert-exc")
            {:body nil
             :method :post}))
        (handler req)))))

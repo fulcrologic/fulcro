@@ -189,7 +189,7 @@
   (let [routing-instructions (get-in state [routing-tree-key handler])]
     (if-not (or (nil? routing-instructions) (vector? routing-instructions))
       (do
-        (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
+        (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler "See https://book.fulcrologic.com/#err-lur-missing-instructions")
         state)
       (reduce (fn [ongoing-state {:keys [target-router target-screen]}]
                 (set-routing-query ongoing-state app target-router target-screen))
@@ -205,7 +205,7 @@
   [state-map {:keys [handler route-params]}]
   (let [routing-instructions (get-in state-map [routing-tree-key handler])]
     (if-not (or (nil? routing-instructions) (vector? routing-instructions))
-      (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
+      (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler "See https://book.fulcrologic.com/#err-lur-missing-instructions")
       (reduce (fn [m {:keys [target-router target-screen]}]
                 (let [parameterized-screen-ident (set-ident-route-params target-screen route-params)]
                   (set-route* m target-router parameterized-screen-ident))) state-map routing-instructions))))
@@ -313,7 +313,7 @@
      :cljs (let [routing-instructions (get-in state-map [routing-tree-key handler])]
              (if-not (or (nil? routing-instructions) (vector? routing-instructions))
                (do
-                 (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler)
+                 (log/error "Routing tree does not contain a vector of routing-instructions for handler " handler "See https://book.fulcrologic.com/#err-lur-missing-instructions")
                  [])
                (reduce
                  (fn [routes {:keys [target-router target-screen]}]
@@ -343,7 +343,7 @@
                       (.addCallback deferred-result finish)
                       (.addErrback deferred-result
                         (fn [_]
-                          (log/error (str "Route load failed for " route-to-load ". Attempting retry."))
+                          (log/error (str "Route load failed for " route-to-load ". Attempting retry. See https://book.fulcrologic.com/#err-lur-route-retried"))
                           ; TODO: We're tracking attempts..but I don't see a reason to stop trying if the route is still pending...
                           (-load-dynamic-route state-atom pending-route-handler route-to-load finish (inc attempt) next-delay)))))))
               delay))))
@@ -376,7 +376,7 @@
   (if-let [missing-routes (seq (-get-missing-routes app @state bidi-match))]
     (if (= bidi-match (get @state ::pending-route))
       ; TODO: This could be the user clicking again, or a legitimate failure...Not much more I can do yet.
-      (log/error "Attempt to trigger a route that was pending, but that wasn't done loading (or failed to load).")
+      (log/error "Attempt to trigger a route that was pending, but that wasn't done loading (or failed to load). See https://book.fulcrologic.com/#err-lur-route-still-loading")
       (do
         (swap! state assoc ::pending-route bidi-match)
         (-load-routes env missing-routes)))
@@ -421,7 +421,7 @@
     (try
       (route-to-impl! env params)
       (catch #?(:clj Throwable :cljs :default) t
-        (log/error "Routing failed!" t)))))
+        (log/error "Routing failed!" t "See https://book.fulcrologic.com/#err-lur-routing-failed")))))
 
 #?(:clj
    (defn compile-error [env form message ex]

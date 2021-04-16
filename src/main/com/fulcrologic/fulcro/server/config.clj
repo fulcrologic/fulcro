@@ -55,7 +55,7 @@
   (if-let [edn (some-> file-path load-edn!)]
     edn
     (do
-      (log/error "Unable to read configuration file " file-path)
+      (log/error "Unable to read configuration file " file-path "See https://book.fulcrologic.com/#err-config-file-read-err")
       (throw (ex-info (str "Invalid config file at '" file-path "'")
                {:file-path file-path})))))
 

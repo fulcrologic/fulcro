@@ -66,7 +66,7 @@
   (if-let [will-enter (comp/component-options class :will-enter)]
     will-enter
     (let [ident (comp/get-ident class {})]
-      (when-not ident (log/error "Component must have an ident for routing to work properly:" (comp/component-name class)))
+      (when-not ident (log/error "Component must have an ident for routing to work properly:" (comp/component-name class) "See https://book.fulcrologic.com/#err-dr-comp-needs-ident"))
       (fn [_ _] (route-immediate ident)))))
 
 (defn will-enter
@@ -100,7 +100,7 @@
   (or
     (comp/component-options this :allow-route-change?)
     (when-let [will-leave (comp/component-options this :will-leave)]
-      (log/warn "DEPRECATED USE OF `:will-leave` to check for allowable routing. You should add :allow-route-change? to: " (comp/component-name this))
+      (log/warn "DEPRECATED USE OF `:will-leave` to check for allowable routing. You should add :allow-route-change? to: " (comp/component-name this) "See https://book.fulcrologic.com/#warn-routing-will-leave-deprecated")
       (fn [] (will-leave this (comp/props this))))
     (constantly true)))
 
@@ -110,7 +110,7 @@
       (binding [*target-class* (comp/isoget c :type)]
         (f c)))
     (catch #?(:clj Exception :cljs :default) e
-      (log/error "Cannot evalutate route change. Assuming ok. Exception message: " (ex-message e))
+      (log/error "Cannot evaluate route change. Assuming ok. Exception message: " (ex-message e) "See https://book.fulcrologic.com/#err-dr-cant-eval-route-chng")
       true)))
 
 (defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
@@ -133,7 +133,7 @@
     (log/error fn-name " was invoked with the ident " ident
       " which doesn't seem to match the ident of the wrapping component (class "
       *target-class* " , ident ["
-      (first (comp/ident *target-class* {})) " ...])")))
+      (first (comp/ident *target-class* {})) " ...]) See https://book.fulcrologic.com/#err-dr-ident-mismatch")))
 
 (defn route-immediate [ident]
   (check-ident-matches-expectation? "route-immediate" ident)
@@ -151,10 +151,10 @@
         target-class (-> target meta :component)]
     (log/debug "Applying route ident" target "to router" router-id)
     (when (nil? router-class)
-      (log/error "apply-route* was called without a proper :router argument."))
+      (log/error "apply-route* was called without a proper :router argument. See https://book.fulcrologic.com/#err-dr-apply-route-lacks-router"))
     (when (nil? target-class)
       (log/error "apply-route* for router " router-class "was given a target that did not have a component. "
-        "Did you remember to call route-deferred or route-immediate?"))
+        "Did you remember to call route-deferred or route-immediate? See https://book.fulcrologic.com/#err-dr-apply-route-no-component"))
     (-> state-map
       (assoc-in (conj router ::current-route) target)
       (update-in router dissoc ::pending-route)
@@ -165,7 +165,7 @@
         router-id (reduce (fn [_ r]
                             (when (and #?(:clj true :cljs goog.DEBUG) (nil? (::id r)))
                               (log/error "There is a router in state that is missing an ID. This indicates that"
-                                "you forgot to compose it into your initial state! It will fail to operate properly."))
+                                "you forgot to compose it into your initial state! It will fail to operate properly. See https://book.fulcrologic.com/#err-dr-router-missing-id"))
                             (when (= target (some-> r ::pending-route :target))
                               (reduced (::id r))))
                     nil
@@ -183,10 +183,10 @@
           (log/debug "Router" router-id "notified that pending route is ready.")
           (when (and #?(:clj false :cljs goog.DEBUG) (nil? (get-in state-map target)))
             (log/error `target-ready "should route to" target "but there is no data in the DB for the ident."
-              "Perhaps you supplied a wrong ident?"))
+              "Perhaps you supplied a wrong ident? See https://book.fulcrologic.com/#err-dr-target-ready-missing-data"))
           (uism/trigger! app router-id :ready!))
         (log/error "dr/target-ready! was called but there was no router waiting for the target listed: " target
-          "This could mean you sent one ident, and indicated ready on another."))))
+          "This could mean you sent one ident, and indicated ready on another. See https://book.fulcrologic.com/#err-dr-target-ready-no-router-waiting"))))
   (refresh [_] [::current-route]))
 
 (defn target-ready!
@@ -260,7 +260,7 @@
           max-length (some-> matches first :length)
           match      (filter #(= max-length (:length %)) matches)]
       (when (second match)
-        (log/warn "More than one route target matches" path))
+        (log/warn "More than one route target matches" path "See https://book.fulcrologic.com/#warn-routing-multiple-target-matches"))
       (first match))))
 
 (defn accepts-route?
@@ -408,10 +408,10 @@
                                 (map (fn [a b] [a b]) segment matching-prefix))
                target-ident   (will-enter target app params)]
            (when (or (not (eql/ident? target-ident)) (nil? (second target-ident)))
-             (log/error "will-enter for router target" (comp/component-name target) "did not return a valid ident. Instead it returned: " target-ident))
+             (log/error "will-enter for router target" (comp/component-name target) "did not return a valid ident. Instead it returned: " target-ident "See https://book.fulcrologic.com/#err-dr-will-enter-invalid-ident"))
            (when (and (eql/ident? target-ident)
                    (not (contains? (some-> target-ident meta) :immediate)))
-             (log/error "will-enter for router target" (comp/component-name target) "did not wrap the ident in route-immediate or route-deferred."))
+             (log/error "will-enter for router target" (comp/component-name target) "did not wrap the ident in route-immediate or route-deferred. See https://book.fulcrologic.com/#err-dr-will-enter-missing-metadata"))
            (when (vector? target-ident)
              (swap! result conj (vary-meta target-ident assoc :component target :params params)))
            (when (seq remaining-path)
@@ -633,7 +633,7 @@
        (log/debug "Request to change route, but path is the current route. Ignoring change request.")
 
        (and #?(:clj true :cljs goog.DEBUG) (not (seq new-path)))
-       (log/error "Could not find route targets for new-route" new-route)
+       (log/error "Could not find route targets for new-route" new-route "See https://book.fulcrologic.com/#err-dr-new-route-target-not-found")
 
        (not (can-change-route? app-or-comp relative-class))
        (let [app          (comp/any->app app-or-comp)
@@ -681,7 +681,7 @@
                         (do
                           (let [state-map (comp/component->state-map app-or-comp)]
                             (when-not (-> state-map ::id (get router-id))
-                              (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state.")))
+                              (log/error "You are routing to a router " router-id "whose state was not composed into the app from root. Please check your :initial-state. See https://book.fulcrologic.com/#err-dr-router-state-missing")))
                           (uism/begin! app-or-comp RouterStateMachine router-id
                             {:router (uism/with-actor-class router-ident component)}
                             event-data))
@@ -754,7 +754,7 @@
         "of router"
         (comp/component-name router-instance)
         "does not declare a valid :route-segment. Route segments must be non-empty vector that contain only strings"
-        "and keywords"))))
+        "and keywords. See https://book.fulcrologic.com/#err-dr-target-lacks-r-segment"))))
 
 #?(:clj
    (defn defrouter* [env router-ns router-sym arglist options body]

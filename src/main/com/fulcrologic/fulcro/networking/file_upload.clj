@@ -34,7 +34,7 @@
                                                  mutation-sym (some-> mutation-name (edn/read-string))]
                                       (update result mutation-sym (fnil conj []) (assoc file :filename filename))
                                       (do
-                                        (log/error "Unable to associate a file with a mutation" file)
+                                        (log/error "Unable to associate a file with a mutation" file "See https://book.fulcrologic.com/#err-fu-cant-assoc-file")
                                         result)))
                             {}
                             files)
@@ -47,7 +47,7 @@
                                %))]
       (eql/ast->query new-ast))
     (catch Exception e
-      (log/error e "Unable to attach uploads to the transaction.")
+      (log/error e "Unable to attach uploads to the transaction. See https://book.fulcrologic.com/#err-fu-cant-attach-uploads")
       txn)))
 
 (defn wrap-mutation-file-uploads
@@ -76,7 +76,7 @@
             files (upload-files req)
             txn   (attach-uploads-to-txn txn files)]
         (when-not (seq files)
-          (log/error "Incoming transaction with uploads had no files attached."))
+          (log/error "Incoming transaction with uploads had no files attached. See https://book.fulcrologic.com/#err-fu-tx-has-no-files"))
         (handler (-> req
                    (dissoc :params :multipart-params)
                    (assoc :transit-params txn))))

@@ -98,7 +98,7 @@
           ident (when get-ident (get-ident this props))]
       (when #?(:cljs goog.DEBUG :clj true)
         (when (and ident (not (eql/ident? ident)))
-          (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident "using props" props))
+          (log/error "Component" (comp/component-name this) "supplied an invalid ident" ident "using props" props "See https://book.fulcrologic.com/#err-idx-invalid-ident"))
         (when (and ident (nil? (second ident)))
           (log/info
             (str "component " (comp/component-name this) "'s ident (" ident ") has a `nil` second element."
@@ -135,4 +135,4 @@
   (action [{:keys [app]}]
     (if app
       (index-root! app)
-      (log/error "Unable to re-index root. App was not set in the mutation env."))))
+      (log/error "Unable to re-index root. App was not set in the mutation env. See https://book.fulcrologic.com/#err-idx-missing-app"))))

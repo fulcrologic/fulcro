@@ -99,7 +99,7 @@
     (cond
       stop-recursion? (do
                         (when (and #?(:clj true :cljs goog.DEBUG) (not depth-based?))
-                          (log/warn "Loop detected in data graph at " entity ". Recursive query stopped."))
+                          (log/warn "Loop detected in data graph at " entity ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
                         n)
       to-many? (assoc! n key
                  (into []

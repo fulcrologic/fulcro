@@ -1012,5 +1012,5 @@ z"
         (dom/title (or title ""))
         (dom/path {:d path}))
       (do
-        (log/error "ui-icon was given an icon name that cannot be found: " icon)
+        (log/error "ui-icon was given an icon name that cannot be found: " icon "See https://book.fulcrologic.com/#err-icons-unknown-name")
         (dom/div)))))

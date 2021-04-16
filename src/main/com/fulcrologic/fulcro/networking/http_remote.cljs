@@ -119,7 +119,7 @@
         cnt   (count nodes)
         alt   (some #(-> % :params ::response-type) nodes)]
     (when (and alt (not= 1 cnt))
-      (log/error "Attempt to request alternate response from HTTP remote from multiple items in a single transaction. This could mean more than one transaction got combined into a single request."))
+      (log/error "Attempt to request alternate response from HTTP remote from multiple items in a single transaction. This could mean more than one transaction got combined into a single request. See https://book.fulcrologic.com/#err-httpr-multiple-items"))
     (if (and alt (= 1 cnt) (contains? legal-response-types alt))
       (let [node         (update-in (first nodes) [:params] dissoc ::response-type)
             updated-body (futil/ast->query node)]
@@ -181,7 +181,7 @@
                        response (assoc response :body new-body)]
                    response))
                (catch :default e
-                 (log/warn "Transit decode failed!")
+                 (log/warn "Transit decode failed! See https://book.fulcrologic.com/#warn-transit-decode-failed")
                  (assoc response :status-code 417 :status-text "body was either not transit or you have not installed the correct transit read/write handlers.")))
              response)))))))
 
@@ -199,7 +199,7 @@
      :error                (xhrio-error-code xhrio)
      :error-text           (xhrio-error-text xhrio)}
     (catch :default e
-      (log/error "Unable to extract response from XhrIO Object" e)
+      (log/error "Unable to extract response from XhrIO Object" e "See https://book.fulcrologic.com/#err-httpr-response-extract-fail")
       {:outgoing-request     request
        :original-transaction tx
        :body                 ""
@@ -230,7 +230,7 @@
       (try
         (response-middleware r)
         (catch :default e
-          (log/error "Client response middleware threw an exception. " e ". Defaulting to raw response.")
+          (log/error "Client response middleware threw an exception. " e ". Defaulting to raw response. See https://book.fulcrologic.com/#err-httpr-resp-middleware-exc")
           (merge r {:error                (if (contains? #{nil :none} (:error r)) :middleware-failure (:error r))
                     :middleware-exception e}))))))
 
@@ -252,7 +252,7 @@
     (let [{:keys [error middleware-exception] :as r} (get-response-fn)]
       (if (= error :middleware-failure)
         (do
-          (log/error "Client middleware threw an exception" middleware-exception)
+          (log/error "Client middleware threw an exception" middleware-exception "See https://book.fulcrologic.com/#err-httpr-middleware-exc")
           (progress-routine :failed evt)
           (error-routine r))
         (do
@@ -333,7 +333,7 @@
                                                  (try
                                                    (result-handler result)
                                                    (catch :default e
-                                                     (log/error e "Result handler for remote" url "failed with an exception."))))
+                                                     (log/error e "Result handler for remote" url "failed with an exception. See https://book.fulcrologic.com/#err-httpr-result-handler-exc"))))
                               progress-handler (fn [update-msg]
                                                  (let [msg {:status-code      200
                                                             :raw-progress     (select-keys update-msg [:progress-phase :progress-event])
@@ -344,18 +344,18 @@
                                                      (try
                                                        (update-handler msg)
                                                        (catch :default e
-                                                         (log/error e "Update handler for remote" url "failed with an exception."))))))
+                                                         (log/error e "Update handler for remote" url "failed with an exception. See https://book.fulcrologic.com/#err-httpr-update-handler-exc"))))))
                               error-handler    (fn [error-result]
                                                  (try
                                                    (let [error (merge error-result {:status-code 500})]
-                                                     (log/error (ex-info "Remote Error" error))
+                                                     (log/error (ex-info "Remote Error" error) "See https://book.fulcrologic.com/#err-httpr-remote-err")
                                                      (result-handler error))
                                                    (catch :default e
-                                                     (log/error e "Error handler for remote" url "failed with an exception."))))]
+                                                     (log/error e "Error handler for remote" url "failed with an exception. See https://book.fulcrologic.com/#err-httpr-err-handler-exc"))))]
                           (if-let [real-request (try
                                                   (request-middleware {:headers {} :body edn :url url :method :post})
                                                   (catch :default e
-                                                    (log/error e "Send aborted due to middleware failure ")
+                                                    (log/error e "Send aborted due to middleware failure. See https://book.fulcrologic.com/#err-httpr-send-abort")
                                                     nil))]
                             (let [abort-id             (or
                                                          (-> send-node ::txn/options ::txn/abort-id)

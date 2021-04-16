@@ -19,12 +19,12 @@
                                         (try
                                           (result-handler (select-keys result #{:transaction :status-code :body :status-text}))
                                           (catch :default e
-                                            (log/error e "Result handler failed with an exception."))))
+                                            (log/error e "Result handler failed with an exception. See https://book.fulcrologic.com/#err-msr-res-handler-exc"))))
                         error-handler (fn [error-result]
                                         (try
                                           (result-handler (merge {:status-code 500} (select-keys error-result #{:transaction :status-code :body :status-text})))
                                           (catch :default e
-                                            (log/error e "Error handler failed with an exception."))))]
+                                            (log/error e "Error handler failed with an exception. See https://book.fulcrologic.com/#err-msr-err-handler-exc"))))]
                     (try
                       (async/go
                         (let [result (async/<! (parser edn))]

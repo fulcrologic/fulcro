@@ -517,7 +517,8 @@
                                                         (when-not app
                                                           (log/error "Cannot create proper fulcro component, as *app* isn't bound."
                                                             "This happens when something renders a Fulcro component outside of Fulcro's render context."
-                                                            "See `with-parent-context`."))
+                                                            "See `with-parent-context`."
+                                                            "See https://book.fulcrologic.com/#err-comp-app-not-bound"))
                                                         (let [depth                (or *depth* (isoget js-props :fulcro$depth))
                                                               set-tunnelled-props! (fn [updater] (let [new-props (updater nil)] (js-set-tunnelled-props! new-props)))]
                                                           #js {:setState           set-tunnelled-props!
@@ -626,15 +627,15 @@
    (if-let [m (props x)]
      (ident x m)
      (when #?(:clj false :cljs goog.DEBUG)
-       (log/warn "get-ident was invoked on " (component-name x) " with nil props (this could mean it wasn't yet mounted): " x))))
+       (log/warn "get-ident was invoked on " (component-name x) " with nil props (this could mean it wasn't yet mounted): " x "See https://book.fulcrologic.com/#warn-get-ident-with-nil-props"))))
   ([class props]
    (if-let [id (ident class props)]
      (do
        (when (and #?(:clj false :cljs goog.DEBUG) (not (eql/ident? id)))
-         (log/warn "get-ident returned an invalid ident:" id (:displayName (component-options class))))
+         (log/warn "get-ident returned an invalid ident:" id (:displayName (component-options class)) "See https://book.fulcrologic.com/#warn-get-ident-invalid-ident"))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
      (when #?(:clj false :cljs goog.DEBUG)
-       (log/warn "get-ident called with something that is either not a class or does not implement ident: " class)
+       (log/warn "get-ident called with something that is either not a class or does not implement ident: " class "See https://book.fulcrologic.com/#warn-get-ident-invalid-class")
        nil))))
 
 (defn tunnel-props!
@@ -660,7 +661,7 @@
   [class qualifier]
   (if (nil? class)
     (when #?(:clj false :cljs goog.DEBUG)
-      (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query)" (ex-info "" {})))
+      (log/error "Query ID received no class (if you see this warning, it probably means metadata was lost on your query) See https://book.fulcrologic.com/#err-comp-query-id-no-class" (ex-info "" {})))
     (when-let [classname (component-name class)]
       (str classname (when qualifier (str "$" qualifier))))))
 
@@ -863,20 +864,20 @@
                 ;; dev time warnings/errors
                 (when goog.DEBUG
                   (when (nil? *app*)
-                    (log/error "A Fulcro component was rendered outside of a parent context. This probably means you are using a library that has you pass rendering code to it as a lambda. Use `with-parent-context` to fix this."))
+                    (log/error "A Fulcro component was rendered outside of a parent context. This probably means you are using a library that has you pass rendering code to it as a lambda. Use `with-parent-context` to fix this. See https://book.fulcrologic.com/#err-comp-rendered-outside-parent-ctx"))
                   (when (or (map? key) (vector? key))
-                    (log/warn "React key for " (component-name class) " is not a simple scalar value. This could cause spurious component remounts."))
+                    (log/warn "React key for " (component-name class) " is not a simple scalar value. This could cause spurious component remounts. See https://book.fulcrologic.com/#warn-react-key-not-simple-scalar"))
 
                   (when (string? ref)
-                    (log/warn "String ref on " (component-name class) " should be a function."))
+                    (log/warn "String ref on " (component-name class) " should be a function. See https://book.fulcrologic.com/#warn-string-ref-not-function"))
 
                   (when (or (nil? props) (not (gobj/containsKey props "fulcro$value")))
-                    (log/error "Props middleware seems to have the corrupted props for " (component-name class)))
+                    (log/error "Props middleware seems to have corrupted props for " (component-name class) "See https://book.fulcrologic.com/#err-comp-props-middleware-corrupts"))
 
                   (when-not ((fnil map? {}) (gobj/get props "fulcro$value"))
                     (log/error "Props passed to" (component-name class) "are of the type"
                       (type->str (type (gobj/get props "fulcro$value")))
-                      "instead of a map. Perhaps you meant to `map` the component over the props?")))))
+                      "instead of a map. Perhaps you meant to `map` the component over the props? See https://book.fulcrologic.com/#err-comp-props-not-a-map")))))
            (create-element class props children)))
        {:class     class
         :queryid   qid
@@ -1021,7 +1022,7 @@
             :else state))
         (catch #?(:clj Exception :cljs :default) e
           (when #?(:clj false :cljs goog.DEBUG)
-            (log/error e "Query normalization failed. Perhaps you tried to set a query with a syntax error?")))))
+            (log/error e "Query normalization failed. Perhaps you tried to set a query with a syntax error? See https://book.fulcrologic.com/#err-comp-q-norm-failed")))))
     state-map query))
 
 (defn link-query
@@ -1077,7 +1078,7 @@
         (contains? args :query) (setq*))
       (do
         (when #?(:clj false :cljs goog.DEBUG)
-          (log/error "Set query failed. There was no query ID. Use a class or factory for the second argument."))
+          (log/error "Set query failed. There was no query ID. Use a class or factory for the second argument. See https://book.fulcrologic.com/#err-comp-set-q-failed"))
         state-map))))
 
 (defn set-query!
@@ -1102,7 +1103,7 @@
         (util/dev-check-query (get-query class-or-factory @state-atom) component-name)
         (when schedule-render! (schedule-render! app {:force-root? true})))
       (when #?(:clj false :cljs goog.DEBUG)
-        (log/error "Unable to set query. Invalid arguments.")))))
+        (log/error "Unable to set query. Invalid arguments. See https://book.fulcrologic.com/#err-comp-unable-set-q")))))
 
 (letfn [(--set-query! [app class-or-factory {:keys [query] :as params}]
           (let [state-atom (:com.fulcrologic.fulcro.application/state-atom app)
@@ -1113,7 +1114,7 @@
             (if (and (string? queryid) (or query params))
               (swap! state-atom set-query* class-or-factory {:queryid queryid :query query :params params})
               (when #?(:clj false :cljs goog.DEBUG)
-                (log/error "Unable to set query. Invalid arguments.")))))]
+                (log/error "Unable to set query. Invalid arguments. See https://book.fulcrologic.com/#err-comp-unable-set-q")))))]
   (defn refresh-dynamic-queries!
     "Refresh the current dynamic queries in app state to reflect any updates to the static queries of the components.
 
@@ -1729,7 +1730,7 @@
               query    (get-query component state-map)
               ui-props (computed (fdn/db->tree query (get-in state-map ident) state-map) prior-computed)]
           (tunnel-props! component ui-props))))
-    (log/error "Cannot re-render a non-component")))
+    (log/error "Cannot re-render a non-component. See https://book.fulcrologic.com/#err-comp-cannot-rerender-non-comp")))
 
 (defn get-parent
   "Returns the nth parent of `this` (a React element). The optional `n` can be 0 (the immediate parent) or any positive
@@ -1761,7 +1762,7 @@
                   (not= "com.fulcrologic.fulcro.algorithms.form-state/FormConfig" (component-name c)))
             (log/warn "Component" (component-name c) "has a constant ident (id in the ident is not nil for empty props),"
               "but it has no initial state. This could cause this component's props to"
-              "appear as nil unless you have a mutation or load that connects it to the graph after application startup."))
+              "appear as nil unless you have a mutation or load that connects it to the graph after application startup. See https://book.fulcrologic.com/#warn-constant-ident-no-initial-state"))
           (when (has-initial-app-state? c)
             (let [initial-keys (set (keys (get-initial-state c {})))
                   join-map     (into {}
@@ -1776,4 +1777,4 @@
                   (when (has-initial-app-state? target)
                     (log/warn "Component" (component-name c) "does not INCLUDE initial state for" (component-name target)
                       "at join key" k "; however, " (component-name target) "HAS initial state. This probably means your initial state graph is incomplete"
-                      "and props on" (component-name target) "will be nil.")))))))))))
+                      "and props on" (component-name target) "will be nil. See https://book.fulcrologic.com/#warn-initial-state-incomplete")))))))))))

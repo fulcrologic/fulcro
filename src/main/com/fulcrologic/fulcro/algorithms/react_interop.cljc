@@ -56,7 +56,7 @@
   [component-class]
   (fn [this props & children]
     (when-not (comp/component? this)
-      (log/error "The first argument to an HOC factory MUST be the parent component instance."))
+      (log/error "The first argument to an HOC factory MUST be the parent component instance. See https://book.fulcrologic.com/#err-interop-1st-arg-not-parent"))
     #?(:cljs
        (apply js/React.createElement
          component-class
@@ -82,7 +82,7 @@
   "
   [target-fulcro-class hoc]
   (when-not (comp/component-class? target-fulcro-class)
-    (log/error "hoc-factory MUST be used with a Fulcro Class"))
+    (log/error "hoc-factory MUST be used with a Fulcro Class. See https://book.fulcrologic.com/#err-interop-not-fulcro-class"))
   (let [target-factory         (comp/computed-factory target-fulcro-class)
         target-factory-interop (fn [js-props]
                                  (let [parent       (comp/isoget js-props "fulcro_hoc$parent")

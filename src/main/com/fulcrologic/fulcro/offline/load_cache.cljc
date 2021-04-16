@@ -119,7 +119,7 @@
   (let [remote-error? (ah/app-algorithm app :remote-error?)
         finish!       #(cond
                          (and (not (eager? env)) (remote-error? result)) (merge-last-load! env params)
-                         (remote-error? result) (log/error "Load failed. Using cached value.")
+                         (remote-error? result) (log/error "Load failed. Using cached value. See https://book.fulcrologic.com/#err-cache-load-failed")
                          (not (remote-error? result)) (finish-load! env params))]
     (if (eager? env)
       (async/go
@@ -218,7 +218,7 @@
   ([app-ish query-key query-component default-value {::keys [on-cached-load] :as options}]
    [any? (s/or :k keyword? :id eql/ident?) (? comp/component-class?) (s/or :one map? :many vector?) map? => uuid?]
    (when (not= `internal-load! (-> app-ish comp/any->app ::app/config :load-mutation))
-     (log/error "LOAD CACHE NOT INSTALLED! Did you remember to use `with-load-cache` on your app?"))
+     (log/error "LOAD CACHE NOT INSTALLED! Did you remember to use `with-load-cache` on your app? See https://book.fulcrologic.com/#err-cache-not-installed"))
    (let [default-value {query-key default-value}]
      (df/load! app-ish query-key query-component (dnu/deep-merge options
                                                    {::txn/options (cond->

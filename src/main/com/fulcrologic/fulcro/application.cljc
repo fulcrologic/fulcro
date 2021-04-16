@@ -68,7 +68,7 @@
         (swap! runtime-atom assoc ::shared-props shared-props))
       (swap! runtime-atom assoc ::shared-props (-> app ::runtime-atom deref ::static-shared-props)))
     (catch #?(:cljs :default :clj Throwable) e
-      (log/error e "Cannot compute shared"))))
+      (log/error e "Cannot compute shared. See https://book.fulcrologic.com/#err-cannot-compute-shared"))))
 
 (>defn root-props-changed?
   "Returns true if the props queries directly by the root component of the app (if mounted) have changed since the last
@@ -135,7 +135,7 @@
        (try
          (render-listener app options)
          (catch #?(:clj Exception :cljs :default) e
-           (log/error e "Render listener failed.")))))))
+           (log/error e "Render listener failed. See https://book.fulcrologic.com/#err-render-listener-failed")))))))
 
 (let [go! #?(:cljs (debounce (fn [app options]
                                (sched/schedule-animation! app ::render-scheduled? #(render! app options))) 16)
@@ -390,7 +390,7 @@
                                (let [dom-node     (if (string? node) #?(:cljs (gdom/getElement node)) node)
                                      root-factory (comp/factory root)]
                                  (if (nil? dom-node)
-                                   (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root))
+                                   (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root) "See https://book.fulcrologic.com/#err-mount-cannot-find-node")
                                    (do
                                      (swap! (::runtime-atom app) assoc
                                        ::mount-node dom-node
@@ -425,7 +425,7 @@
       (swap! (::runtime-atom app) dissoc ::mount-node ::app-root)
       true)
     (do
-      (log/warn "Cannot umount application because either the umount function is missing or the node was not recorded. Perhaps it wasn't mounted?")
+      (log/warn "Cannot umount application because either the umount function is missing or the node was not recorded. Perhaps it wasn't mounted? See https://book.fulcrologic.com/#warn-cannot-unmount-application")
       false)))
 
 (defn remount!
