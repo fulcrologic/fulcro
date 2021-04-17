@@ -86,29 +86,29 @@
     (with-meta
       (fn element-factory [props & children]
         (binding [comp/*app* app]
-          (this-as this
-            (let [key              (:react-key props)
-                  key              (cond
-                                     key key
-                                     keyfn (keyfn props))
-                  ref              (:ref props)
-                  ref              (cond-> ref (keyword? ref) str)
-                  props-middleware (some-> app (ah/app-algorithm :props-middleware))
-                  props            #js {:fulcro$value   props
-                                        :fulcro$queryid qid
-                                        :fulcro$app     comp/*app*
-                                        :fulcro$parent  this
-                                        :fulcro$depth   0}
-                  props            (if props-middleware
-                                     (props-middleware class props)
-                                     props)]
-              #?(:cljs
-                 (do
+          #?(:cljs
+              (this-as this
+                (let [key              (:react-key props)
+                      key              (cond
+                                         key key
+                                         keyfn (keyfn props))
+                      ref              (:ref props)
+                      ref              (cond-> ref (keyword? ref) str)
+                      props-middleware (some-> app (ah/app-algorithm :props-middleware))
+                      props            #js {:fulcro$value   props
+                                            :fulcro$queryid qid
+                                            :fulcro$app     comp/*app*
+                                            :fulcro$parent  this
+                                            :fulcro$depth   0}
+                      props            (if props-middleware
+                                         (props-middleware class props)
+                                         props)]
+                  (do
                    (when key
                      (gobj/set props "key" key))
                    (when ref
-                     (gobj/set props "ref" ref))))
-              (create-element class props children)))))
+                     (gobj/set props "ref" ref)))
+                  (create-element class props children))))))
       {:class     class
        :queryid   qid
        :qualifier qualifier})))
