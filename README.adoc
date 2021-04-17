@@ -37,6 +37,8 @@ Fulcro 2, you can still read the http://book.fulcrologic.com/fulcro2[prior versi
 
 There is also a https://github.com/fulcrologic/fulcro-template[template project] which you can use as a starting point.
 
+Finally, there is a plenty of great resources collected at the https://fulcro-community.github.io/[Fulcro Community] site.
+
 == Contributing to Fulcro
 
 For learning more about how to contribute to the Fulcro project, please refer
