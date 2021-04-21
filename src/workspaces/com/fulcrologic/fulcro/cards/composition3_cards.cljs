@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.cards.composition3-cards
   (:require
+    ["react-dom" :as react-dom]
     [nubank.workspaces.model :as wsm]
     [nubank.workspaces.card-types.react :as ct.react]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
@@ -92,7 +93,8 @@
 (defonce raw-app
   (let [process-eql (fn [eql] (async/go
                                 (pathom-parser {} eql)))
-        app         (app/fulcro-app {:remotes {:remote (mock-http-server {:parser process-eql})}})]
+        app         (app/fulcro-app {:remotes             {:remote (mock-http-server {:parser process-eql})}
+                                     :batch-notifications (fn [render!] (react-dom/unstable_batchedUpdates render!))})]
     (inspect/app-started! app)
     app))
 

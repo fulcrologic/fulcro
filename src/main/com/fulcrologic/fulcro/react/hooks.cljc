@@ -259,21 +259,25 @@
   * :initial-state-params - The parameters to use when getting the initial state of the component. See `comp/get-initial-state`.
     If no initial state exists on the top-level component, then an empty map will be used. This will mean your props will be
     empty to start.
+  * initialize? - A boolean (default true). If true then the initial state of the component will be used to pre-populate the component's state
+    in the app database.
   * :keep-existing? - A boolean. If true, then the state of the component will not be initialized if there
     is already data at the component's ident (which will be computed using the initial state params provided, if
     necessary).
   * :ident - Only needed if you are NOT initializing state, AND the component has a dynamic ident.
 
   Returns the props from the Fulcro database. The component using this function will automatically refresh after Fulcro
-  transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries).
+  transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries). MAY return nil during
+  initialization, or if no data is at that component's ident.
   "
   [app component
    {:keys [initialize? initial-params]
     :or {initialize? true
          initial-params {}} :as options}]
-  (let [[current-props set-props!] (use-state (comp/get-initial-state component (or {} initial-params)))]
+  (let [[current-props set-props!] (use-state nil)]
     (use-lifecycle
-      (fn [] (rapp/add-component! app component (merge options {:receive-props set-props!})))
+      (fn [] (rapp/add-component! app component (merge {:initialize?    true
+                                                        :initial-params {}} options {:receive-props set-props!})))
       (fn use-tree-remove-render-listener* [] (rapp/remove-component! app component)))
     current-props))
 
@@ -284,10 +288,11 @@
 
    The `component` should be a real Fulcro component or a generated normalizing component from `nc` (or similar).
 
-   Returns the props (not including `root-key`) that satisfy the query of `component`.
+   Returns the props (not including `root-key`) that satisfy the query of `component`. MAY return nil during initialization,
+   or if no data is available.
   "
   [app root-key component {:keys [initialize? initial-params] :as options}]
-  (let [[current-props set-props!] (use-state (comp/get-initial-state component (or initial-params {})))]
+  (let [[current-props set-props!] (use-state nil)]
     (use-lifecycle
       (fn [] (rapp/add-root! app root-key component (merge options {:receive-props set-props!})))
       (fn use-tree-remove-render-listener* [] (rapp/remove-root! app root-key)))

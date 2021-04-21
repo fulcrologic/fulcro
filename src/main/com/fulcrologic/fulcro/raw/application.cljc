@@ -107,11 +107,15 @@
            :com.fulcrologic.fulcro.application/last-rendered-state @state-atom
            :com.fulcrologic.fulcro.application/only-refresh #{}
            :com.fulcrologic.fulcro.application/to-refresh #{})))
-     (doseq [render-listener (-> runtime-atom deref :com.fulcrologic.fulcro.application/render-listeners vals)]
-       (try
-         (render-listener app options)
-         (catch #?(:clj Exception :cljs :default) e
-           (log/error e "Render listener failed.")))))))
+     (let [batch-renders (ah/app-algorithm app :batch-renders)
+           notify-all!   #(doseq [render-listener (-> runtime-atom deref :com.fulcrologic.fulcro.application/render-listeners vals)]
+                            (try
+                              (render-listener app options)
+                              (catch #?(:clj Exception :cljs :default) e
+                                (log/error e "Render listener failed."))))]
+       (if batch-renders
+         (batch-renders notify-all!)
+         (notify-all!))))))
 
 (let [go! #?(:cljs (debounce (fn [app options]
                                (sched/schedule-animation! app :com.fulcrologic.fulcro.application/render-scheduled? #(render! app options))) 16)
@@ -187,6 +191,9 @@
      This function is normally called from core-render!, and therefore is useless unless you define a `core-render!` that calls it.
    * `:core-render!` - A (fn [app txn-options] side-effect) that is called by schedule render. If you fail to supply this on a raw app, then
      NO rendering will happen; however, render listeners will still be called.
+   * `:batch-notifications` - A side-effecting function `(fn [notify-all])` that can surround a batch of render notifiations with a context. The only
+     argument to this function is `notify-all`, which is a function that will do the actual notifications. This is useful when using render
+     notifications with React hooks, and need to tell React that a bunch of state changes need to happen together.
 
   Note that raw apps are not mounted, but are instead ready to be used immediately.  If you want to use inspect, then
   you must call `(inspect/client-started! app)` yourself.
@@ -200,6 +207,7 @@
             default-result-action!
             core-render!
             optimized-render!
+            batch-notifications
             render-root!
             hydrate-root!
             unmount-root!
@@ -229,6 +237,7 @@
                                                         :load-mutation           load-mutation}
       :com.fulcrologic.fulcro.application/algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
                                                         :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
+                                                        :com.fulcrologic.fulcro.algorithm/batch-notifications    batch-notifications
                                                         :com.fulcrologic.fulcro.algorithm/core-render!           (or core-render! identity)
                                                         :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! identity)
                                                         :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!

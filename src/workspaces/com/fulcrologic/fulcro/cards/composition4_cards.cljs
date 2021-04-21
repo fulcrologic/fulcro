@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.cards.composition4-cards
   (:require
+    ["react-dom" :as react-dom]
     [clojure.pprint :refer [pprint]]
     [nubank.workspaces.model :as wsm]
     [nubank.workspaces.card-types.react :as ct.react]
@@ -142,7 +143,8 @@
                                 (let [tm (async/timeout 300)]
                                   (async/<! tm)
                                   (pathom-parser {} eql))))
-        app         (app/fulcro-app {:remotes {:remote (mock-http-server {:parser process-eql})}})]
+        app         (app/fulcro-app {:remotes             {:remote (mock-http-server {:parser process-eql})}
+                                     :batch-notifications (fn [render!] (react-dom/unstable_batchedUpdates render!))})]
     (inspect/app-started! app)
     app))
 
