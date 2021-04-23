@@ -23,7 +23,7 @@
                :ast   (-> (eql/query->ast '[(f)])
                         :children
                         first)}
-          {new-ast :ast} (m/returning env (rc/nc [:person/id :person/name]) {:page 2})]
+          {new-ast :ast} (m/returning env (rc/nc [:person/id :person/name]) {:query-params {:page 2}})]
       (assertions
         "sets the query of the parent node"
         (:query new-ast) => '[(:person/id {:page 2}) :person/name]

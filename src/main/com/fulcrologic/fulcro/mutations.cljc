@@ -331,11 +331,14 @@
   `env` - The env of the mutation
   `class` - A component class that represents the return type.  You may supply a fully-qualified symbol instead of the
   actual class, and this method will look up the class for you (useful to avoid circular references).
+  `opts` (optional):
+   - `query-params` - Optional parameters to add to the generated query
 
   Returns an update `env`, and is a valid return value from mutation remote sections."
   ([env class]
    (returning env class nil))
-  ([env class query-params]
+  ([env class {:keys [query-params]
+               :as   opts}]
    (let [class (if (or (keyword? class) (symbol? class))
                  (rc/registry-key->class class)
                  class)]
