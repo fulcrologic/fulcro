@@ -797,6 +797,21 @@
            ast-nodes (-> query eql/query->ast :children)]
        (get-subquery-component* component ast-nodes query-path)))))
 
+(defn get-traced-props
+  "Uses `fdn/traced-db->tree` to get the props of the component at `ident`. If `prior-props` are not stale,
+   those are returned instead."
+  [state-map component {:keys [ident prior-props]}]
+  (let [query (get-query component state-map)]
+    (if (fdn/possibly-stale? state-map prior-props)
+      (fdn/traced-db->tree state-map ident query)
+      prior-props)))
+
+(defn has-active-state?
+  "Returns true if there is already data at a component's ident"
+  [state-map ident]
+  (let [current-value (get-in state-map ident)]
+    (and (map? current-value) (seq current-value))))
+
 (comment
   (def Person (entity->component
                 {:person/id        1

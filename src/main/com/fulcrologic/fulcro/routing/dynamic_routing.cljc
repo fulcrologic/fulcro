@@ -15,6 +15,7 @@
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [edn-query-language.core :as eql]
@@ -686,7 +687,8 @@
                         (uism/trigger! app router-id :route! event-data))
                       ;; make sure any transactions submitted from the completing action wait for a render of the state machine's
                       ;; startup or route effects before running.
-                      (binding [comp/*after-render* true]
+                           ;; TASK: check on after-render
+                           (binding [rc/*after-render* true]
                         (completing-action))))
                  (when (seq remaining-path)
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))

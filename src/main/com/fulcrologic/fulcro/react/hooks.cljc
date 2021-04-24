@@ -12,6 +12,7 @@
         [[goog.object :as gobj]
          cljsjs.react])
     [com.fulcrologic.fulcro.components :as comp]
+   [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -243,6 +244,7 @@
                 (set-state! props))))))
       (fn [] (rapp/remove-render-listener! app id)))))
 
+#?(:cljs
 (defn use-component
   "Use Fulcro from raw React. This is a Hook effect/state combo that will connect you to the transaction/network/data
   processing of Fulcro, but will not rely on Fulcro's render. Thus, you can embed the use of the returned props in any
@@ -256,7 +258,7 @@
               can create this with normal `defsc` or as an anonymous component via `raw.components/nc`.
   options - A map of options, containing:
 
-  * :initial-state-params - The parameters to use when getting the initial state of the component. See `comp/get-initial-state`.
+      * :initial-params - The parameters to use when getting the initial state of the component. See `comp/get-initial-state`.
     If no initial state exists on the top-level component, then an empty map will be used. This will mean your props will be
     empty to start.
   * initialize? - A boolean (default true). If true then the initial state of the component will be used to pre-populate the component's state
@@ -267,19 +269,37 @@
   * :ident - Only needed if you are NOT initializing state, AND the component has a dynamic ident.
 
   Returns the props from the Fulcro database. The component using this function will automatically refresh after Fulcro
-  transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries). MAY return nil during
-  initialization, or if no data is at that component's ident.
+      transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries). MAY return nil if no data is at that component's ident.
   "
   [app component
-   {:keys [initialize? initial-params]
-    :or {initialize? true
-         initial-params {}} :as options}]
-  (let [[current-props set-props!] (use-state nil)]
-    (use-lifecycle
-      (fn [] (rapp/add-component! app component (merge {:initialize?    true
-                                                        :initial-params {}} options {:receive-props set-props!})))
-      (fn use-tree-remove-render-listener* [] (rapp/remove-component! app component)))
-    current-props))
+      {:keys [initialize? initial-params keep-existing?]
+       :or   {initial-params {}}
+       :as   options}]
+     (let [prior-props-ref (use-ref nil)
+           get-props       (fn [ident] (rc/get-traced-props (rapp/current-state app) component
+                                                            {:ident       ident
+                                                             :prior-props (.-current prior-props-ref)}))
+           [current-props
+            set-props!]    (use-state
+                            (fn initialize-component-state []
+                              (let [initial-entity (comp/get-initial-state component initial-params)
+                                    initial-ident  (or (:ident options) (rc/get-ident component initial-entity))]
+                                (rapp/maybe-merge-new-component! app component initial-entity options)
+                                (let [initial-props (get-props initial-ident)]
+                                  (set! (.-current prior-props-ref) initial-props)
+                                  initial-props))))
+           current-ident   (or (:ident options) (rc/get-ident component current-props))]
+       (use-effect
+        (fn [] (let [listener-id (random-uuid)]
+                 (rapp/add-render-listener! app listener-id
+                                            (fn [app _]
+                                              (let [props (get-props current-ident)]
+                                                (when-not (identical? (.-current prior-props-ref) props)
+                                                  (set! (.-current prior-props-ref) props)
+                                                  (set-props! props)))))
+                 (fn use-tree-remove-render-listener* [] (rapp/remove-render-listener! app listener-id))))
+        [(hash current-ident)])
+       current-props)))
 
 (defn use-root
   "Use a root key and component as a subtree managed by Fulcro. The `root-key` must be a unique
@@ -288,13 +308,23 @@
 
    The `component` should be a real Fulcro component or a generated normalizing component from `nc` (or similar).
 
-   Returns the props (not including `root-key`) that satisfy the query of `component`. MAY return nil during initialization,
-   or if no data is available.
+   Returns the props (not including `root-key`) that satisfy the query of `component`. MAY return nil if no data is available.
   "
-  [app root-key component {:keys [initialize? initial-params] :as options}]
-  (let [[current-props set-props!] (use-state nil)]
+  [app root-key component {:keys [initialize? keep-existing? initial-params] :as options}]
+  (let [prior-props-ref            (use-ref nil)
+        get-props                  #(rapp/get-root-subtree-props app root-key component (.-current prior-props-ref))
+        [current-props set-props!] (use-state (fn []
+                                                (rapp/maybe-merge-new-root! app root-key component options)
+                                                (let [initial-props (get-props)]
+                                                  (set! (.-current prior-props-ref) initial-props)
+                                                  initial-props)))]
     (use-lifecycle
-      (fn [] (rapp/add-root! app root-key component (merge options {:receive-props set-props!})))
+     (fn [] (rapp/add-render-listener! app root-key (fn use-root-render-listener* [app _]
+                                                      (let [props (get-props)]
+                                                        (when-not (identical? (.-current prior-props-ref) props)
+                                                          (log/info "props updated" root-key)
+                                                          (set! (.-current prior-props-ref) props)
+                                                          (set-props! props))))))
       (fn use-tree-remove-render-listener* [] (rapp/remove-root! app root-key)))
     (get current-props root-key)))
 
@@ -321,7 +351,3 @@
                              :initial-event-data       initial-event-data}))
       (fn [] (uism/remove-uism! app id)))
     uism-data))
-
-
-
-

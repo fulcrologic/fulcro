@@ -107,14 +107,14 @@
            :com.fulcrologic.fulcro.application/last-rendered-state @state-atom
            :com.fulcrologic.fulcro.application/only-refresh #{}
            :com.fulcrologic.fulcro.application/to-refresh #{})))
-     (let [batch-renders (ah/app-algorithm app :batch-renders)
+     (let [batch-notifications (ah/app-algorithm app :batch-notifications)
            notify-all!   #(doseq [render-listener (-> runtime-atom deref :com.fulcrologic.fulcro.application/render-listeners vals)]
                             (try
                               (render-listener app options)
                               (catch #?(:clj Exception :cljs :default) e
                                 (log/error e "Render listener failed."))))]
-       (if batch-renders
-         (batch-renders notify-all!)
+       (if batch-notifications
+         (batch-notifications notify-all!)
          (notify-all!))))))
 
 (let [go! #?(:cljs (debounce (fn [app options]
@@ -366,6 +366,32 @@
   (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) assoc-in [:com.fulcrologic.fulcro.application/remotes remote-name] remote)
   app)
 
+(defn get-root-subtree-props
+  "Uses `fdn/traced-db->tree` to get the props of the subtree at `root-key`. If `prior-props` are not stale, those are
+   returned instead."
+  [app root-key component prior-props]
+  (let [state-map (current-state app)]
+    (if (fdn/possibly-stale? state-map prior-props)
+      (let [query (comp/get-query component)]
+        (fdn/traced-db->tree state-map root-key query))
+      prior-props)))
+
+(defn maybe-merge-new-root!
+  "A helper for `add-root!` and similar. Populates the initial state for a subtree depending on `initialize?` and `keep-existing?`
+
+   :keep-existing? - A boolean. If true, then the state will not be initialized if there
+   is already data at the `root-key`.
+  "
+  [app root-key component {:keys [keep-existing? initial-params initialize?]
+                           :or   {initial-params {}}}]
+  (when (and initialize?
+             (not (and keep-existing? (contains? (current-state app) root-key))))
+    (swap! (:com.fulcrologic.fulcro.application/state-atom app)
+           (fn use-root-merge* [s]
+             (merge/merge-component s component
+                                    (comp/get-initial-state component initial-params)
+                                    :replace [root-key])))))
+
 (defn add-root!
   "Use a root key and component as a subtree managed by Fulcro. This establishes props updates to non-React UI,
    and is not rendered by normal Fulcro rendering. You can integrate with React using `use-root` from the hooks ns.
@@ -380,19 +406,10 @@
    NOTE: This function tracks prior props and is capable of a very fast staleness check. It will not call your callback
    unless it detects an actual change to the data of interest to your UI.
   "
-  [app root-key component {:keys [receive-props initialize? keep-existing? initial-params]}]
-  (when (and initialize? (not (and keep-existing? (contains? (current-state app) root-key))))
-    (swap! (:com.fulcrologic.fulcro.application/state-atom app) (fn use-root-merge* [s]
-                                                                  (merge/merge-component s component
-                                                                    (comp/get-initial-state component (or initial-params {}))
-                                                                    :replace [root-key]))))
+  [app root-key component {:keys [receive-props initialize? keep-existing? initial-params] :as options}]
+  (maybe-merge-new-root! app root-key component options)
   (let [prior-props (atom nil)
-        get-props   (fn use-root-get-props* []
-                      (let [state-map (current-state app)]
-                        (if (fdn/possibly-stale? state-map @prior-props)
-                          (let [query (comp/get-query component)]
-                            (fdn/traced-db->tree state-map root-key query))
-                          @prior-props)))]
+        get-props   #(get-root-subtree-props app root-key component @prior-props)]
     (receive-props (get-props))
     (add-render-listener! app root-key (fn use-root-render-listener* [app _]
                                          (let [props (get-props)]
@@ -406,6 +423,21 @@
   [app root-key]
   (remove-render-listener! app root-key))
 
+(defn maybe-merge-new-component!
+  "Helper for `add-component!` and similar. Populates the component state depending on `initialize?` and `keep-existing?`.
+
+   `initialize?` is true by default.
+
+   `:keep-existing?` - A boolean. If true, then the state of the component will not be initialized if there
+   is already data at the component's ident (which will be computed using the initial entity provided).
+  "
+  [app component component-data {:keys [keep-existing? initialize?]
+                                 :or   {initialize? true}}]
+  (when (and initialize?
+             (not (and keep-existing?
+                       (comp/has-active-state? (current-state app) (comp/get-ident component component-data)))))
+    (swap! (:com.fulcrologic.fulcro.application/state-atom app) merge/merge-component component component-data)))
+
 (defn add-component!
   "Use a component (that has initial state) as a subtree managed by Fulcro. This establishes props updates to non-React UI,
    and is not rendered by normal Fulcro rendering.
@@ -415,26 +447,18 @@
 
    Calls `receive-props` with the props (not including `root-key`) that satisfy the query of `component`.
   "
-  [app component {:keys [receive-props initialize? keep-existing? initial-params]}]
+  [app component {:keys [receive-props initialize? keep-existing? initial-params] :as options}]
   (let [initial-entity (comp/get-initial-state component initial-params)
-        ident          (comp/get-ident component initial-entity)
-        current-value  (get-in (current-state app) ident)
-        exists?        (and (map? current-value) (seq current-value))]
-    (when (and initialize? (not (and exists? (not keep-existing?))))
-      (swap! (:com.fulcrologic.fulcro.application/state-atom app) merge/merge-component component initial-entity))
-    (let [prior-props (atom nil)
-          get-props   (fn []
-                        (let [state-map (current-state app)
-                              query     (comp/get-query component state-map)]
-                          (if (fdn/possibly-stale? state-map @prior-props)
-                            (fdn/traced-db->tree state-map ident query)
-                            @prior-props)))]
+        ident          (or (:ident options) (comp/get-ident component initial-entity))
+        prior-props    (atom nil)
+        get-props      #(comp/get-traced-props (current-state app) component {:ident ident :prior-props @prior-props})]
+    (maybe-merge-new-component! app component initial-entity options)
       (receive-props (get-props))
       (add-render-listener! app ident (fn [app _]
                                         (let [props (get-props)]
                                           (when-not (identical? @prior-props props)
                                             (reset! prior-props props)
-                                            (receive-props props))))))))
+                                          (receive-props props)))))))
 
 (defn remove-component!
   "Remove a root key managed subtree from Fulcro"
