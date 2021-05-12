@@ -890,12 +890,14 @@
   ([class] (computed-factory class {}))
   ([class options]
    (let [real-factory (factory class options)]
-     (fn
-       ([props] (real-factory props))
-       ([props computed-props]
-        (real-factory (computed props computed-props)))
-       ([props computed-props & children]
-        (apply real-factory (computed props computed-props) children))))))
+     (with-meta
+       (fn
+         ([props] (real-factory props))
+         ([props computed-props]
+          (real-factory (computed props computed-props)))
+         ([props computed-props & children]
+          (apply real-factory (computed props computed-props) children)))
+       (meta real-factory)))))
 
 (def ^:dynamic *after-render*
   "Dynamic var that affects the activation of transactions run via `transact!`. Defaults to false. When set to true
