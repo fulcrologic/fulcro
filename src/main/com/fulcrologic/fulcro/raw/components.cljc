@@ -230,10 +230,10 @@
         faux-classname (if k
                          (str/join "/" [(namespace k) (name k)])
                          "anonymous")
-        result #?(:clj {::component-class?  true
-                        :fulcro$options     component-options
-                        :fulcro$registryKey k
-                        :displayName        faux-classname}
+        result #?(:clj {:com.fulcrologic.fulcro.components/component-class? true
+                        :fulcro$options                                     component-options
+                        :fulcro$registryKey                                 k
+                        :displayName                                        faux-classname}
                   :cljs (gobj/extend render-fn
                           #js {:fulcro$options         component-options
                                :displayName            faux-classname
