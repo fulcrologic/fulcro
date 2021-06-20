@@ -5,7 +5,7 @@
     #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
        :cljs [com.fulcrologic.fulcro.dom :as dom])
     #?(:cljs [goog.object :as gobj])
-    [fulcro-spec.core :refer [specification assertions behavior component]]))
+    [fulcro-spec.core :refer [specification assertions behavior component =>]]))
 
 (defsc A [this props]
   {:ident         :person/id

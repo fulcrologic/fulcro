@@ -27,16 +27,6 @@
      (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
        config)))
 
-(def ^{:private true
-       :dynamic true} *after-render*
-  "MOVED. This var will NOT work. You must use the one in raw.components instead."
-  nil)
-
-(def ^{:private true
-       :dynamic true} *query-state*
-  "MOVED. This var will NOT work. You must use the one in raw.components instead."
-  nil)
-
 ;; Bound during Fulcro-driven renders to communicate critical information to components *on their initial render*.
 ;; Due to the nature of js and React there is no guarantee that future `render` (or lifecycle calls) will actually be done synchronously,
 ;; so these are *copied* into the raw react props of the component for future reference (a mounted component won't change
