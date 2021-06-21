@@ -69,9 +69,10 @@
 (>def ::app map?)
 (>def ::trigger-descriptor (s/keys :req [::asm-id ::event-id] :opt [::event-data]))
 (>def ::queued-triggers (s/coll-of ::trigger-descriptor))
+(>def ::queued-transactions (s/coll-of map?))
 (>def ::env (s/keys :req [::state-map ::asm-id]
               :opt [::source-actor-ident ::event-id ::event-data ::queued-triggers
-                    ::app ::queued-mutations ::queued-loads ::queued-timeouts]))
+                    ::app ::queued-mutations ::queued-loads ::queued-timeouts ::queued-transactions]))
 
 (>defn fake-handler [env] [::env => ::env] env)
 
@@ -553,6 +554,14 @@
           abort-id (assoc :abort-id abort-id))))
     nil))
 
+(defn- queue-transactions!
+  [app env]
+  [::fulcro-app ::env => nil?]
+  (let [{::keys [queued-transactions]} env]
+    (doseq [{:keys [txn options]} queued-transactions]
+      (rc/transact! app txn options))
+    nil))
+
 (>defn queue-actor-load!
   "Internal implementation. Queue a load of an actor."
   [app env actor-name component-class load-options]
@@ -777,6 +786,7 @@
                        (clear-timeouts-on-event! e event-id)
                        (schedule-timeouts! app e))
         refresh-list (ui-refresh-list final-env)]
+    (queue-transactions! app final-env)
     (queue-mutations! app final-env)
     (queue-loads! app final-env)
     (update-fulcro-state! final-env state)
@@ -1214,3 +1224,30 @@
   [app id]
   (rapp/remove-render-listener! app id)
   (swap! (:com.fulcrologic.fulcro.application/state-atom app) update ::asm-id dissoc id))
+
+(defn transact
+  "Just like `components/transact!`, but simply queues the transaction to be submitted after the handler completes.
+   Usually you can use `apply-action` to do local state changes, and `trigger-remote-mutation` to do remote operations;
+   however, sometimes external users of a state machine wish to supply ad-hoc operations that should be run by a
+   state machine.
+
+   NOTE: It is legal to side-effect in an event handler, but in general the desired operation is to defer
+   the side effects (e.g. `comp/transact!`) until the handler has finished. Running, for example, a synchronous
+   transact inside of a handler will not work as expected because the handler will finish after such a transaction
+   and overwrite the changes to state that such a transaction caused.
+
+   So, for example, someone might begin a state machine with:
+
+   ```
+   (begin! this machine :id actors {:on-success `[(something-happened)])
+   ```
+
+   which the state machine can save with `store`, and later look up with `retrieve`.
+
+   `options` is as described in `components/transact!`.
+   "
+  ([env txn]
+   (transact env txn {}))
+  ([env txn options]
+   (update env ::queued-transactions (fnil conj []) {:txn     txn
+                                                     :options options})))
