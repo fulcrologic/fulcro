@@ -310,6 +310,12 @@
      ([ui-entity-props field]
       (let [{{complete? ::complete?} ::config} ui-entity-props
             complete? (or complete? #{})]
+        #?(:cljs
+           (when goog.DEBUG
+             (cond
+               (nil? field) (log/error "Field was nil!")
+               (not (complete? field)) (log/info field "is not marked complete")
+               (not (field-valid? ui-entity-props field)) (log/info field "is invalid"))))
         (cond
           (not (complete? field)) :unchecked
           (not (field-valid? ui-entity-props field)) :invalid

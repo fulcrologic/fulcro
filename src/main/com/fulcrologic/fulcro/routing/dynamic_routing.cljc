@@ -38,12 +38,12 @@
   "Returns a vector that describes the sub-path that a given route target represents. String elements represent
   explicit path elements, and keywords represent variable values (which are always pulled as strings)."
   [class]
-  (comp/component-options class :route-segment))
+  (rc/component-options class :route-segment))
 
 (defn get-route-cancelled
   "Returns the function that should be called if this target was in a deferred state and a different routing choice was made. Is given the same route parameters that were sent to `will-enter`."
   [class]
-  (comp/component-options class :route-cancelled))
+  (rc/component-options class :route-cancelled))
 
 (defn route-cancelled
   "Universal CLJC version of route-cancelled.  Don't use the protocol method in CLJ."
@@ -63,10 +63,10 @@
 
   WARNING: This method MUST be side-effect free."
   [class]
-  (if-let [will-enter (comp/component-options class :will-enter)]
+  (if-let [will-enter (rc/component-options class :will-enter)]
     will-enter
-    (let [ident (comp/get-ident class {})]
-      (when-not ident (log/error "Component must have an ident for routing to work properly:" (comp/component-name class) "See https://book.fulcrologic.com/#err-dr-comp-needs-ident"))
+    (let [ident (rc/get-ident class {})]
+      (when-not ident (log/error "Component must have an ident for routing to work properly:" (rc/component-name class) "See https://book.fulcrologic.com/#err-dr-comp-needs-ident"))
       (fn [_ _] (route-immediate ident)))))
 
 (defn will-enter
@@ -76,7 +76,7 @@
     (binding [*target-class* class]
       (will-enter app params))))
 
-(defn route-target? [component] (boolean (comp/component-options component :route-segment)))
+(defn route-target? [component] (boolean (rc/component-options component :route-segment)))
 
 (defn get-will-leave
   "Returns the function of a route target to be called with
@@ -84,11 +84,11 @@
   then whatever new route was requested will be completely abandoned. If this component has a `allow-route-change?`
   then the return value of will-leave will be ignored."
   [this]
-  (or (comp/component-options this :will-leave) (constantly true)))
+  (or (rc/component-options this :will-leave) (constantly true)))
 
 (defn will-leave [c props]
   (when-let [f (get-will-leave c)]
-    (binding [*target-class* (comp/isoget c :type)]
+    (binding [*target-class* (rc/isoget c :type)]
       (f c props))))
 
 (defn get-allow-route-change?
@@ -98,27 +98,27 @@
    may be called multiple times on a single route request."
   [this]
   (or
-    (comp/component-options this :allow-route-change?)
-    (when-let [will-leave (comp/component-options this :will-leave)]
-      (log/warn "DEPRECATED USE OF `:will-leave` to check for allowable routing. You should add :allow-route-change? to: " (comp/component-name this) "See https://book.fulcrologic.com/#warn-routing-will-leave-deprecated")
-      (fn [] (will-leave this (comp/props this))))
+    (rc/component-options this :allow-route-change?)
+    (when-let [will-leave (rc/component-options this :will-leave)]
+      (log/warn "DEPRECATED USE OF `:will-leave` to check for allowable routing. You should add :allow-route-change? to: " (rc/component-name this) "See https://book.fulcrologic.com/#warn-routing-will-leave-deprecated")
+      (fn [] (will-leave this (rc/props this))))
     (constantly true)))
 
 (defn allow-route-change? [c]
   (try
     (when-let [f (get-allow-route-change? c)]
-      (binding [*target-class* (comp/isoget c :type)]
+      (binding [*target-class* (rc/isoget c :type)]
         (f c)))
     (catch #?(:clj Exception :cljs :default) e
       (log/error "Cannot evaluate route change. Assuming ok. Exception message: " (ex-message e) "See https://book.fulcrologic.com/#err-dr-cant-eval-route-chng")
       true)))
 
-(defn route-lifecycle? [component] (boolean (comp/component-options component :will-leave)))
+(defn route-lifecycle? [component] (boolean (rc/component-options component :will-leave)))
 
 (defn get-targets
   "Returns a set of classes to which this router routes."
   [router]
-  (set (comp/component-options router :router-targets)))
+  (set (rc/component-options router :router-targets)))
 
 (defn- ident-matches-expectation? [[expected-table maybe-expected-id] [table id]]
   ;; NOTE: If the `id` of the ident is hardcoded then maybe-expected-id will be set,
@@ -129,11 +129,11 @@
 (defn- check-ident-matches-expectation? [fn-name ident]
   (when (and #?(:clj false :cljs goog.DEBUG)
           *target-class*
-          (not (ident-matches-expectation? (comp/ident *target-class* {}) ident)))
+          (not (ident-matches-expectation? (rc/ident *target-class* {}) ident)))
     (log/error fn-name " was invoked with the ident " ident
       " which doesn't seem to match the ident of the wrapping component (class "
       *target-class* " , ident ["
-      (first (comp/ident *target-class* {})) " ...]) See https://book.fulcrologic.com/#err-dr-ident-mismatch")))
+      (first (rc/ident *target-class* {})) " ...]) See https://book.fulcrologic.com/#err-dr-ident-mismatch")))
 
 (defn route-immediate [ident]
   (check-ident-matches-expectation? "route-immediate" ident)
@@ -158,7 +158,7 @@
     (-> state-map
       (assoc-in (conj router ::current-route) target)
       (update-in router dissoc ::pending-route)
-      (comp/set-query* router-class {:query [::id [::uism/asm-id router-id] {::current-route (comp/get-query target-class state-map)}]}))))
+      (rc/set-query* router-class {:query [::id [::uism/asm-id router-id] {::current-route (rc/get-query target-class state-map)}]}))))
 
 (defn router-for-pending-target [state-map target]
   (let [routers   (some-> state-map ::id vals)
@@ -194,9 +194,9 @@
 
   target - The ident that was originally listed as a deferred target."
   [component-or-app target]
-  (comp/transact! component-or-app [(target-ready {:target target})]))
+  (rc/transact! component-or-app [(target-ready {:target target})]))
 
-(defn router? [component] (boolean (comp/component-options component :router-targets)))
+(defn router? [component] (boolean (rc/component-options component :router-targets)))
 
 (defn matching-prefix
   "Returns the elements of actual-path that match the route-segment definition."
@@ -219,12 +219,12 @@
 (defn current-route-class
   "Get the class of the component that is currently being routed to."
   [this]
-  (let [state-map (app/current-state (comp/any->app this))
-        class     (some->> (comp/get-query this state-map) eql/query->ast :children
+  (let [state-map (app/current-state (rc/any->app this))
+        class     (some->> (rc/get-query this state-map) eql/query->ast :children
                     (filter #(= ::current-route (:key %))) first :component)
         ;; Hot code reload support to avoid getting the cached class from old metadata
         class     (if #?(:cljs goog.DEBUG :clj false)
-                    (-> class comp/class->registry-key comp/registry-key->class)
+                    (-> class rc/class->registry-key rc/registry-key->class)
                     class)]
     class))
 
@@ -320,7 +320,7 @@
                     (uism/apply-action target-ready* (uism/retrieve env :target)))
           app     (::uism/app env)]
       (when app
-        (comp/transact! app [(indexing/reindex)]))
+        (rc/transact! app [(indexing/reindex)]))
       new-env)))
 
 (defn fail-handler [env] env)
@@ -334,7 +334,7 @@
                           (uism/apply-action apply-route* event-data)
                           (uism/activate :routed))]
             (when app
-              (comp/transact! app [(indexing/reindex)]))
+              (rc/transact! app [(indexing/reindex)]))
             new-env)
           (-> env
             (uism/store :pending-path-segment path-segment)
@@ -388,16 +388,16 @@
   ([this-or-app relative-class-or-instance new-route]
    (proposed-new-path this-or-app relative-class-or-instance new-route {}))
   ([this-or-app relative-class-or-instance new-route timeouts-and-params]
-   (let [app        (comp/any->app this-or-app)
+   (let [app        (rc/any->app this-or-app)
          state-map  (app/current-state app)
-         root-query (comp/get-query relative-class-or-instance state-map)
+         root-query (rc/get-query relative-class-or-instance state-map)
          ast        (eql/query->ast root-query)
          root       (ast-node-for-route ast new-route)
          result     (atom [])]
      (loop [{:keys [component]} root path new-route]
        (when (and component (router? component))
          (let [{:keys [target matching-prefix]} (route-target component path)
-               target-ast     (some-> target (comp/get-query state-map) eql/query->ast)
+               target-ast     (some-> target (rc/get-query state-map) eql/query->ast)
                prefix-length  (count matching-prefix)
                remaining-path (vec (drop prefix-length path))
                segment        (route-segment target)
@@ -407,10 +407,10 @@
                                 (map (fn [a b] [a b]) segment matching-prefix))
                target-ident   (will-enter target app params)]
            (when (or (not (eql/ident? target-ident)) (nil? (second target-ident)))
-             (log/error "will-enter for router target" (comp/component-name target) "did not return a valid ident. Instead it returned: " target-ident "See https://book.fulcrologic.com/#err-dr-will-enter-invalid-ident"))
+             (log/error "will-enter for router target" (rc/component-name target) "did not return a valid ident. Instead it returned: " target-ident "See https://book.fulcrologic.com/#err-dr-will-enter-invalid-ident"))
            (when (and (eql/ident? target-ident)
                    (not (contains? (some-> target-ident meta) :immediate)))
-             (log/error "will-enter for router target" (comp/component-name target) "did not wrap the ident in route-immediate or route-deferred. See https://book.fulcrologic.com/#err-dr-will-enter-missing-metadata"))
+             (log/error "will-enter for router target" (rc/component-name target) "did not wrap the ident in route-immediate or route-deferred. See https://book.fulcrologic.com/#err-dr-will-enter-missing-metadata"))
            (when (vector? target-ident)
              (swap! result conj (vary-meta target-ident assoc :component target :params params)))
            (when (seq remaining-path)
@@ -423,10 +423,10 @@
    (signal-router-leaving app-or-comp relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
    (let [new-path   (proposed-new-path app-or-comp relative-class-or-instance new-route timeouts-and-params)
-         app        (comp/any->app app-or-comp)
+         app        (rc/any->app app-or-comp)
          state-map  (app/current-state app)
          router     relative-class-or-instance
-         root-query (comp/get-query router state-map)
+         root-query (rc/get-query router state-map)
          ast        (eql/query->ast root-query)
          root       (ast-node-for-live-router app ast)
          to-signal  (atom [])
@@ -434,7 +434,7 @@
          _          (loop [{:keys [component children] :as node} root new-path-remaining new-path]
                       (when (and component (router? component))
                         (let [new-target    (first new-path-remaining)
-                              router-ident  (comp/get-ident component {})
+                              router-ident  (rc/get-ident component {})
                               active-target (get-in state-map (conj router-ident ::current-route))
                               {:keys [target]} (get-in state-map (conj router-ident ::pending-route))
                               next-router   (some #(ast-node-for-live-router app %) children)]
@@ -445,7 +445,7 @@
                                                                  (when (= ::current-route dispatch-key)
                                                                    (reduced component)))
                                                          nil
-                                                         (some-> component (comp/get-query state-map)
+                                                         (some-> component (rc/get-query state-map)
                                                            eql/query->ast :children))
                                   mounted-targets      (comp/class->all app mounted-target-class)]
                               (when (seq mounted-targets)
@@ -455,7 +455,7 @@
          components (reverse @to-signal)
          result     (atom true)]
      (doseq [c components]
-       (let [will-leave-result (will-leave c (comp/props c))]
+       (let [will-leave-result (will-leave c (rc/props c))]
          (swap! result #(and % will-leave-result))))
      (when @result
        (doseq [t @to-cancel]
@@ -475,23 +475,28 @@
 
   where `fq-router-kw` is a keyword that has the exact namespace and name of the router you're interested in. If you want
   to just over-render you can use a quoted `_` instead.
+
+  NOTE: This function is primarily meant to be used in mutation implementations or with global routing.
+  It is not reliable to use this function during render because it relies on the router being mounted (and render gets
+  called in order to determine what to render). If you want to know the current state of a particular
+  router you should query for it's ASM as indicated above.
   "
   ([this-or-app]
-   (if-let [cls (some-> this-or-app comp/any->app app/root-class)]
+   (if-let [cls (some-> this-or-app rc/any->app app/root-class)]
      (current-route this-or-app cls)
      []))
   ([this-or-app relative-class-or-instance]
-   (let [app        (comp/any->app this-or-app)
+   (let [app        (rc/any->app this-or-app)
          state-map  (app/current-state app)
          router     relative-class-or-instance
-         root-query (comp/get-query router state-map)
+         root-query (rc/get-query router state-map)
          ast        (eql/query->ast root-query)
          root       (or (ast-node-for-live-router app ast)
                       (-> ast :children first))
          result     (atom [])]
      (loop [{:keys [component] :as node} root]
        (when (and component (router? component))
-         (let [router-ident (comp/get-ident component {})
+         (let [router-ident (rc/get-ident component {})
                router-id    (-> router-ident second)
                sm-env       (uism/state-machine-env state-map nil router-id :none {})
                path-segment (uism/retrieve sm-env :path-segment)
@@ -508,7 +513,7 @@
                                        (when (= ::current-route dispatch-key)
                                          (reduced component)))
                                nil
-                               (some-> router-class (comp/get-query state-map)
+                               (some-> router-class (rc/get-query state-map)
                                  eql/query->ast :children))]
     (comp/class->all app mounted-target-class)))
 
@@ -518,23 +523,23 @@
 (defn- force-route-flagged?
   "returns true if the given route target's allow-route-change? should be ignored."
   [route-target]
-  (comp/isoget route-target "fulcro$routing$force_route"))
+  (rc/isoget route-target "fulcro$routing$force_route"))
 
 (defn target-denying-route-changes
   "This function will return the first mounted instance of a route target that is currently indicating it would
   deny a route change. If a `relative-class` is given then it only looks for targets that would deny a change within
   that router's subtree."
   ([this-or-app relative-class]
-   (let [app        (comp/any->app this-or-app)
+   (let [app        (rc/any->app this-or-app)
          state-map  (app/current-state app)
-         root-query (comp/get-query relative-class state-map)
+         root-query (rc/get-query relative-class state-map)
          ast        (eql/query->ast root-query)
          root       (or (ast-node-for-live-router app ast)
                       (-> ast :children first))]
      (loop [{router-class :component
              :keys        [children]} root]
        (when (and router-class (router? router-class))
-         (let [router-ident     (comp/get-ident router-class {})
+         (let [router-ident     (rc/get-ident router-class {})
                active-target    (get-in state-map (conj router-ident ::current-route))
                next-router      (some #(ast-node-for-live-router app %) children)
                rejecting-target (when (vector? active-target)
@@ -545,7 +550,7 @@
              rejecting-target rejecting-target
              next-router (recur next-router)))))))
   ([this-or-app]
-   (let [app    (comp/any->app this-or-app)
+   (let [app    (rc/any->app this-or-app)
          router (app/root-class app)]
      (target-denying-route-changes app router))))
 
@@ -622,7 +627,7 @@
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
   ([app-or-comp relative-class-or-instance new-route timeouts-and-params]
    (let [[relative-class-or-instance new-route] (evaluate-relative-path relative-class-or-instance new-route)
-         relative-class (if (comp/component? relative-class-or-instance)
+         relative-class (if (rc/component? relative-class-or-instance)
                           (comp/react-type relative-class-or-instance)
                           relative-class-or-instance)
          old-route      (current-route app-or-comp relative-class)
@@ -635,9 +640,9 @@
        (log/error "Could not find route targets for new-route" new-route "See https://book.fulcrologic.com/#err-dr-new-route-target-not-found")
 
        (not (can-change-route? app-or-comp relative-class))
-       (let [app          (comp/any->app app-or-comp)
+       (let [app          (rc/any->app app-or-comp)
              target       (target-denying-route-changes app)
-             route-denied (comp/component-options target :route-denied)]
+             route-denied (rc/component-options target :route-denied)]
          (log/debug "Route request denied by on-screen target" target ". Calling component's :route-denied (if defined).")
          (when route-denied
            (route-denied target relative-class-or-instance new-route)))
@@ -645,17 +650,17 @@
        :otherwise
        (do
          (signal-router-leaving app-or-comp relative-class-or-instance new-route timeouts-and-params)
-         (let [app             (comp/any->app app-or-comp)
+         (let [app             (rc/any->app app-or-comp)
                state-map       (app/current-state app)
                router          relative-class-or-instance
-               root-query      (comp/get-query router state-map)
+               root-query      (rc/get-query router state-map)
                ast             (eql/query->ast root-query)
                root            (ast-node-for-route ast new-route)
                routing-actions (atom (list))]
            (loop [{:keys [component]} root path new-route]
              (when (and component (router? component))
                (let [{:keys [target matching-prefix]} (route-target component path)
-                     target-ast        (some-> target (comp/get-query state-map) eql/query->ast)
+                     target-ast        (some-> target (rc/get-query state-map) eql/query->ast)
                      prefix-length     (count matching-prefix)
                      remaining-path    (vec (drop prefix-length path))
                      segment           (route-segment target)
@@ -663,7 +668,7 @@
                                          (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
                                          (dissoc timeouts-and-params :error-timeout :deferred-timeout)
                                          (map (fn [a b] [a b]) segment matching-prefix))
-                     router-ident      (comp/get-ident component {})
+                     router-ident      (rc/get-ident component {})
                      router-id         (-> router-ident second)
                      target-ident      (will-enter target app params)
                      completing-action (or (some-> target-ident meta :fn) (constantly true))
@@ -705,7 +710,7 @@
   [denied-target-instance relative-root path]
   #?(:cljs
      (do
-       (log/debug "Retrying route at the request of " (comp/component-name denied-target-instance))
+       (log/debug "Retrying route at the request of " (rc/component-name denied-target-instance))
        (set-force-route-flag! denied-target-instance)
        (change-route-relative! denied-target-instance relative-root path))))
 
@@ -724,7 +729,7 @@
   ([this new-route]
    (change-route! this new-route {}))
   ([this new-route timeouts-and-params]
-   (let [app  (comp/any->app this)
+   (let [app  (rc/any->app this)
          root (app/root-class app)]
      (change-route-relative! app root new-route timeouts-and-params))))
 
@@ -749,9 +754,9 @@
                           (every? #(or (keyword? %) (string? %)) segment))]]
     (when-not valid?
       (log/error "Route target "
-        (comp/component-name t)
+        (rc/component-name t)
         "of router"
-        (comp/component-name router-instance)
+        (rc/component-name router-instance)
         "does not declare a valid :route-segment. Route segments must be non-empty vector that contain only strings"
         "and keywords. See https://book.fulcrologic.com/#err-dr-target-lacks-r-segment"))))
 
@@ -767,9 +772,9 @@
            _                      (when (empty? router-targets)
                                     (compile-error env options "defrouter requires at least one router-target"))
            id                     (keyword router-ns (name router-sym))
-           getq                   (fn [s] `(or (comp/get-query ~s)
+           getq                   (fn [s] `(or (rc/get-query ~s)
                                              (throw (ex-info (str "Route target has no query! "
-                                                               (comp/component-name ~s)) {}))))
+                                                               (rc/component-name ~s)) {}))))
            query                  (into [::id
                                          [::uism/asm-id id]
                                          {::current-route (getq (first router-targets))}]
@@ -780,9 +785,9 @@
                                         {(keyword (str "alt" idx)) (getq s)})
                                       (rest router-targets)))
            initial-state-map      (into {::id            id
-                                         ::current-route `(comp/get-initial-state ~(first router-targets) ~'params)}
+                                         ::current-route `(rc/get-initial-state ~(first router-targets) ~'params)}
                                     (map-indexed
-                                      (fn [idx s] [(keyword (str "alt" idx)) `(comp/get-initial-state ~s {})])
+                                      (fn [idx s] [(keyword (str "alt" idx)) `(rc/get-initial-state ~s {})])
                                       (rest router-targets)))
            ident-method           (apply list `(fn [] [::id ~id]))
            initial-state-lambda   (apply list `(fn [~'params] ~initial-state-map))
@@ -796,13 +801,14 @@
                                                          ~(second arglist) {:pending-path-segment ~'pending-path-segment
                                                                             :route-props          ~'current-route
                                                                             :route-factory        (when ~'class (comp/factory ~'class))
-                                                                            :current-state        ~'current-state}]
+                                                                            :current-state        ~'current-state
+                                                                            :router-state         (get-in ~'props [[::uism/asm-id ~id] ::uism/local-storage])}]
                                                      ~@body)))
                                     (apply list `(let [~'class (current-route-class ~'this)]
                                                    (if (~states-to-render-route ~'current-state)
                                                      (when ~'class
                                                        (let [~'factory (comp/factory ~'class)]
-                                                         (~'factory (comp/computed ~'current-route (comp/get-computed ~'this)))))
+                                                         (~'factory (rc/computed ~'current-route (rc/get-computed ~'this)))))
                                                      (let [~(first arglist) ~'this
                                                            ~(second arglist) {:pending-path-segment ~'pending-path-segment
                                                                               :route-props          ~'current-route
@@ -849,6 +855,8 @@
      - `:route-props` -  The props that should be passed to the route factory. You can augment these with computed if you
      wish. The router normally passes computed through like so: `(route-factory (comp/computed route-props (comp/get-computed this)))`
      - `:pending-path-segment` - The route that we're going to (when in pending state).
+     - `:router-state` - A map of the path management details of the router. Includes the pending path segment (if deferred), the
+       target, and the path segment of the current route.
 
      The optional body, if defined, will *only* be used if the router has the `:always-render-body?` option set or
      it is in one of the following states:
@@ -865,7 +873,7 @@
 (defn all-reachable-routers
   "Returns a sequence of all of the routers reachable in the query of the app."
   [state-map component-class]
-  (let [root-query  (comp/get-query component-class state-map)
+  (let [root-query  (rc/get-query component-class state-map)
         {:keys [children]} (eql/query->ast root-query)
         get-routers (fn get-routers* [nodes]
                       (reduce
@@ -886,14 +894,14 @@
         root      (app/root-class app)
         routers   (all-reachable-routers state-map root)
         tx        (mapv (fn [r]
-                          (let [router-ident (comp/get-ident r {})
+                          (let [router-ident (rc/get-ident r {})
                                 router-id    (second router-ident)]
                             (uism/begin {::uism/asm-id           router-id
                                          ::uism/state-machine-id (::uism/state-machine-id RouterStateMachine)
                                          ::uism/event-data       {:path-segment []
                                                                   :router       (vary-meta router-ident assoc :component r)}
                                          ::uism/actor->ident     {:router (uism/with-actor-class router-ident r)}}))) routers)]
-    (comp/transact! app tx)))
+    (rc/transact! app tx)))
 
 (defn into-path
   "Returns the given `prefix` with the TargetClass segment appended onto it, replacing the final elements with the
@@ -908,7 +916,7 @@
   "
   [prefix TargetClass & path-args]
   (let [nargs           (count path-args)
-        path            (some-> TargetClass comp/component-options :route-segment)
+        path            (some-> TargetClass rc/component-options :route-segment)
         static-elements (- (count path) nargs)]
     (into prefix (concat (take static-elements path) path-args))))
 
@@ -954,24 +962,24 @@
    (let [segments (seq (partition-by #(and
                                         #?(:clj true :cljs (fn? %))
                                         (or
-                                          (comp/component? %)
-                                          (comp/component-class? %))) targets-and-params))]
+                                          (rc/component? %)
+                                          (rc/component-class? %))) targets-and-params))]
      (if (and (= 2 (count segments)) (map? (first (second segments))))
-       (let [path   (mapcat #(comp/component-options % :route-segment) (first segments))
+       (let [path   (mapcat #(rc/component-options % :route-segment) (first segments))
              params (first (second segments))]
          (mapv (fn [i] (get params i i)) path))
        (reduce
          (fn [path [classes params]]
            (-> path
-             (into (mapcat #(comp/component-options % :route-segment) (butlast classes)))
+             (into (mapcat #(rc/component-options % :route-segment) (butlast classes)))
              (into (apply subpath (last classes) params))))
          []
          (partition-all 2 segments))))))
 
 (defn resolve-path-components
   [StartingClass RouteTarget]
-  (if (comp/component-options RouteTarget :route-segment)
-    (let [query     (comp/get-query StartingClass)
+  (if (rc/component-options RouteTarget :route-segment)
+    (let [query     (rc/get-query StartingClass)
           root-node (eql/query->ast query)
           zipper    (zip/zipper #(contains? % :children) :children (fn [n children] (assoc n :children children)) root-node)
           node      (->> zipper
@@ -997,7 +1005,7 @@
   ([resolved-components params]
    (when (seq resolved-components)
      (let [base-path (into []
-                       (mapcat #(comp/component-options % :route-segment))
+                       (mapcat #(rc/component-options % :route-segment))
                        resolved-components)]
        (mapv (fn [ele]
                (if (contains? params ele)
@@ -1010,13 +1018,13 @@
   "Given a new-route path (vector of strings): resolves the target (class) that is the ultimate target of that path."
   [app new-route]
   (let [state-map  (app/current-state app)
-        root-query (comp/get-query (app/root-class app) state-map)
+        root-query (rc/get-query (app/root-class app) state-map)
         ast        (eql/query->ast root-query)
         root       (ast-node-for-route ast new-route)]
     (loop [{:keys [component]} root path new-route]
       (when (and component (router? component))
         (let [{:keys [target matching-prefix]} (route-target component path)
-              target-ast     (some-> target (comp/get-query state-map) eql/query->ast)
+              target-ast     (some-> target (rc/get-query state-map) eql/query->ast)
               prefix-length  (count matching-prefix)
               remaining-path (vec (drop prefix-length path))]
           (if (seq remaining-path)
