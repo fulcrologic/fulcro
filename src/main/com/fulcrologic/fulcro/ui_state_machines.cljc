@@ -92,7 +92,7 @@
 (>def ::alias keyword?)
 (>def ::aliases (s/map-of keyword? (s/every keyword? :kind vector?
                                      :min-count 1)))
-(>def ::plugin (s/with-gen any? #(s/gen #{(fn [aliases] nil)})))
+(>def ::plugin (s/with-gen any? #(s/gen #{(fn [_aliases] nil)})))
 (>def ::plugins (s/map-of keyword? ::plugin))
 (>def ::event-names (s/coll-of keyword? :kind set?))
 (>def ::target-state keyword?)
@@ -129,10 +129,7 @@
   "Mutation: Trigger an event on an active state machine"
   [{::keys [event-id event-data asm-id] :as params}]
   (action [{:keys [app] :as env}]
-    (let [{::keys [transact-options]} event-data
-          {tx-options :com.fulcrologic.fulcro.algorithms.tx-processing/options} env
-          {:keys [synchronous?]} tx-options
-          event-data (dissoc event-data ::transact-options)]
+    (let [{::keys [transact-options]} event-data]
       (when (nil? event-id)
         (log/error "Invalid (nil) event ID. See https://book.fulcrologic.com/#err-uism-invalid-eventid"))
       (trigger-state-machine-event! env params)
