@@ -689,7 +689,7 @@
                             (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))
         updated-node    (assoc original-node :children new-children :component component)
         query           (if (= type :join)
-                          (eql/ast->query (assoc (log/spy :info updated-node) :type :root))
+                          (eql/ast->query (assoc updated-node :type :root))
                           (eql/ast->query updated-node))
         _               (reset! qatom query)]
     updated-node))
