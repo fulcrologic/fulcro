@@ -342,7 +342,7 @@
 
 (defn use-uism
   "Use a UISM as an effect hook. This will set up the given state machine under the given ID, and start it (if not
-   already started). Your initial state handler MUST set up actors and otherwise initialize based on initial-event-data.
+   already started). Your initial state handler MUST set up actors and otherwise initialize based on options.
 
    If the machine is already started at the given ID then this effect will send it an `:event/remounted` event.
 
@@ -350,14 +350,18 @@
    because UISM requires component appear in the component registry (components cannot be safely stored in app state, just their
    names).
 
+   `options` is a map that can contain `::uism/actors` as an actor definition map (see `begin!`). Any other keys in options
+   are sent as the initial event data when the machine is started.
+
    Returns a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`."
-  [app state-machine-definition id initial-event-data]
+  [app state-machine-definition id options]
   (let [[uism-data set-uism-data!] (use-state nil)]
     (use-lifecycle
       (fn []
         (uism/add-uism! app {:state-machine-definition state-machine-definition
                              :id                       id
                              :receive-props            set-uism-data!
-                             :initial-event-data       initial-event-data}))
+                             :actors                   (::uism/actors options)
+                             :initial-event-data       (dissoc options ::uism/actors)}))
       (fn [] (uism/remove-uism! app id)))
     uism-data))

@@ -268,14 +268,14 @@
      (when #?(:clj false :cljs goog.DEBUG)
        (log/warn "get-ident was invoked on " (component-name x) " with nil props (this could mean it wasn't yet mounted): " x "See https://book.fulcrologic.com/#warn-get-ident-with-nil-props"))))
   ([class props]
+   (when #?(:clj false :cljs (and goog.DEBUG (not (has-ident? class))))
+     (log/warn "get-ident called with something that does not implement ident: " class "See https://book.fulcrologic.com/#warn-get-ident-invalid-class"))
    (if-let [id (ident class props)]
      (do
        (when (and #?(:clj false :cljs goog.DEBUG) (not (eql/ident? id)))
-         (log/warn "get-ident returned an invalid ident:" id (:displayName (component-options class)) "See https://book.fulcrologic.com/#warn-get-ident-invalid-ident"))
+         (log/warn (component-name class) "get-ident returned invalid ident:" id  "See https://book.fulcrologic.com/#warn-get-ident-invalid-ident"))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
-     (when #?(:clj false :cljs goog.DEBUG)
-       (log/warn "get-ident called with something that is either not a class or does not implement ident: " class "See https://book.fulcrologic.com/#warn-get-ident-invalid-class")
-       nil))))
+     nil)))
 
 (defn is-factory?
   "Returns true if the given argument is a component factory."
@@ -628,21 +628,22 @@
             (log/warn "Component" (component-name c) "has a constant ident (id in the ident is not nil for empty props),"
               "but it has no initial state. This could cause this component's props to"
               "appear as nil unless you have a mutation or load that connects it to the graph after application startup. See https://book.fulcrologic.com/#warn-constant-ident-no-initial-state"))
-          (when (has-initial-app-state? c)
-            (let [initial-keys (set (keys (get-initial-state c {})))
-                  join-map     (into {}
-                                 (comp
-                                   (filter #(and (= :join (:type %)) (keyword (:key %))))
-                                   (map (fn [{:keys [key component]}] [key component])))
-                                 (some->> query (eql/query->ast) :children))
-                  join-keys    (set (keys join-map))]
-              (when-let [missing-initial-keys (seq (set/difference join-keys initial-keys))]
-                (doseq [k missing-initial-keys
-                        :let [target (get join-map k)]]
-                  (when (has-initial-app-state? target)
-                    (log/warn "Component" (component-name c) "does not INCLUDE initial state for" (component-name target)
-                      "at join key" k "; however, " (component-name target) "HAS initial state. This probably means your initial state graph is incomplete"
-                      "and props on" (component-name target) "will be nil. See https://book.fulcrologic.com/#warn-initial-state-incomplete")))))))))))
+          (when-let [initial-state (and (has-initial-app-state? c) (get-initial-state c {}))]
+            (when (map? initial-state)
+              (let [initial-keys (set (keys initial-state))
+                    join-map     (into {}
+                                   (comp
+                                     (filter #(and (= :join (:type %)) (keyword (:key %))))
+                                     (map (fn [{:keys [key component]}] [key component])))
+                                   (some->> query (eql/query->ast) :children))
+                    join-keys    (set (keys join-map))]
+                (when-let [missing-initial-keys (seq (set/difference join-keys initial-keys))]
+                  (doseq [k missing-initial-keys
+                          :let [target (get join-map k)]]
+                    (when (has-initial-app-state? target)
+                      (log/warn "Component" (component-name c) "does not INCLUDE initial state for" (component-name target)
+                        "at join key" k "; however, " (component-name target) "HAS initial state. This probably means your initial state graph is incomplete"
+                        "and props on" (component-name target) "will be nil. See https://book.fulcrologic.com/#warn-initial-state-incomplete"))))))))))))
 
 (defn id-key
   "Returns the keyword of the most likely ID attribute in the given props (the first one with the `name` \"id\").

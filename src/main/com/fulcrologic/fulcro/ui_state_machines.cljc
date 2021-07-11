@@ -1170,6 +1170,7 @@
    * `:receive-props` - A `(fn [props])` that is called whenever the state changes in a way that affects an actor. The
                         `props` is a map that contains the actor props (by actor name `{:actor/x actor-x-props}`) and the current
                         state of the state machine as `:active-state`.
+   * `:actors` - The actor definitions. See `begin!`.
    * `:initial-event-data` - The data to pass to the initial event if the machine is started (not remounted).
 
    This will set up the given state machine under the given ID, and start it (if not
@@ -1184,9 +1185,10 @@
 
    NOTE: This function automatically supports a very fast variant of props change detection, so you will not receive
    calls when there is a transaction that does not change the actors/active state of this UISM."
-  [app {:keys [state-machine-definition id receive-props initial-event-data]}]
+  [app {:keys [state-machine-definition id receive-props actors initial-event-data]}]
   (let [last-return-value (atom {})
         last-ident        (atom {})]
+    ;; FIXME: This should be using the raw components support, NOT the render listener.
     (rapp/add-render-listener! app id
       (fn [& args]
         (let [state-map (rapp/current-state app)
@@ -1213,7 +1215,7 @@
         started? (get-in s [::asm-id id])]
     (if started?
       (trigger! app id :event/remounted)
-      (begin! app state-machine-definition id initial-event-data))))
+      (begin! app state-machine-definition id (or actors {}) initial-event-data))))
 
 (defn remove-uism!
   "Remove a previously-added UISM from state and the render listener. The state machine will not receive any
