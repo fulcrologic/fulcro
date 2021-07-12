@@ -1160,6 +1160,25 @@
       (get asm-id)
       ::active-state)))
 
+(defn current-state-and-actors
+  "Returns a map that contains the given state-machine's ID and actor state.
+
+   `state-map` - The current Fulcro state map
+   `asm-id` - The ID of the state machine of interest."
+  [state-map id]
+  (let [{::keys [active-state actor->ident actor->component-name]} (get-in state-map [::asm-id id])
+        props (reduce-kv
+                (fn [result actor ident]
+                  (let [cname (actor->component-name actor)
+                        cls   (rc/registry-key->class cname)
+                        query (rc/get-query cls)]
+                    (when-not cls
+                      (log/error "You forgot to give actor" actor "a :componentName"))
+                    (assoc result actor (fdn/traced-db->tree state-map ident query))))
+                {:active-state active-state}
+                actor->ident)]
+    props))
+
 (defn add-uism!
   "Add a UISM to Fulcro in a manner disconnected from React.
 
@@ -1182,13 +1201,11 @@
    because UISM requires component appear in the component registry (components cannot be safely stored in app state, just their
    names).
 
-
    NOTE: This function automatically supports a very fast variant of props change detection, so you will not receive
    calls when there is a transaction that does not change the actors/active state of this UISM."
   [app {:keys [state-machine-definition id receive-props actors initial-event-data]}]
   (let [last-return-value (atom {})
         last-ident        (atom {})]
-    ;; FIXME: This should be using the raw components support, NOT the render listener.
     (rapp/add-render-listener! app id
       (fn [& args]
         (let [state-map (rapp/current-state app)

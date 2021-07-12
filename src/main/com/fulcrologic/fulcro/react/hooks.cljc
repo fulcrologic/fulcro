@@ -24,7 +24,8 @@
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
-    [taoensso.timbre :as log])
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.application :as app])
   #?(:clj (:import (cljs.tagged_literals JSValue))))
 
 (defn useState
@@ -250,41 +251,41 @@
                 (set-state! props))))))
       (fn [] (rapp/remove-render-listener! app id)))))
 
-#?(:cljs
-   (defn use-component
-     "Use Fulcro from raw React. This is a Hook effect/state combo that will connect you to the transaction/network/data
-     processing of Fulcro, but will not rely on Fulcro's render. Thus, you can embed the use of the returned props in any
-     stock React context. Technically, you do not have to use Fulcro components for rendering, but they are necessary to define the
-     query/ident/initial-state for startup and normalization. You may also use this within normal (Fulcro)
-     components to generate dynamic components on-the-fly (see `nc`).
+(defn use-component
+  "Use Fulcro from raw React. This is a Hook effect/state combo that will connect you to the transaction/network/data
+  processing of Fulcro, but will not rely on Fulcro's render. Thus, you can embed the use of the returned props in any
+  stock React context. Technically, you do not have to use Fulcro components for rendering, but they are necessary to define the
+  query/ident/initial-state for startup and normalization. You may also use this within normal (Fulcro)
+  components to generate dynamic components on-the-fly (see `nc`).
 
-     The arguments are:
+  The arguments are:
 
-     `app` - A Fulcro app
-     `component` - A component with query/ident. Queries MUST have co-located normalization info. You
-                 can create this with normal `defsc` or as an anonymous component via `raw.components/nc`.
-     `options` - A map of options, containing:
-       * `:initial-params` - The parameters to use when getting the initial state of the component. See `comp/get-initial-state`.
-         If no initial state exists on the top-level component, then an empty map will be used. This will mean your props will be
-         empty to start.
-       * `initialize?` - A boolean (default true). If true then the initial state of the component will be used to pre-populate the component's state
-         in the app database.
-       * `:keep-existing?` - A boolean. If true, then the state of the component will not be initialized if there
-         is already data at the component's ident (which will be computed using the initial state params provided, if
-         necessary).
-       * `:ident` - Only needed if you are NOT initializing state, AND the component has a dynamic ident.
+  `app` - A Fulcro app
+  `component` - A component with query/ident. Queries MUST have co-located normalization info. You
+              can create this with normal `defsc` or as an anonymous component via `raw.components/nc`.
+  `options` - A map of options, containing:
+    * `:initial-params` - The parameters to use when getting the initial state of the component. See `comp/get-initial-state`.
+      If no initial state exists on the top-level component, then an empty map will be used. This will mean your props will be
+      empty to start.
+    * `initialize?` - A boolean (default true). If true then the initial state of the component will be used to pre-populate the component's state
+      in the app database.
+    * `:keep-existing?` - A boolean. If true, then the state of the component will not be initialized if there
+      is already data at the component's ident (which will be computed using the initial state params provided, if
+      necessary).
+    * `:ident` - Only needed if you are NOT initializing state, AND the component has a dynamic ident.
 
-     Returns the props from the Fulcro database. The component using this function will automatically refresh after Fulcro
-     transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries).
+  Returns the props from the Fulcro database. The component using this function will automatically refresh after Fulcro
+  transactions run (Fulcro is not a watched-atom system. Updates happen at transaction boundaries).
 
-     MAY return nil if no data is at that component's ident.
+  MAY return nil if no data is at that component's ident.
 
-     See also `use-root`.
-     "
-     [app component
-      {:keys [initialize? initial-params keep-existing?]
-       :or   {initial-params {}}
-       :as   options}]
+  See also `use-root`.
+  "
+  [app component
+   {:keys [initialize? initial-params keep-existing?]
+    :or   {initial-params {}}
+    :as   options}]
+  #?(:cljs
      (let [prior-props-ref (use-ref nil)
            get-props       (fn [ident] (rc/get-traced-props (rapp/current-state app) component
                                          ident
@@ -334,7 +335,6 @@
       (fn [] (rapp/add-render-listener! app root-key (fn use-root-render-listener* [app _]
                                                        (let [props (get-props)]
                                                          (when-not (identical? (.-current prior-props-ref) props)
-                                                           (log/info "props updated" root-key)
                                                            (set! (.-current prior-props-ref) props)
                                                            (set-props! props))))))
       (fn use-tree-remove-render-listener* [] (rapp/remove-root! app root-key)))
@@ -355,7 +355,8 @@
 
    Returns a map that contains the actor props (by actor name) and the current state of the state machine as `:active-state`."
   [app state-machine-definition id options]
-  (let [[uism-data set-uism-data!] (use-state nil)]
+  (let [[uism-data set-uism-data!] (use-state (fn initialize-component-state []
+                                                (uism/current-state-and-actors (app/current-state app) id)))]
     (use-lifecycle
       (fn []
         (uism/add-uism! app {:state-machine-definition state-machine-definition

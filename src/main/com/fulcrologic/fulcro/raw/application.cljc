@@ -193,7 +193,10 @@
      NO rendering will happen; however, render listeners will still be called.
    * `:batch-notifications` - A side-effecting function `(fn [notify-all])` that can surround a batch of render notifiations with a context. The only
      argument to this function is `notify-all`, which is a function that will do the actual notifications. This is useful when using render
-     notifications with React hooks, and need to tell React that a bunch of state changes need to happen together.
+     notifications with React hooks, and need to tell React that a bunch of state changes need to happen together. The
+     normal setting for this (if you're using hooks and render listeners) is
+     `(fn [render!] (react-dom/unstable_batchedUpdates render!))` or
+     `(fn [render!] (react-native/unstable_batchedUpdates render!))`.
 
   Note that raw apps are not mounted, but are instead ready to be used immediately.  If you want to use inspect, then
   you must call `(inspect/client-started! app)` yourself.
@@ -322,7 +325,10 @@
 
 (defn add-render-listener!
   "Add (or replace) a render listener named `nm`. `listener` is a `(fn [app options] )` that will be called
-   after each render."
+   after each render.
+
+   See the `:batch-notifications` option of the application, which can be set when using certain verions of React to
+   improve performance and reduce over-rendering."
   [app nm listener]
   (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) assoc-in [:com.fulcrologic.fulcro.application/render-listeners nm] listener))
 
