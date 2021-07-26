@@ -380,9 +380,11 @@
   ([app data-tree query]
    (merge! app data-tree query {}))
   ([app data-tree query options]
-   (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} (comp/any->app app)]
+   (let [state-atom (:com.fulcrologic.fulcro.application/state-atom app)
+         render!    (ah/app-algorithm app :schedule-render!)]
      (when state-atom
-       (swap! state-atom merge* query data-tree options)))))
+       (swap! state-atom merge* query data-tree options)
+       (render! app {})))))
 
 (defn merge-component
   "Given a state map of the application database, a component, and a tree of component-data: normalizes
