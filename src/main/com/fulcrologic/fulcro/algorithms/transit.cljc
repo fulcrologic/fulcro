@@ -104,6 +104,17 @@
    #?(:cljs (t/read (reader opts) str)
       :clj  (t/read (reader (java.io.ByteArrayInputStream. (.getBytes str "UTF-8")) opts)))))
 
+(defn serializable?
+  "Returns true if the given value is transit encodable. NOTE: This DOES an encode, and catches exceptions, so it is NOT
+   fast. You should, in general, not use this as a predicate in a performance-critical place, but instead should catch
+   the exceptions from encoding yourself."
+  [v]
+  (try
+    (transit-clj->str v)
+    true
+    (catch #?(:clj Exception :cljs :default) _
+      false)))
+
 (s/def ::reader map?)
 (s/def ::writer map?)
 

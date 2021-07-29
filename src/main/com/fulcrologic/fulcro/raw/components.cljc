@@ -12,6 +12,7 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.algorithms.transit :as transit]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
     [taoensso.timbre :as log])
@@ -273,7 +274,7 @@
    (if-let [id (ident class props)]
      (do
        (when (and #?(:clj false :cljs goog.DEBUG) (not (eql/ident? id)))
-         (log/warn (component-name class) "get-ident returned invalid ident:" id  "See https://book.fulcrologic.com/#warn-get-ident-invalid-ident"))
+         (log/warn (component-name class) "get-ident returned invalid ident:" id "See https://book.fulcrologic.com/#warn-get-ident-invalid-ident"))
        (if (= :com.fulcrologic.fulcro.algorithms.merge/not-found (second id)) [(first id) nil] id))
      nil)))
 
@@ -391,6 +392,10 @@
   Returns the transaction ID of the submitted transaction.
   "
   ([app-or-component tx options]
+   (when #?(:clj false :cljs goog.DEBUG)
+     (when-not (transit/serializable? tx)
+       (log/warn "The transaction" tx
+         "contains data that cannot be encoded by transit (perhaps you've included a component class or lambda in your mutation parameters?). This will cause full-stack failures.")))
    (when-let [app (any->app app-or-component)]
      (let [tx!     (ah/app-algorithm app :tx!)
            options (cond-> options
