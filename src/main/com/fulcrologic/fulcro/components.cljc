@@ -108,7 +108,9 @@
   rc/class->registry-key)
 
 (def registry-key->class
-  "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
+  "[classname]
+
+  Look up the given component in Fulcro's global component registry. Will only be able to find components that have
   been (transitively) required by your application.
 
   `classname` can be a fully-qualified keyword or symbol."
@@ -157,11 +159,15 @@
   (rc/component-type x))
 
 (def get-class
-  "Returns the react type (component class) of the given React element (instance). Is identity if used on a class."
+  "[instance]
+
+   Returns the react type (component class) of the given React element (instance). Is identity if used on a class."
   rc/get-class)
 
 (def component-options
-  "Returns the map of options that was specified (via `defsc`) for the component class."
+  "[component & ks]
+
+   Returns the map of options that was specified (via `defsc`) for the component class."
   rc/component-options)
 
 (defn has-feature? #?(:cljs {:tag boolean}) [component option-key] (contains? (component-options component) option-key))

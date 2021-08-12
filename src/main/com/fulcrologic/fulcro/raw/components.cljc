@@ -392,10 +392,6 @@
   Returns the transaction ID of the submitted transaction.
   "
   ([app-or-component tx options]
-   (when #?(:clj false :cljs goog.DEBUG)
-     (when-not (transit/serializable? tx)
-       (log/warn "The transaction" tx
-         "contains data that cannot be encoded by transit (perhaps you've included a component class or lambda in your mutation parameters?). This will cause full-stack failures.")))
    (when-let [app (any->app app-or-component)]
      (let [tx!     (ah/app-algorithm app :tx!)
            options (cond-> options
@@ -645,7 +641,8 @@
                 (when-let [missing-initial-keys (seq (set/difference join-keys initial-keys))]
                   (doseq [k missing-initial-keys
                           :let [target (get join-map k)]]
-                    (when (has-initial-app-state? target)
+                    (when (and (has-initial-app-state? target)
+                            (not= (component-name target) "com.fulcrologic.fulcro.algorithms.form-state/FormConfig"))
                       (log/warn "Component" (component-name c) "does not INCLUDE initial state for" (component-name target)
                         "at join key" k "; however, " (component-name target) "HAS initial state. This probably means your initial state graph is incomplete"
                         "and props on" (component-name target) "will be nil. See https://book.fulcrologic.com/#warn-initial-state-incomplete"))))))))))))
