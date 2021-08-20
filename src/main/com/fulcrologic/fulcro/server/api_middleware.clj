@@ -63,8 +63,12 @@
   "Given a parser and a query: Runs the parser on the query,
    and generates a standard Fulcro-compatible response, and augment the raw Ring response with
    any augment handlers that were indicated on top-level mutations/queries via
-   `augment-response`."
+   `augment-response`.
+   Optionally, specify the starting response map to be fed to the augment handlers (ie. to
+   include the request `:session`."
   [query query-processor]
+  (handle-api-request query query-processor {})
+  [query query-processor base-resp]
   (generate-response
     (let [parse-result (try
                          (query-processor query)
@@ -73,7 +77,10 @@
                            e))]
       (if (instance? Throwable parse-result)
         {:status 500 :body "Internal server error. Parser threw an exception. See server logs for details."}
-        (merge {:status 200 :body parse-result} (apply-response-augmentations parse-result))))))
+        (merge
+          {:status 200 :body parse-result}
+          base-resp
+          (apply-response-augmentations parse-result))))))
 
 (defn reader
   "Create a transit reader. This reader can handler the tempid type.
