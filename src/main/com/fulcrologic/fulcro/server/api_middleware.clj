@@ -56,8 +56,10 @@
   `augment-response`. Runs each in turn and accumulates their effects. The result is
   meant to be a Ring response (and is used as such by `handle-api-request`."
   [response]
+  (apply-response-augmentations response {})
+  [response base-resp]
   (->> (keep #(some-> (second %) meta ::augment-response) response)
-    (reduce (fn [response f] (f response)) {})))
+    (reduce (fn [response f] (f response)) base-resp)))
 
 (defn handle-api-request
   "Given a parser and a query: Runs the parser on the query,
@@ -79,8 +81,7 @@
         {:status 500 :body "Internal server error. Parser threw an exception. See server logs for details."}
         (merge
           {:status 200 :body parse-result}
-          base-resp
-          (apply-response-augmentations parse-result))))))
+          (apply-response-augmentations parse-result base-resp))))))
 
 (defn reader
   "Create a transit reader. This reader can handler the tempid type.
