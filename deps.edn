@@ -1,4 +1,7 @@
-{:paths   ["src/main"]
+{:paths   ["src/main"
+           ;; include clj-kondo exports in the JAR so that they can be imported,
+           ;; see https://github.com/clj-kondo/clj-kondo/blob/master/doc/config.md#exporting-and-importing-configuration
+           "src/clj-kondo"]
 
  :deps    {edn-query-language/eql     {:mvn/version "1.0.1"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
