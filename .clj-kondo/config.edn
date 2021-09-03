@@ -1,1 +1,1 @@
-{:config-paths ["resources/clj-kondo.exports/com.fulcrologic/fulcro"]}
+{:config-paths ["../src/clj-kondo/clj-kondo.exports/com.fulcrologic/fulcro"]}
