@@ -38,6 +38,9 @@
             <resource>
                 <directory>src/main</directory>
             </resource>
+      <resource>
+        <directory>src/clj-kondo</directory>
+      </resource>
         </resources>
         <plugins>
             <plugin>
