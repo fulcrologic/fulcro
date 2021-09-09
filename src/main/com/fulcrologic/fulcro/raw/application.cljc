@@ -1,6 +1,7 @@
 (ns com.fulcrologic.fulcro.raw.application
   (:require
     [clojure.string :as str]
+   [clojure.walk :as walk]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
@@ -134,20 +135,9 @@
   [{:keys [status-code]}]
   (not= 200 status-code))
 
-(defn default-global-eql-transform
-  "The default query transform function.  It makes sure the following items on a component query
-  are never sent to the server:
-
-  - Props whose namespace is `ui`
-  - Any prop or join that is namespaced to com.fulcrologic.fulcro*
-  - Any ident (as a prop or join) whose table name is namespaced ui or com.fulcrologic.fulcro*
-
-  Takes an AST and returns the modified AST.
-  "
-  [ast]
-  (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))]
-    (df/elide-ast-nodes ast (fn [k]
-                              (let [ns       (some-> k kw-namespace)
+(defn- elision-pred [k]
+  (let [kw-namespace (fn [k] (and (keyword? k) (namespace k)))
+        ns           (some-> k kw-namespace)
                                     ident-ns (when (eql/ident? k) (some-> (first k) kw-namespace))]
                                 (or
                                   (and
@@ -159,7 +149,31 @@
                                     (string? ident-ns)
                                     (or
                                       (= "ui" ident-ns)
-                                      (str/starts-with? ident-ns "com.fulcrologic.fulcro.")))))))))
+          (str/starts-with? ident-ns "com.fulcrologic.fulcro."))))))
+
+(defn default-global-eql-transform
+  "The default query transform function.  It makes sure the following items on a component query
+  are never sent to the server:
+
+  - Props whose namespace is `ui`
+  - Any prop or join that is namespaced to com.fulcrologic.fulcro*
+  - Any ident (as a prop or join) whose table name is namespaced ui or com.fulcrologic.fulcro*
+
+  Takes an AST and returns the modified AST.
+  "
+  [ast]
+  (letfn [(mutation? [ast] (and (map? ast) (= (:type ast) :call)))]
+    (->> (-> ast
+             (df/elide-ast-nodes elision-pred)
+             (update :children conj (eql/expr->ast :com.wsscode.pathom.core/errors)))
+         (walk/postwalk
+           #(cond-> %
+              (and (mutation? %) (empty? (:children %)))
+              ;; Re-create Pathom's behavior of returning everything if no query:
+              (update :children conj (eql/expr->ast '*))
+
+              (mutation? %)
+              (update :children conj (eql/expr->ast :tempids)))))))
 
 (defn initialize-state!
   "Initialize the app state using `root` component's app state. This will deep merge against any data that is already

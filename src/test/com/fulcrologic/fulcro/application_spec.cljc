@@ -2,12 +2,15 @@
   (:require
     [fulcro-spec.core :refer [specification provided! when-mocking! assertions behavior when-mocking component =>]]
     [clojure.spec.alpha :as s]
+   [clojure.walk :as walk]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
     [com.fulcrologic.fulcro.application :as app :refer [fulcro-app]]
+   [com.fulcrologic.fulcro.raw.application :as rapp]
+   [com.wsscode.pathom.core :as p]
     [clojure.test :refer [is are deftest]]))
 
 (deftest application-constructor
@@ -44,3 +47,37 @@
       [::uism/asm-id :x] [:x]
       [{::uism/asm-id [:y]} :x] [:x]
       [::dr/id ::dr/current-route [::uism/asm-id '_] :x] [:x])))
+
+(defn sort-nested 
+  "Sort keywords in vectors anywhere in the query to simplify comparison"
+  [query]
+  (letfn [(compare-any [x y]
+            (if (every? keyword? [x y])
+              (compare x y)
+              (if (keyword? x) -1 1)))]
+    (walk/postwalk
+      #(cond-> %
+         (vector? %) (->> (sort compare-any) vec))
+      query)))
+
+(defn transform-query [query]
+  (-> query
+      eql/query->ast
+      rapp/default-global-eql-transform
+      eql/ast->query))
+
+(specification "Default EQL transform additions" :focus
+  (behavior "Adds ::p/errors to all queries and mutation joins"
+    (are [query result] (= result (sort-nested (transform-query query)))
+      [:a] [:a ::p/errors]
+      [{:d [:e]}] [::p/errors {:d [:e]}]
+      '[(mutation1)] '[::p/errors (mutation1)] ; FIXME fails b/c there is also :tempids
+      '[(mutation2 {:b 1})] '[::p/errors (mutation2 {:b 1})] ; FIXME fails b/c there is also :tempids
+      '[{(mutation3) [:c]}] '[::p/errors {(mutation3) [:c]}])) ; FIXME fails b/c there is also :tempids
+  (behavior "Adds :tempids to (only) mutation joins"
+    (are [query result] (= result (remove keyword? (sort-nested (transform-query query))))
+      '[(mutation2 {:b 1})] '[{(mutation2 {:b 1}) [:tempids]}]
+      '[{(mutation3) [:c]}] '[{(mutation3) [:c :tempids]}])
+    (behavior "Preserves Pathom's behavior of returning the whole mutation's output if the user hasn't asked for anything in particular"
+      (are [query result] (= (set result) (sort-nested (transform-query query)))
+        '[(mutation1)] '[{(mutation1) [* :tempids]}]))))
