@@ -1,7 +1,6 @@
 (ns com.fulcrologic.fulcro.raw.application
   (:require
     [clojure.string :as str]
-   [clojure.walk :as walk]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
@@ -151,6 +150,13 @@
                                       (= "ui" ident-ns)
           (str/starts-with? ident-ns "com.fulcrologic.fulcro."))))))
 
+(defn- transform-mutation-eql [{:keys [type children] :as ast}]
+  (if (not= type :call)
+    ast
+    (cond-> (update ast :children conj (eql/expr->ast :tempids))
+            ;; Re-create Pathom's behavior of returning everything if no query:
+            (empty? children) (update :children conj (eql/expr->ast '*))) ))
+
 (defn default-global-eql-transform
   "The default query transform function.  It makes sure the following items on a component query
   are never sent to the server:
@@ -161,19 +167,23 @@
 
   Takes an AST and returns the modified AST.
   "
-  [ast]
-  (letfn [(mutation? [ast] (and (map? ast) (= (:type ast) :call)))]
-    (->> (-> ast
-             (df/elide-ast-nodes elision-pred)
-             (update :children conj (eql/expr->ast :com.wsscode.pathom.core/errors)))
-         (walk/postwalk
-           #(cond-> %
-              (and (mutation? %) (empty? (:children %)))
-              ;; Re-create Pathom's behavior of returning everything if no query:
-              (update :children conj (eql/expr->ast '*))
-
-              (mutation? %)
-              (update :children conj (eql/expr->ast :tempids)))))))
+  [{:keys [children type] :as ast}]
+  ;; Impl. detail (9/2021): For queries we get {:type :root, :children [...]}, for mutations
+  ;; we get the mutation node itself: {:key my-mutation, :type :call, ...} but we want to be agnostic of that
+  (let [root? (= type :root)
+        mutation? (comp #{:call} :type)
+        has-mutations? (if root?
+                         (some mutation? children)
+                         (mutation? ast))]
+    (cond-> (df/elide-ast-nodes ast elision-pred)
+            (not has-mutations?)
+            (update :children conj (eql/expr->ast :com.wsscode.pathom.core/errors))
+      
+            (and has-mutations? root?)
+            (update :children (partial mapv transform-mutation-eql))
+      
+            (and has-mutations? (not root?))
+            (transform-mutation-eql))))
 
 (defn initialize-state!
   "Initialize the app state using `root` component's app state. This will deep merge against any data that is already
