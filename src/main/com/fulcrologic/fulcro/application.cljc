@@ -88,7 +88,11 @@
 (declare schedule-render! mounted?)
 
 (def render!
-  "Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
+  "
+  [app]
+  [app options]
+
+  Render the application immediately.  Prefer `schedule-render!`, which will ensure no more than 60fps.
 
   This is the central processing for render and cannot be overridden. `schedule-render!` will always invoke
   this function.  The optimized render is called by this function, which does extra bookkeeping and
@@ -102,19 +106,25 @@
   rapp/render!)
 
 (def schedule-render!
-  "
-  [app] [app options]
+  "[app]
+   [app options]
 
-  Schedule a render on the next animation frame."
+   Schedule a render on the next animation frame."
   rapp/schedule-render!)
 
 (def default-remote-error?
-  "Default detection of network errors. Returns true if the status-code of the given result
+  "
+  [{:keys [status-code]}]
+
+  Default detection of network errors. Returns true if the status-code of the given result
   map is not 200."
   rapp/default-remote-error?)
 
 (def default-global-eql-transform
-  "The default query transform function.  It makes sure the following items on a component query
+  "
+  [ast]
+
+  The default query transform function.  It makes sure the following items on a component query
   are never sent to the server:
 
   - Props whose namespace is `ui`
@@ -240,7 +250,7 @@
                                           shared-props      (get @runtime-atom ::shared-props)]
                                       (binding [fdn/*denormalize-time* (basis-t app)
                                                 comp/*app*             app
-                                                comp/*shared*            shared-props
+                                                comp/*shared*          shared-props
                                                 comp/*depth*           0]
                                         (if optimized-render!
                                           (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
