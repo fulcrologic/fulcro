@@ -181,7 +181,7 @@
      completely on the DOM.  If you need that guarantee then consider using `:componentDidMount` on your application's
      root component.
    * `:remotes` - A map from remote name to a remote handler, which is defined as a map that contains at least
-     a `:transmit!` key whose value is a `(fn [send-node])`. See `networking.http-remote`.
+     a `:transmit!` key whose value is a `(fn [remote send-node])`. See `networking.http-remote`.
    * `:shared` - A (static) map of data that should be visible in all components through `comp/shared`.
    * `:shared-fn` - A function on root props that can select/augment shared whenever a forced root render
      or explicit call to `app/update-shared!` happens.
