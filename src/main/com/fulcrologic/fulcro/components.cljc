@@ -826,11 +826,14 @@
   will still be queued as normal. Calling `transact!!` is a shorthand for this option. WARNING: ONLY the given component will
   be refreshed in the UI. If you have dependent data elsewhere in the UI you must either use `transact!` or schedule
   your own global render using `app/schedule-render!`.
-  ` `:after-render?` - Wait until the next render completes before allowing this transaction to run. This can be used
+  - `:after-render?` - Wait until the next render completes before allowing this transaction to run. This can be used
   when calling `transact!` from *within* another mutation to ensure that the effects of the current mutation finish
   before this transaction takes control of the CPU. This option defaults to `false`, but `defmutation` causes it to
   be set to true for any transactions run within mutation action sections. You can affect the default for this value
   in a dynamic scope by binding `rc/*after-render*` to true
+  - `:parallel?` - Boolean. If true, the mutation(s) in the transaction will NOT go into a network queue, nor
+    will it block later mutations or queries.
+
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
