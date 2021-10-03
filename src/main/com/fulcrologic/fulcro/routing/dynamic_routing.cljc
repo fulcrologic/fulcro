@@ -723,7 +723,7 @@
   `{:error-timeout ms :deferred-timeout ms}`.  Anything extra will appear in the `params` of `will-enter`.
 
   The error timeout is how long to wait  (default 5000ms) before showing the error-ui of a route (which must be defined on the
-  router that is having problems).  The deferred-timeout (default 100ms) is how long to wait before showing the loading-ui of
+  router that is having problems).  The deferred-timeout (default 20ms) is how long to wait before showing the loading-ui of
   a deferred router (to prevent flicker).
   "
   ([this new-route]
