@@ -7,6 +7,7 @@
            com.fulcrologic.fulcro.ui-state-machines/defstatemachine clojure.core/def
            com.fulcrologic.guardrails.core/>def                     clojure.core/def
            com.fulcrologic.guardrails.core/>defn                    clojure.core/defn
+           com.fulcrologic.guardrails.core/>defn-                   clojure.core/defn-
            com.fulcrologic.rad.attributes/defattr                   clojure.core/def
            com.fulcrologic.rad.report/defsc-report                  clojure.core/defn
            com.fulcrologic.rad.form/defsc-form                      clojure.core/defn
