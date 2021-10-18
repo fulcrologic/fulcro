@@ -387,6 +387,14 @@
   - `:parallel?` - Boolean. If true, the mutation(s) in the transaction will NOT go into a network queue, nor
     will it block later mutations or queries.
 
+  You may add any additional keys to the option map (namespaced is ideal), and any value is legal in the options
+  map, including functions. The options will appear in the `env` of all mutations run in the transaction as
+  `:com.fulcrologic.fulcro.algorithms.tx-processing/options`. This is the preferred way of passing things like
+  lambdas (if you wanted something like a callback) to mutations. Note that mutation symbols are perfectly legal
+  as mutation *arguments*, so chaining mutations can already be done via the normal transaction mechanism, and
+  callbacks, while sometimes necessary/useful, should be limited to usages where there is no other clean way
+  to accomplish the goal.
+
 
   NOTE: This function calls the application's `tx!` function (which is configurable). Fulcro 2 'follow-on reads' are
   supported by the default version and are added to the `:refresh` entries. Your choice of rendering algorithm will
