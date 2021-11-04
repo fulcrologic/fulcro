@@ -1,13 +1,15 @@
 (ns com.fulcrologic.fulcro.algorithms.form-state-spec
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
     [clojure.spec.alpha :as s]
-    [clojure.string :as str]))
+    [clojure.string :as str]
+    [taoensso.timbre :as log]))
 
 (declare =>)
 
@@ -66,7 +68,7 @@
    :query       [:entity/id :entity/value {:entity/thing (comp/get-query Thing)} fs/form-config-join]
    :form-fields #{:entity/value :entity/thing}})
 
-(specification "add-form-config" :focus
+(specification "add-form-config"
   (component "treats joins in a way that will just track their ident"
     (let [data-tree    {:db/id        1
                         :entity/value 42
@@ -372,7 +374,54 @@
           "Touches the nested form  entities"
           (get-in updated-state [:phone/id 2 ::touched]) => true
           (get-in updated-state [:phone/id 3 ::touched]) => true
-          (get-in updated-state [:locale/by-id 22 ::touched]) => true))))
+          (get-in updated-state [:locale/by-id 22 ::touched]) => true)))
+    (component "Accidental form configuration loops"
+      (let [TraitTypeForm1 (rc/nc [:trait-type/id :trait-type/title
+                                   fs/form-config-join]
+                             {:componentName ::TT1
+                              :form-fields   #{:trait-type/title}})
+            TraitForm1     (rc/nc [:trait/id :trait/title
+                                   {:trait/trait-type (comp/get-query TraitTypeForm1)}
+                                   fs/form-config-join]
+                             {:componentName ::TF1
+                              :form-fields   #{:trait/title :trait/trait-type}}) ; meant to track the ident as a picker in the context
+            TraitTypeForm2 (rc/nc [:trait-type/id :trait-type/title
+                                   {:trait-type/traits (comp/get-query TraitForm1)}
+                                   fs/form-config-join]
+                             {:componentName ::TTF2
+                              :form-fields   #{:trait-type/title
+                                               :trait-type/traits}})
+            state-map      {:trait/id      {1 {:trait/id         1
+                                               :trait/title      "TraitA"
+                                               :trait/trait-type [:trait-type/id 100]}
+                                            2 {:trait/id         2
+                                               :trait/title      "TraitB"
+                                               :trait/trait-type [:trait-type/id 100]}}
+                            :trait-type/id {100 {:trait-type/id     100
+                                                 :trait-type/title  "TT1"
+                                                 :trait-type/traits [[:trait/id 1]
+                                                                     [:trait/id 2]]}}}
+            added?         (atom false)
+            xforms         (atom 0)]
+
+        (try
+          (fs/add-form-config* state-map TraitTypeForm2 [:trait-type/id 100])
+          (reset! added? true)
+          (catch #?(:cljs :default :clj Throwable) e nil))
+
+        (try
+          (let [state-map (fs/add-form-config* state-map TraitTypeForm2 [:trait-type/id 100])]
+            (fs/update-forms state-map (fn [entity form-config]
+                                         (swap! xforms inc)
+                                         [entity form-config])
+              [:trait-type/id 100]))
+          (catch #?(:cljs :default :clj Throwable) e nil))
+
+        (assertions
+          "Adding config to forms that a accidental loop properly terminates"
+          @added? => true
+          "An accidental form config loop is properly terminated"
+          @xforms => 3))))
 
   (specification "mark-complete*"
     (behavior "is a state map operation that marks field(s) as complete, so validation checks can be applied"
@@ -472,3 +521,4 @@
       (fs/dirty-fields updated-form true) => {[:form/id 1]
                                               {:form/entity {:before [[:entity/id 22] [:entity/id 23]]
                                                              :after  [[:entity/id 23]]}}})))
+

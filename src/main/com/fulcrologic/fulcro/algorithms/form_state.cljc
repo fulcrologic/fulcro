@@ -29,7 +29,7 @@
     [clojure.set :as set]
     [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
-    [com.fulcrologic.guardrails.core :refer [>def >defn >defn- =>]]
+    [com.fulcrologic.guardrails.core :refer [>def >defn >defn- => ?]]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
@@ -396,21 +396,26 @@
   `starting-entity-ident` : An ident in the state map of an entity that has been initialized as a form.
 
   Returns the updated state map."
-  [state-map xform starting-entity-ident]
-  [map? fn? eql/ident? => map?]
-  (let [entity         (get-in state-map starting-entity-ident)
-        config-ident   (get entity ::config)
-        config         (get-in state-map config-ident)
-        {:keys [::subforms]} config
-        [updated-entity updated-config] (xform entity config)
-        subform-idents (immediate-subform-idents (get-in state-map starting-entity-ident) (-> subforms keys set))]
-    (if config-ident
-      (as-> state-map sm
-        (assoc-in sm starting-entity-ident updated-entity)
-        (assoc-in sm config-ident updated-config)
-        (reduce (fn [s id]
-                  (update-forms s xform id)) sm subform-idents))
-      state-map)))
+  ([state-map xform starting-entity-ident]
+   [map? fn? eql/ident? => map?]
+   (update-forms state-map xform starting-entity-ident #{}))
+  ([state-map xform starting-entity-ident idents-visited]
+   [map? fn? eql/ident? set? => map?]
+   (if (contains? idents-visited starting-entity-ident)
+     state-map
+     (let [entity         (get-in state-map starting-entity-ident)
+          config-ident   (get entity ::config)
+          config         (get-in state-map config-ident)
+          {:keys [::subforms]} config
+          [updated-entity updated-config] (xform entity config)
+          visited        ((fnil conj #{}) idents-visited starting-entity-ident)
+          subform-idents (immediate-subform-idents (get-in state-map starting-entity-ident) (-> subforms keys set))]
+      (if config-ident
+        (as-> state-map sm
+          (assoc-in sm starting-entity-ident updated-entity)
+          (assoc-in sm config-ident updated-config)
+          (reduce (fn [s ident] (update-forms s xform ident visited)) sm subform-idents))
+        state-map)))))
 
 (defn- strip-tempid-idents
   "Remote tempid idents from to-one or to-many values"
