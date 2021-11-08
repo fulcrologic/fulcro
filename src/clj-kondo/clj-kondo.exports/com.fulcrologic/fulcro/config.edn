@@ -1,7 +1,7 @@
 {:hooks {:analyze-call {com.fulcrologic.fulcro.mutations/defmutation com.fulcrologic.fulcro.clj-kondo-hooks/defmutation
                         com.fulcrologic.guardrails.core/>defn com.fulcrologic.fulcro.clj-kondo-hooks/>defn}}
  :linters {:clj-kondo.fulcro.defmutation/handler-arity {:level :error}
-           :clj-kondo.fulcro.>defn/signature-mismatch {:level :error}}
+           :clj-kondo.fulcro.>defn/invalid-gspec {:level :error}}
  :lint-as {com.fulcrologic.fulcro.components/defsc                  clojure.core/defn
            com.fulcrologic.fulcro.routing.dynamic-routing/defrouter clojure.core/defn
            com.fulcrologic.fulcro.ui-state-machines/defstatemachine clojure.core/def
