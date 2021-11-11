@@ -59,6 +59,14 @@
                   (let [xs (into [] (map #(normalize* subquery % tables union-entry transform)) v)]
                     (if-not (or (nil? class) (not (has-ident? class)))
                       (let [is (into [] (map #(get-ident class %)) xs)]
+                        ;; Where does the code come from? A little lesson of history:
+                        ;; There was no if and no union handling in https://github.com/omcljs/om/commit/bbd94ac17a4c208f928a84915a050b787b65cb6a
+                        ;; and it was added by https://github.com/omcljs/om/commit/3882cb5b9a3db95fa94b016bbe7bfe7f8b1db638 "query union WIP";
+                        ;; Later https://github.com/omcljs/om/commit/baaf4510d9970f1d9aa8dfcbe28bc89242bae87b#diff-8245f06a64876f1022b17c2eb5102ed6a658612b2da113093ea29185b5829682L2025
+                        ;; "OM-802: Recursive query normalization incorrect " changed the old brqnch code to also use reduce
+                        ;; but keeping the zipmap, likely without noticing the branches becane so similar so as to be mergable
+                        ;; The `(when-not (empty? is) ..` was added by https://github.com/omcljs/om/commit/8a34c2cf90d45de3c464eceb4a2866de2d99e5f0
+                        ;; and was necessary at that time b/c it still used `swap! refs update-in` and thus misbehaved for empty is
                         (if (vector? subquery)
                           (when-not (empty? is)
                             (swap! tables
@@ -67,6 +75,8 @@
                                   ;; Why zipmap and not `map vector` as in the other merge-to-client-db?
                                   ;; Incidental or intentional? Do we accept duplicates there but only want the last one
                                   ;; here for some reason?
+                                  ;; Seems incidental; acc. to https://github.com/omcljs/om/commit/baaf4510d9970f1d9aa8dfcbe28bc89242bae87b
+                                  ;; it needed map because it merged it with tables[(ffirst is)]
                                   tables' (zipmap is xs)))))
                           ;; union case
                           ;;  The difference from non-union is that we process duplicates in v in merge-to-client-db (why??)
