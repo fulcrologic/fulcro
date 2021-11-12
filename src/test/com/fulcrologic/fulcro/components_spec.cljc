@@ -4,7 +4,6 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
        :cljs [com.fulcrologic.fulcro.dom :as dom])
-    #?(:cljs [goog.object :as gobj])
     [fulcro-spec.core :refer [specification assertions behavior component =>]]))
 
 (defsc A [this props]

@@ -12,8 +12,7 @@
   (:require
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     #?@(:cljs
-        [[goog.object :as gobj]
-         cljsjs.react])
+        [cljsjs.react])
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.raw.application :as rapp]
