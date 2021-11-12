@@ -38,52 +38,54 @@
 
 ;; Taken mostly from timbre itself.  Modified to output better results from ex-info exceptions (e.g. to improve expound
 ;; experience)
-#?(:cljs
-  (defn console-appender
-    "Returns a js/console appender for ClojureScript. This appender uses the normal output-fn to generate the main
-    message, but it also does raw output of the original logging args so that devtools can format data structures.
+(defn console-appender
+   "Returns a js/console appender for ClojureScript. This appender uses the normal output-fn to generate the main
+   message, but it also does raw output of the original logging args so that devtools can format data structures.
 
-    Furthermore, if it detects an ExceptionInfo it will print the `ex-message` *after* so that you can see the real
-    message of the exception last in the console.  This is particularly handy when using specs and expound with
-    spec instrumentation.
+   Furthermore, if it detects an ExceptionInfo it will print the `ex-message` *after* so that you can see the real
+   message of the exception last in the console.  This is particularly handy when using specs and expound with
+   spec instrumentation.
 
-    For accurate line numbers in Chrome, add these Blackbox[1] patterns:
-      `/taoensso/timbre/appenders/core\\.js$`
-      `/taoensso/timbre\\.js$`
-      `/cljs/core\\.js$`
+   For accurate line numbers in Chrome, add these Blackbox[1] patterns:
+     `/taoensso/timbre/appenders/core\\.js$`
+     `/taoensso/timbre\\.js$`
+     `/cljs/core\\.js$`
 
-    [1] Ref. https://goo.gl/ZejSvR"
-    [& [opts]]
-    {:enabled? true
-     :async? false
-     :min-level nil
-     :rate-limit nil
-     :output-fn :inherit
-     :fn (if (exists? js/console)
-           (let [;; Don't cache this; some libs dynamically replace js/console
-                 level->logger
-                 (fn [level]
-                   (or
-                     (case level
-                       :trace js/console.trace
-                       :debug js/console.debug
-                       :info js/console.info
-                       :warn js/console.warn
-                       :error js/console.error
-                       :fatal js/console.error
-                       :report js/console.info)
-                     js/console.log))]
+   [1] Ref. https://goo.gl/ZejSvR
 
-             (fn [{:keys [level vargs ?err output-fn] :as data}]
-               (when-let [logger (level->logger level)]
-                 (let [output (when output-fn (output-fn (assoc data :msg_ "" :?err nil)))
-                       args (if-let [err ?err]
-                              (cons output (cons err vargs))
-                              (cons output vargs))]
-                   (.apply logger js/console (into-array args))
-                   (when (instance? ExceptionInfo ?err)
-                     (js/console.log (ex-message ?err)))))))
-           (fn [data] nil))}))
+   Does nothing in Clojure."
+        [& [opts]]
+  #?(:cljs
+     {:enabled? true
+      :async? false
+      :min-level nil
+      :rate-limit nil
+      :output-fn :inherit
+      :fn (if (exists? js/console)
+            (let [;; Don't cache this; some libs dynamically replace js/console
+                  level->logger
+                  (fn [level]
+                    (or
+                      (case level
+                        :trace js/console.trace
+                        :debug js/console.debug
+                        :info js/console.info
+                        :warn js/console.warn
+                        :error js/console.error
+                        :fatal js/console.error
+                        :report js/console.info)
+                      js/console.log))]
+
+              (fn [{:keys [level vargs ?err output-fn] :as data}]
+                (when-let [logger (level->logger level)]
+                  (let [output (when output-fn (output-fn (assoc data :msg_ "" :?err nil)))
+                        args (if-let [err ?err]
+                               (cons output (cons err vargs))
+                               (cons output vargs))]
+                    (.apply logger js/console (into-array args))
+                    (when (instance? ExceptionInfo ?err)
+                      (js/console.log (ex-message ?err)))))))
+            (fn [data] nil))}))
 
 (defn prefix-output-fn
   "Mostly taken from timbre, but just formats message prefix as output (e.g. only location/line/level). Use with the
@@ -96,5 +98,6 @@
 (defn- warn-once!* [message] (log/warn message))
 (defn- error-once!* [message] (log/error message))
 
-(def warn-once! "Log a warning but max once / 60s for a particular message" (encore/memoize 60000 warn-once!*))
-(def error-once! "Log a warning but max once / 60s for a particular message" (encore/memoize 60000 error-once!*))
+(def ^:static ^:private five-minutes-ms (* 5 60 1000))
+(def warn-once! "Log a warning but max once / 60s for a particular message" (encore/memoize five-minutes-ms warn-once!*))
+(def error-once! "Log a warning but max once / 60s for a particular message" (encore/memoize five-minutes-ms error-once!*))
