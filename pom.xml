@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
@@ -38,9 +39,9 @@
             <resource>
                 <directory>src/main</directory>
             </resource>
-      <resource>
-        <directory>src/clj-kondo</directory>
-      </resource>
+            <resource>
+                <directory>src/clj-kondo</directory>
+            </resource>
         </resources>
         <plugins>
             <plugin>
@@ -87,11 +88,6 @@
             <version>2.120.0</version>
         </dependency>
         <dependency>
-            <groupId>cljsjs</groupId>
-            <artifactId>react-dom</artifactId>
-            <version>16.13.0-0</version>
-        </dependency>
-        <dependency>
             <groupId>com.cognitect</groupId>
             <artifactId>transit-cljs</artifactId>
             <version>0.8.264</version>
@@ -100,11 +96,6 @@
             <groupId>org.clojure</groupId>
             <artifactId>clojurescript</artifactId>
             <version>1.10.866</version>
-        </dependency>
-        <dependency>
-            <groupId>cljsjs</groupId>
-            <artifactId>react</artifactId>
-            <version>16.13.0-0</version>
         </dependency>
         <dependency>
             <groupId>com.taoensso</groupId>
@@ -120,11 +111,6 @@
             <groupId>com.cognitect</groupId>
             <artifactId>transit-clj</artifactId>
             <version>1.0.324</version>
-        </dependency>
-        <dependency>
-            <groupId>cljsjs</groupId>
-            <artifactId>react-dom-server</artifactId>
-            <version>16.13.0-0</version>
         </dependency>
         <dependency>
             <groupId>org.clojure</groupId>

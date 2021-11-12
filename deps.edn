@@ -14,11 +14,6 @@
            com.cognitect/transit-cljs {:mvn/version "0.8.264"}
            com.fulcrologic/guardrails {:mvn/version "1.1.4"}
 
-           ;; These are so cljdoc will work. Use shadow-cljs, which requires you put them in package.json
-           cljsjs/react               {:mvn/version "16.13.0-0"}
-           cljsjs/react-dom           {:mvn/version "16.13.0-0"}
-           cljsjs/react-dom-server    {:mvn/version "16.13.0-0"}
-
            org.clojure/clojure        {:mvn/version "1.10.3" :scope "provided"}
            org.clojure/clojurescript  {:mvn/version "1.10.866" :scope "provided"}
            org.clojure/core.async     {:mvn/version "1.3.610"}}

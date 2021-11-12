@@ -6,7 +6,7 @@
   examples): `ui-int-input` and `ui-keyword-input`. See the source of those for examples."
   (:require
     #?@(:cljs
-        [[cljsjs.react]
+        [["react" :as react]
          [goog.object :as gobj]])
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
@@ -60,7 +60,7 @@
          #?(:cljs
             (let [{:keys [value onBlur] :as props} (comp/props this)
                   {:keys [stringValue on-change]} (comp/get-state this)]
-              (js/React.createElement "input"
+              (react/createElement "input"
                 (clj->js
                   (merge props
                     (cond->

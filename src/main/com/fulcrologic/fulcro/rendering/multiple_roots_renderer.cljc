@@ -63,7 +63,7 @@
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
     #?@(:cljs
-        [cljsjs.react
+        [["react" :as react]
          [goog.object :as gobj]])))
 
 (defn register-root!
@@ -190,7 +190,7 @@
   (let [cls     (fn [])
         ui-root (comp/computed-factory UIRoot)]
     #?(:cljs
-       (gobj/extend (.-prototype cls) js/React.Component.prototype
+       (gobj/extend (.-prototype cls) (.-prototype react/Component)
          (clj->js
            {:shouldComponentUpdate (fn [] false)
             :render                (fn []

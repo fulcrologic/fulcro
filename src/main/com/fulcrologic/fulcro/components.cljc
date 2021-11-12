@@ -6,7 +6,7 @@
          [cljs.env :as cljs-env]]
         :cljs
         [[goog.object :as gobj]
-         [cljsjs.react]])
+         ["react" :as react]])
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as log]
@@ -436,7 +436,7 @@
                                                                                                  #js {"fulcro$state" v}
                                                                                                  v))))
                                  getDerivedStateFromProps (assoc :getDerivedStateFromProps (static-wrap-props-state-handler getDerivedStateFromProps)))]
-         (gobj/extend (.-prototype cls) js/React.Component.prototype js-instance-props
+         (gobj/extend (.-prototype cls) (.-prototype react/Component) js-instance-props
            #js {"fulcro$options" options})
          (gobj/extend cls (clj->js statics) #js {"fulcro$options" options})
          (gobj/set cls "fulcro$registryKey" fqkw)           ; done here instead of in extend (clj->js screws it up)
@@ -466,10 +466,10 @@
   [js-props faux-class]
   #?(:cljs
      (let [app                     (isoget js-props :fulcro$app)
-           tunnelled-props-state   (js/React.useState #js {})
+           tunnelled-props-state   (react/useState #js {})
            js-set-tunnelled-props! (aget tunnelled-props-state 1)
            {:keys [ident] :as options} (isoget faux-class :fulcro$options)
-           faux-component-state    (js/React.useState (fn []
+           faux-component-state    (react/useState (fn []
                                                         (when-not app
                                                           (log/error "Cannot create proper fulcro component, as *app* isn't bound."
                                                             "This happens when something renders a Fulcro component outside of Fulcro's render context."
@@ -496,7 +496,7 @@
          (gobj/set "fulcro$shared" shared-props)
          (gobj/set "fulcro$value" current-props)
          (gobj/set "children" children))
-       (js/React.useEffect
+       (react/useEffect
          (fn []
            (let [original-ident   current-ident
                  index-component! (ah/app-algorithm app :index-component!)
@@ -731,7 +731,7 @@
          (reset! state-atom state))
        this)
      :cljs
-     (apply js/React.createElement class props (force-children children))))
+     (apply react/createElement class props (force-children children))))
 
 (defn factory
   "Create a factory constructor from a component class created with
@@ -1014,7 +1014,7 @@
      (let [[props children] (if (map? (first args))
                               [(first args) (rest args)]
                               [#js {} args])]
-       (apply js/React.createElement js/React.Fragment (clj->js props) (force-children children)))))
+       (apply react/createElement react/Fragment (clj->js props) (force-children children)))))
 
 #?(:clj
    (defmacro with-parent-context

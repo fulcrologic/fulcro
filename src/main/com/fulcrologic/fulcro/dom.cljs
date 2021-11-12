@@ -6,8 +6,8 @@
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
-    [cljsjs.react]
-    [cljsjs.react.dom]
+    ["react" :as react]
+    ["react-dom" :as react.dom]
     [goog.object :as gobj]
     [goog.dom :as gdom]
     [com.fulcrologic.fulcro.dom.inputs :as inputs]
@@ -31,7 +31,7 @@
 
 (defn element? "Returns true if the given arg is a react element."
   [x]
-  (js/React.isValidElement x))
+  (react/isValidElement x))
 
 (defn child->typed-child [child]
   (cond
@@ -69,7 +69,7 @@
 (defn render
   "Equivalent to React.render"
   [component el]
-  (js/ReactDOM.render component el))
+  (react.dom/render component el))
 
 (defn render-to-str
   "Equivalent to React.renderToString. NOTE: You must make sure js/ReactDOMServer is defined (e.g. require cljsjs.react.dom.server) to use this function."
@@ -79,9 +79,9 @@
 (defn node
   "Returns the dom node associated with a component's React ref."
   ([component]
-   (js/ReactDOM.findDOMNode component))
+   (react.dom/findDOMNode component))
   ([component name]
-   (some-> (.-refs component) (gobj/get name) (js/ReactDOM.findDOMNode))))
+   (some-> (.-refs component) (gobj/get name) (react.dom/findDOMNode))))
 
 (def Input
   "React component that wraps dom/input to prevent cursor madness."
@@ -106,9 +106,9 @@
   ([tag]
    (create-element tag nil))
   ([tag opts]
-   (js/React.createElement tag opts))
+   (react/createElement tag opts))
   ([tag opts & children]
-   (apply js/React.createElement tag opts children)))
+   (apply react/createElement tag opts children)))
 
 (defn convert-props
   "Given props, which can be nil, a js-obj or a clj map: returns a js object."
@@ -127,7 +127,7 @@
   "Used internally by the DOM element generation."
   [arr]
   {:pre [(array? arr)]}
-  (.apply js/React.createElement nil arr))
+  (.apply react/createElement nil arr))
 
 (defn- update-state
   "Updates the state of the wrapped input element."
@@ -157,9 +157,9 @@
                        (gobj/extend state props))
                      (gobj/remove state "inputRef")
                      #js {"cached-props" state}))
-                 (.apply js/React.Component this (js-arguments))))]
+                 (.apply react/Component this (js-arguments))))]
     (set! (.-displayName ctor) (str "wrapped-" element))
-    (goog.inherits ctor js/React.Component)
+    (goog.inherits ctor react/Component)
     (specify! (.-prototype ctor)
       Object
       (onChange [this event]
@@ -171,7 +171,7 @@
 
       (UNSAFE_componentWillReceiveProps [this new-props]
         (let [state-value   (gobj/getValueByKeys this "state" "cached-props" "value")
-              this-node     (js/ReactDOM.findDOMNode this)
+              this-node     (react.dom/findDOMNode this)
               value-node    (if (is-form-element? this-node)
                               this-node
                               (gdom/findNode this-node #(is-form-element? %)))
@@ -186,12 +186,12 @@
             (update-state this new-props (gobj/get new-props "value")))))
 
       (render [this]
-        (js/React.createElement element (gobj/getValueByKeys this "state" "cached-props"))))
-    (let [real-factory (fn [& args] (apply js/React.createElement ctor args))]
+        (react/createElement element (gobj/getValueByKeys this "state" "cached-props"))))
+    (let [real-factory (fn [& args] (apply react/createElement ctor args))]
       (fn [props & children]
         (let [t (gobj/get props "type")]
           (if (= t "file")
-            (apply js/React.createElement "input" props children)
+            (apply react/createElement "input" props children)
             (if-let [r (gobj/get props "ref")]
               (if (string? r)
                 (apply real-factory props children)
