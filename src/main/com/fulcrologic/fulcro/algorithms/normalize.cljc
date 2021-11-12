@@ -104,6 +104,109 @@
                   (recur (next q) (assoc ret k v))))))
           ret)))))
 
+(defn- upsert-ident
+  "Insert or merge a data entity into a state table under the given `ident`.
+  Ex.: `(upsert-ident {} [:person/id 1] #:person{:id 1 :age 42}) => {:person/id {1 #:person{:id 1, :age 42}}}`"
+  [state ident entity-map]
+  (try
+    (update-in state ident merge entity-map)
+    (catch Exception e
+      (when-not (map? entity-map)
+        (throw (ex-info (str "Query join indicates the data should contain a data map but the actual data is "
+                             (pr-str entity-map)
+                             " Joined component's ident: " ident)
+                        {:ident ident, :data entity-map})))
+      (throw e))))
+
+(comment
+  (upsert-ident
+    {:x 1, :person/id {1 #:person{:id 1, :age 42}}}
+    [:person/id 1] "not a map!")
+  ())
+
+(defn- normalize-with-friendly-errors
+  "Like `normalize*` but with error logger. Possibly slower and buggy. Use to report errorrs after normalize* failed."
+  [query data tables union-seen transform]
+  ;; `tables` is an (atom {}) where we collect normalized tables for all components encountered during processing, i.e.
+  ;; we only return the "top-level keys" with their data/idents and all "tables" are inside this
+  (let [data (if (and transform (not (vector? data)))
+               (transform query data)
+               data)]
+    (cond
+      (= '[*] query) data
+
+      ;; union case
+      (map? query)
+      (let [class (-> query meta :component)
+            ident (get-ident class data)]
+        (if-not (nil? ident)
+          (normalize-with-friendly-errors (get query (first ident)) data tables union-seen transform)
+          (throw (ex-info "Union components must have an ident" {}))))
+
+      (vector? data) data                                   ;; already normalized
+
+      :else
+      (loop [q (seq query), ret data]
+        (if-not (nil? q)
+          (let [expr (first q)]
+            (if (util/join? expr)
+              (let [[join-key subquery] (util/join-entry expr)
+                    recursive?  (util/recursion? subquery)
+                    union-entry (if (util/union? expr) subquery union-seen)
+                    subquery    (if recursive?
+                                  (if-not (nil? union-seen)
+                                    union-seen
+                                    query)
+                                  subquery)
+                    class       (-> subquery meta :component)
+                    v           (get data join-key)]
+                (cond
+                  ;; graph loop: db->tree leaves ident in place
+                  (and recursive? (eql/ident? v)) (recur (next q) ret)
+                  ;; normalize one
+                  (map? v)
+                  (let [x (normalize-with-friendly-errors subquery v tables union-entry transform)]
+                    (if-not (or (nil? class) (not (has-ident? class)))
+                      (let [i (get-ident class x)]
+                        ;; Why don't we simply `update-in i ..` as we do below in normalize many?! Incidental?
+                        (swap! tables upsert-ident i x)
+                        (recur (next q) (assoc ret join-key i)))
+                      (recur (next q) (assoc ret join-key x))))
+
+                  ;; normalize many
+                  (and (vector? v) (not (eql/ident? v)) (not (eql/ident? (first v))))
+                  (let [xs (into [] (map #(normalize-with-friendly-errors subquery % tables union-entry transform)) v)]
+                    (if-not (or (nil? class) (not (has-ident? class)))
+                      (let [is (into [] (map #(get-ident class %)) xs)]
+                        ;; union + normal case
+                        (swap! tables
+                               (fn [tables']
+                                 (reduce (fn merge-to-client-db [m [i x]] (upsert-ident m i x))
+                                         tables' (map vector is xs))))
+                        (recur (next q) (assoc ret join-key is)))
+                      (recur (next q) (assoc ret join-key xs))))
+
+                  ;; missing key
+                  (nil? v)
+                  (recur (next q) ret)
+
+                  ;; can't handle
+                  :else (recur (next q) (assoc ret join-key v))))
+              (let [k (if (seq? expr) (first expr) expr)
+                    v (get data k)]
+                (if (nil? v)
+                  (recur (next q) ret)
+                  (recur (next q) (assoc ret k v))))))
+          ret)))))
+
+(defn- better-normalize* [query data tables union-seen transform]
+  (try
+    (normalize* query data tables union-seen transform)
+    (catch #?(:clj Exception :cljs :default) e
+      (normalize-with-friendly-errors query data tables union-seen transform)
+      (log/warn "Unexpectedly, normalize* failed but normalize-with-friendly-errors did not. Please report it (with the inputs) to Fulcro")
+      (throw e))))
+
 (defn tree->db
   "Given a component class or instance and a tree of data, use the component's
    query to transform the tree into the default database format. All nodes that
@@ -115,9 +218,30 @@
   ([x data #?(:clj merge-idents :cljs ^boolean merge-idents)]
    (tree->db x data merge-idents nil))
   ([x data #?(:clj merge-idents :cljs ^boolean merge-idents) transform]
-   (let [refs (atom {})
-         x    (if (vector? x) x (get-query x data))
-         ret  (normalize* x data refs nil transform)]
+   (let [tables (atom {})
+         x      (if (vector? x) x (get-query x data))
+         ret    (better-normalize* x data tables nil transform)]
      (if merge-idents
-       (let [refs' @refs] (merge ret refs'))
-       (with-meta ret @refs)))))
+       (merge ret @tables)
+       (with-meta ret @tables)))))
+
+(comment
+  (com.fulcrologic.fulcro.components/defsc Tag [_ _]
+         {:query [:tag/id :tag/desc]
+          :ident  :tag/id
+          :initial-state {}}
+         nil)
+
+  (com.fulcrologic.fulcro.components/defsc Menu [_ _]
+         {:query         [{:tags (com.fulcrologic.fulcro.components/get-query Tag)}] ; <-- WRONG, tags are strings not maps
+          :ident         (fn [] [:component/id :Menu])
+          :initial-state {}}
+         nil)
+
+  (com.fulcrologic.fulcro.components/defsc Root [_ _]
+         {:query [{:task-filters (com.fulcrologic.fulcro.components/get-query Menu)}]
+          :initial-state (fn [_] {:task-filters  {:tags ["Important" "Urgent"]}})}
+         nil)
+
+  (tree->db Root {:task-filters  {:tags ["Important" "Urgent"]}})
+  )
