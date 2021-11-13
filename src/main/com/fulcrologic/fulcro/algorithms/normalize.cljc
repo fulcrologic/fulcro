@@ -4,7 +4,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.components :refer [has-ident? ident get-ident get-query]]))
+    [com.fulcrologic.fulcro.components :as comp :refer [has-ident? ident get-ident get-query]]))
 
 (defn- normalize* [query data tables union-seen transform]
   ;; `tables` is an (atom {}) where we collect normalized tables for all components encountered during processing, i.e.
@@ -110,13 +110,18 @@
   [state ident entity-map]
   (try
     (update-in state ident merge entity-map)
-    (catch Exception e
+    (catch #?(:clj Exception :cljs :default) e
       (when-not (map? entity-map)
         (throw (ex-info (str "Query join indicates the data should contain a data map but the actual data is "
                              (pr-str entity-map)
                              " Joined component's ident: " ident)
-                        {:ident ident, :data entity-map})))
-      (throw e))))
+                        {})))
+      (throw (ex-info (str "Insert/update of the presumed data entity "
+                           (pr-str entity-map)
+                           " into the state at "
+                           ident
+                           " failed due to: " e)
+                      {} e)))))
 
 (comment
   (upsert-ident
@@ -151,15 +156,15 @@
           (let [expr (first q)]
             (if (util/join? expr)
               (let [[join-key subquery] (util/join-entry expr)
-                    recursive?  (util/recursion? subquery)
+                    recursive? (util/recursion? subquery)
                     union-entry (if (util/union? expr) subquery union-seen)
-                    subquery    (if recursive?
-                                  (if-not (nil? union-seen)
-                                    union-seen
-                                    query)
-                                  subquery)
-                    class       (-> subquery meta :component)
-                    v           (get data join-key)]
+                    subquery (if recursive?
+                               (if-not (nil? union-seen)
+                                 union-seen
+                                 query)
+                               subquery)
+                    class (-> subquery meta :component)
+                    v (get data join-key)]
                 (cond
                   ;; graph loop: db->tree leaves ident in place
                   (and recursive? (eql/ident? v)) (recur (next q) ret)
@@ -202,10 +207,17 @@
 (defn- better-normalize* [query data tables union-seen transform]
   (try
     (normalize* query data tables union-seen transform)
-    (catch #?(:clj Exception :cljs :default) e
-      (normalize-with-friendly-errors query data tables union-seen transform)
-      (log/warn "Unexpectedly, normalize* failed but normalize-with-friendly-errors did not. Please report it (with the inputs) to Fulcro")
-      (throw e))))
+    (catch #?(:clj Exception :cljs :default) _
+      (try (normalize-with-friendly-errors query data tables union-seen transform)
+           (catch #?(:clj Exception :cljs :default) e
+             ;; FIXME Add an entry and link to https://book.fulcrologic.com/#_appendix_fulcro_errors_and_warnings_explained
+             (log/error (ex-message e))))
+      (log/error "Normalize failed and no data will be inserted into the client DB. See errors above."
+         (if-let [class (some-> query meta :component comp/component-name)]
+           (str "Target component: " class)
+           (str "Query: " query))
+         "Data: " data)
+      {})))
 
 (defn tree->db
   "Given a component class or instance and a tree of data, use the component's
@@ -226,22 +238,24 @@
        (with-meta ret @tables)))))
 
 (comment
-  (com.fulcrologic.fulcro.components/defsc Tag [_ _]
-         {:query [:tag/id :tag/desc]
-          :ident  :tag/id
-          :initial-state {}}
-         nil)
+  (do
+    ;; FIXME: Why does this often take > 5s to run? Seems caused by `log/error in `upsert-ident, even if it only logs "test" ?!
+    (comp/defsc Tag [_ _]
+      {:query [:tag/id :tag/desc]
+       :ident :tag/id
+       :initial-state {}}
+      nil)
 
-  (com.fulcrologic.fulcro.components/defsc Menu [_ _]
-         {:query         [{:tags (com.fulcrologic.fulcro.components/get-query Tag)}] ; <-- WRONG, tags are strings not maps
-          :ident         (fn [] [:component/id :Menu])
-          :initial-state {}}
-         nil)
+    (comp/defsc Menu [_ _]
+      {:query [{:tags (comp/get-query Tag)}] ; <-- WRONG, tags are strings not maps
+       :ident (fn [] [:component/id :Menu])
+       :initial-state {}}
+      nil)
 
-  (com.fulcrologic.fulcro.components/defsc Root [_ _]
-         {:query [{:task-filters (com.fulcrologic.fulcro.components/get-query Menu)}]
-          :initial-state (fn [_] {:task-filters  {:tags ["Important" "Urgent"]}})}
-         nil)
+    (comp/defsc Root [_ _]
+      {:query [{:task-filters (comp/get-query Menu)}]
+       :initial-state (fn [_] {:task-filters {:tags ["Important" "Urgent"]}})}
+      nil)
 
-  (tree->db Root {:task-filters  {:tags ["Important" "Urgent"]}})
+    (tree->db Root {:task-filters {:tags ["Important" "Urgent"]}}))
   )
