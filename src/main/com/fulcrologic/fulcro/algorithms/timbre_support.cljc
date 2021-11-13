@@ -1,6 +1,9 @@
 (ns com.fulcrologic.fulcro.algorithms.timbre-support
   "
-  Logging helpers to make js console logging more readable. The recommended use of these functions is as follows:
+  Logging helpers
+
+  ### More readable js console logging
+  The recommended use of these functions is as follows:
 
   - Make sure you're using Binaryage devtools (on classpath. shadow-cljs will auto-add it when detected).
   - IMPORTANT: Enable custom formatters in console settings for Chrome. This will print cljs data as cljs (instead of raw js).
@@ -95,9 +98,28 @@
    (let [{:keys [level ?ns-str ?file ?line]} data]
      (str (str/upper-case (name level)) " " "[" (or ?ns-str ?file "?") ":" (or ?line "?") "] - "))))
 
-(defn- warn-once!* [message] (log/warn message))
-(defn- error-once!* [message] (log/error message))
+(defn- debug
+  ([message] (log/debug message))
+  ([a1 a2] (log/debug a1 a2))
+  ([a1 a2 a3] (log/debug a1 a2 a3)))
+
+(defn- warn
+  ([message] (log/warn message))
+  ([a1 a2] (log/warn a1 a2))
+  ([a1 a2 a3] (log/warn a1 a2 a3)))
+
+(defn- error
+  ([message] (log/error message))
+  ([a1 a2] (log/error a1 a2))
+  ([a1 a2 a3] (log/error a1 a2 a3)))
 
 (def ^:static ^:private five-minutes-ms (* 5 60 1000))
-(def warn-once! "Log a warning but max once / 60s for a particular message" (encore/memoize five-minutes-ms warn-once!*))
-(def error-once! "Log a warning but max once / 60s for a particular message" (encore/memoize five-minutes-ms error-once!*))
+
+(def debug-once! "Log a debug msg but max once / 5 min for particular arguments. Contrary to timbre/debug, takes max 3 arguments"
+  (encore/memoize five-minutes-ms warn))
+
+(def warn-once! "Log a warning but max once / 5 min for particular arguments. Contrary to timbre/warn, takes max 3 arguments"
+  (encore/memoize five-minutes-ms warn))
+
+(def error-once! "Log an error but max once / 5 min for particular arguments. Contrary to timbre/error, takes max 3 arguments"
+  (encore/memoize five-minutes-ms error))

@@ -188,7 +188,6 @@
 
 ;; LANDMARK: Incoming message handler for Inspect
 (defn handle-devtool-message [{:keys [type data] :as message}]
-  (log/debug "Devtools Message received" message)
   #?(:cljs
      (case type
        :fulcro.inspect.client/request-page-apps
