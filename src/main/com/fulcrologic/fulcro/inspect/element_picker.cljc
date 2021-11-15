@@ -7,7 +7,8 @@
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
-    [com.fulcrologic.fulcro.react.error-boundaries :as eb]))
+    [com.fulcrologic.fulcro.react.error-boundaries :as eb]
+    ["react-dom" :as react.dom]))
 
 (def base-me-style #js {:position       "absolute"
                         :display        "block"
@@ -100,7 +101,7 @@
                                       (reset! current instance)
                                       (gdom/setTextContent marker-label (comp/component-name instance))
 
-                                      (let [target' (js/ReactDOM.findDOMNode instance)
+                                      (let [target' (react.dom/findDOMNode instance)
                                             offset  (gstyle/getPageOffset target')
                                             size    (gstyle/getSize target')]
                                         (gstyle/setStyle marker-label
