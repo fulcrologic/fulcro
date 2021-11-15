@@ -6,7 +6,9 @@
                [goog.style :as gstyle]])
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]))
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
+    [com.fulcrologic.fulcro.react.error-boundaries :as eb]
+    ["react-dom" :as react.dom]))
 
 (def base-me-style #js {:position       "absolute"
                         :display        "block"
@@ -73,9 +75,14 @@
 (defn react-instance [node]
   #?(:cljs
      (if-let [raw (react-raw-instance node)]
-       (or (gobj/getValueByKeys raw "_currentElement" "_owner" "_instance") ; react < 16
-         (gobj/getValueByKeys raw "return" "stateNode")     ; react >= 16
-         ))))
+       (let [instance (or (gobj/getValueByKeys raw "_currentElement" "_owner" "_instance") ; react < 16
+                       (gobj/getValueByKeys raw "return" "stateNode") ; react >= 16
+                       )]
+         ;; (React >= 16): If component body is wrapped in eb/error-boundary then we need to reach 2 levels deeper,
+         ;; through eb/BodyContainer and eb/ErrorBoundary to get at the actual component
+         (if (and (nil? instance) (= (gobj/getValueByKeys raw "return" "type") eb/BodyContainer))
+           (gobj/getValueByKeys raw "return" "return" "return" "stateNode")
+           instance)))))
 
 (defn pick-element [{:keys [on-pick]
                      :or   {on-pick identity}}]
@@ -94,7 +101,7 @@
                                       (reset! current instance)
                                       (gdom/setTextContent marker-label (comp/component-name instance))
 
-                                      (let [target' (js/ReactDOM.findDOMNode instance)
+                                      (let [target' (react.dom/findDOMNode instance)
                                             offset  (gstyle/getPageOffset target')
                                             size    (gstyle/getSize target')]
                                         (gstyle/setStyle marker-label
