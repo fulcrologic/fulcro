@@ -6,6 +6,26 @@
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :as comp :refer [has-ident? ident get-ident get-query]]))
 
+(defn- upsert-ident
+  "Insert or merge a data entity into a state table under the given `ident`.
+  A better version of `(update-in state ident merge entity-map)`.
+  Ex.: `(upsert-ident {} [:person/id 1] #:person{:id 1 :age 42}) => {:person/id {1 #:person{:id 1, :age 42}}}`"
+  [state ident entity-map]
+  (try
+    (update-in state ident merge entity-map)
+    (catch #?(:clj Exception :cljs :default) e
+      (when-not (map? entity-map)
+        (throw (ex-info (str "Query join indicates the data should contain a data map but the actual data is "
+                             (pr-str entity-map)
+                             " Joined component's ident: " ident)
+                        {})))
+      (throw (ex-info (str "Insert/update of the presumed data entity "
+                           (pr-str entity-map)
+                           " into the state at "
+                           ident
+                           " failed due to: " e)
+                      {} e)))))
+
 (defn- normalize* [query data tables union-seen transform]
   ;; `tables` is an (atom {}) where we collect normalized tables for all components encountered during processing, i.e.
   ;; we only return the "top-level keys" with their data/idents and all "tables" are inside this
@@ -59,32 +79,34 @@
                   (let [xs (into [] (map #(normalize* subquery % tables union-entry transform)) v)]
                     (if-not (or (nil? class) (not (has-ident? class)))
                       (let [is (into [] (map #(get-ident class %)) xs)]
-                        ;; Where does the code come from? A little lesson of history:
+                        ;; Where does the code - and the difference between union and non-union handling - come from?
+                        ;; A little lesson of history:
                         ;; There was no if and no union handling in https://github.com/omcljs/om/commit/bbd94ac17a4c208f928a84915a050b787b65cb6a
-                        ;; and it was added by https://github.com/omcljs/om/commit/3882cb5b9a3db95fa94b016bbe7bfe7f8b1db638 "query union WIP";
+                        ;; It was added by https://github.com/omcljs/om/commit/3882cb5b9a3db95fa94b016bbe7bfe7f8b1db638 "query union WIP";
                         ;; Later https://github.com/omcljs/om/commit/baaf4510d9970f1d9aa8dfcbe28bc89242bae87b#diff-8245f06a64876f1022b17c2eb5102ed6a658612b2da113093ea29185b5829682L2025
-                        ;; "OM-802: Recursive query normalization incorrect " changed the old brqnch code to also use reduce
-                        ;; but keeping the zipmap, likely without noticing the branches becane so similar so as to be mergable
+                        ;; "OM-802: Recursive query normalization incorrect " changed the old branch's code to also use reduce
+                        ;; but keeping the zipmap, likely without noticing the branches became so similar so as to be mergable.
+                        ;; The zipmap used to be necessary according to https://github.com/omcljs/om/commit/baaf4510d9970f1d9aa8dfcbe28bc89242bae87b
+                        ;; because we needed to get a map to be able to merge it with tables[(ffirst is)], though it is
+                        ;; long gone. Thus the difference between `zipmap` in the true branch and `map vector` in the
+                        ;; else branch is purely incidental, IMHO. (The `map vector` seems superior as it does not
+                        ;; lose data if different subsets of the same entity are in the input though
+                        ;; properly behaving app should not do that and users should not rely on this behavior.)
                         ;; The `(when-not (empty? is) ..` was added by https://github.com/omcljs/om/commit/8a34c2cf90d45de3c464eceb4a2866de2d99e5f0
-                        ;; and was necessary at that time b/c it still used `swap! refs update-in` and thus misbehaved for empty is
+                        ;; and was necessary at that time b/c it still used `swap! refs update-in` and thus misbehaved for empty `is`
+                        ;;
+                        ;; I.e. I am 99.9% sure we could drop the `if` and only keep the else branch but for the fear of
+                        ;; breaking some rare corner case of a production app it was decided to keep the code as-is.
                         (if (vector? subquery)
                           (when-not (empty? is)
                             (swap! tables
                               (fn [tables']
-                                (reduce (fn merge-to-client-db [m [i x]] (update-in m i merge x))
-                                  ;; Why zipmap and not `map vector` as in the other merge-to-client-db?
-                                  ;; Incidental or intentional? Do we accept duplicates there but only want the last one
-                                  ;; here for some reason?
-                                  ;; Seems incidental; acc. to https://github.com/omcljs/om/commit/baaf4510d9970f1d9aa8dfcbe28bc89242bae87b
-                                  ;; it needed map because it merged it with tables[(ffirst is)]
+                                (reduce (fn merge-to-client-db [state [ident entity]] (upsert-ident state ident entity))
                                   tables' (zipmap is xs)))))
                           ;; union case
-                          ;;  The difference from non-union is that we process duplicates in v in merge-to-client-db (why??)
-                          ;;  and that we don't check `is` for not empty (likely a perf. optimization not needed in this
-                          ;;  rarely visited path?)
                           (swap! tables
                             (fn [tables']
-                              (reduce (fn merge-to-client-db [m [i x]] (update-in m i merge x))
+                              (reduce (fn merge-to-client-db [state [ident entity]] (upsert-ident state ident entity))
                                 ;; Note: `is` might have multiple `[<kwd> nil]` occurrences if `v` has 2+ entity types
                                 ;; the union does not handle, depending on its :ident impl. Do we care? why?
                                 tables' (map vector is xs)))))
@@ -104,115 +126,12 @@
                   (recur (next q) (assoc ret k v))))))
           ret)))))
 
-(defn- upsert-ident
-  "Insert or merge a data entity into a state table under the given `ident`.
-  Ex.: `(upsert-ident {} [:person/id 1] #:person{:id 1 :age 42}) => {:person/id {1 #:person{:id 1, :age 42}}}`"
-  [state ident entity-map]
-  (try
-    (update-in state ident merge entity-map)
-    (catch #?(:clj Exception :cljs :default) e
-      (when-not (map? entity-map)
-        (throw (ex-info (str "Query join indicates the data should contain a data map but the actual data is "
-                             (pr-str entity-map)
-                             " Joined component's ident: " ident)
-                        {})))
-      (throw (ex-info (str "Insert/update of the presumed data entity "
-                           (pr-str entity-map)
-                           " into the state at "
-                           ident
-                           " failed due to: " e)
-                      {} e)))))
-
-(comment
-  (upsert-ident
-    {:x 1, :person/id {1 #:person{:id 1, :age 42}}}
-    [:person/id 1] "not a map!")
-  ())
-
-(defn- normalize-with-friendly-errors
-  "Like `normalize*` but with error logger. Possibly slower and buggy. Use to report errorrs after normalize* failed."
-  [query data tables union-seen transform]
-  ;; `tables` is an (atom {}) where we collect normalized tables for all components encountered during processing, i.e.
-  ;; we only return the "top-level keys" with their data/idents and all "tables" are inside this
-  (let [data (if (and transform (not (vector? data)))
-               (transform query data)
-               data)]
-    (cond
-      (= '[*] query) data
-
-      ;; union case
-      (map? query)
-      (let [class (-> query meta :component)
-            ident (get-ident class data)]
-        (if-not (nil? ident)
-          (normalize-with-friendly-errors (get query (first ident)) data tables union-seen transform)
-          (throw (ex-info "Union components must have an ident" {}))))
-
-      (vector? data) data                                   ;; already normalized
-
-      :else
-      (loop [q (seq query), ret data]
-        (if-not (nil? q)
-          (let [expr (first q)]
-            (if (util/join? expr)
-              (let [[join-key subquery] (util/join-entry expr)
-                    recursive? (util/recursion? subquery)
-                    union-entry (if (util/union? expr) subquery union-seen)
-                    subquery (if recursive?
-                               (if-not (nil? union-seen)
-                                 union-seen
-                                 query)
-                               subquery)
-                    class (-> subquery meta :component)
-                    v (get data join-key)]
-                (cond
-                  ;; graph loop: db->tree leaves ident in place
-                  (and recursive? (eql/ident? v)) (recur (next q) ret)
-                  ;; normalize one
-                  (map? v)
-                  (let [x (normalize-with-friendly-errors subquery v tables union-entry transform)]
-                    (if-not (or (nil? class) (not (has-ident? class)))
-                      (let [i (get-ident class x)]
-                        ;; Why don't we simply `update-in i ..` as we do below in normalize many?! Incidental?
-                        (swap! tables upsert-ident i x)
-                        (recur (next q) (assoc ret join-key i)))
-                      (recur (next q) (assoc ret join-key x))))
-
-                  ;; normalize many
-                  (and (vector? v) (not (eql/ident? v)) (not (eql/ident? (first v))))
-                  (let [xs (into [] (map #(normalize-with-friendly-errors subquery % tables union-entry transform)) v)]
-                    (if-not (or (nil? class) (not (has-ident? class)))
-                      (let [is (into [] (map #(get-ident class %)) xs)]
-                        ;; union + normal case
-                        (swap! tables
-                               (fn [tables']
-                                 (reduce (fn merge-to-client-db [m [i x]] (upsert-ident m i x))
-                                         tables' (map vector is xs))))
-                        (recur (next q) (assoc ret join-key is)))
-                      (recur (next q) (assoc ret join-key xs))))
-
-                  ;; missing key
-                  (nil? v)
-                  (recur (next q) ret)
-
-                  ;; can't handle
-                  :else (recur (next q) (assoc ret join-key v))))
-              (let [k (if (seq? expr) (first expr) expr)
-                    v (get data k)]
-                (if (nil? v)
-                  (recur (next q) ret)
-                  (recur (next q) (assoc ret k v))))))
-          ret)))))
-
 (defn- better-normalize* [query data tables union-seen transform]
   (try
     (normalize* query data tables union-seen transform)
-    (catch #?(:clj Exception :cljs :default) _
-      (try (normalize-with-friendly-errors query data tables union-seen transform)
-           (catch #?(:clj Exception :cljs :default) e
-             ;; FIXME Add an entry and link to https://book.fulcrologic.com/#_appendix_fulcro_errors_and_warnings_explained
-             (log/error (ex-message e))))
-      (log/error "Normalize failed and no data will be inserted into the client DB. See errors above."
+    (catch #?(:clj Exception :cljs :default) e
+      (log/error "Normalize failed and no data will be inserted into the client DB. Error:"
+                 (ex-message e)
          (if-let [class (some-> query meta :component comp/component-name)]
            (str "Target component: " class)
            (str "Query: " query))
@@ -236,26 +155,3 @@
      (if merge-idents
        (merge ret @tables)
        (with-meta ret @tables)))))
-
-(comment
-  (do
-    ;; FIXME: Why does this often take > 5s to run? Seems caused by `log/error in `upsert-ident, even if it only logs "test" ?!
-    (comp/defsc Tag [_ _]
-      {:query [:tag/id :tag/desc]
-       :ident :tag/id
-       :initial-state {}}
-      nil)
-
-    (comp/defsc Menu [_ _]
-      {:query [{:tags (comp/get-query Tag)}] ; <-- WRONG, tags are strings not maps
-       :ident (fn [] [:component/id :Menu])
-       :initial-state {}}
-      nil)
-
-    (comp/defsc Root [_ _]
-      {:query [{:task-filters (comp/get-query Menu)}]
-       :initial-state (fn [_] {:task-filters {:tags ["Important" "Urgent"]}})}
-      nil)
-
-    (tree->db Root {:task-filters {:tags ["Important" "Urgent"]}}))
-  )
