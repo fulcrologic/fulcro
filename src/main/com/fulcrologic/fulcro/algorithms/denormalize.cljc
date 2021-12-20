@@ -80,12 +80,13 @@
     (update-in parent-node [:children join-node-index :query] (fnil dec 1))))
 
 (defn- add-join! [n {:keys [query key] :as join-node} entity state-map parent-node idents-seen]
-  (let [link-join?         (lookup-ref? key)
-        v                  (if link-join? (follow-ref state-map key) (get entity key))
-        key                (if (link-ref? key) (first key) key)
-        is-ref?            (lookup-ref? v)
-        join-entity        (if is-ref? (follow-ref state-map v) v)
-        to-many?           (and (not is-ref?) (vector? join-entity))
+  ;; `idents-seen` is a map from attribute name to a set of idents of its values we have already seen
+  (let [link-join?         (lookup-ref? key)                ; ex.: `{[:person/id 123] <query>}` vs. `{:child <query>}`
+        v                  (if link-join? (follow-ref state-map key) (get entity key)) ; -> {:person/id 123, ..} or ident(s) such as [:child/id 1]
+        key                (if (link-ref? key) (first key) key) ; -> :person/id or :child from the ex. above
+        is-ref?            (lookup-ref? v)                  ; would be true for `[:child/id 1]`
+        join-entity        (if is-ref? (follow-ref state-map v) v) ; -> {:person/id 123, ..} or {:child/id 1, ..}
+        to-many?           (and (not is-ref?) (vector? join-entity)) ; if :child value was instead `[[:child/id 1] ...]`
         depth-based?       (int? query)
         recursive?         (or depth-based? (= '... query))
         stop-recursion?    (and recursive? (or (= 0 query)
@@ -106,7 +107,8 @@
     (cond
       stop-recursion? (do
                         (when (and #?(:clj true :cljs goog.DEBUG) (not depth-based?))
-                          (log/warn "Loop detected in data graph at " entity ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
+                          (log/warn "Loop detected in data graph - we have already seen" entity "under" key
+                                    ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
                         n)
       to-many? (assoc! n key
                  (into []
@@ -121,7 +123,8 @@
                              (if stop-recursion?
                                (do
                                  (when #?(:clj true :cljs goog.DEBUG)
-                                   (log/warn "Loop detected in data graph at " e ". Recursive query stopped."))
+                                   (log/warn "Loop detected in data graph - we have already seen" e "inside" key
+                                             ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
                                  nil)
                                (denormalize target-node e state-map idents-seen)))))
                    join-entity))
