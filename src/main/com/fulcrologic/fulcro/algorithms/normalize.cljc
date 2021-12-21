@@ -130,6 +130,7 @@
   (try
     (normalize* query data tables union-seen transform)
     (catch #?(:clj Exception :cljs :default) e
+      ;; Don't blow up the app - ignore the bad update and log a good error:
       (log/error "Normalize failed and no data will be inserted into the client DB. Error:"
                  (ex-message e)
          (if-let [class (some-> query meta :component comp/component-name)]
