@@ -1,7 +1,8 @@
 (ns com.fulcrologic.fulcro.rendering.multiple-roots-renderer
   "Like keyframe-render2, but also supports free-floating roots.
 
-  WARNING: THIS RENDERER IS ALPHA. Lightly tested, but not heavily used yet.
+  WARNING: THIS RENDERER SHOULD BE CONSIDERED DEPRECATED (even though for legacy reasons it is the default)
+  in favor of using hooks with helpers like `use-component`.
 
   General usage:
 
