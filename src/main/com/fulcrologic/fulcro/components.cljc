@@ -268,13 +268,13 @@
      ([handler check-for-fresh-props-in-state?]
       #?(:clj (fn [& args] (apply handler args))
          :cljs
-              (fn [raw-props raw-state]
-                (this-as this
-                  (let [props (if check-for-fresh-props-in-state?
-                                (raw->newest-props raw-props raw-state)
-                                (gobj/get raw-props "fulcro$props"))
-                        state (gobj/get raw-state "fulcro$state")]
-                    (handler this props state)))))))
+         (fn [raw-props raw-state]
+           (this-as this
+             (let [props (if check-for-fresh-props-in-state?
+                           (raw->newest-props raw-props raw-state)
+                           (gobj/get raw-props "fulcro$props"))
+                   state (gobj/get raw-state "fulcro$state")]
+               (handler this props state)))))))
    (static-wrap-props-state-handler
      [handler]
      #?(:clj (fn [& args] (apply handler args))
@@ -348,13 +348,13 @@
      ([handler check-for-fresh-props-in-state?]
       #?(:clj #(handler %1)
          :cljs
-              (fn [raw-props]
-                (this-as this
-                  (let [raw-state (.-state this)
-                        props     (if check-for-fresh-props-in-state?
-                                    (raw->newest-props raw-props raw-state)
-                                    (gobj/get raw-props "fulcro$props"))]
-                    (handler this props)))))))
+         (fn [raw-props]
+           (this-as this
+             (let [raw-state (.-state this)
+                   props     (if check-for-fresh-props-in-state?
+                               (raw->newest-props raw-props raw-state)
+                               (gobj/get raw-props "fulcro$props"))]
+               (handler this props)))))))
 
    (wrap-base-render [render]
      #?(:clj (fn [& args]
@@ -470,21 +470,21 @@
            js-set-tunnelled-props! (aget tunnelled-props-state 1)
            {:keys [ident] :as options} (isoget faux-class :fulcro$options)
            faux-component-state    (react/useState (fn []
-                                                        (when-not app
-                                                          (log/error "Cannot create proper fulcro component, as *app* isn't bound."
-                                                            "This happens when something renders a Fulcro component outside of Fulcro's render context."
-                                                            "See `with-parent-context`."
-                                                            "See https://book.fulcrologic.com/#err-comp-app-not-bound"))
-                                                        (let [depth                (or *depth* (isoget js-props :fulcro$depth))
-                                                              set-tunnelled-props! (fn [updater] (let [new-props (updater nil)] (js-set-tunnelled-props! new-props)))]
-                                                          #js {:setState           set-tunnelled-props!
-                                                               :fulcro$isComponent true
-                                                               :fulcro$class       faux-class
-                                                               :type               faux-class
-                                                               :fulcro$options     options
-                                                               :fulcro$mounted     false
-                                                               :props              #js {:fulcro$app   app
-                                                                                        :fulcro$depth (inc depth)}})))
+                                                     (when-not app
+                                                       (log/error "Cannot create proper fulcro component, as *app* isn't bound."
+                                                         "This happens when something renders a Fulcro component outside of Fulcro's render context."
+                                                         "See `with-parent-context`."
+                                                         "See https://book.fulcrologic.com/#err-comp-app-not-bound"))
+                                                     (let [depth                (or *depth* (isoget js-props :fulcro$depth))
+                                                           set-tunnelled-props! (fn [updater] (let [new-props (updater nil)] (js-set-tunnelled-props! new-props)))]
+                                                       #js {:setState           set-tunnelled-props!
+                                                            :fulcro$isComponent true
+                                                            :fulcro$class       faux-class
+                                                            :type               faux-class
+                                                            :fulcro$options     options
+                                                            :fulcro$mounted     false
+                                                            :props              #js {:fulcro$app   app
+                                                                                     :fulcro$depth (inc depth)}})))
            faux-component          (aget faux-component-state 0)
            current-state           (aget tunnelled-props-state 0 "fulcro$value")
            props                   (isoget js-props :fulcro$value)
@@ -1341,6 +1341,29 @@
                    :options (s/? map?)
                    :body (s/* any?))))
 
+(defn react-constructor
+  "Mainly for internal use and for use with `configure-component!`. Returns a constructor function which is usable
+   as the React Class for `configure-component!`. E.g.:
+
+   ```
+   (defonce MyClass (react-constructor (fn [this initial-props] fulcro-component-local-state)))
+   (configure-component! MyClass ::MyClass {:query ...})
+   ```
+
+   The argument is exactly the lambda you would normally pass to `initLocalState`.
+
+   This function returns a React-compatible constructor (a function that receives initial `js-props` and
+   sets up a js object as component local state). This is wrapped in Fulcro itself, thus this convenience function.
+   "
+  [init-state]
+  #?(:clj  nil
+     :cljs (fn [js-props]
+             (this-as this
+               (if init-state
+                 (set! (.-state this) #js {"fulcro$state" (init-state this (isoget js-props "fulcro$value"))})
+                 (set! (.-state this) #js {"fulcro$state" {}}))
+               nil))))
+
 #?(:clj
    (defn defsc*
      [env args]
@@ -1400,12 +1423,7 @@
             (declare ~sym)
             (let [options# ~options-map]
               (defonce ~(vary-meta sym assoc :doc doc :jsdoc ["@constructor"])
-                (fn [props#]
-                  (cljs.core/this-as this#
-                    (if-let [init-state# (get options# :initLocalState)]
-                      (set! (.-state this#) (cljs.core/js-obj "fulcro$state" (init-state# this# (isoget props# "fulcro$value"))))
-                      (set! (.-state this#) (cljs.core/js-obj "fulcro$state" {})))
-                    nil)))
+                (react-constructor (get options# :initLocalState)))
               (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
 
          :else
