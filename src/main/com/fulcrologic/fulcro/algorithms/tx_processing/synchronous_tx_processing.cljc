@@ -76,8 +76,6 @@
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.inspect.inspect-client :refer [ido ilet]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
@@ -363,7 +361,8 @@
     (when (available-work? app)
       (recur)))
   (if (and synchronous? component)
-    (comp/refresh-component! component)
+    (when-let [refresh-component! (ah/app-algorithm app :refresh-component!)]
+      (refresh-component! component))
     (when-let [render! (ah/app-algorithm app :render!)]
       (render! app options)))
   (release-post-render-tasks! app)

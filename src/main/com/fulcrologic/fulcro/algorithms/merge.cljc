@@ -2,10 +2,9 @@
   "Various algorithms that are used for merging trees of data into a normalized Fulcro database."
   (:require
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
@@ -219,9 +218,9 @@
     source))
 
 (defn- component-pre-merge [class query state data options]
-  (if (comp/has-pre-merge? class)
-    (let [entity (some->> (comp/get-ident class data) (get-in state))
-          result (comp/pre-merge class {:state-map          state
+  (if (rc/has-pre-merge? class)
+    (let [entity (some->> (rc/get-ident class data) (get-in state))
+          result (rc/pre-merge class {:state-map            state
                                         :current-normalized entity
                                         :data-tree          data
                                         :query              query})]
@@ -331,8 +330,8 @@
   to/from a normalized app database. Requires a tree of data that represents the instance of
   the component in question (e.g. ident will work on it)"
   [state-map component object-data]
-  (let [ident        (comp/ident component object-data)
-        object-query (comp/get-query component state-map)]
+  (let [ident        (rc/ident component object-data)
+        object-query (rc/get-query component state-map)]
     [{ident object-query}]))
 
 (defn merge-alternate-unions
@@ -352,13 +351,13 @@
                    (= (:type ast) :union-entry) (walk-ast ast visitor parent-union)
                    ast (walk-ast ast visitor nil))))))
           (merge-union [component parent-union]
-            (let [default-initial-state   (and parent-union (comp/has-initial-app-state? parent-union) (comp/get-initial-state parent-union {}))
+            (let [default-initial-state   (and parent-union (rc/has-initial-app-state? parent-union) (rc/get-initial-state parent-union {}))
                   to-many?                (vector? default-initial-state)
-                  component-initial-state (and component (comp/has-initial-app-state? component) (comp/get-initial-state component {}))]
+                  component-initial-state (and component (rc/has-initial-app-state? component) (rc/get-initial-state component {}))]
               (when (and component component-initial-state parent-union (not to-many?) (not= default-initial-state component-initial-state))
                 (merge-fn parent-union component-initial-state))))]
     (walk-ast
-      (eql/query->ast (comp/get-query root-component))
+      (eql/query->ast (rc/get-query root-component))
       merge-union)))
 
 (defn merge!
@@ -402,10 +401,10 @@
 
    See also targeting/integrate-ident*, and merge/merge-component!"
   [state-map component component-data & named-parameters]
-  (if (comp/has-ident? component)
+  (if (rc/has-ident? component)
     (let [options           (apply hash-map named-parameters)
           {:keys [remove-missing?]} options
-          query             (comp/get-query component state-map)
+          query             (rc/get-query component state-map)
           marked-data       (if remove-missing?
                               (mark-missing component-data query)
                               component-data)
@@ -458,8 +457,8 @@
   See also `fulcro.client.primitives/merge!`.
   "
   [app component object-data & named-parameters]
-  (when-let [app (comp/any->app app)]
-    (if-not (comp/has-ident? component)
+  (when-let [app (rc/any->app app)]
+    (if-not (rc/has-ident? component)
       (log/error "merge-component!: component must implement Ident. Merge skipped. See https://book.fulcrologic.com/#err-merge-comp-missing-ident2")
       (let [state   (:com.fulcrologic.fulcro.application/state-atom app)
             render! (ah/app-algorithm app :schedule-render!)]
@@ -482,6 +481,6 @@
   the application state database. See also `merge-alternate-union-elements`, which can be used on a state map and
   is handy for server-side rendering. This function side-effects on your app, and returns nothing."
   [app root-component]
-  (let [app (comp/any->app app)]
+  (let [app (rc/any->app app)]
     (merge-alternate-unions (partial merge-component! app) root-component)))
 

@@ -197,6 +197,8 @@
      normal setting for this (if you're using hooks and render listeners) is
      `(fn [render!] (react-dom/unstable_batchedUpdates render!))` or
      `(fn [render!] (react-native/unstable_batchedUpdates render!))`.
+   * `:refresh-component!` - A (fn [component]) that is used by synchronous transactions to attempt to refresh the UI
+     of `component`. This has no definition for non-react applications, and cannot work without you defining this.
 
   Note that raw apps are not mounted, but are instead ready to be used immediately.  If you want to use inspect, then
   you must call `(inspect/client-started! app)` yourself.
@@ -228,6 +230,7 @@
             root-class
             shared
             external-config
+            refresh-component!
             shared-fn] :as options}]
    (let [tx! (or submit-transaction! txn/default-tx!)]
      {:com.fulcrologic.fulcro.application/id           (tempid/uuid)
@@ -248,6 +251,7 @@
                                                         :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
                                                         :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
                                                         :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
+                                                        :com.fulcrologic.fulcro.algorithm/refresh-component!     refresh-component!
                                                         :com.fulcrologic.fulcro.algorithm/render!                render!
                                                         :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
                                                         :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action

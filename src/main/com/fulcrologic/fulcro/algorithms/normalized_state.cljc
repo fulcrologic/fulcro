@@ -8,11 +8,9 @@
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [>defn =>]]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
 (def integrate-ident
   "[state ident & named-parameters]

@@ -10,7 +10,6 @@
     [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
     [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     com.fulcrologic.fulcro.specs
@@ -255,6 +254,7 @@
                                         (if optimized-render!
                                           (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
                                           (log/debug "Render skipped. No optimized render is configured."))))))))
+         :refresh-component! comp/refresh-component!
          :optimized-render! (or optimized-render! mrr/render!))))))
 
 (>defn fulcro-app?

@@ -59,3 +59,4 @@ resources/public/workspaces
 !.idea/runConfigurations
 .lsp
 .clj-kondo/.cache/
+lsp

@@ -50,13 +50,12 @@
     #?@(:cljs [[com.fulcrologic.fulcro.algorithms.tempid :as tempid :refer [TempId]]]
         :clj  [[com.fulcrologic.fulcro.algorithms.tempid :as tempid]])
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.application :as app]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.offline.durable-edn-store :as des]
     [com.fulcrologic.fulcro.offline.tempid-strategy :as tids]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.do-not-use :refer [now]]
-    [com.fulcrologic.fulcro.components :as comp])
+    [com.fulcrologic.fulcro.raw.components :as rc])
   #?(:clj
      (:import
        [java.util Date UUID]
@@ -76,27 +75,27 @@
 (defn current-mutation-store
   "Returns the current mutation store of the given Fulcro app"
   [app]
-  (get-in app [::app/config ::mutation-store]))
+  (get-in app [:com.fulcrologic.fulcro.application/config ::mutation-store]))
 
 (defn current-tempid-strategy
   "Returns the current tempid strategy of the given Fulcro app"
   [app]
-  (get-in app [::app/config ::tempid-strategy]))
+  (get-in app [:com.fulcrologic.fulcro.application/config ::tempid-strategy]))
 
 (defn- vanilla-transact!
   "Calls the non-augmented transaction submission."
   [app txn options]
-  (let [tx! (get-in app [::app/algorithms ::original-tx!])]
+  (let [tx! (get-in app [:com.fulcrologic.fulcro.application/algorithms ::original-tx!])]
     (tx! app txn options)))
 
 (defn- with-durable-transact
   "Augments the app with a customized transaction handler that adds durable mutation support."
   [app]
-  (let [normal-transact! (get-in app [::app/algorithms :com.fulcrologic.fulcro.algorithm/tx!])]
+  (let [normal-transact! (get-in app [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/tx!])]
     (log/debug "Installing write-through transact support")
     (-> app
-      (assoc-in [::app/algorithms ::original-tx!] normal-transact!)
-      (assoc-in [::app/algorithms :com.fulcrologic.fulcro.algorithm/tx!]
+      (assoc-in [:com.fulcrologic.fulcro.application/algorithms ::original-tx!] normal-transact!)
+      (assoc-in [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/tx!]
         (fn write-through-transact!
           ([app tx]
            (write-through-transact! app tx {}))
@@ -108,7 +107,7 @@
                    txn     (tids/-rewrite-txn ts txn t->r)
                    ;; Persistent mutations will run from an async loop based on this store.
                    id      (next-id)
-                   options (update options :component (fn [c] (when c (comp/class->registry-key c))))]
+                   options (update options :component (fn [c] (when c (rc/class->registry-key c))))]
                (async/go
                  (if (async/<!
                        (des/-save-edn! store id {:id           id
@@ -128,14 +127,14 @@
 
 (defn- mark-active!
   "Mark a transaction as in-progress on the current app, so that we don't double-submit it."
-  [{::app/keys [runtime-atom] :as app} txn-id ??]
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} txn-id ??]
   (if ??
     (swap! runtime-atom update ::active-transactions (fnil conj #{}) txn-id)
     (swap! runtime-atom update ::active-transactions disj txn-id)))
 
 (defn- active?
   "Check to see if the transaction with txn-id is actively on the network."
-  [{::app/keys [runtime-atom] :as app} txn-id]
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} txn-id]
   (contains? (get @runtime-atom ::active-transactions #{}) txn-id))
 
 
@@ -155,7 +154,7 @@
                 n         (min attempt 1000)
                 delay     (min backoff-limit-ms (* n n 1000))
                 options   (if (keyword? (:component options))
-                            (update options :component comp/registry-key->class)
+                            (update options :component rc/registry-key->class)
                             options)]
             (if (or (= 0 attempt) (> (- now last-time) delay))
               (do
@@ -215,8 +214,8 @@
     env))
 
 (defn- with-augmented-result-action [app]
-  (let [result-action! (get-in app [::app/algorithms :com.fulcrologic.fulcro.algorithm/default-result-action!])]
-    (assoc-in app [::app/algorithms :com.fulcrologic.fulcro.algorithm/default-result-action!]
+  (let [result-action! (get-in app [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/default-result-action!])]
+    (assoc-in app [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/default-result-action!]
       (fn result-action [env]
         (-> env
           mutation-post-processing
@@ -234,7 +233,7 @@
    * `tempid-strategy` is an implementation of TempIdStrategy"
   [app mutation-store tempid-strategy]
   (let [app (-> app
-              (update ::app/config merge {::mutation-store  mutation-store
+              (update :com.fulcrologic.fulcro.application/config merge {::mutation-store  mutation-store
                                           ::tempid-strategy tempid-strategy})
               (with-augmented-result-action)
               (with-durable-transact))]
@@ -299,4 +298,4 @@
        (log/warn "Write-through transactions with multiple mutations will be rewritten to submit one per mutation. See https://book.fulcrologic.com/#warn-multiple-mutations-rewritten")))
    (doseq [element txn]
      (when-not (keyword? element)                           ; ignore F2-style follow-on reads
-       (comp/transact! app-ish [element] (assoc options ::durable? true))))))
+       (rc/transact! app-ish [element] (assoc options ::durable? true))))))

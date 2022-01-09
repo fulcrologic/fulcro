@@ -8,14 +8,12 @@
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
-    [com.fulcrologic.fulcro.algorithms.scheduling :as sched :refer [schedule!]]
+    [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
     [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
-    com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
@@ -738,7 +736,9 @@
         (swap! runtime-atom update ::active-queue conj node)
         (schedule-queue-processing! app 20)))
     (cond
-      (and component (comp/component? component) (comp/has-ident? component)) (comp/refresh-component! component)
+      (and component (rc/component? component) (rc/has-ident? component))
+      (when-let [refresh-component! (ah/app-algorithm app :refresh-component!)]
+        (refresh-component! component))
       ref (let [r! (ah/app-algorithm app :render!)] (when r! (r! app)))
       :else (when #?(:cljs js/goog.DEBUG :clj true)
               (log/warn "Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen. See https://book.fulcrologic.com/#warn-tx-missing-ident")))
@@ -825,7 +825,7 @@
 (defn abort!
   "Implementation of abort when using this tx processing"
   [app abort-id]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (comp/any->app app)
+  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (rc/any->app app)
         runtime-state   @runtime-atom
         {:com.fulcrologic.fulcro.application/keys [remotes]
          ::keys                                   [send-queues]} runtime-state
@@ -846,8 +846,8 @@
 
   This function is mainly meant for use in development mode when dealing with a buggy remote implementation."
   [app-ish remote]
-  (let [app            (comp/any->app app-ish)
-        {:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} (comp/any->app app)
+  (let [app            (rc/any->app app-ish)
+        {:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} (rc/any->app app)
         {abort-network! :abort!
          :as            the-remote} (get @runtime-atom [:com.fulcrologic.fulcro.application/remotes remote])
         old-send-queue (get-in @runtime-atom [::send-queues remote])]

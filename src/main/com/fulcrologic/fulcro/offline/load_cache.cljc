@@ -34,10 +34,9 @@
     [com.fulcrologic.fulcro.algorithms.scheduling :as scheduling]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.algorithms.do-not-use]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.application :as app]))
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.raw.application :as rapp]))
 
 (defn- now-ms [] (inst-ms #?(:cljs (js/Date.) :clj (java.util.Date.))))
 
@@ -77,14 +76,14 @@
     (let [data (async/<! (cached-value env params))
           env  (assoc env :result {:body        data
                                    :transaction (eql/ast->query (ast-of-load params))}
-                          :transmitted-ast (ast-of-load params))]
+                 :transmitted-ast (ast-of-load params))]
       (when-let [mutation (some-> env ::txn/options ::on-cached-load m/mutation-symbol)]
-        (comp/transact! app [(list mutation (select-keys params [:query :target :remote :marker]))]))
+        (rc/transact! app [(list mutation (select-keys params [:query :target :remote :marker]))]))
       (log/debug "Completing load with value from cache.")
       (df/finish-load! env params)
       ;; we have to defer the render because we're in async, and regular tx just submitted one...so, this
       ;; one would get lost
-      (scheduling/defer #(app/schedule-render! app {:force-root? true}) 100)
+      (scheduling/defer #(rapp/schedule-render! app {:force-root? true}) 100)
       true)))
 
 (defn- cached-load-action [{:keys [app] :as env} params]
@@ -213,11 +212,11 @@
 
    See also `load-eagerly!`."
   ([app-ish query-key query-component default-value]
-   [any? (s/or :k keyword? :id eql/ident?) (? comp/component-class?) (s/or :one map? :many vector?) => uuid?]
+   [any? (s/or :k keyword? :id eql/ident?) (? rc/component-class?) (s/or :one map? :many vector?) => uuid?]
    (load! app-ish query-key query-component default-value {}))
   ([app-ish query-key query-component default-value {::keys [on-cached-load] :as options}]
-   [any? (s/or :k keyword? :id eql/ident?) (? comp/component-class?) (s/or :one map? :many vector?) map? => uuid?]
-   (when (not= `internal-load! (-> app-ish comp/any->app ::app/config :load-mutation))
+   [any? (s/or :k keyword? :id eql/ident?) (? rc/component-class?) (s/or :one map? :many vector?) map? => uuid?]
+   (when (not= `internal-load! (-> app-ish rc/any->app :com.fulcrologic.fulcro.application/config :load-mutation))
      (log/error "LOAD CACHE NOT INSTALLED! Did you remember to use `with-load-cache` on your app? See https://book.fulcrologic.com/#err-cache-not-installed"))
    (let [default-value {query-key default-value}]
      (df/load! app-ish query-key query-component (dnu/deep-merge options
@@ -236,11 +235,11 @@
    to app state happens. Thus, a post-mutation can be run on the optimistic eager load, but it will only run for the
    network response if you've chosen to merge that with app state when it arrives."
   ([app-ish query-key query-component default-value]
-   [any? (s/or :k keyword? :id eql/ident?) (? comp/component-class?) (s/or :one map? :many vector?) => uuid?]
+   [any? (s/or :k keyword? :id eql/ident?) (? rc/component-class?) (s/or :one map? :many vector?) => uuid?]
    (let [default-value {query-key default-value}]
      (load-eagerly! app-ish query-key query-component default-value {})))
   ([app-ish query-key query-component default-value options]
-   [any? (s/or :k keyword? :id eql/ident?) (? comp/component-class?) (s/or :one map? :many vector?) map? => uuid?]
+   [any? (s/or :k keyword? :id eql/ident?) (? rc/component-class?) (s/or :one map? :many vector?) map? => uuid?]
    (let [default-value {query-key default-value}]
      (load! app-ish query-key query-component default-value (dnu/deep-merge options
                                                               {::txn/options {::eager?            true

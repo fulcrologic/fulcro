@@ -1472,7 +1472,7 @@
       NOTE: shouldComponentUpdate should generally not be overridden other than to force it false so
       that other libraries can control the sub-dom. If you do want to implement it, then old props can
       be obtained from (prim/props this), and old state via (gobj/get (. this -state) \"fulcro$state\").
-      
+
       ; React Hooks support
       ;; if true, creates a function-based instead of a class-based component, see the Developer's Guide for details
       :use-hooks? true

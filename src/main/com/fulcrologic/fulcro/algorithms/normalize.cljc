@@ -4,7 +4,7 @@
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.components :as comp :refer [has-ident? ident get-ident get-query]]))
+    [com.fulcrologic.fulcro.raw.components :as rc :refer [has-ident? get-ident get-query]]))
 
 (defn- upsert-ident
   "Insert or merge a data entity into a state table under the given `ident`.
@@ -16,15 +16,15 @@
     (catch #?(:clj Exception :cljs :default) e
       (when-not (map? entity-map)
         (throw (ex-info (str "Query join indicates the data should contain a data map but the actual data is "
-                             (pr-str entity-map)
-                             " Joined component's ident: " ident)
-                        {})))
+                          (pr-str entity-map)
+                          " Joined component's ident: " ident)
+                 {})))
       (throw (ex-info (str "Insert/update of the presumed data entity "
-                           (pr-str entity-map)
-                           " into the state at "
-                           ident
-                           " failed due to: " e)
-                      {} e)))))
+                        (pr-str entity-map)
+                        " into the state at "
+                        ident
+                        " failed due to: " e)
+               {} e)))))
 
 (defn- normalize* [query data tables union-seen transform]
   ;; `tables` is an (atom {}) where we collect normalized tables for all components encountered during processing, i.e.
@@ -132,11 +132,11 @@
     (catch #?(:clj Exception :cljs :default) e
       ;; Don't blow up the app - ignore the bad update and log a good error:
       (log/error "Normalize failed and no data will be inserted into the client DB. Error:"
-                 (ex-message e)
-         (if-let [class (some-> query meta :component comp/component-name)]
-           (str "Target component: " class)
-           (str "Query: " query))
-         "Data: " data)
+        (ex-message e)
+        (if-let [class (some-> query meta :component rc/component-name)]
+          (str "Target component: " class)
+          (str "Query: " query))
+        "Data: " data)
       {})))
 
 (defn tree->db
