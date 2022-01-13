@@ -206,7 +206,7 @@
    * `:hydrate-root!` - The function to call in order to hydrate the root of your application. Defaults
      to `js/ReactDOM.hydrate`.
    * `:unmount-root!` - The function to call in order to unmount the root of your application. Defaults
-     to `js/ReactDOM.unmountComponentAtNode`.
+     to nothing.
    * `:root-class` - The component class that will be the root. This can be specified just with `mount!`, but
    giving it here allows you to do a number of tasks against the app before it is actually mounted. You can also use `app/set-root!`.
    * `:submit-transaction!` - A function to implement how to submit transactions. This allows you to override how transactions
@@ -336,7 +336,7 @@
   "Removes the app from its mount point. If you want to re-mount a running app, then you should pass
    `:initialize-state? false` when you re-mount it and also consider the `:disable-client-did-mount?` option."
   [app]
-  (enc/if-let [unmount (or (ah/app-algorithm app :unmount-root!) #?(:cljs (some-> js/ReactDOM .-unmountComponentAtNode)))
+  (enc/if-let [unmount (ah/app-algorithm app :unmount-root!)
                node    (some-> app ::runtime-atom deref ::mount-node)]
     (do
       (unmount node)

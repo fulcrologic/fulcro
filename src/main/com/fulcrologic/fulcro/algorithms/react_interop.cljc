@@ -58,7 +58,7 @@
     (when-not (comp/component? this)
       (log/error "The first argument to an HOC factory MUST be the parent component instance. See https://book.fulcrologic.com/#err-interop-1st-arg-not-parent"))
     #?(:cljs
-       (apply js/React.createElement
+       (apply dom/create-element
          component-class
          #js {"fulcro_hoc$parent"     this
               "fulcro_hoc$childprops" props}
