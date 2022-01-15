@@ -1065,7 +1065,7 @@
                   (assoc :marker marker
                     :abort-id asm-id
                     :fallback `handle-load-error
-                    :post-mutation-params (merge ok-data {::asm-id asm-id}))
+                    :post-mutation-params (merge ok-data (:post-mutation-params options) {::asm-id asm-id}))
                   (cond->
                     (or target-actor target-alias) (assoc :target (compute-target env options))
                     ok-event (->
