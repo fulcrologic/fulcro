@@ -1,14 +1,14 @@
-(ns com.fulcrologic.fulcro.inspect.element-picker
+(ns ^:no-doc com.fulcrologic.fulcro.inspect.element-picker
   (:require
     [clojure.string :as str]
     #?@(:cljs [[goog.object :as gobj]
                [goog.dom :as gdom]
-               [goog.style :as gstyle]])
+               [goog.style :as gstyle]
+               ["react-dom" :as react.dom]])
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
-    [com.fulcrologic.fulcro.react.error-boundaries :as eb]
-    ["react-dom" :as react.dom]))
+    [com.fulcrologic.fulcro.react.error-boundaries :as eb]))
 
 (def base-me-style #js {:position       "absolute"
                         :display        "block"
