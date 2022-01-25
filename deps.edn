@@ -40,4 +40,7 @@
                                       binaryage/devtools                {:mvn/version "1.0.0"}
                                       ring/ring-core                    {:mvn/version "1.8.1"}
                                       org.immutant/web                  {:mvn/version "2.1.10"}
-                                      org.clojure/tools.namespace       {:mvn/version "1.0.0"}}}}}
+                                      org.clojure/tools.namespace       {:mvn/version "1.0.0"}}}
+           
+           :build      {:deps {io.github.seancorfield/build-clj {:tag "v0.6.7" :sha "22c2d09"}}
+                        :ns-default build}}}
