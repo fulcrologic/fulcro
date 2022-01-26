@@ -13,7 +13,7 @@
 (def src-dirs (:paths (edn/read-string (slurp "deps.edn"))))
 
 (def lib 'com.fulcrologic/fulcro)
-(def version "3.5.12")
+(def version "snapshot")
 
 (defn jar "Build the JAR." [opts]
   (-> opts
