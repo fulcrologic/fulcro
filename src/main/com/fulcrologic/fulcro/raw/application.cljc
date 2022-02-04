@@ -419,8 +419,8 @@
    * `:initial-params` - The parameters to pass to the component's `get-initial-state` when initializing.
    * `:receive-props` - REQUIRED: The function to call when the props change in the Fulcro state. This is a
                         `(fn [props] )` where the props will be the component props (sans the root-key).
-   * `:listener-id` - Pass if you want a custom id for `add-render-listener!` to use in combination with
-                      `remove-render-listener!`.
+   * `:listener-id` - The ID used for the render listener that is added by this function. Defaults to
+                      the root-key, but you can override it with this option.
 
    NOTE: This function tracks prior props and is capable of a very fast staleness check. It will not call your callback
    unless it detects an actual change to the data of interest to your UI.
@@ -476,8 +476,9 @@
    * `:receive-props` - REQUIRED: The function to call when the props change in the Fulcro state. This is a
                         `(fn [props] )` where the props will be the component props.
    * `:ident` - Only needed if you are NOT initializing state, AND the component has a dynamic ident.
-   * `:listener-id` - Pass if you want a custom id for `add-render-listener!` to use in combination with
-                      `remove-render-listener!`.
+   * `:listener-id` - The ID used for the render listener that is added by this function. Defaults to
+                      component ident, but you can override it with this option. If you do override,
+                      use `remove-render-listener!` instead of `remove-component!` to remove the listener.
   "
   [app component {:keys [receive-props initialize? keep-existing? initial-params] :as options}]
   (let [initial-entity (comp/get-initial-state component initial-params)
