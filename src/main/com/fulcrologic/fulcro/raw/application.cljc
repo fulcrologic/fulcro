@@ -419,6 +419,8 @@
    * `:initial-params` - The parameters to pass to the component's `get-initial-state` when initializing.
    * `:receive-props` - REQUIRED: The function to call when the props change in the Fulcro state. This is a
                         `(fn [props] )` where the props will be the component props (sans the root-key).
+   * `:listener-id` - The ID used for the render listener that is added by this function. Defaults to
+                      the root-key, but you can override it with this option.
 
    NOTE: This function tracks prior props and is capable of a very fast staleness check. It will not call your callback
    unless it detects an actual change to the data of interest to your UI.
@@ -426,14 +428,15 @@
   [app root-key component {:keys [receive-props initialize? keep-existing? initial-params] :as options}]
   (maybe-merge-new-root! app root-key component options)
   (let [prior-props (atom nil)
-        get-props   #(get-root-subtree-props app root-key component @prior-props)]
+        get-props   #(get-root-subtree-props app root-key component @prior-props)
+        listener-id (or (:listener-id options) root-key)]
     (receive-props (get-props))
-    (add-render-listener! app root-key (fn use-root-render-listener* [app _]
-                                         (let [props (get-props)]
-                                           (when-not (identical? props @prior-props)
-                                             (log/info "props updated" root-key)
-                                             (reset! prior-props props)
-                                             (receive-props props)))))))
+    (add-render-listener! app listener-id (fn use-root-render-listener* [app _]
+                                            (let [props (get-props)]
+                                              (when-not (identical? props @prior-props)
+                                                (log/info "props updated" root-key)
+                                                (reset! prior-props props)
+                                                (receive-props props)))))))
 
 (defn remove-root!
   "Remove a root key managed subtree from Fulcro. Does not garbage collect, just stops updating the callback."
@@ -472,19 +475,24 @@
    * `:initial-params` - The parameters to pass to the component's `get-initial-state` when initializing.
    * `:receive-props` - REQUIRED: The function to call when the props change in the Fulcro state. This is a
                         `(fn [props] )` where the props will be the component props.
+   * `:ident` - Only needed if you are NOT initializing state, AND the component has a dynamic ident.
+   * `:listener-id` - The ID used for the render listener that is added by this function. Defaults to
+                      component ident, but you can override it with this option. If you do override,
+                      use `remove-render-listener!` instead of `remove-component!` to remove the listener.
   "
   [app component {:keys [receive-props initialize? keep-existing? initial-params] :as options}]
   (let [initial-entity (comp/get-initial-state component initial-params)
         ident          (or (:ident options) (comp/get-ident component initial-entity))
         prior-props    (atom nil)
-        get-props      #(comp/get-traced-props (current-state app) component ident @prior-props)]
+        get-props      #(comp/get-traced-props (current-state app) component ident @prior-props)
+        listener-id    (or (:listener-id options) ident)]
     (maybe-merge-new-component! app component initial-entity options)
     (receive-props (get-props))
-    (add-render-listener! app ident (fn [app _]
-                                      (let [props (get-props)]
-                                        (when-not (identical? @prior-props props)
-                                          (reset! prior-props props)
-                                          (receive-props props)))))))
+    (add-render-listener! app listener-id (fn [app _]
+                                            (let [props (get-props)]
+                                              (when-not (identical? @prior-props props)
+                                                (reset! prior-props props)
+                                                (receive-props props)))))))
 
 (defn remove-component!
   "Remove a root key managed subtree from Fulcro. Does not GC the state, just stops sending props updates on render."
