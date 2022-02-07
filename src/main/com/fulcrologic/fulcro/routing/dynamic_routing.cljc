@@ -381,6 +381,19 @@
                               :timeout! {::uism/handler identity}
                               :route!   {::uism/handler route-handler}}}}})
 
+(defn params-for-will-enter
+  "Returns a map that will be passed as the second parameter to a route target's :will-enter function.
+  Uses the parameter value passed to `change-route!` if it is present, otherwise using the value from the matching-prefix."
+  [change-route-params segment matching-prefix]
+  (reduce
+    (fn [p [k v]]
+      (if (keyword? k)
+        (let [value (if (contains? p k) (k p) v)]
+          (assoc p k value))
+        p))
+    (dissoc change-route-params :error-timeout :deferred-timeout)
+    (map (fn [a b] [a b]) segment matching-prefix)))
+
 ;; TODO: This algorithm is repeated in more than one place in slightly different forms...refactor it.
 (defn proposed-new-path
   "Internal algorithm: Returns a sequence of idents of the targets that the `new-route` goes through by analyzing the current
@@ -401,10 +414,7 @@
                prefix-length  (count matching-prefix)
                remaining-path (vec (drop prefix-length path))
                segment        (route-segment target)
-               params         (reduce
-                                (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
-                                (dissoc timeouts-and-params :error-timeout :deferred-timeout)
-                                (map (fn [a b] [a b]) segment matching-prefix))
+               params         (params-for-will-enter timeouts-and-params segment matching-prefix)
                target-ident   (will-enter target app params)]
            (when (or (not (eql/ident? target-ident)) (nil? (second target-ident)))
              (log/error "will-enter for router target" (rc/component-name target) "did not return a valid ident. Instead it returned: " target-ident "See https://book.fulcrologic.com/#err-dr-will-enter-invalid-ident"))
@@ -664,10 +674,7 @@
                      prefix-length     (count matching-prefix)
                      remaining-path    (vec (drop prefix-length path))
                      segment           (route-segment target)
-                     params            (reduce
-                                         (fn [p [k v]] (if (keyword? k) (assoc p k v) p))
-                                         (dissoc timeouts-and-params :error-timeout :deferred-timeout)
-                                         (map (fn [a b] [a b]) segment matching-prefix))
+                     params            (params-for-will-enter timeouts-and-params segment matching-prefix)
                      router-ident      (rc/get-ident component {})
                      router-id         (-> router-ident second)
                      target-ident      (will-enter target app params)

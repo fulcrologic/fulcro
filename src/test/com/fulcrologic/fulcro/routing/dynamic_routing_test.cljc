@@ -150,3 +150,10 @@
     (dr/resolve-path Root2 RootRouter2 {}) => nil
     "Can substitute route params"
     (dr/resolve-path Root2 User {:user-id 22}) => ["user" "22"]))
+
+(specification "params-for-will-enter"
+  (assertions
+    "Returns the value from change-route params."
+    (dr/params-for-will-enter {:task-id 1234} [:task-id "edit"] ["1234" "edit"]) => {:task-id 1234}
+    "Returns the value from matching-prefix if no parameter is provided."
+    (dr/params-for-will-enter {} [:task-id "edit"] ["1234" "edit"]) => {:task-id "1234"}))
