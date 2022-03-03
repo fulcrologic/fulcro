@@ -115,7 +115,12 @@
                {:offending-component class})))
     (when (and (not has-fields?) queries-for-config?)
       (throw (ex-info (str "Attempt to add form configuration to " (rc/component-name class) ", but it does not declare any fields!")
-               {:offending-component class})))
+              {:offending-component class})))
+    (let [extra-fields (seq (set/difference all-fields fields subform-keys))]
+      (when (and has-fields? extra-fields)
+        (throw (ex-info (str "Attempt to add form configuration to " (rc/component-name class) ". It declares fields but not all of them are in the query!"
+                          "\n\nThe following fields are not in the query: \n\n" (pr-str extra-fields) "\n")
+                 {:offending-component class}))))
     [fields subforms subform-keys]))
 
 (>defn add-form-config
