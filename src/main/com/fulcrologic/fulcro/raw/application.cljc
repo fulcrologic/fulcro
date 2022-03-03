@@ -434,7 +434,6 @@
     (add-render-listener! app listener-id (fn use-root-render-listener* [app _]
                                             (let [props (get-props)]
                                               (when-not (identical? props @prior-props)
-                                                (log/info "props updated" root-key)
                                                 (reset! prior-props props)
                                                 (receive-props props)))))))
 
