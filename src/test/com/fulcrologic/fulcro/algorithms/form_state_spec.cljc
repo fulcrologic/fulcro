@@ -51,6 +51,21 @@
   {:query [:id :x fs/form-config-join]
    :ident [:ntop :id]})
 
+(defsc FormMissingFields [this props]
+  {:query [:id :x fs/form-config-join]
+   :ident [:ntop :id]
+   :form-fields #{:id :y}})
+
+(defsc ASubForm [this props]
+  {:query [:id :sub-prop fs/form-config-join]
+   :ident [:sub-form :id]
+   :form-fields #{:id :sub-prop}})
+
+(defsc FormWithSubForm [this props]
+  {:query       [:id :x {:sub-form (comp/get-query ASubForm)} fs/form-config-join]
+   :ident       [:ntop :id]
+   :form-fields #{:id :sub-form}})
+
 (defsc BadlyNestedForm [this props]
   {:query       [:id :name {:thing (comp/get-query NonForm)} fs/form-config-join]
    :ident       [:top :id]
@@ -148,6 +163,10 @@
   (component "error checking"
     (let [data-tree {:id 1 :name "A" :thing {:id 2 :x 42}}]
       (assertions
+        "throws an exception if any declared form fields are missing from the component query"
+        (fs/add-form-config FormMissingFields data-tree) =throws=> #"to .*FormMissingFields. It declares fields but not all of them are in the query!"
+        "does not throw an exception if all fields are present in the query when some are sub-forms"
+        (map? (fs/add-form-config FormWithSubForm data-tree)) => true
         "throws an exception if the target fails to query for form config"
         (fs/add-form-config NonForm data-tree) =throws=> #"to .*NonForm, but it does not query for config"
         "throws an exception if the target fails to declare fields"
