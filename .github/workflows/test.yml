@@ -27,3 +27,7 @@ jobs:
       - name: Run Tests
         run: clojure -M:test:clj-tests
 
+      - run: clojure -T:build jar
+      - name: Check CljDoc
+        uses: cljdoc/cljdoc-check-action@v0.0.3
+
