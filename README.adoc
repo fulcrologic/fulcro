@@ -14,22 +14,6 @@ image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["Circ
 Fulcro is a library for building data-driven full-stack applications for the web, native, and desktop (via electron). It uses React and is written in
 Clojure and Clojurescript.
 
-== Version Differences
-
-Fulcro has undergone a number of face-lifts over its lifetime.
-
-[[Horizontal]]
-1.x:: An add-on library for Om Next. Has various limitations as a result of this, and several bugs that are deep within Om Next (which was not getting updates).
-2.0 - 2.4:: No longer depends on Om Next. Public API is the same, except where improvements and fixes were needed.
-2.5:: Integrated co-located CSS for better support (e.g. localized-dom), made all server dependencies dynamic, rewrite of i18n. This
-version requires you to change a few i18n things if you were using it, and adds API to the DOM to make UI much more concise.
-2.6:: Changes for React 16+. Changes in React led to a change in the underlying rendering refresh
-optimizations.
-3.0:: This version. Rewrote the internals to simplify a lot of things, make others
-more extensible, all while preserving the shape of the API. It is not 100% API compatible with prior versions, and uses
-new namespaces.  In particular, in the course of fixing some long-standing issues, subtle semantic differences were desirable/unavoidable in the
-transaction processing system. Most of the surface level differences are simply in the naming of things.
-
 == Trying it Out
 
 The documentation for this version is in the http://book.fulcrologic.com/[Developer's Guide]. If you're using
@@ -48,7 +32,7 @@ https://github.com/fulcrologic/fulcro/blob/develop/CONTRIBUTING.md[CONTRIBUTING.
 
 Fulcro is:
 
-Copyright (c) 2017-2019, Fulcrologic, LLC
+Copyright (c) 2017-2022, Fulcrologic, LLC
 The MIT License (MIT)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
