@@ -139,6 +139,7 @@
                      (cond
                        (prepend-target? target) (update-in state target (fn [v] (vec (concat item-to-place v))))
                        (append-target? target) (update-in state target (fn [v] (vec (concat v item-to-place))))
+                       (replacement-target? target) (assoc-in state target item-to-place)
                        :else state)
                      (assoc-in state target item-to-place)))
 
