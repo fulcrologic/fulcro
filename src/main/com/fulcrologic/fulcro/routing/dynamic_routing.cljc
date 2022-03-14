@@ -737,7 +737,7 @@
 
 #?(:clj
    (defn compile-error [env form message]
-     (throw (ana/error (merge env (some-> form meta)) message {}))))
+     (throw (ana/error (merge env (some-> form meta)) message))))
 
 #?(:clj (s/def ::router-targets (s/coll-of symbol? :type vector?)))
 #?(:clj (s/def ::always-render-body? boolean?))
