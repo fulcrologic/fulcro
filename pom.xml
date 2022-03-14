@@ -4,7 +4,7 @@
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
     <packaging>jar</packaging>
-    <version>3.5.15-SNAPSHOT</version>
+    <version>3.5.15</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -23,7 +23,7 @@
         <url>https://github.com/fulcrologic/fulcro</url>
         <connection>scm:git:git://github.com/fulcrologic/fulcro.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/fulcrologic/fulcro.git</developerConnection>
-        <tag>e689b03334c28f3071945ff04d29538f5694601d</tag>
+        <tag>fulcro-3.5.15</tag>
     </scm>
     <distributionManagement>
         <repository>
