@@ -306,7 +306,9 @@
                         (when-not (identical? (.-current prior-props-ref) props)
                           (set! (.-current prior-props-ref) props)
                           (set-props! props)))))
-                  (fn use-tree-remove-render-listener* [] (rapp/remove-render-listener! app listener-id))))
+                  (fn use-tree-remove-render-listener* []
+                    (rapp/remove-render-listener! app listener-id)
+                    (set! (.-current prior-props-ref) nil))))
          [(hash current-ident)])
        current-props)))
 
