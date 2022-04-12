@@ -306,6 +306,8 @@
   [component field-or-fields options]
   (let [app          (rc/any->app component)
         {:keys [parallel update-query]} options
+        {:keys [load-mutation]} (-> app :com.fulcrologic.fulcro.application/config)
+        load-sym     (or load-mutation `internal-load!)
         ident        (rc/get-ident component)
         update-query (fn [q]
                        (cond-> (eql/focus-subquery q (if (vector? field-or-fields)
@@ -316,7 +318,7 @@
                                                          :update-query update-query
                                                          :source-key (rc/get-ident component)))
         abort-id     (:abort-id params)]
-    (rc/transact! app [(list `internal-load! params)]
+    (rc/transact! app [(list load-sym params)]
       (cond-> {}
         (boolean? parallel) (assoc :parallel? parallel)
         abort-id (assoc ::txn/abort-id abort-id)))))
