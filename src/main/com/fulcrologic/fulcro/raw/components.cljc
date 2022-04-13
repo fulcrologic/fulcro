@@ -31,8 +31,8 @@
   ([obj kvs default]
    #?(:clj (get-in obj kvs default)
       :cljs
-           (let [ks (mapv (fn [k] (some-> k name)) kvs)]
-             (or (apply gobj/getValueByKeys obj ks) default)))))
+      (let [ks (mapv (fn [k] (some-> k name)) kvs)]
+        (or (apply gobj/getValueByKeys obj ks) default)))))
 
 (defn isoget
   "Like get, but for js objects, and in CLJC. In clj, it is just `get`. In cljs it is
@@ -629,7 +629,9 @@
   []
   (when #?(:clj false :cljs goog.DEBUG)
     (let [components (vals @component-registry)]
-      (doseq [c components]
+      (doseq [c components
+              :let [{:fulcro/keys [warnings?]} (component-options c)]
+              :when (not (false? warnings?))]
         (let [ident           (and (has-ident? c) (get-ident c {}))
               query           (get-query c)
               constant-ident? (and (vector? ident) (second ident))]
@@ -689,7 +691,8 @@
         component       (configure-anonymous-component! component
                           (cond-> (with-meta
                                     (merge
-                                      {:initial-state (fn [& args] {})}
+                                      {:initial-state    (fn [& args] {})
+                                       :fulcro/warnings? false}
                                       top-component-options
                                       {:query  (fn [& args] @qatom)
                                        "props" {"fulcro$queryid" :anonymous}})
