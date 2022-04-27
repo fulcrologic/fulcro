@@ -38,7 +38,11 @@
   "Returns a vector that describes the sub-path that a given route target represents. String elements represent
   explicit path elements, and keywords represent variable values (which are always pulled as strings)."
   [class]
-  (rc/component-options class :route-segment))
+  (let [result (rc/component-options class :route-segment)]
+    (when (and #?(:clj true :cljs goog.DEBUG)
+            (not (or (nil? result) (vector? result))))
+      (log/error "Route segment should be a vector!"))
+    result))
 
 (defn get-route-cancelled
   "Returns the function that should be called if this target was in a deferred state and a different routing choice was made. Is given the same route parameters that were sent to `will-enter`."
@@ -1030,3 +1034,57 @@
           (if (seq remaining-path)
             (recur (ast-node-for-route target-ast remaining-path) remaining-path)
             target))))))
+
+(letfn [(active-routes* [state-map {:keys [path] :as result} parent-component ast-nodes]
+          (let [segment (some-> parent-component (route-segment))]
+            (cond
+              (nil? parent-component) [result]
+
+              (some-> parent-component (router?))
+              (let [ident           (some-> parent-component (comp/get-ident {}))
+                    active-ast-node (first
+                                      (filter (fn [{:keys [dispatch-key]}]
+                                                (= ::current-route dispatch-key))
+                                        ast-nodes))
+                    new-parent      (:component active-ast-node)]
+                (active-routes* state-map {:path (into path segment)
+                                           ;:target-ident ident ;; Need to follow along in state to get the proper ident...
+                                           :target-class parent-component} new-parent (:children active-ast-node)))
+
+              segment
+              (let [subpath (into path segment)]
+                (mapcat
+                  (fn [{:keys [component children] :as node}]
+                    (active-routes* state-map {:path subpath
+                                               ;:target-ident ident
+                                               :target-class parent-component} component children))
+                  ast-nodes))
+
+              :else
+              (mapcat
+                (fn [{:keys [component children] :as node}]
+                  (active-routes* state-map result component children))
+                ast-nodes))))]
+  (defn active-routes
+    "Return a sequence of the leaf router targets that are routed to in the given app using the active dynamic query
+     and app state.
+
+     The return values are maps that currently contain a `:path` and `:target-component` key.
+     Future versions of this function may include additional information.
+
+     Note that dynamic routing purposely supports the ability to have more than one UI path active at a time, as it
+     is NOT a strict URL-style UI router. However, since your code is ultimately responsible for determining what
+     parts of the active query are rendered, it is possible for this to return routes that are available (in the props
+     of components) but are not being rendered by your logic. Thus, the return value of this function isn't necessarily
+     proof that the routes listed are visible to the user.
+
+     WARNING: If you use disconnected roots (via hooks or otherwise), then you must specify a starting component that is
+     well-connected (graph/state) from which to scan, and will get back paths relative to that `starting-from`
+     (a component, element, or factory if you're using factory-based dynamic queries)."
+    ([app]
+     (active-routes app (app/app-root app)))
+    ([app starting-from]
+     (let [state-map (app/current-state app)
+           query     (comp/get-query starting-from state-map)
+           {:keys [children]} (eql/query->ast query)]
+       (set (active-routes* state-map {:path []} starting-from children))))))

@@ -1,13 +1,18 @@
 (ns com.fulcrologic.fulcro.routing.dynamic-routing-test
   (:require
     [clojure.zip :as zip]
+    [clojure.pprint :refer [pprint]]
     [edn-query-language.core :as eql]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
+    [com.fulcrologic.fulcro.ui-state-machines :as uism]
+    [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as sync]
     [clojure.test :refer [deftest]]
     [taoensso.timbre :as log]
-    [fulcro-spec.core :refer [assertions specification]]))
+    [fulcro-spec.core :refer [assertions specification component]]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]))
 
 (declare User Settings Root2 RootRouter2 SettingsPaneRouter Pane1 Pane2 =>)
 
@@ -106,13 +111,22 @@
 
 
 (defsc A [_ _]
-  {:route-segment ["a" :a/param]})
+  {:query         [:a]
+   :ident         (fn [] [:component/id ::A])
+   :initial-state {:a 1}
+   :route-segment ["a" :a/param]})
 
 (defsc B [_ _]
-  {:route-segment ["b"]})
+  {:route-segment ["b"]
+   :query         [:b]
+   :ident         (fn [] [:component/id ::B])
+   :initial-state {:b 1}})
 
 (defsc C [_ _]
-  {:route-segment ["c" :c/param]})
+  {:route-segment ["c" :c/param]
+   :query         [:c]
+   :ident         (fn [] [:component/id ::C])
+   :initial-state {:c 1}})
 
 (deftest into-path-test
   (assertions
@@ -150,3 +164,68 @@
     (dr/resolve-path Root2 RootRouter2 {}) => nil
     "Can substitute route params"
     (dr/resolve-path Root2 User {:user-id 22}) => ["user" "22"]))
+
+(dr/defrouter ARRouter2 [this props]
+  {:router-targets [C B]
+   :route-segment  ["router2"]})
+
+(dr/defrouter ARRouter3 [this props]
+  {:router-targets [A C]
+   :route-segment  ["router3"]})
+
+(dr/defrouter ARRouter4 [this props]
+  {:router-targets [A B]
+   :route-segment  ["router4"]})
+
+(defsc ARMiddle [_ _]
+  {:query         [{:list (comp/get-query ARRouter3)}
+                   {:detail (comp/get-query ARRouter4)}]
+   :initial-state {:list   {}
+                   :detail {}}
+   :ident         (fn [] [:component/id ::ARMiddle])
+   :route-segment ["middle"]})
+
+(dr/defrouter ARRouter [this props]
+  {:router-targets [A ARRouter2 ARMiddle]})
+
+(defsc ARRoot [this props]
+  {:query         [{:router (comp/get-query ARRouter)}]
+   :initial-state {:router {}}})
+
+;; Routes of interest:
+;; A
+;; ARouter2 -> C
+;; ARMiddle -> (ARouter3, ARouter4) -> (A, A)
+;; ARMiddle -> (ARouter3, ARouter4) -> (C, B)
+
+(specification "active-routes" :focus
+  (let [app (sync/with-synchronous-transactions
+              (app/fulcro-app {}))]
+    (app/set-root! app ARRoot {:initialize-state? true})
+    (dr/initialize! app)
+    (component "A simple leaf route"
+      (dr/change-route! app ["a" "1"])
+      (assertions
+        "Reports a single active route"
+        (dr/active-routes app ARRoot) => #{{:path         ["a" :a/param]
+                                            :target-class A}}))
+    (component "A simple nested leaf route"
+      (dr/change-route! app ["router2" "b"])
+      (let [state-map (app/current-state app)]
+        (assertions
+          "The app state is on the correct route"
+          (fns/get-in-graph state-map
+            [:router ::dr/current-route ::dr/current-route]) => {:b 1}
+          "Returns the correct single active route"
+          (into #{}
+            (map :path)
+            (dr/active-routes app ARRoot)) => #{["router2" "b"]})))
+    (component "A nested parallel route"
+      (dr/change-route! app ["middle" "router3" "c"])
+      (dr/change-route-relative! app ARRouter4 ["b"])
+      (assertions
+        "Returns the correct dual active routes"
+        (dr/active-routes app ARRoot) => #{{:path         ["middle" "router4" "b"]
+                                            :target-class B}
+                                           {:path         ["middle" "router3" "a" :a/param]
+                                            :target-class A}}))))
