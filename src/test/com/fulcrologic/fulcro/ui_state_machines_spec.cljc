@@ -526,7 +526,7 @@
                               (:applied-event-values env) => true
                               (:handler-ran env) => true))]
            (when-mocking!
-             (uism/state-machine-env s r a e d) => (assoc env :looked-up-env true)
+             (uism/state-machine-env s r a e d app) => (assoc env :looked-up-env true)
              (uism/clear-timeouts-on-event! env event) => (do
                                                             (assertions
                                                               "Clears any auto-cleared timeouts"

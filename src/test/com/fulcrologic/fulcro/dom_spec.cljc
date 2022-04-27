@@ -1,7 +1,7 @@
 (ns com.fulcrologic.fulcro.dom-spec
   (:require
     [clojure.spec.alpha :as s]
-    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
+    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking =>]]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [com.fulcrologic.guardrails.core :refer [>def]]
@@ -327,9 +327,9 @@
        (fn? span) => true
        (fn? p) => true)
      (provided "It is used in a functional context"
-       (dom/macro-create-element t args) => (assertions
-                                              "The runtime version of the processing is called"
-                                              t => "div")
+       (dom/macro-create-element t args _) => (assertions
+                                                "The runtime version of the processing is called"
+                                                t => "div")
 
        (apply div {} ["Hello"]))))
 
