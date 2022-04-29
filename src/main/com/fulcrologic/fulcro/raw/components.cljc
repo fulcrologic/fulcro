@@ -677,38 +677,59 @@
                   (= "id" (name key))))
         children))))
 
-(defn- normalize* [{:keys [children type] :as original-node} {:keys [componentName] :as top-component-options}]
-  (let [detected-id-key (ast-id-key children)
-        real-id-key     (or detected-id-key)
-        component       (fn [& args])
-        new-children    (mapv
-                          (fn [{:keys [type] :as node}]
-                            (if (and (= type :join) (not (:component node)))
-                              (normalize* node {})
-                              node))
-                          children)
-        qatom           (atom nil)
-        component       (configure-anonymous-component! component
-                          (cond-> (with-meta
-                                    (merge
-                                      {:initial-state    (fn [& args] {})
-                                       :fulcro/warnings? false}
-                                      top-component-options
-                                      {:query  (fn [& args] @qatom)
-                                       "props" {"fulcro$queryid" :anonymous}})
-                                    {:query-id :anonymous})
+(defn- normalize* [{:keys [children type] :as original-node} {:keys [componentName ident] :as top-component-options}]
+  (let [qatom     (atom nil)
+        component (fn [& args])]
+    (if (= :union type)
+      (let [component-map (into {}
+                            (map (fn [{:keys [union-key] :as c}]
+                                   (let [component (:component (normalize* (assoc c :type :root) {}))]
+                                     [union-key component])) children))
+            union-keys    (into #{} (map :union-key) children)
+            component     (configure-anonymous-component! component
+                            (cond-> (with-meta
+                                      (merge
+                                        {:initial-state    (fn [& args] {})
+                                         :fulcro/warnings? false}
+                                        top-component-options
+                                        {:query  (fn [& args]
+                                                   (enc/map-vals get-query component-map))
+                                         "props" {"fulcro$queryid" :anonymous}})
+                                      {:query-id :anonymous})
+                              (not ident) (assoc :ident
+                                            (fn [this props]
+                                              (when-let [k (union-keys props)]
+                                                [k (get props k)])))
+                              componentName (assoc :componentName componentName)))]
+        (assoc original-node :component component))
+      (let [real-id-key  (ast-id-key children)
+            new-children (mapv
+                           (fn [{:keys [type] :as node}]
+                             (if (and (= type :join) (not (:component node)))
+                               (normalize* node {})
+                               node))
+                           children)
+            component    (configure-anonymous-component! component
+                           (cond-> (with-meta
+                                     (merge
+                                       {:initial-state    (fn [& args] {})
+                                        :fulcro/warnings? false}
+                                       top-component-options
+                                       {:query  (fn [& args] @qatom)
+                                        "props" {"fulcro$queryid" :anonymous}})
+                                     {:query-id :anonymous})
 
-                            componentName (assoc :componentName componentName)
+                             componentName (assoc :componentName componentName)
 
-                            (and real-id-key
-                              (not (contains? top-component-options :ident)))
-                            (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))
-        updated-node    (assoc original-node :children new-children :component component)
-        query           (if (= type :join)
-                          (eql/ast->query (assoc updated-node :type :root))
-                          (eql/ast->query updated-node))
-        _               (reset! qatom query)]
-    updated-node))
+                             (and real-id-key
+                               (not (contains? top-component-options :ident)))
+                             (assoc :ident (fn [_ props] [real-id-key (get props real-id-key)]))))
+            updated-node (assoc original-node :children new-children :component component)
+            query        (if (= type :join)
+                           (eql/ast->query (assoc updated-node :type :root))
+                           (eql/ast->query updated-node))
+            _            (reset! qatom query)]
+        updated-node))))
 
 (defn nc
   "Create an anonymous normalizing query component. By default the normalization will be auto-detected based on there being a prop at each
@@ -743,8 +764,12 @@
    "
   ([query] (nc query {}))
   ([query {:keys [componentName] :as top-component-options}]
-   (let [ast (eql/query->ast query)]
-     (:component (normalize* ast top-component-options)))))
+   (if (map? query)                                         ; union
+     (let [ast (-> (eql/query->ast [{:placeholder query}])
+                 :children first :children first)]
+       (:component (normalize* ast top-component-options)))
+     (let [ast (eql/query->ast query)]
+       (:component (normalize* ast top-component-options))))))
 
 (defn entity->component
   "Creates a normalizing component from an entity tree. Every sub-element of the tree provided will generate an anonymous

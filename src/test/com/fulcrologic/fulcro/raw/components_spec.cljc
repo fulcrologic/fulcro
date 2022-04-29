@@ -2,7 +2,8 @@
   (:require
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.components :refer [defsc]]
-    [fulcro-spec.core :refer [specification assertions behavior component =>]]))
+    [fulcro-spec.core :refer [specification assertions behavior component =>]]
+    [edn-query-language.core :as eql]))
 
 (defsc Product [_ _]
   {:query [:product/id :product/name]
@@ -39,4 +40,21 @@
         "Uses the component in the nested location"
         (rc/registry-key->class ::Product) => nested-product-c
         "Resulting query is correct"
-        (rc/get-query item-c) => [:item/id {:item/product [:product/id :product/name]}]))))
+        (rc/get-query item-c) => [:item/id {:item/product [:product/id :product/name]}])))
+  (component "Union queries"
+    (let [union-item (rc/nc {:item/id    [:item/id :item/content]
+                             :picture/id [:picture/id :picture/url]}
+                       {:ident (fn [this props]
+                                 (if-let [id (:item/id props)]
+                                   [:item/id id]
+                                   [:picture/id (:picture/id props)]))})]
+      (assertions
+        "Returns a union query"
+        (rc/get-query union-item) => {:item/id    [:item/id :item/content]
+                                      :picture/id [:picture/id :picture/url]}
+        "The nested target components are generated as anonymous components"
+        (some-> (rc/get-query union-item) :item/id (meta) :component (rc/component-class?)) => true
+        (some-> (rc/get-query union-item) :picture/id (meta) :component (rc/component-class?)) => true
+        "The nested components have the expected queries"
+        (some-> (rc/get-query union-item) :item/id (meta) :component rc/get-query) => [:item/id :item/content]
+        (some-> (rc/get-query union-item) :picture/id (meta) :component rc/get-query) => [:picture/id :picture/url]))))
