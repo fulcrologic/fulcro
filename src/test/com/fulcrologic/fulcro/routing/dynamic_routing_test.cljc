@@ -198,34 +198,35 @@
 ;; ARMiddle -> (ARouter3, ARouter4) -> (A, A)
 ;; ARMiddle -> (ARouter3, ARouter4) -> (C, B)
 
-(specification "active-routes" :focus
-  (let [app (sync/with-synchronous-transactions
-              (app/fulcro-app {}))]
-    (app/set-root! app ARRoot {:initialize-state? true})
-    (dr/initialize! app)
-    (component "A simple leaf route"
-      (dr/change-route! app ["a" "1"])
-      (assertions
-        "Reports a single active route"
-        (dr/active-routes app ARRoot) => #{{:path         ["a" :a/param]
-                                            :target-class A}}))
-    (component "A simple nested leaf route"
-      (dr/change-route! app ["router2" "b"])
-      (let [state-map (app/current-state app)]
-        (assertions
-          "The app state is on the correct route"
-          (fns/get-in-graph state-map
-            [:router ::dr/current-route ::dr/current-route]) => {:b 1}
-          "Returns the correct single active route"
-          (into #{}
-            (map :path)
-            (dr/active-routes app ARRoot)) => #{["router2" "b"]})))
-    (component "A nested parallel route"
-      (dr/change-route! app ["middle" "router3" "c"])
-      (dr/change-route-relative! app ARRouter4 ["b"])
-      (assertions
-        "Returns the correct dual active routes"
-        (dr/active-routes app ARRoot) => #{{:path         ["middle" "router4" "b"]
-                                            :target-class B}
-                                           {:path         ["middle" "router3" "a" :a/param]
-                                            :target-class A}}))))
+#?(:cljs
+   (specification "active-routes"
+     (let [app (sync/with-synchronous-transactions
+                 (app/fulcro-app {}))]
+       (app/set-root! app ARRoot {:initialize-state? true})
+       (dr/initialize! app)
+       (component "A simple leaf route"
+         (dr/change-route! app ["a" "1"])
+         (assertions
+           "Reports a single active route"
+           (dr/active-routes app ARRoot) => #{{:path         ["a" :a/param]
+                                               :target-class A}}))
+       (component "A simple nested leaf route"
+         (dr/change-route! app ["router2" "b"])
+         (let [state-map (app/current-state app)]
+           (assertions
+             "The app state is on the correct route"
+             (fns/get-in-graph state-map
+               [:router ::dr/current-route ::dr/current-route]) => {:b 1}
+             "Returns the correct single active route"
+             (into #{}
+               (map :path)
+               (dr/active-routes app ARRoot)) => #{["router2" "b"]})))
+       (component "A nested parallel route"
+         (dr/change-route! app ["middle" "router3" "c"])
+         (dr/change-route-relative! app ARRouter4 ["b"])
+         (assertions
+           "Returns the correct dual active routes"
+           (dr/active-routes app ARRoot) => #{{:path         ["middle" "router4" "b"]
+                                               :target-class B}
+                                              {:path         ["middle" "router3" "a" :a/param]
+                                               :target-class A}})))))
