@@ -331,10 +331,12 @@
      #?(:cljs
         (this-as this
           (let [{:keys [componentWillUnmount]} (component-options this)
-                app             (any->app this)
-                drop-component! (ah/app-algorithm app :drop-component!)]
-            (when componentWillUnmount
-              (componentWillUnmount this))
+                app                     (any->app this)
+                will-unmount-middleware (ah/app-algorithm app :component-will-unmount-middleware)
+                drop-component!         (ah/app-algorithm app :drop-component!)]
+            (if will-unmount-middleware
+              (will-unmount-middleware this (fn [] (when componentWillUnmount (componentWillUnmount this))))
+              (when componentWillUnmount (componentWillUnmount this)))
             (gobj/set this "fulcro$mounted" false)
             (drop-component! this)))))
    (wrap-this

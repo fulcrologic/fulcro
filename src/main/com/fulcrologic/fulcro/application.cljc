@@ -191,6 +191,11 @@
      render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
      function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.
      `this` is the component being rendered.
+   * `:component-will-unmount-middleware` - A `(fn [this real-comp-will-unmount])`. If supplied it will be called whenever a Fulcro component
+     will unmount, and *must* call `real-comp-will-unmount`. This can be used to wrap the real `componentWillUnmount`
+     function in order to do things like clean up resources you may have added to the component in `render-middleware`,
+     set dynamic vars, or any other manipulation of the component instance before it unmounts.
+     `this` is the component being unmounted.
    * `:remote-error?` - A `(fn [result] boolean)`. It can examine the network result and should only return
      true when the result is an error. The `result` will contain both a `:body` and `:status-code` when using
      the normal remotes.  The default version of this returns true if the status code isn't 200.
@@ -215,6 +220,7 @@
      `:submit-transaction!`, since the two are related."
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
+            component-will-unmount-middleware
             global-eql-transform
             global-error-action
             default-result-action!

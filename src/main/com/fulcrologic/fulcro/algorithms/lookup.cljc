@@ -30,6 +30,7 @@
   - `:index-component!` - The algorithm that adds a component to indexes when it mounts.
   - `:drop-component!` - The algorithm that removes a component from indexes when it unmounts.
   - `:props-middleware` - Middleware that can modify `props` for all components.
+  - `:component-will-unmount-middleware` - Middleware that wraps `componentWillUnmount` methods of `defsc` components.
   - `:render-middleware` - Middlware that wraps all `render` methods of `defsc` components.
 
   Returns nil if the algorithm is currently undefined.

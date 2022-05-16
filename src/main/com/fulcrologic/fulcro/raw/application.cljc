@@ -207,6 +207,7 @@
   "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
+            component-will-unmount-middleware
             global-eql-transform
             global-error-action
             default-result-action!
@@ -241,29 +242,30 @@
                                                         :external-config         external-config
                                                         :query-transform-default query-transform-default
                                                         :load-mutation           load-mutation}
-      :com.fulcrologic.fulcro.application/algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
-                                                        :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
-                                                        :com.fulcrologic.fulcro.algorithm/batch-notifications    batch-notifications
-                                                        :com.fulcrologic.fulcro.algorithm/core-render!           (or core-render! identity)
-                                                        :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! identity)
-                                                        :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
-                                                        :com.fulcrologic.fulcro.algorithm/shared-fn              shared-fn
-                                                        :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
-                                                        :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
-                                                        :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
-                                                        :com.fulcrologic.fulcro.algorithm/refresh-component!     refresh-component!
-                                                        :com.fulcrologic.fulcro.algorithm/render!                render!
-                                                        :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
-                                                        :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
-                                                        :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
-                                                        :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
-                                                        :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
-                                                        :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
-                                                        :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
-                                                        :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
-                                                        :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
-                                                        :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
-                                                        :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
+      :com.fulcrologic.fulcro.application/algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                               tx!
+                                                        :com.fulcrologic.fulcro.algorithm/abort!                            (or abort-transaction! txn/abort!)
+                                                        :com.fulcrologic.fulcro.algorithm/batch-notifications               batch-notifications
+                                                        :com.fulcrologic.fulcro.algorithm/core-render!                      (or core-render! identity)
+                                                        :com.fulcrologic.fulcro.algorithm/optimized-render!                 (or optimized-render! identity)
+                                                        :com.fulcrologic.fulcro.algorithm/initialize-state!                 initialize-state!
+                                                        :com.fulcrologic.fulcro.algorithm/shared-fn                         shared-fn
+                                                        :com.fulcrologic.fulcro.algorithm/render-root!                      render-root!
+                                                        :com.fulcrologic.fulcro.algorithm/hydrate-root!                     hydrate-root!
+                                                        :com.fulcrologic.fulcro.algorithm/unmount-root!                     unmount-root!
+                                                        :com.fulcrologic.fulcro.algorithm/refresh-component!                refresh-component!
+                                                        :com.fulcrologic.fulcro.algorithm/render!                           render!
+                                                        :com.fulcrologic.fulcro.algorithm/remote-error?                     (or remote-error? default-remote-error?)
+                                                        :com.fulcrologic.fulcro.algorithm/global-error-action               global-error-action
+                                                        :com.fulcrologic.fulcro.algorithm/merge*                            merge/merge*
+                                                        :com.fulcrologic.fulcro.algorithm/default-result-action!            (or default-result-action! mut/default-result-action!)
+                                                        :com.fulcrologic.fulcro.algorithm/global-eql-transform              (or global-eql-transform default-global-eql-transform)
+                                                        :com.fulcrologic.fulcro.algorithm/index-root!                       indexing/index-root!
+                                                        :com.fulcrologic.fulcro.algorithm/index-component!                  indexing/index-component!
+                                                        :com.fulcrologic.fulcro.algorithm/drop-component!                   indexing/drop-component!
+                                                        :com.fulcrologic.fulcro.algorithm/props-middleware                  props-middleware
+                                                        :com.fulcrologic.fulcro.algorithm/render-middleware                 render-middleware
+                                                        :com.fulcrologic.fulcro.algorithm/component-will-unmount-middleware component-will-unmount-middleware
+                                                        :com.fulcrologic.fulcro.algorithm/schedule-render!                  schedule-render!}
       :com.fulcrologic.fulcro.application/runtime-atom (atom
                                                          {:com.fulcrologic.fulcro.application/app-root            nil
                                                           :com.fulcrologic.fulcro.application/mount-node          nil

@@ -121,6 +121,7 @@
 (>def :com.fulcrologic.fulcro.algorithm/drop-component! ifn?)
 (>def :com.fulcrologic.fulcro.algorithm/props-middleware (s/nilable ifn?))
 (>def :com.fulcrologic.fulcro.algorithm/render-middleware (s/nilable ifn?))
+(>def :com.fulcrologic.fulcro.algorithm/component-will-unmount-middleware (s/nilable ifn?))
 
 (>def :com.fulcrologic.fulcro.application/algorithms
   (s/keys
@@ -137,6 +138,7 @@
           :com.fulcrologic.fulcro.algorithm/optimized-render!
           :com.fulcrologic.fulcro.algorithm/global-error-action
           :com.fulcrologic.fulcro.algorithm/props-middleware
+          :com.fulcrologic.fulcro.algorithm/component-will-unmount-middleware
           :com.fulcrologic.fulcro.algorithm/render-middleware
           :com.fulcrologic.fulcro.algorithm/shared-fn]))
 
