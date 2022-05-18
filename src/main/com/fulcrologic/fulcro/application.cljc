@@ -187,6 +187,8 @@
    * `:props-middleware` - A function that can add data to the 4th (optional) argument of
      `defsc`.  Useful for allowing users to quickly destructure extra data created by
      component extensions. See the fulcro-garden-css project on github for an example usage.
+   * `:before-render` - A `(fn [app RootClass])` which is called just before rendering (usually just after transactions).
+     This can be used as a convenient hook to update the state atom in `app` before it is rendered.
    * `:render-middleware` - A `(fn [this real-render])`. If supplied it will be called for every Fulcro component
      render, and *must* call (and return the result of) `real-render`.  This can be used to wrap the real render
      function in order to do things like measure performance, set dynamic vars, or augment the UI in arbitrary ways.

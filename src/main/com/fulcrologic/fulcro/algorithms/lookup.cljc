@@ -31,6 +31,10 @@
   - `:drop-component!` - The algorithm that removes a component from indexes when it unmounts.
   - `:props-middleware` - Middleware that can modify `props` for all components.
   - `:render-middleware` - Middlware that wraps all `render` methods of `defsc` components.
+  - `:before-render - A function `(fn [app RootClass])` that is called after a transaction completes, just BEFORE
+    rendering. This function is allowed to affect the state atom to do things like compute dynamic derived state. Prefer
+    this over an atom watch, since it will be called less frequently that an atom watch. This will be called EVEN IF
+    Fulcro is running \"headless\". So, it can be thought of as `after-transaction`.
 
   Returns nil if the algorithm is currently undefined.
   "
