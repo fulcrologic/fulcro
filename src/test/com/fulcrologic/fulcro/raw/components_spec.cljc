@@ -42,12 +42,15 @@
         "Resulting query is correct"
         (rc/get-query item-c) => [:item/id {:item/product [:product/id :product/name]}])))
   (component "Union queries"
-    (let [union-item (rc/nc {:item/id    [:item/id :item/content]
-                             :picture/id [:picture/id :picture/url]}
-                       {:ident (fn [this props]
-                                 (if-let [id (:item/id props)]
-                                   [:item/id id]
-                                   [:picture/id (:picture/id props)]))})]
+    (let [union-item          (rc/nc {:item/id    [:item/id :item/content]
+                                      :picture/id [:picture/id :picture/url]}
+                                {:ident (fn [this props]
+                                          (if-let [id (:item/id props)]
+                                            [:item/id id]
+                                            [:picture/id (:picture/id props)]))})
+          todo-component      (rc/nc [:todo/id :todo/text] {:componentName ::todo})
+          comment-component   (rc/nc [:comment/id :comment/text] {:componentName ::comment})
+          list-item-component (rc/nc {:comment/id (rc/get-query comment-component) :todo/id (rc/get-query todo-component)})]
       (assertions
         "Returns a union query"
         (rc/get-query union-item) => {:item/id    [:item/id :item/content]
@@ -57,4 +60,7 @@
         (some-> (rc/get-query union-item) :picture/id (meta) :component (rc/component-class?)) => true
         "The nested components have the expected queries"
         (some-> (rc/get-query union-item) :item/id (meta) :component rc/get-query) => [:item/id :item/content]
-        (some-> (rc/get-query union-item) :picture/id (meta) :component rc/get-query) => [:picture/id :picture/url]))))
+        (some-> (rc/get-query union-item) :picture/id (meta) :component rc/get-query) => [:picture/id :picture/url]
+        "The nested components with names are still named"
+        (-> (rc/get-query list-item-component) :comment/id (meta) :component rc/class->registry-key) => ::comment
+        (-> (rc/get-query list-item-component) :todo/id (meta) :component rc/class->registry-key) => ::todo))))

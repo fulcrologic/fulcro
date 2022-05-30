@@ -682,8 +682,8 @@
         component (fn [& args])]
     (if (= :union type)
       (let [component-map (into {}
-                            (map (fn [{:keys [union-key] :as c}]
-                                   (let [component (:component (normalize* (assoc c :type :root) {}))]
+                            (map (fn [{:keys [union-key component] :as c}]
+                                   (let [component (or component (:component (normalize* (assoc c :type :root) {})))]
                                      [union-key component])) children))
             union-keys    (into #{} (map :union-key) children)
             component     (configure-anonymous-component! component
