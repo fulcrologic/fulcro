@@ -626,6 +626,13 @@
   ```
   (dr/change-route-relative this this [:.. \"sibling-pattern\"])
   ```
+
+  Returns one of:
+
+  `:already-there` - The old and new route are the same, and there was no request to force an idempotent routing operation.
+  `:invalid` - The new route didn't evaluate to a valid location
+  `:denied` - One or more on-screen targets refused to allow the routing operation
+  `:routing` - The routing operation is in progress, but deferred operations may still delay the route becoming visible.
   "
   ([this-or-app relative-class-or-instance new-route]
    (change-route-relative! this-or-app relative-class-or-instance new-route {}))
@@ -638,10 +645,14 @@
          new-path       (proposed-new-path app-or-comp relative-class new-route timeouts-and-params)]
      (cond
        (and (= old-route new-route) (not (::force? timeouts-and-params)))
-       (log/debug "Request to change route, but path is the current route. Ignoring change request.")
+       (do
+         (log/debug "Request to change route, but path is the current route. Ignoring change request.")
+         :already-there)
 
        (and #?(:clj true :cljs goog.DEBUG) (not (seq new-path)))
-       (log/error "Could not find route targets for new-route" new-route "See https://book.fulcrologic.com/#err-dr-new-route-target-not-found")
+       (do
+         (log/error "Could not find route targets for new-route" new-route "See https://book.fulcrologic.com/#err-dr-new-route-target-not-found")
+         :invalid)
 
        (not (can-change-route? app-or-comp relative-class))
        (let [app          (rc/any->app app-or-comp)
@@ -649,7 +660,8 @@
              route-denied (rc/component-options target :route-denied)]
          (log/debug "Route request denied by on-screen target" target ". Calling component's :route-denied (if defined).")
          (when route-denied
-           (route-denied target relative-class-or-instance new-route)))
+           (route-denied target relative-class-or-instance new-route))
+         :denied)
 
        :otherwise
        (do
@@ -702,7 +714,8 @@
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))
            ;; Route instructions are sent depth first to prevent flicker
            (doseq [action @routing-actions]
-             (action))))))))
+             (action)))
+         :routing)))))
 
 (def change-route-relative "DEPRECATED NAME: Use change-route-relative!" change-route-relative!)
 
@@ -729,6 +742,13 @@
   The error timeout is how long to wait  (default 5000ms) before showing the error-ui of a route (which must be defined on the
   router that is having problems).  The deferred-timeout (default 100ms) is how long to wait before showing the loading-ui of
   a deferred router (to prevent flicker).
+
+  Returns one of:
+
+  `:already-there` - The old and new route are the same, and there was no request to force an idempotent routing operation.
+  `:invalid` - The new route didn't evaluate to a valid location
+  `:denied` - One or more on-screen targets refused to allow the routing operation
+  `:routing` - The routing operation is in progress, but deferred operations may still delay the route becoming visible.
   "
   ([this new-route]
    (change-route! this new-route {}))
@@ -1047,7 +1067,7 @@
                                                 (= ::current-route dispatch-key))
                                         ast-nodes))
                     new-parent      (:component active-ast-node)]
-                (active-routes* state-map {:path (into path segment)
+                (active-routes* state-map {:path         (into path segment)
                                            ;:target-ident ident ;; Need to follow along in state to get the proper ident...
                                            :target-class parent-component} new-parent (:children active-ast-node)))
 
@@ -1055,7 +1075,7 @@
               (let [subpath (into path segment)]
                 (mapcat
                   (fn [{:keys [component children] :as node}]
-                    (active-routes* state-map {:path subpath
+                    (active-routes* state-map {:path         subpath
                                                ;:target-ident ident
                                                :target-class parent-component} component children))
                   ast-nodes))

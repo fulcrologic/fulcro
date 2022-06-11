@@ -61,3 +61,4 @@ resources/public/workspaces
 .clj-kondo/.cache/
 lsp
 .clj-kondo/com.wsscode
+.clj-kondo
