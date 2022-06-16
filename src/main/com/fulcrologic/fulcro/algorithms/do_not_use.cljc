@@ -7,13 +7,11 @@
   will even appear in the changelog."
   (:require
     [taoensso.timbre :as log]
-    [clojure.string :as str]
     [edn-query-language.core :as eql]
     #?@(:cljs [[goog.object :as gobj]
                [goog.crypt :as crypt]
                [goog.crypt.base64 :as b64]])
-    [clojure.spec.alpha :as s]
-    [clojure.string :as str])
+    [clojure.spec.alpha :as s])
   #?(:clj (:import
             [clojure.lang Atom]
             [java.util Base64]
@@ -134,14 +132,12 @@
   "Encode a string to UTF-8 and encode the result to base 64"
   [str]
   #?(:clj  (.encodeToString (Base64/getEncoder) (.getBytes str "UTF-8"))
-     :cljs (let [bytes (crypt/stringToUtf8ByteArray (clj->js str))] ;; First convert our JavaScript string from UCS-2/UTF-16 to UTF-8 bytes
-             (b64/encodeString (str/join "" (map char bytes)))))) ;; base64 encode that byte array to a string
+     :cljs (b64/encodeString str)))                         ;; base64 encode that byte array to a string
 
 (defn base64-decode
   [str]
   #?(:clj  (String. (.decode (Base64/getDecoder) ^String str) (StandardCharsets/UTF_8))
-     :cljs (let [bytes (map char-code (vec (b64/decodeString str)))] ;; b64/decodeString produces essentially a byte array
-             (crypt/utf8ByteArrayToString (clj->js bytes))))) ;; Convert the byte array to a valid JavaScript string (either UCS-2 or UTF-16)
+     :cljs (b64/decodeString str)))
 
 (defn ast->query
   "Workaround for bug in EQL 0.0.9 and earlier"
@@ -158,9 +154,9 @@
   "
   [query component-name-fn]
   (when (and #?(:clj true :cljs goog.DEBUG)
-             query
-             (false? (s/valid? ::eql/query query)))
+          query
+          (false? (s/valid? ::eql/query query)))
     (log/error (str "The composed root query is not valid EQL. The app may crash. See `(comp/get-query "
-                    (some-> query meta :component component-name-fn) ")`")
-               query))
+                 (some-> query meta :component component-name-fn) ")`")
+      query))
   query)
