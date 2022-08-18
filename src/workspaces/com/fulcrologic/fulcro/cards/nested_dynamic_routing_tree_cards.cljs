@@ -1,21 +1,11 @@
 (ns com.fulcrologic.fulcro.cards.nested-dynamic-routing-tree-cards
   (:require
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
     [nubank.workspaces.core :as ws]
-    [com.wsscode.pathom.connect :as pc]
-    [com.wsscode.pathom.core :as p]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
-    [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.application :as app]))
+    [taoensso.timbre :as log]))
 
 (defsc A1 [this {:keys [:id] :as props}]
   {:query               [:id]

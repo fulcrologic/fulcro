@@ -139,15 +139,45 @@
       *target-class* " , ident ["
       (first (rc/ident *target-class* {})) " ...]) See https://book.fulcrologic.com/#err-dr-ident-mismatch")))
 
-(defn route-immediate [ident]
+(defn route-immediate
+  "Used as a return value from `will-enter`. Instructs the routing system that you would like this target to be
+   routed to as soon as possible. UI switching defaults to depth-first to prevent flicker."
+  [ident]
   (check-ident-matches-expectation? "route-immediate" ident)
   (with-meta ident {:immediate true}))
 
-(defn route-deferred [ident completion-fn]
+(defn route-deferred
+  "Used as a return value from `will-enter`. Instructs the router to run the `completion-fn`. The completion function
+   *must* use the mutation `target-ready` or function `target-ready!` to indicate when it is ready for the target to
+   appear on-screen."
+  [ident completion-fn]
   (check-ident-matches-expectation? "route-deferred" ident)
   (with-meta ident {:immediate false
                     :fn        completion-fn}))
 (defn immediate? [ident] (some-> ident meta :immediate))
+
+(defn route-with-path-ordered-transaction
+  "Used as a return value from `will-enter`. Instructs the routing system to execute the `txn` in *routing path order*,
+   and optionally couples these operations into a single transaction. This can be used in cases where you need the
+   side-effects (potentially full-stack) to complete for a parent target before those of a nested target.
+
+   The `options` can contain:
+
+   * `:optimistic?`  (default false) - When true, don't wait for this transaction to (full-stack) complete before starting
+     child target effects.
+   * `:route-immediate?` (default false) - When true, apply the UI routing immediately instead of waiting for the transaction
+     to finish. Of course the UI of the target should then be willing to tolerate the lack of any full-stack result.
+   * `:show-early?` - (default false) - When true each transaction that completes will cause that target to appear. When
+    false the target won't appear until after all children have completed their non-optimistic path-based transactions.
+  "
+  ([ident txn] (route-with-path-ordered-transaction ident txn {}))
+  ([ident txn {:keys [optimistic? route-immediate?] :as options}]
+   (let [optimistic?      (if (some? optimistic?) optimistic? false)
+         route-immediate? (if (some? route-immediate?) route-immediate? false)]
+     (with-meta ident {:path-ordered? true
+                       :immediate     route-immediate?
+                       :txn           txn
+                       :optimistic?   optimistic?}))))
 
 (defn- apply-route* [state-map {:keys [router target]}]
   (let [router-class (-> router meta :component)
@@ -414,7 +444,7 @@
              (log/error "will-enter for router target" (rc/component-name target) "did not return a valid ident. Instead it returned: " target-ident "See https://book.fulcrologic.com/#err-dr-will-enter-invalid-ident"))
            (when (and (eql/ident? target-ident)
                    (not (contains? (some-> target-ident meta) :immediate)))
-             (log/error "will-enter for router target" (rc/component-name target) "did not wrap the ident in route-immediate or route-deferred. See https://book.fulcrologic.com/#err-dr-will-enter-missing-metadata"))
+             (log/error "will-enter for router target" (rc/component-name target) "did not wrap the ident in route-immediate, route-deferred, or route-with-path-ordered-transaction. See https://book.fulcrologic.com/#err-dr-will-enter-missing-metadata"))
            (when (vector? target-ident)
              (swap! result conj (vary-meta target-ident assoc :component target :params params)))
            (when (seq remaining-path)
@@ -672,7 +702,9 @@
                root-query      (rc/get-query router state-map)
                ast             (eql/query->ast root-query)
                root            (ast-node-for-route ast new-route)
-               routing-actions (atom (list))]
+               routing-actions (atom (list))
+               pessimistic-txn (atom [])
+               delayed-targets (atom [])]
            (loop [{:keys [component]} root path new-route]
              (when (and component (router? component))
                (let [{:keys [target matching-prefix]} (route-target component path)
@@ -687,13 +719,25 @@
                      router-ident      (rc/get-ident component {})
                      router-id         (-> router-ident second)
                      target-ident      (will-enter target app params)
-                     completing-action (or (some-> target-ident meta :fn) (constantly true))
+                     {:keys [path-ordered?
+                             txn
+                             show-early?
+                             optimistic?]} (log/spy :info (meta target-ident))
+                     completing-action (or
+                                         (some-> target-ident meta :fn)
+                                         (and optimistic? (seq txn) #(comp/transact! app txn))
+                                         (constantly true))
                      event-data        (merge
                                          {:error-timeout 5000 :deferred-timeout 20}
                                          timeouts-and-params
                                          {:path-segment matching-prefix
                                           :router       (vary-meta router-ident assoc :component component)
                                           :target       (vary-meta target-ident assoc :component target :params params)})]
+                 (when (and path-ordered? (seq txn) (not optimistic?))
+                   (swap! pessimistic-txn into txn)
+                   (if show-early?
+                     (swap! pessimistic-txn conj (target-ready {:target target-ident}))
+                     (swap! delayed-targets conj (target-ready {:target target-ident}))))
                  ;; Route instructions queued into a list (which will reverse their order in the doseq below)
                  (swap! routing-actions conj
                    #(do
@@ -712,9 +756,13 @@
                         (completing-action))))
                  (when (seq remaining-path)
                    (recur (ast-node-for-route target-ast remaining-path) remaining-path)))))
-           ;; Route instructions are sent depth first to prevent flicker
+           ;; Normal route instructions are sent depth first to prevent flicker
            (doseq [action @routing-actions]
-             (action)))
+             (action))
+           (when (or (seq @pessimistic-txn) (seq @delayed-targets))
+             (log/info "Running pessimistic transaction" @pessimistic-txn "with delayed targets" @delayed-targets)
+             (comp/transact! app (into [] (concat @pessimistic-txn (reverse @delayed-targets)))
+               {:optimistic? false})))
          :routing)))))
 
 (def change-route-relative "DEPRECATED NAME: Use change-route-relative!" change-route-relative!)
