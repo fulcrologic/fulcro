@@ -11,7 +11,8 @@
     #?@(:cljs [[goog.object :as gobj]
                [goog.crypt :as crypt]
                [goog.crypt.base64 :as b64]])
-    [clojure.spec.alpha :as s])
+    [clojure.spec.alpha :as s]
+    [clojure.string :as str])
   #?(:clj (:import
             [clojure.lang Atom]
             [java.util Base64]
@@ -128,16 +129,26 @@
        (and (string? c) (== (.-length c) 1)) (.charCodeAt c 0)
        :else (throw (js/Error. "Argument to char must be a character or number")))))
 
+(def ^:dynamic *fast-base64*
+  "Bind to true in CLJS to use a faster base64 encode/decode, but one that will not work correctly on data that has alternate character encodings."
+  false)
+
 (defn base64-encode
   "Encode a string to UTF-8 and encode the result to base 64"
   [str]
   #?(:clj  (.encodeToString (Base64/getEncoder) (.getBytes str "UTF-8"))
-     :cljs (b64/encodeString str)))                         ;; base64 encode that byte array to a string
+     :cljs (if *fast-base64*
+             (b64/encodeString str)
+             (let [bytes (crypt/stringToUtf8ByteArray (clj->js str))] ;; First convert our JavaScript string from UCS-2/UTF-16 to UTF-8 bytes
+               (b64/encodeString (str/join "" (map char bytes))))))) ;; base64 encode that byte array to a string
 
 (defn base64-decode
   [str]
   #?(:clj  (String. (.decode (Base64/getDecoder) ^String str) (StandardCharsets/UTF_8))
-     :cljs (b64/decodeString str)))
+     :cljs (if *fast-base64*
+             (b64/decodeString str)
+             (let [bytes (map char-code (vec (b64/decodeString str)))] ;; b64/decodeString produces essentially a byte array
+               (crypt/utf8ByteArrayToString (clj->js bytes)))))) ;; Convert the byte array to a valid JavaScript string (either UCS-2 or UTF-16)
 
 (defn ast->query
   "Workaround for bug in EQL 0.0.9 and earlier"
