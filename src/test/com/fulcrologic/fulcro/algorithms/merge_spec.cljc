@@ -340,6 +340,15 @@
                         :number          "98765-4321"
                         :ui/initial-flag :start}}}
 
+    "Doesn't mark a to-many attribute value that is a list as missing"
+    (merge/merge-component {} MPersonPM (person :mary "Mary" (list (phone-number 55 "98765-4321"))) :remove-missing? true)
+    => {:person/id {:mary {:id      :mary
+                           :name    "Mary"
+                           :numbers [[:phone/id 55]]}}
+        :phone/id  {55 {:id              55
+                        :number          "98765-4321"
+                        :ui/initial-flag :start}}}
+
     "Can assign IDs to primary entities via pre-merge"
     (merge/merge-component {} MPersonPM {:name "Mary2" :numbers [{:number "98765-4321"}]}
       :replace [:global-ref])

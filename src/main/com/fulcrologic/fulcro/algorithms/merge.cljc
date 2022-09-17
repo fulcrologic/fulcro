@@ -128,15 +128,15 @@
                   (assoc result jk ::not-found)
 
                   ; to-many join
-                  (and join? (vector? (get result jk)))
+                  (and join? (sequential? (get result jk)))
                   (assoc result jk (mapv (fn [item] (mark-missing-impl item (util/join-value element))) (get result jk)))
 
                   ; to-one join
                   (and join? (map? (get result jk)))
                   (assoc result jk (mark-missing-impl (get result jk) (util/join-value element)))
 
-                  ; join, but with a broken result (scalar instead of a map or vector)
-                  (and join? (vector? (util/join-value element)) (not (or (map? result-value) (vector? result-value))))
+                  ; join, but with a broken result (scalar instead of a map or sequence)
+                  (and join? (vector? (util/join-value element)) (not (or (map? result-value) (sequential? result-value))))
                   (assoc result result-key (mark-missing-impl {} (util/join-value element)))
 
                   ; prop we found, but not a further join...mark it as a leaf so sweep can stop early on it
