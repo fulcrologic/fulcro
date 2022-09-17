@@ -1,18 +1,12 @@
 (ns com.fulcrologic.fulcro.algorithms.merge-spec
   (:require
-    [clojure.test :refer [deftest are]]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [fulcro-spec.core :refer [assertions specification component when-mocking behavior provided]]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
-    [com.fulcrologic.fulcro.application :as app]
-    [taoensso.timbre :as log]
+    [clojure.test :refer [are]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
-    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]))
-
-(declare =>)
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [fulcro-spec.core :refer [assertions behavior component specification when-mocking => =1x=> =fn=>]]))
 
 (defsc MMChild [_ _]
   {:query         [:db/id]
@@ -340,7 +334,7 @@
                         :number          "98765-4321"
                         :ui/initial-flag :start}}}
 
-    "Doesn't mark a to-many attribute value that is a list as missing"
+    "Allows all sequential types (non-vector) for known to-many relations"
     (merge/merge-component {} MPersonPM (person :mary "Mary" (list (phone-number 55 "98765-4321"))) :remove-missing? true)
     => {:person/id {:mary {:id      :mary
                            :name    "Mary"
@@ -348,6 +342,27 @@
         :phone/id  {55 {:id              55
                         :number          "98765-4321"
                         :ui/initial-flag :start}}}
+    (merge/merge-component {} MPersonPM (person :mary "Mary" (cons (phone-number 55 "98765-4321") (list))) :remove-missing? true)
+    => {:person/id {:mary {:id      :mary
+                           :name    "Mary"
+                           :numbers [[:phone/id 55]]}}
+        :phone/id  {55 {:id              55
+                        :number          "98765-4321"
+                        :ui/initial-flag :start}}}
+
+    (merge/merge-component {} MPersonPM (person :mary "Mary" (map identity [(phone-number 55 "98765-4321")])) :remove-missing? true)
+    => {:person/id {:mary {:id      :mary
+                           :name    "Mary"
+                           :numbers [[:phone/id 55]]}}
+        :phone/id  {55 {:id              55
+                        :number          "98765-4321"
+                        :ui/initial-flag :start}}}
+
+    "Allows lists as scalars"
+    (merge/merge-component {} MPersonPM {:id :mary :name (list "A")} :remove-missing? true)
+    => {:person/id {:mary {:id   :mary
+                           :name (list "A")
+                           }}}
 
     "Can assign IDs to primary entities via pre-merge"
     (merge/merge-component {} MPersonPM {:name "Mary2" :numbers [{:number "98765-4321"}]}
