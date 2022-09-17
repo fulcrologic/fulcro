@@ -38,8 +38,6 @@ If you'd like to submit a PR, please follow these general guidelines:
 - In general, a PR is expected to be accompanied with test cases.
 - Either talk about it in Slack on #fulcro, or open a github issue
 - Please use a github issue to go along with your PR.
-- Do development against the *develop* branch (we use git flow). PRs should be directed at the develop branch. Master is
-  the latest release, not the live development.
 - Fulcro adheres to the single-commit-per-PR policy, therefore please squash your change into a single commit for it to be mergeable.
 - Add an entry to the CHANGELOG describing the change you've made.
 
