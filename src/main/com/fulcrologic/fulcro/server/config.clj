@@ -17,13 +17,11 @@
   See `load-config!` for more detailed usage.
   "
   (:require
-    [clojure.java.io :as io]
     [clojure.edn :as edn]
+    [clojure.java.io :as io]
     [clojure.walk :as walk]
-    [com.fulcrologic.guardrails.core :refer [>defn =>]]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
-    [clojure.spec.alpha :as s]))
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CONFIG
