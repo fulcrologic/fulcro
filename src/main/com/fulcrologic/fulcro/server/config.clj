@@ -45,7 +45,7 @@
                         (.exists ?edn-file)
                         (io/file file-path))]
       (-> edn-file slurp edn/read-string)
-      (some-> file-path io/resource .openStream slurp edn/read-string))))
+      (some-> file-path io/resource slurp edn/read-string))))
 
 (defn- load-edn-file!
   "Calls load-edn on `file-path`,
