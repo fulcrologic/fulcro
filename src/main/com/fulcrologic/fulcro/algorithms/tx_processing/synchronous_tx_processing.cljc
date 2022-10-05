@@ -83,19 +83,26 @@
 
 (declare run-queue! available-work?)
 
+(defn current-thread-id 
+  "Get the current thread id on the JVM. Returns 0 on JS."
+  []
+  #?(:clj (.getId (Thread/currentThread))
+     :cljs 0))
+
 #?(:clj
    (defmacro in-transaction [app-sym & body]
      `(let [id# (:com.fulcrologic.fulcro.application/id ~app-sym)]
-        (swap! apps-in-tx update id# (fnil inc 0))
+        (swap! apps-in-tx update id# conj (current-thread-id))
         (try
           ~@body
           (finally
-            (swap! apps-in-tx update id# dec))))))
+            (swap! apps-in-tx update id# pop))))))
 
 (defn top-level?
   "Returns true if the current thread is running non-nested transaction processing code."
   [{:com.fulcrologic.fulcro.application/keys [id]}]
-  (= (-> apps-in-tx deref (get id 0)) 0))
+  (= 0
+     (count (-> apps-in-tx deref (get id [])))))
 
 (defn swap-submission-queue! [app & args] (apply swap! (get-in app [::config ::submission-queue]) args))
 (defn reset-submission-queue! [app v] (reset! (get-in app [::config ::submission-queue]) v))
@@ -136,7 +143,13 @@
 (defn in-transaction?
   "Returns true if the current thread is in the midst of running the optimistic actions of a new transaction."
   [{:com.fulcrologic.fulcro.application/keys [id] :as app}]
-  (not= 0 (get @apps-in-tx id 0)))
+  (not= 0 (count (get @apps-in-tx id []))))
+
+(defn current-thread-running-tx? 
+  "Is the current thread running the TX queue?"
+  [{:com.fulcrologic.fulcro.application/keys [id] :as app}]
+  (contains? (set (get @apps-in-tx id []))
+             (current-thread-id)))
 
 (defn release-post-render-tasks!
   "Should be called after the application renders to ensure that transactions blocked until the next render become
@@ -390,6 +403,11 @@
      (when-not (in-transaction? app)
        (in-transaction app
          (run-queue! app options)))
+     #?(:clj (when-not (current-thread-running-tx? app) 
+               (loop []
+                 (when (in-transaction? app)
+                   (Thread/sleep 1)
+                   (recur)))))
      (::txn/id node))))
 
 (def abort!
