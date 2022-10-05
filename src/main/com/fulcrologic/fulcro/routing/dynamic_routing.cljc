@@ -722,7 +722,7 @@
                      {:keys [path-ordered?
                              txn
                              show-early?
-                             optimistic?]} (log/spy :info (meta target-ident))
+                             optimistic?]} (meta target-ident)
                      completing-action (or
                                          (some-> target-ident meta :fn)
                                          (and optimistic? (seq txn) #(comp/transact! app txn))
