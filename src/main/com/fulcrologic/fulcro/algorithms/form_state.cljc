@@ -133,12 +133,13 @@
   entity - A denormalized (tree) of data that matches the given component class.
   opts map
     - :destructive? - If true, overwrites any previous form-config with new re-computed values.
+    - :state-map - If present, will support dynamic queries on the `class`.
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   ([class entity]
    [rc/component-class? map? => map?]
    (add-form-config class entity {}))
-  ([class entity {:keys [destructive?] :as opts}]
+  ([class entity {:keys [destructive? state-map] :as opts}]
    [rc/component-class? map? map? => map?]
    (let [[fields subform-classmap subform-keys] (derive-form-info class opts)
          local-entity (if (or (not (contains? entity ::config)) destructive?)
