@@ -26,7 +26,7 @@ Finally, there is a plenty of great resources collected at the https://fulcro-co
 == Contributing to Fulcro
 
 For learning more about how to contribute to the Fulcro project, please refer
-https://github.com/fulcrologic/fulcro/blob/develop/CONTRIBUTING.md[CONTRIBUTING.md]
+https://github.com/fulcrologic/fulcro/blob/master/CONTRIBUTING.md[CONTRIBUTING.md]
 
 == Copyright and License
 
