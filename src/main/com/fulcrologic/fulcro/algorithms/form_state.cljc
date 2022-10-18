@@ -90,9 +90,9 @@
                  (map (fn [[k v]] {k (with-meta {} {:component v})}))
                  subforms)}))
 
-(defn- derive-form-info [class]
+(defn- derive-form-info [class {:keys [state-map]}]
   (let [query-nodes         (some-> class
-                              (rc/get-query)
+                              (rc/get-query state-map)
                               (eql/query->ast)
                               :children)
         query-nodes-by-key  (into {}
@@ -140,7 +140,7 @@
    (add-form-config class entity {}))
   ([class entity {:keys [destructive?] :as opts}]
    [rc/component-class? map? map? => map?]
-   (let [[fields subform-classmap subform-keys] (derive-form-info class)
+   (let [[fields subform-classmap subform-keys] (derive-form-info class opts)
          local-entity (if (or (not (contains? entity ::config)) destructive?)
                         (let [pristine-state (select-keys entity fields)
                               subform-ident  (fn [k entity] (some-> (get subform-classmap k) meta
@@ -198,7 +198,7 @@
    (add-form-config* state-map class entity-ident {}))
   ([state-map class entity-ident {:keys [destructive?] :as opts}]
    [map? rc/component-class? eql/ident? map? => map?]
-   (let [[fields subform-classmap subform-keys] (derive-form-info class)
+   (let [[fields subform-classmap subform-keys] (derive-form-info class {:state-map state-map})
          entity            (get-in state-map entity-ident)
          updated-state-map (if (or destructive? (not (contains? entity ::config)))
                              (let [pristine-state (select-keys entity (set/union subform-keys fields))
