@@ -356,6 +356,8 @@
                                                   (request-middleware {:headers {} :body edn :url url :method :post})
                                                   (catch :default e
                                                     (log/error e "Send aborted due to middleware failure. See https://book.fulcrologic.com/#err-httpr-send-abort")
+                                                    (when-let [errant-data (some-> e (.-data) (.-obj))]
+                                                      (log/error "Cannot encode" errant-data))
                                                     nil))]
                             (let [abort-id             (or
                                                          (-> send-node ::txn/options ::txn/abort-id)
