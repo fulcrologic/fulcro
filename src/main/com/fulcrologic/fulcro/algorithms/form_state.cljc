@@ -115,7 +115,7 @@
                {:offending-component class})))
     (when (and (not has-fields?) queries-for-config?)
       (throw (ex-info (str "Attempt to add form configuration to " (rc/component-name class) ", but it does not declare any fields!")
-              {:offending-component class})))
+               {:offending-component class})))
     (let [extra-fields (seq (set/difference all-fields fields subform-keys))]
       (when (and has-fields? extra-fields)
         (throw (ex-info (str "Attempt to add form configuration to " (rc/component-name class) ". It declares fields but not all of them are in the query!"
@@ -410,18 +410,18 @@
    (if (contains? idents-visited starting-entity-ident)
      state-map
      (let [entity         (get-in state-map starting-entity-ident)
-          config-ident   (get entity ::config)
-          config         (get-in state-map config-ident)
-          {:keys [::subforms]} config
-          [updated-entity updated-config] (xform entity config)
-          visited        ((fnil conj #{}) idents-visited starting-entity-ident)
-          subform-idents (immediate-subform-idents (get-in state-map starting-entity-ident) (-> subforms keys set))]
-      (if config-ident
-        (as-> state-map sm
-          (assoc-in sm starting-entity-ident updated-entity)
-          (assoc-in sm config-ident updated-config)
-          (reduce (fn [s ident] (update-forms s xform ident visited)) sm subform-idents))
-        state-map)))))
+           config-ident   (get entity ::config)
+           config         (get-in state-map config-ident)
+           {:keys [::subforms]} config
+           [updated-entity updated-config] (xform entity config)
+           visited        ((fnil conj #{}) idents-visited starting-entity-ident)
+           subform-idents (immediate-subform-idents (get-in state-map starting-entity-ident) (-> subforms keys set))]
+       (if config-ident
+         (as-> state-map sm
+           (assoc-in sm starting-entity-ident updated-entity)
+           (assoc-in sm config-ident updated-config)
+           (reduce (fn [s ident] (update-forms s xform ident visited)) sm subform-idents))
+         state-map)))))
 
 (defn- strip-tempid-idents
   "Remote tempid idents from to-one or to-many values"
@@ -529,7 +529,10 @@
    (let [{{pristine-state ::pristine-state} ::config} ui-entity-props
          current  (get ui-entity-props field)
          original (get pristine-state field)]
-     (not= current original)))
+     (if (and (eql/ident? original) (map? current))         ; normalized edge might be in tree-form in props
+       (let [[k id] original]
+         (not= id (get current k)))
+       (not= current original))))
   ([ui-entity-props]
    [map? => boolean?]
    (boolean (seq (dirty-fields ui-entity-props false)))))
