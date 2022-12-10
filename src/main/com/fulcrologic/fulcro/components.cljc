@@ -1554,3 +1554,23 @@
   "Walks the complete list of components in the component registry and looks for problems. Used during dev mode to
    detect common problems that can cause runtime misbehavior."
   rc/check-component-registry!)
+
+(def union-component?
+  "[c] [c state-map]
+
+   Returns true if c has a union query."
+  rc/union-component?)
+
+(def union-child-for-props
+  "[instance]
+   [cls-or-instance props]
+   [cls-or-instance props state-map]
+
+   Gets the child component class of the given Union component that should be used for the specific entity (props) supplied."
+  rc/union-child-for-props)
+
+(def query->component
+  "[query]
+
+   Return the component class that was used to generate a given query. e.g. `( = (query->component (get-query Component)) Component)`."
+  rc/query->component)

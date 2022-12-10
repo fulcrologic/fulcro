@@ -26,6 +26,17 @@
                         " failed due to: " e)
                {} e)))))
 
+(defn- hide-not-found [m]
+  (persistent!
+    (reduce (fn [acc [k v]]
+              (if (or
+                    (= :com.fulcrologic.fulcro.algorithms.merge/not-found k)
+                    (= :com.fulcrologic.fulcro.algorithms.merge/not-found v)
+                    (= :tempids k))
+                acc
+                (assoc! acc k v)))
+      (transient {}) m)))
+
 (defn- normalize* [query data tables union-seen transform]
   ;; `tables` is an (atom {}) where we collect normalized tables for all components encountered during processing, i.e.
   ;; we only return the "top-level keys" with their data/idents and all "tables" are inside this
@@ -38,11 +49,14 @@
       ;; union case
       (map? query)
       (let [class (-> query meta :component)
-            ident (get-ident class data)]
-        (if-not (nil? ident)
-          (vary-meta (normalize* (get query (first ident)) data tables union-seen transform)
-            assoc ::tag (first ident))                      ; FIXME: What is tag for?
-          (throw (ex-info "Union components must have an ident" {}))))
+            ident (get-ident class (hide-not-found data))]
+        (if (nil? ident)
+          (throw (ex-info "Union components must have an ident" {}))
+          (do
+            (when (nil? (second ident))
+              (log/warn "Union component returned nil for the ID of an ident during normalize."))
+            (vary-meta (normalize* (get query (first ident)) data tables union-seen transform)
+             assoc ::tag (first ident)))))
 
       (vector? data) data                                   ;; already normalized
 
@@ -68,7 +82,7 @@
                   (map? v)
                   (let [x (normalize* subquery v tables union-entry transform)]
                     (if-not (or (nil? class) (not (has-ident? class)))
-                      (let [i (get-ident class x)]
+                      (let [i (get-ident class (hide-not-found x))]
                         ;; Why don't we simply `update-in i ..` as we do below in normalize many?! Incidental?
                         (swap! tables update-in [(first i) (second i)] merge x) ; add x to the normalized client DB
                         (recur (next q) (assoc ret join-key i)))
@@ -78,7 +92,7 @@
                   (and (vector? v) (not (eql/ident? v)) (not (eql/ident? (first v))))
                   (let [xs (into [] (map #(normalize* subquery % tables union-entry transform)) v)]
                     (if-not (or (nil? class) (not (has-ident? class)))
-                      (let [is (into [] (map #(get-ident class %)) xs)]
+                      (let [is (into [] (map #(get-ident class (hide-not-found %))) xs)]
                         ;; Where does the code - and the difference between union and non-union handling - come from?
                         ;; A little lesson of history:
                         ;; There was no if and no union handling in https://github.com/omcljs/om/commit/bbd94ac17a4c208f928a84915a050b787b65cb6a

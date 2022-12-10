@@ -498,6 +498,11 @@
         (mapv link-element query)
         metadata))))
 
+(defn query->component
+  "Return the component class that was used to generate a given query. e.g. `( = (query->component (get-query Component)) Component)`."
+  [query]
+  (some-> query meta :component))
+
 (defn normalize-query
   "Given a state map and a query, returns a state map with the query normalized into the database. Query fragments
   that already appear in the state will not be added.  Part of dynamic query implementation."
@@ -856,6 +861,23 @@
   [state-map ident]
   (let [current-value (get-in state-map ident)]
     (and (map? current-value) (seq current-value))))
+
+(defn union-component?
+  "Returns true if the given component class or instance has a query that represents a union query."
+  ([c]
+   (union-component? c *query-state*))
+  ([c state-map]
+   (map? (get-query c state-map))))
+
+(defn union-child-for-props
+  "Gets the component class that should be used for the specific entity (props) supplied."
+  ([instance]
+   (union-child-for-props instance (props instance) *query-state*))
+  ([cls-or-instance props]
+   (union-child-for-props cls-or-instance props *query-state*))
+  ([cls-or-instance props state-map]
+   (let [[k _] (get-ident cls-or-instance props)]
+     (-> (get-query cls-or-instance state-map) (get k) meta :component))))
 
 (comment
   (def Person (entity->component

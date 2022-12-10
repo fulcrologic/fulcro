@@ -10,8 +10,8 @@
     "karma-cljs-test": "0.1.0",
     "react": "17.0.2",
     "react-dom": "17.0.2",
-    "transit-js": "^0.8.867",
-    "shadow-cljs": "2.14.5"
+    "shadow-cljs": "2.14.5",
+    "transit-js": "^0.8.867"
   },
   "repository": {
     "type": "git",
@@ -21,6 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "highlight.js": "^10.7.2",
-    "react-grid-layout": "^1.2.4"
+    "react-grid-layout": "^1.2.4",
+    "yarn": "^1.22.19"
   }
 }

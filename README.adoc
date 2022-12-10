@@ -16,6 +16,8 @@ Clojure and Clojurescript.
 
 == Trying it Out
 
+NOTE: Want to use React 18+? See the https://book.fulcrologic.com/#ReactCompatibility[section in the Developer Guide on React Compatibility]
+
 The documentation for this version is in the http://book.fulcrologic.com/[Developer's Guide]. If you're using
 Fulcro 2, you can still read the http://book.fulcrologic.com/fulcro2[prior version of the guide].
 
