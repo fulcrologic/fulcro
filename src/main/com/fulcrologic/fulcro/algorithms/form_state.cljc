@@ -147,11 +147,13 @@
      ;; Union
      (let [query        (rc/get-query class state-map)
            [k _ :as ident] (rc/get-ident class entity)
-           target-child (rc/query->component (get query k))]
+           query        (get query k)
+           target-child (some-> query (rc/query->component))]
        (if target-child
          (add-form-config target-child entity opts)
          (do
-           (log/warn "Attempt to add form config to union, but could not determine which branch entity belonged to")
+           (log/warn "add-form-config cannot resolve a child query for ident" ident "in the union query" query "for component" (comp/component-name class)
+             "using the entity provided: " entity)
            entity)))
      ;; Normal
      (let [[fields subform-classmap subform-keys] (derive-form-info class opts)
@@ -216,12 +218,14 @@
      (let [query        (rc/get-query class state-map)
            entity       (get-in state-map entity-ident)
            [k _ :as ident] (rc/get-ident class entity)
-           target-child (:component (meta (get query k)))]
+           query        (get query k)
+           target-child (comp/query->component query)]
        (if target-child
          (add-form-config* state-map target-child ident opts)
          (do
-           (log/warn "Attempt to add form config to union, but could not determine which branch entity belonged to")
-           entity)))
+           (log/warn "add-form-config* cannot resolve a child query for ident" ident "in the union query" query "for component" (comp/component-name class)
+             "using the entity at that ident: " entity)
+           state-map)))
      ;; Normal
      (let [[fields subform-classmap subform-keys] (derive-form-info class {:state-map state-map})
            entity            (get-in state-map entity-ident)
