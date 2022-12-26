@@ -135,13 +135,14 @@
   entity - A denormalized (tree) of data that matches the given component class.
   opts map
     - :destructive? - If true, overwrites any previous form-config with new re-computed values.
+    - :new? - If true (default true when the entity has a tempid, otherwise false), do not copy any data to the pristine state.
     - :state-map - If present, will support dynamic queries on the `class`.
 
   Returns the (possibly updated) denormalized entity, ready to merge."
   ([class entity]
    [rc/component-class? map? => map?]
    (add-form-config class entity {}))
-  ([class entity {:keys [destructive? state-map] :as opts}]
+  ([class entity {:keys [new? destructive? state-map] :as opts}]
    [rc/component-class? map? map? => map?]
    (if (comp/union-component? class state-map)
      ;; Union
@@ -159,6 +160,8 @@
      (let [[fields subform-classmap subform-keys] (derive-form-info class opts)
            local-entity (if (or (not (contains? entity ::config)) destructive?)
                           (let [pristine-state (select-keys entity fields)
+                                ident          (rc/get-ident class entity)
+                                new?           (if (some? new?) new? (tempid/tempid? (second ident)))
                                 subform-ident  (fn [k entity] (some-> (get subform-classmap k) meta
                                                                 :component (rc/get-ident entity)))
                                 subform-keys   (-> subform-classmap keys set)
@@ -173,7 +176,7 @@
                                                        :else refs)))
                                                  {}
                                                  subform-keys)
-                                pristine-state (merge pristine-state subform-refs)
+                                pristine-state (if new? {} (merge pristine-state subform-refs))
                                 config         {::id             (rc/get-ident class entity)
                                                 ::fields         fields
                                                 ::pristine-state pristine-state
@@ -206,12 +209,13 @@
   entity-ident - The ident of the normalized entity of the given class that you wish to initialize.
   opts map
     - :destructive? - If true, overwrites any previous form-config with new re-computed values.
+    - :new? - Default is true if ident uses a tempid. When new, no pristine state is stored in the form config.
 
   Returns an updated state map with normalized form configuration in place for the entity."
   ([state-map class entity-ident]
    [map? rc/component-class? eql/ident? => map?]
    (add-form-config* state-map class entity-ident {}))
-  ([state-map class entity-ident {:keys [destructive?] :as opts}]
+  ([state-map class entity-ident {:keys [destructive? new?] :as opts}]
    [map? rc/component-class? eql/ident? map? => map?]
    (if (comp/union-component? class state-map)
      ;; Union
@@ -228,9 +232,10 @@
            state-map)))
      ;; Normal
      (let [[fields subform-classmap subform-keys] (derive-form-info class {:state-map state-map})
+           new?              (if (some? new?) new? (tempid/tempid? (second entity-ident)))
            entity            (get-in state-map entity-ident)
            updated-state-map (if (or destructive? (not (contains? entity ::config)))
-                               (let [pristine-state (select-keys entity (set/union subform-keys fields))
+                               (let [pristine-state (if new? {} (select-keys entity (set/union subform-keys fields)))
                                      config         {::id             entity-ident
                                                      ::fields         fields
                                                      ::pristine-state pristine-state
