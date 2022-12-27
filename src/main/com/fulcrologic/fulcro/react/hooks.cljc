@@ -285,9 +285,10 @@
     :as   options}]
   #?(:cljs
      (let [prior-props-ref (use-ref nil)
-           get-props       (fn [ident] (rc/get-traced-props (rapp/current-state app) component
-                                         ident
-                                         (.-current prior-props-ref)))
+           get-props       (fn [ident] (binding [fdn/*denormalize-time* (rapp/basis-t app)]
+                                         (rc/get-traced-props (rapp/current-state app) component
+                                           ident
+                                           (.-current prior-props-ref))))
            [current-props
             set-props!] (use-state
                           (fn initialize-component-state []
