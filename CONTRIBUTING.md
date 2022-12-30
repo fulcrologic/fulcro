@@ -12,6 +12,8 @@ You can support Fulcro's development by considering a donation via the
 
 ## Code contribution
 
+NOTE: All repositories in active development now use `main` as their main branch.
+
 As a living open-source project there's always a lot which could be done. If you are just starting out with the code-base then 
 consider making good use of the online [video-series](https://www.youtube.com/user/tonythekay/videos) where you might find videos 
 and tutorials in addition to the information regarding the development setup and various optimizations.
