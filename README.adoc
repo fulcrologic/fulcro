@@ -9,7 +9,7 @@
 image:docs/logo.png[]
 
 image:https://img.shields.io/clojars/v/com.fulcrologic/fulcro.svg[link=https://clojars.org/com.fulcrologic/fulcro]
-image:https://circleci.com/gh/fulcrologic/fulcro/tree/master.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/master"]
+image:https://circleci.com/gh/fulcrologic/fulcro/tree/main.svg?style=svg["CircleCI", link="https://circleci.com/gh/fulcrologic/fulcro/tree/main"]
 
 Fulcro is a library for building data-driven full-stack applications for the web, native, and desktop (via electron). It uses React and is written in
 Clojure and Clojurescript.
@@ -28,7 +28,7 @@ Finally, there is a plenty of great resources collected at the https://fulcro-co
 == Contributing to Fulcro
 
 For learning more about how to contribute to the Fulcro project, please refer
-https://github.com/fulcrologic/fulcro/blob/master/CONTRIBUTING.md[CONTRIBUTING.md]
+https://github.com/fulcrologic/fulcro/blob/main/CONTRIBUTING.md[CONTRIBUTING.md]
 
 == Copyright and License
 
