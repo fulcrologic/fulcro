@@ -25,6 +25,7 @@
   (-> mock-app
     (assoc ::app/state-atom state-atom)
     (txn/build-env (txn/tx-node tx) extra-env)
+
     (assoc :ast (eql/query->ast1 tx))))
 
 (defsc AClass [_ _] {:query ['*] :ident (fn [] [:A 1])})

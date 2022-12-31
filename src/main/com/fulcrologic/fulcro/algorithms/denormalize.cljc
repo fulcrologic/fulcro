@@ -5,6 +5,8 @@
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
+(defn current-time [] (inst-ms #?(:cljs (js/Date.) :clj (java.util.Date.))))
+
 (def ^:dynamic *denormalize-time* 0)
 (def ^:dynamic *root-keys-and-idents* nil)
 
@@ -108,7 +110,7 @@
       stop-recursion? (do
                         (when (and #?(:clj true :cljs goog.DEBUG) (not depth-based?))
                           (log/warn "Loop detected in data graph - we have already seen" entity "under" key
-                                    ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
+                            ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
                         n)
       to-many? (assoc! n key
                  (into []
@@ -124,7 +126,7 @@
                                (do
                                  (when #?(:clj true :cljs goog.DEBUG)
                                    (log/warn "Loop detected in data graph - we have already seen" e "inside" key
-                                             ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
+                                     ". Recursive query stopped. See https://book.fulcrologic.com/#warn-denormalize-loop-detected"))
                                  nil)
                                (denormalize target-node e state-map idents-seen)))))
                    join-entity))
@@ -242,9 +244,10 @@
   ```
   "
   [query starting-entity state-map]
-  (let [ast (eql/query->ast query)]
-    (some-> (denormalize ast starting-entity state-map {})
-      (with-time *denormalize-time*))))
+  (binding [*denormalize-time* (current-time)]
+    (let [ast (eql/query->ast query)]
+      (some-> (denormalize ast starting-entity state-map {})
+        (with-time *denormalize-time*)))))
 
 (defn denormalization-time
   "Gets the time at which the given props were processed by `db->tree`, if known."

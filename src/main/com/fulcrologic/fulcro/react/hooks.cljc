@@ -37,6 +37,8 @@
 (defn use-state
   "A simple wrapper around React/useState. Returns a cljs vector for easy destructuring.
 
+  `initial-value` can be a function.
+
   React docs: https://reactjs.org/docs/hooks-reference.html#usestate"
   [initial-value]
   #?(:cljs (into-array (react/useState initial-value))))
@@ -69,7 +71,7 @@
         `(useEffect ~f ~dependencies)))))
 
 (defn use-context
-  "A simple wrapper around React/useContext."
+  "A simple wrapper around the RAW React/useContext. You should probably prefer the context support from c.f.f.r.context."
   [ctx]
   #?(:cljs (react/useContext ctx)))
 
@@ -94,11 +96,15 @@
 (defn use-memo
   "A simple wrapper around React/useMemo. Converts args to js array before send.
 
+   NOTE: React does NOT guarantee it won't re-create the value during the lifetime of the
+   component, so it is sorta crappy in terms of actual memoization. Purely for optimizations, not
+   for guarantees.
+
   React docs: https://reactjs.org/docs/hooks-reference.html#usememo"
-  ([cb]
-   #?(:cljs (react/useMemo cb)))
-  ([cb args]
-   #?(:cljs (react/useMemo cb (to-array args)))))
+  ([value-factory-fn]
+   #?(:cljs (react/useMemo value-factory-fn)))
+  ([value-factory-fn dependencies]
+   #?(:cljs (react/useMemo value-factory-fn (to-array dependencies)))))
 
 (defn use-ref
   "A simple wrapper around React/useRef.
@@ -131,6 +137,44 @@
    #?(:cljs (react/useDebugValue value)))
   ([value formatter]
    #?(:cljs (react/useDebugValue value formatter))))
+
+(defn use-deferred-value
+  "A simple wrapper around React/useDeferredValue.
+
+  React docs: https://reactjs.org/docs/hooks-reference.html#usedeferredvalue"
+  [value]
+  #?(:cljs (react/useDeferredValue value)))
+
+(defn use-transition
+  "A simple wrapper around React/useTransition.
+
+  React docs: https://reactjs.org/docs/hooks-reference.html#usetransition"
+  [value]
+  #?(:cljs (into-array (react/useTransition value))))
+
+(defn use-id
+  "A simple wrapper around React/useId. See also use-generated-id, which is a Fulcro-specific function for generating
+   random uuids.
+
+  React docs: https://reactjs.org/docs/hooks-reference.html#useid"
+  []
+  #?(:cljs (react/useId)))
+
+(defn use-sync-external-store
+  "A simple wrapper around React/useSyncExternalStore.
+
+  React docs: https://reactjs.org/docs/hooks-reference.html#usesyncexternalstore"
+  ([subscribe get-snapshot get-server-ss]
+   #?(:cljs (react/useSyncExternalStore subscribe get-snapshot get-server-ss)))
+  ([subscribe get-snapshot]
+   #?(:cljs (react/useSyncExternalStore subscribe get-snapshot))))
+
+(defn use-insertion-effect
+  "A simple wrapper around React/useInsertionEffect.
+
+  React docs: https://reactjs.org/docs/hooks-reference.html#useinsertioneffect"
+  [didUpdate]
+  #?(:cljs (react/useInsertionEffect didUpdate)))
 
 #?(:clj
    (defmacro use-lifecycle
@@ -209,7 +253,7 @@
                                                          (use-lifecycle
                                                            (fn [] (mrr/register-root! this))
                                                            (fn [] (mrr/deregister-root! this)))
-                                                         (comp/with-parent-context parent-this
+                                                         (binding [comp/*parent* parent-this]
                                                            (child-factory (get fulcro-props join-key initial-state) @pass-through-props)))
                                                        {:query         (fn [_] [{join-key (comp/get-query child-class)}])
                                                         :initial-state (fn [_] {join-key initial-state})
@@ -285,10 +329,10 @@
     :as   options}]
   #?(:cljs
      (let [prior-props-ref (use-ref nil)
-           get-props       (fn [ident] (binding [fdn/*denormalize-time* (rapp/basis-t app)]
-                                         (rc/get-traced-props (rapp/current-state app) component
-                                           ident
-                                           (.-current prior-props-ref))))
+           get-props       (fn [ident]
+                             (rc/get-traced-props (rapp/current-state app) component
+                               ident
+                               (.-current prior-props-ref)))
            [current-props
             set-props!] (use-state
                           (fn initialize-component-state []

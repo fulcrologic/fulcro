@@ -11,7 +11,7 @@
   (comp/fragment (dom/p "a") (dom/p "b")))
 (def ui-sample-fragment (comp/factory SampleFragment))
 
-(specification "Server-side Rendering"
+(specification "Server-side Rendering" :focus
   (assertions
     "Simple tag rendering"
     (render-to-str (div {} "Hello"))

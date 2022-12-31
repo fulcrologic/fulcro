@@ -63,7 +63,7 @@
         {:label       "My Input"
          :value       value
          :forward-ref input-ref
-         :onChange    (fn [v] (m/set-string!! this :value (evt/target-value v)))}))))
+         :onChange    (fn [v] (m/set-string!! this :value :value (evt/target-value v)))}))))
 
 (ws/defcard ref-demo-card
   (ct.fulcro/fulcro-card

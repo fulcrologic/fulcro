@@ -211,7 +211,9 @@
         [:point 123] {:bar "baz", :extra "data"}}))
 
 (specification "db->tree - time"
-  (binding [denorm/*denormalize-time* 42]
+  (when-mocking
+    (denorm/current-time) => 42
+
     (assertions
       (expand-meta (denorm/db->tree [:foo] {:foo "bar"} {}))
       => {::source {:foo "bar"}

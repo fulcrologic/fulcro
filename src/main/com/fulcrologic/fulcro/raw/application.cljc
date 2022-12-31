@@ -188,7 +188,8 @@
 (def ^:deprecated default-tx! txn/default-tx!)
 
 (defn fulcro-app
-  "Create a new Fulcro application. See com.fulcrologic.fulcro.application/fulcro-app for the React-based initializer.
+  "Create a new Fulcro application. See com.fulcrologic.fulcro.application/fulcro-app for the React-based initializer,
+  which describes all supported options.
 
   This version creates an app that is not attached to React, and has no default root or optimized render. The
   map of initial options is the same *except* that react-centric options are obviously ignore, and also:
@@ -213,6 +214,7 @@
   "
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
+            batching-enabled
             global-eql-transform
             global-error-action
             default-result-action!
@@ -243,6 +245,7 @@
      {:com.fulcrologic.fulcro.application/id           (tempid/uuid)
       :com.fulcrologic.fulcro.application/state-atom   (atom (or initial-db {}))
       :com.fulcrologic.fulcro.application/config       {:load-marker-default     load-marker-default
+                                                        :batching-enabled        (or batching-enabled {})
                                                         :client-did-mount        (or client-did-mount (:started-callback options))
                                                         :client-will-mount       client-will-mount
                                                         :external-config         external-config
@@ -333,7 +336,8 @@
   [app-ish abort-id]
   (let [app (comp/any->app app-ish)]
     (when-let [abort! (ah/app-algorithm app :abort!)]
-      (abort! app abort-id))))
+      (abort! app abort-id))
+    nil))
 
 (defn add-render-listener!
   "Add (or replace) a render listener named `nm`. `listener` is a `(fn [app options] )` that will be called

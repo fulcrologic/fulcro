@@ -124,7 +124,6 @@
   (when marker
     (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
           render! (ah/app-algorithm app :schedule-render!)]
-      (log/debug "Setting load marker")
       (swap! state-atom assoc-in [marker-table marker] {:status status})
       ;; FIXME: Test refresh for this without the force root...it should work without it if ppl properly query for the marker table.
       (render! app {:force-root? true}))))
@@ -134,7 +133,6 @@
   [app marker]
   (when marker
     (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app]
-      (log/debug "Removing load marker")
       (swap! state-atom update marker-table dissoc marker))))
 
 (defn finish-load!
@@ -165,10 +163,8 @@
                             (cond-> (merge/merge* s query body)
                               target (targeting/process-target source-key target))))
         (when (symbol? post-mutation)
-          (log/debug "Doing post mutation " post-mutation)
           (rc/transact! app `[(~post-mutation ~(or post-mutation-params {}))]))
         (when (fn? post-action)
-          (log/debug "Doing post action")
           (post-action env))))))
 
 (defn load-failed!
@@ -186,12 +182,10 @@
   - Trigger any fallback for the load. (params are the env described above)
   "
   [{:keys [app] :as env} {:keys [error-action marker fallback] :as params}]
-  (log/debug "Running load failure logic.")
   (set-load-marker! app marker :failed)
   (let [env (assoc env :load-params params)]
     (if (fn? error-action)
       (do
-        (log/debug "Skipping default load error action")
         (error-action env))
       (do
         (when-let [global-error-action (ah/app-algorithm app :global-error-action)]
@@ -203,7 +197,6 @@
   (let [params     (get ast :params)
         {:keys [remote query marker]} params
         remote-key (or remote :remote)]
-    (log/debug "Loading " remote " query:" query)
     (cond-> {:action        (fn [{:keys [app]}] (set-load-marker! app marker :loading))
              :result-action (fn [{:keys [result app] :as env}]
                               (let [remote-error? (ah/app-algorithm app :remote-error?)]

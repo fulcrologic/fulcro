@@ -16,9 +16,9 @@
 (defsc BodyContainer
   "A very lightweight container to offset errors so that we can use `error-boundary` to actually catch errors
    from subsections of a UI."
-  [this {:keys [parent render]}]
+  [this {:keys [render]}]
   {:use-hooks? true}
-  (comp/with-parent-context parent
+  (comp/with-parent-context this
     (render)))
 
 (def ui-body-container (comp/factory BodyContainer))
@@ -38,8 +38,7 @@
 
 #?(:clj
    (defn error-boundary* [body]
-     `(ui-error-boundary {:parent comp/*parent*
-                          :render #(comp/fragment ~@body)})))
+     `(ui-error-boundary {:render #(comp/fragment ~@body)})))
 
 #?(:clj
    (defn error-boundary-clj [body]

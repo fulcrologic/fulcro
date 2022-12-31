@@ -1,18 +1,14 @@
 (ns com.fulcrologic.fulcro.routing.dynamic-routing-test
   (:require
-    [clojure.zip :as zip]
-    [clojure.pprint :refer [pprint]]
-    [edn-query-language.core :as eql]
+    [clojure.test :refer [deftest]]
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
+    [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as sync]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
-    [com.fulcrologic.fulcro.ui-state-machines :as uism]
-    [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as sync]
-    [clojure.test :refer [deftest]]
-    [taoensso.timbre :as log]
-    [fulcro-spec.core :refer [assertions specification component]]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]))
+    [edn-query-language.core :as eql]
+    [fulcro-spec.core :refer [assertions component specification]]))
 
 (declare User Settings Root2 RootRouter2 SettingsPaneRouter Pane1 Pane2 =>)
 

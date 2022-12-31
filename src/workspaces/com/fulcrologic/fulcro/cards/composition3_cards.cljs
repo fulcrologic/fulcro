@@ -60,12 +60,14 @@
 (pc/defmutation server-update-user [_ {:user/keys [id name] :as params}]
   {::pc/sym    `update-user
    ::pc/output [:user/id]}
+  (log/info "Updated user on server to " name)
   (swap! pretend-server-database assoc-in [:user/id id :user/name] name)
   {:user/id id})
 
 (pc/defmutation server-update-settings [_ {:settings/keys [id marketing?] :as params}]
   {::pc/sym    `update-settings
    ::pc/output [:settings/id]}
+  (log/info "Updated settings on server to " marketing?)
   (swap! pretend-server-database assoc-in [:settings/id id :settings/marketing?] marketing?)
   {:settings/id id})
 
@@ -93,8 +95,7 @@
 (defonce raw-app
   (let [process-eql (fn [eql] (async/go
                                 (pathom-parser {} eql)))
-        app         (app/fulcro-app {:remotes             {:remote (mock-http-server {:parser process-eql})}
-                                     :batch-notifications (fn [render!] (react-dom/unstable_batchedUpdates render!))})]
+        app         (app/fulcro-app {:remotes {:remote (mock-http-server {:parser process-eql})}})]
     (inspect/app-started! app)
     app))
 

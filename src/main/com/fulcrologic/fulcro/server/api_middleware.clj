@@ -63,11 +63,31 @@
   "Given a parser and a query: Runs the parser on the query,
    and generates a standard Fulcro-compatible response, and augment the raw Ring response with
    any augment handlers that were indicated on top-level mutations/queries via
-   `augment-response`."
+   `augment-response`.
+
+   Query can be a normal EQL vector, or a single-request grouping of queries, which would be a map
+   containing the single key `{:queries [EQL-query EQL-query ...]}`.
+
+   In the former case the response `:body` will be a single map. In the latter case the response will be a vector of
+   result maps.
+
+   NOTE: internal server errors (uncaught exceptions) in a batched query will cause the entire batch to fail, even
+   though some of the requests could have succeeded if sent alone. If you want to use request batching then your
+   query processor should *never* allow exceptions to propagate, and your response maps should instead include
+   the problems.
+   "
   [query query-processor]
   (generate-response
     (let [parse-result (try
-                         (query-processor query)
+                         (cond
+                           (vector? query) (query-processor query)
+                           (and (map? query) (contains? query :queries)) (let [{:keys [queries]} query]
+                                                                           (reduce
+                                                                             (fn [result query]
+                                                                               (conj result (query-processor query)))
+                                                                             []
+                                                                             queries))
+                           :else (throw (ex-info "Invalid query from client" {:query query})))
                          (catch Exception e
                            (log/error e "Parser threw an exception on" query " See https://book.fulcrologic.com/#err-parser-errored-on-query")
                            e))]

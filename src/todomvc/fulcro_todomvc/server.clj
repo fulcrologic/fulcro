@@ -1,19 +1,17 @@
 (ns fulcro-todomvc.server
   (:require
-    [fulcro-todomvc.custom-types :as custom-types]
     [clojure.core.async :as async]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [clojure.tools.namespace.repl :as tools-ns]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.server.api-middleware :as fmw :refer [not-found-handler wrap-api]]
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
+    [fulcro-todomvc.custom-types :as custom-types]
     [immutant.web :as web]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.not-modified :refer [wrap-not-modified]]
     [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :refer [response file-response resource-response]]
-    [taoensso.timbre :as log]
-    [clojure.tools.namespace.repl :as tools-ns]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
+    [taoensso.timbre :as log]))
 
 (def item-db (atom {1 {:item/id       1
                        :item/label    "Item 1"

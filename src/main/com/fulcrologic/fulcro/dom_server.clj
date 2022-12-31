@@ -9,12 +9,12 @@
   (:refer-clojure :exclude [map meta time mask select use set symbol filter])
   (:require
     [com.fulcrologic.fulcro.dom-common :as cdom]
-    [com.fulcrologic.fulcro.components :refer [component-instance?]]
+    [com.fulcrologic.fulcro.raw.components :as rc :refer [component-instance?]]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [clojure.spec.alpha :as s]
     [clojure.core.reducers :as r]
-    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.rendering.context :as context]
     [taoensso.encore :as encore]))
 
 (definterface IReactDOMElement
@@ -215,7 +215,7 @@
 (defn- render-component [c]
   (if (or (nil? c) (element? c))
     c
-    (encore/when-let [render (comp/component-options c :render)
+    (encore/when-let [render (rc/component-options c :render)
                       output (render c)]
       (if (vector? output)
         (mapv render-component output)
@@ -387,7 +387,7 @@
 
 (defn- is-element? [e]
   (or
-    (comp/component-instance? e)
+    (rc/component-instance? e)
     (instance? com.fulcrologic.fulcro.dom_server.IReactDOMElement e)))
 
 (defn- render-to-str* ^StringBuilder [x]
@@ -448,10 +448,11 @@
 (defn assign-react-checksum [^StringBuilder sb]
   (.insert sb (.indexOf sb ">") (str " data-react-checksum=\"" (adler32 sb) "\"")))
 
-(defn render-to-str ^String [x]
-  (let [sb (render-to-str* x)]
-    (assign-react-checksum sb)
-    (.toString sb)))
+(defmacro render-to-str [x]
+  `(context/ui-provider {}
+     (let [sb# (#'render-to-str* ~x)]
+       (assign-react-checksum sb#)
+       (.toString sb#))))
 
 (defn node
   "Returns the dom node associated with a component's React ref.

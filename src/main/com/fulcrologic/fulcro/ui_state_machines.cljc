@@ -1143,10 +1143,10 @@
   "Get the name of the active state for an active state machine using a component. If you use this to represent UI changes then you should
   include the ident of your state machine instance in the query of the component that uses it so that `shouldComponentUpdate` will
   see props change:
-  
+
   ```
   (defsc Component [this props]
-    {:query (fn [] [ [::uism/asm-id ::my-machine] ...]) 
+    {:query (fn [] [ [::uism/asm-id ::my-machine] ...])
      ...}
     ...
     (let [s (get-active-state this ::my-machine)] ...))

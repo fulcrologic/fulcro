@@ -5,13 +5,13 @@
 
  :deps    {edn-query-language/eql     {:mvn/version "1.0.2"}
            com.taoensso/timbre        {:mvn/version "4.10.0"}
-           com.taoensso/encore        {:mvn/version "2.120.0"}
+           com.taoensso/encore        {:mvn/version "3.45.0"}
 
            ;; Used for Electron app inspect comms.
            com.taoensso/sente         {:mvn/version "1.16.2"}
 
-           com.cognitect/transit-clj  {:mvn/version "1.0.324"}
-           com.cognitect/transit-cljs {:mvn/version "0.8.264"}
+           com.cognitect/transit-clj  {:mvn/version "1.0.329"}
+           com.cognitect/transit-cljs {:mvn/version "0.8.280"}
            com.fulcrologic/guardrails {:mvn/version "1.1.11"}
 
            org.clojure/clojure        {:mvn/version "1.10.3" :scope "provided"}

@@ -8,6 +8,7 @@
   (:require
     [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.components :as comp]
     [clojure.set :as set]
     [edn-query-language.core :as eql]
@@ -37,7 +38,8 @@
              query          (comp/get-query c state-map)
              q              [{ident query}]
              prior-computed (or (comp/get-computed c) {})
-             data-tree      (when query (fdn/db->tree q state-map state-map)) ; denormalize time is set by app render
+             data-tree      (when query
+                              (fdn/db->tree q state-map state-map))
              new-props      (comp/computed (get data-tree ident) prior-computed)]
          (when-not query (log/error "Query was empty. Refresh failed for " (type c) "See https://book.fulcrologic.com/#err-id-opt-render-empty-query"))
          (comp/tunnel-props! c new-props))
@@ -130,7 +132,10 @@
           (render-component! app (comp/get-ident c) c))))))
 
 (defn render!
-  "The top-level call for using this optimized render in your application.
+  "DEPRECATED: Careful use of hooks/use-component will give a much more optimized experience, and async rendering in
+   React 18 may break with this renderer. Use at your own risk with React 18+.
+
+  The top-level call for using this optimized render in your application.
 
   If `:force-root? true` is passed in options, then it just forces a keyframe root render; otherwise
   it tries to minimize the work done for screen refresh to just the queries/refreshes needed by the

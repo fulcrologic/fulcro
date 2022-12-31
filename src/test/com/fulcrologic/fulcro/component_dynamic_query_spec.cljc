@@ -1,6 +1,7 @@
 (ns com.fulcrologic.fulcro.component-dynamic-query-spec
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.rendering.context :as context]
     [taoensso.timbre :as log]
     [fulcro-spec.core :refer [specification behavior component assertions when-mocking]]
     #?(:cljs [goog.object :as gobj])
@@ -28,6 +29,7 @@
   (behavior "Adds an internal query id to the props passed by the factory"
     #?(:cljs
        (when-mocking
+         (context/in-context m f) => (f {:app {}})
          (comp/query-id c q) => :ID
          (comp/create-element class props children) => (do
                                                          (assertions

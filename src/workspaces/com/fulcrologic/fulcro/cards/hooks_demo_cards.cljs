@@ -58,7 +58,7 @@
     (dom/input {:value    label
                 :onChange (fn [evt] (m/set-string! this :child/label :event evt))})))
 
-(def ui-some-hook-child (comp/factory SomeHookChild {:keyfn :child/id}))
+(def ui-some-hook-child (comp/factory (comp/memo SomeHookChild) {:keyfn :child/id}))
 
 ;; Without defsc
 #_(defonce Hook

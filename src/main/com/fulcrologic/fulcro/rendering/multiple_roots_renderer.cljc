@@ -59,6 +59,8 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.rendering.context :as context]
     [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     [edn-query-language.core :as eql]
@@ -68,7 +70,9 @@
          [goog.object :as gobj]])))
 
 (defn register-root!
-  "Register a mounted react component as a new root that should be managed. The
+  "DEPRECATED: Floating roots can now be created with React hooks and hooks/use-component or hooks/use-fulcro.
+
+  Register a mounted react component as a new root that should be managed. The
   options map can contain:
 
   - `:initialize?`: Should the initial state be pushed into the app state (if not already present)? Defaults
@@ -76,7 +80,7 @@
   ([react-instance]
    (register-root! react-instance {:initialize? true}))
   ([react-instance {:keys [app initialize?]}]
-   (let [app (or app (comp/any->app react-instance) comp/*app*)]
+   (let [app (or app (comp/any->app react-instance))]
      (if (map? app)
        (let [class             (comp/react-type react-instance)
              k                 (comp/class->registry-key class)
@@ -97,7 +101,7 @@
   ([react-instance]
    (deregister-root! react-instance {}))
   ([react-instance {:keys [app] :as options}]
-   (let [app (or app (comp/any->app react-instance) comp/*app*)]
+   (let [app (or app (comp/any->app react-instance))]
      (if (map? app)
        (let [class (comp/react-type react-instance)
              k     (comp/class->registry-key class)]
@@ -131,17 +135,19 @@
       (render-roots! app options))))
 
 (defn render!
-  "The top-level call for using this optimized render in your application.
+  "DEPRECATED: Floating roots can now be created with React hooks and hooks/use-component or hooks/use-fulcro.
 
-  If `:force-root? true` is passed in options, then it just forces a keyframe root render.
+   The top-level call for using this optimized render in your application.
 
-  This renderer always does a keyframe render *unless* an `:only-refresh` option is passed to the stack
-  (usually as an option on `(transact! this [(f)] {:only-refresh [...idents...]})`. In that case the renderer
-  will ignore *all* data diffing and will target refresh only to the on-screen components that have the listed
-  ident(s). This allows you to get component-local state refresh rates on transactions that are responding to
-  events that should really only affect a known set of components (like the input field).
+   If `:force-root? true` is passed in options, then it just forces a keyframe root render.
 
-  This option does *not* currently support using query keywords in the refresh set. Only idents."
+   This renderer always does a keyframe render *unless* an `:only-refresh` option is passed to the stack
+   (usually as an option on `(transact! this [(f)] {:only-refresh [...idents...]})`. In that case the renderer
+   will ignore *all* data diffing and will target refresh only to the on-screen components that have the listed
+   ident(s). This allows you to get component-local state refresh rates on transactions that are responding to
+   events that should really only affect a known set of components (like the input field).
+
+   This option does *not* currently support using query keywords in the refresh set. Only idents."
   ([app]
    (render! app {}))
   ([app {:keys [force-root? root-props-changed?] :as options}]
@@ -162,14 +168,7 @@
      the synchronous fulcro render (e.g. you pass a floating root class to a React library).
      "
      [fulcro-app & body]
-     (if-not (:ns &env)
-       `(do ~@body)
-       `(let [app# (or comp/*app* ~fulcro-app)
-              d#   (or comp/*depth* 0)]
-          (binding [comp/*app*    app#
-                    comp/*shared* (comp/shared app#)
-                    comp/*depth*  d#]
-            ~@body)))))
+     `(context/ui-provider ~fulcro-app (do ~@body))))
 
 (defn floating-root-react-class
   "Generate a plain React class that can render a Fulcro UIRoot. NOTE: The UIRoot must register/deregister itself
@@ -197,12 +196,10 @@
             :render                (fn []
                                      (this-as ^js this
                                        (let [js-props (.-props this)]
-                                         (with-app-context fulcro-app
-                                           (binding [fdn/*denormalize-time* (-> fulcro-app :com.fulcrologic.fulcro.application/runtime-atom deref ::basis-t)]
-                                             (let [query     (comp/get-query UIRoot)
-                                                   state-map (some-> fulcro-app :com.fulcrologic.fulcro.application/state-atom deref)
-                                                   props     (fdn/db->tree query state-map state-map)]
-                                               (ui-root props {:js-props js-props})))))))})))
+                                         (let [query     (comp/get-query UIRoot)
+                                               state-map (some-> fulcro-app :com.fulcrologic.fulcro.application/state-atom deref)
+                                               props     (fdn/db->tree query state-map state-map)]
+                                           (context/ui-provider fulcro-app (ui-root props {:js-props js-props}))))))})))
     cls))
 
 (defn floating-root-factory
@@ -225,11 +222,13 @@
    (let [constructor     (fn [])
          ui-factory      (comp/computed-factory UIClass)
          render          (fn [this]
-                           (binding [fdn/*denormalize-time* (-> comp/*app* :com.fulcrologic.fulcro.application/runtime-atom deref ::basis-t)]
-                             (let [state-map (some-> comp/*app* :com.fulcrologic.fulcro.application/state-atom deref)
-                                   query     (comp/get-query UIClass state-map)
-                                   props     (fdn/db->tree query state-map state-map)]
-                               (ui-factory (or props {}) (comp/props this)))))
+                           (context/in-context
+                             (fn [{:keys [app]}]
+                               (binding [comp/*parent* this]
+                                 (let [state-map (some-> app :com.fulcrologic.fulcro.application/state-atom deref)
+                                       query     (comp/get-query UIClass state-map)
+                                       props     (fdn/db->tree query state-map state-map)]
+                                   (ui-factory (or props {}) (comp/props this)))))))
          wrapper-class   (comp/configure-component! constructor ::wrapper
                            {:shouldComponentUpdate (fn [_ _ _] false)
                             :render                render})

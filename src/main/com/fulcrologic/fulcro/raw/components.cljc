@@ -4,6 +4,7 @@
    `defsc` components that work in React-based Fulcro, but instead this namespace includes support for building
    \"normalizing component\" from EQL and sample instances. This gives you all of the general data management power
    with no ties to React."
+  #?(:cljs (:require-macros com.fulcrologic.fulcro.raw.components))
   (:require
     #?(:cljs [goog.object :as gobj])
     [clojure.set :as set]
@@ -878,6 +879,83 @@
   ([cls-or-instance props state-map]
    (let [[k _] (get-ident cls-or-instance props)]
      (-> (get-query cls-or-instance state-map) (get k) meta :component))))
+
+(defmacro defnc
+  "Create a normalizing component (NO rendering support). This component will be usable anywhere a `defsc` component
+   can be used, except in rendering factories. Sets the :componentName using `sym`, and accepts addition component
+   options if you want to supply them.
+
+   If you supply an `:ident` option (which is normally an arity-2 function), then the following special values are legal:
+
+   * A keyword: Works like the defsc shortcut: means `(fn [this props] [keyword (get props keyword)])`
+   * The special value `:constant`: means `(fn [_ _] [:Constant/id <fully-qualified-keyword-of-sym>])`. The capitalized
+     letter causes these to sort earlier in Inspect's db viewer.
+
+   ```
+   (defnc A [:person/id :person/name])
+   ```
+
+   is the same as:
+
+   ```
+   (def A (rc/nc [:person/id :person/name]
+            {:componentName :the.full-namespace/A})) ; ident is inferred to be [:person/id <value-of-person-id>]
+   ```
+
+   ```
+   (defnc A [:person/id :person/name]
+     {:ident (fn [_ p] [:PEOPLE (:person/id p)])})
+   ```
+
+   is the same as:
+
+   ```
+   (def A (rc/nc
+           [:person/id :person/name]
+           {:ident (fn [_ p] [:PEOPLE (:person/id p)])
+            :componentName :the.full-namespace/A}))`
+   ```
+
+   ```
+   (defnc A [:ui/stuff] {:ident :constant})
+   ```
+
+   means
+
+   ```
+   (def A (rc/nc
+           [:ui/stuff]
+           {:ident (fn [_ p] [:Constant/id ::A])
+            :componentName ::A}))`
+   ```
+
+   NOTES:
+
+   A recursive query is supported just like `nc`. If you want to compose `defnc` queries, then do it like you would
+   for `defsc` and you'll have full dynamic query support at each level.
+
+   If you just want the top-level component and don't care about anything other than the normalization, then you can
+   just specify the query as raw EDN (assuming your keywords follow the naming conventions of `nc`).
+   "
+  ([sym query] `(defnc ~sym ~query {}))
+  ([sym query options]
+   (let [nspc (if (boolean (:ns &env))
+                (-> &env :ns :name str)
+                (name (ns-name *ns*)))
+         fqkw (keyword (str nspc) (name sym))
+         ]
+     `(let [o#     (dissoc (merge ~options {:componentName ~fqkw}) :ident :query)
+            ident# (:ident o#)
+            ident# (cond
+                     (= :constant ident#) (fn [~'_ ~'_] [:Constant/id ~fqkw])
+                     (keyword? ident#) (fn [~'_ props#] [ident# (get props# ident#)])
+                     (or (nil? ident#) (fn? ident#)) ident#
+                     :else (do
+                             (log/error "corrupt ident on component " ~fqkw)
+                             nil))
+            o#     (cond-> o#
+                     ident# (assoc :ident ident#))]
+        (def ~sym (nc ~query o#))))))
 
 (comment
   (def Person (entity->component

@@ -1,25 +1,36 @@
-(ns com.fulcrologic.fulcro.algorithms.tx-processing
-  "The transaction processing in Fulcro is (intended to be) pluggable. This namespace is the
-  implementation for the default transaction processing . At the present time there is no documentation on how
-  such an override would be written, nor is it necessarily recommended since many of the desirable and built-in
-  behaviors of Fulcro are codified here. "
+(ns com.fulcrologic.fulcro.algorithms.tx-processing.batched-processing
+  "A pluggable transaction processing system that attempts to batch reads. Requires that the server be modified
+   to support sequences of transactions."
   (:require
     [clojure.set :as set]
+    [clojure.pprint :refer [pprint]]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
-    [com.fulcrologic.guardrails.core :refer [>defn => |]]
+    [com.fulcrologic.guardrails.core :refer [>defn => ? |]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
-(declare schedule-activation! process-queue! remove-send!)
+(declare schedule-activation! process-queue!)
+
+(defn remove-send!
+  "Removes the send node (if present) from the send queue on the given remote."
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} remote txn-id ele-idx]
+  (let [{:keys [::txn/send-queues]} @runtime-atom
+        old-queue (get send-queues remote)
+        queue     (filterv (fn [{:keys [::txn/id ::txn/idx]}]
+                             (not (and (= txn-id id) (= ele-idx idx)))) old-queue)]
+    (swap! runtime-atom assoc-in [::txn/send-queues remote] queue)))
+
+(def ^:dynamic *remove-send* remove-send!)
 
 (defn app->remotes
   "Returns the remotes map from an app"
@@ -37,9 +48,9 @@
   "Splits the given send queue into two send queues:
   [parallel-items sequential-items]."
   [sends]
-  [(s/coll-of ::send-node :kind vector?) => (s/cat :p ::send-queue :rest ::send-queue)]
-  (let [parallel? (fn [{:keys [::options]}]
-                    (boolean (or (:parallel? options) (::parallel? options))))
+  [(s/coll-of ::txn/send-node :kind vector?) => (s/cat :p ::txn/send-queue :rest ::txn/send-queue)]
+  (let [parallel? (fn [{:keys [::txn/options]}]
+                    (boolean (or (:parallel? options) (::txn/parallel? options))))
         {parallel   true
          sequential false} (group-by parallel? sends)]
     [(vec parallel) (vec sequential)]))
@@ -47,7 +58,7 @@
 (defn every-ast?
   "Check if the given `test` predicate is true for an AST node or for all the immediate children of an AST tree."
   [ast-node-or-tree test]
-  [::ast fn? => boolean?]
+  [::txn/ast fn? => boolean?]
   (if (= :root (:type ast-node-or-tree))
     (every? test (:children ast-node-or-tree))
     (test ast-node-or-tree)))
@@ -55,26 +66,26 @@
 (defn mutation-ast?
   "Returns true if the given AST node or tree represents a mutation or sequence of mutations."
   [ast-node-or-tree]
-  [::ast => boolean?]
+  [::txn/ast => boolean?]
   (every-ast? ast-node-or-tree #(= :call (:type %))))
 
 (defn query-ast?
   "Returns true if the given AST node or tree represents a mutation or sequence of mutations."
   [ast-node-or-tree]
-  [::ast => boolean?]
+  [::txn/ast => boolean?]
   (every-ast? ast-node-or-tree #(not= :call (:type %))))
 
 (defn sort-queue-writes-before-reads
   "Sort function on a send queue. Leaves any active nodes in front, and sorts the remainder of the queue so that writes
   appear before reads, without changing the relative order in blocks of reads/writes."
   [send-queue]
-  [::send-queue => ::send-queue]
-  (let [[active-queue send-queue] (split-with ::active? send-queue)
-        id-sequence (mapv (fn [n] (-> n first ::id)) (partition-by ::id send-queue))
-        clusters    (group-by ::id (vec send-queue))
+  [::txn/send-queue => ::txn/send-queue]
+  (let [[active-queue send-queue] (split-with ::txn/active? send-queue)
+        id-sequence (mapv (fn [n] (-> n first ::txn/id)) (partition-by ::txn/id send-queue))
+        clusters    (group-by ::txn/id (vec send-queue))
         {:keys [reads writes]} (reduce
                                  (fn [result id]
-                                   (let [[{:keys [::ast] :as n} & _ :as cluster] (get clusters id)]
+                                   (let [[{:keys [::txn/ast] :as n} & _ :as cluster] (get clusters id)]
                                      (cond
                                        (nil? ast) result
                                        (query-ast? ast) (update result :reads into cluster)
@@ -87,86 +98,183 @@
 
 (defn top-keys
   [{:keys [type key children] :as ast}]
-  [::ast => (s/coll-of :edn-query-language.ast/key)]
+  [::txn/ast => (s/coll-of :edn-query-language.ast/key)]
   (if (= :root type)
     (into #{} (map :key) children)
     #{key}))
 
-(defn combine-sends
-  "Takes a send queue and returns a map containing a new combined send node that can act as a single network request,
-  along with the updated send queue."
-  [app remote-name send-queue]
-  [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::send-queue => (s/keys :opt [::send-node] :req [::send-queue])]
-  (let [[active-nodes send-queue] (split-with ::active? send-queue)
-        send-queue        (sort-queue-writes-before-reads (vec send-queue))
-        id-to-send        (-> send-queue first ::id)
-        options           (-> send-queue first ::options)
-        [to-send to-defer] (split-with #(= id-to-send (::id %)) send-queue)
-        tx                (reduce
-                            (fn [acc {:keys [::ast]}]
+(defn create-combined-node [app remote-name [leader :as to-send]]
+  (let [tx                (reduce
+                            (fn [acc {:keys [::txn/ast]}]
                               (let [tx (futil/ast->query ast)]
                                 (into acc tx)))
                             []
                             to-send)
         ast               (eql/query->ast tx)
+        options           (::txn/options leader)
         combined-node-id  (tempid/uuid)
         combined-node-idx 0
-        combined-node     {::id             combined-node-id
-                           ::idx            combined-node-idx
-                           ::ast            ast
-                           ::options        options
-                           ::update-handler (fn [{:keys [body] :as combined-result}]
-                                              (doseq [{::keys [update-handler]} to-send]
-                                                (when update-handler
-                                                  (update-handler combined-result))))
-                           ::result-handler (fn [{:keys [body] :as combined-result}]
-                                              (doseq [{::keys [ast result-handler]} to-send]
-                                                (let [new-body (if (map? body)
-                                                                 (select-keys body (top-keys ast))
-                                                                 body)
-                                                      result   (assoc combined-result :body new-body)]
-                                                  (inspect/ilet [{:keys [status-code body]} result]
-                                                    (if (= 200 status-code)
-                                                      (inspect/send-finished! app remote-name combined-node-id body)
-                                                      (inspect/send-failed! app combined-node-id (str status-code))))
-                                                  (result-handler result)))
-                                              (remove-send! app remote-name combined-node-id combined-node-idx))
-                           ::active?        true}]
-    (if (seq to-send)
-      {::send-node  combined-node
-       ::send-queue (into [] (concat active-nodes [combined-node] to-defer))}
-      {::send-queue send-queue})))
+        remove!           *remove-send*
+        combined-node     {::txn/id             combined-node-id
+                           ::txn/idx            combined-node-idx
+                           ::txn/ast            ast
+                           ::txn/options        options
+                           ::txn/update-handler (fn [combined-result]
+                                                  (doseq [{::txn/keys [update-handler]} to-send]
+                                                    (when update-handler
+                                                      (update-handler combined-result))))
+                           ::txn/result-handler (fn [{:keys [body] :as combined-result}]
+                                                  (remove! app remote-name combined-node-id combined-node-idx)
+                                                  (doseq [{::txn/keys [ast result-handler]} to-send]
+                                                    (let [new-body (if (map? body)
+                                                                     (select-keys body (top-keys ast))
+                                                                     body)
+                                                          result   (assoc combined-result :body new-body)]
+                                                      (inspect/ilet [{:keys [status-code body]} result]
+                                                        (if (= 200 status-code)
+                                                          (inspect/send-finished! app remote-name combined-node-id body)
+                                                          (inspect/send-failed! app combined-node-id (str status-code))))
+                                                      (result-handler result))))
+                           ::txn/active?        true}]
+    combined-node))
+
+(defn- node-abort-id [n]
+  (or
+    (some-> n ::txn/options :abort-id)
+    (some-> n ::txn/options ::txn/abort-id)))
+
+(defn mutation-node?
+  "Returns true if the given transaction node represents one or more mutations."
+  [{::txn/keys [ast]}]
+  (and
+    (map? ast)
+    (or
+      (= :call (:type ast))
+      (boolean (some #(= :call (:type %)) (:children ast))))))
+
+(>defn batchable?
+  "Returns true when ALL of the ::txn/send-node entries in `to-send` can be batched into an existing batch."
+  [to-send leader]
+  [(s/coll-of ::txn/send-node) (? ::txn/send-node) => boolean?]
+  (let [abort-id (node-abort-id leader)]
+    (boolean
+      (and
+        (seq to-send)
+        (every? (fn [n] (= abort-id (node-abort-id n))) to-send)
+        (not (some mutation-node? to-send))))))
+
+(defn batch-sends
+  [app remote-name send-queue]
+  [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::txn/send-queue => (s/keys :opt [::txn/send-node] :req [::txn/send-queue])]
+  (let [prime-leader   (first send-queue)
+        {prime-candidates true
+         to-defer         false} (group-by (fn [n] (batchable? [prime-leader] n)) send-queue)
+        {:keys [batch remainder]} (loop [result {:batch     []
+                                                 :remainder to-defer}
+                                         queue  prime-candidates]
+                                    (let [leader (first queue)
+                                          [to-send remainder] (split-with #(= (::txn/id leader) (::txn/id %)) queue)]
+                                      (let [combined-node (create-combined-node app remote-name to-send)
+                                            new-result    (update result :batch conj combined-node)]
+                                        (if (seq remainder)
+                                          (recur new-result remainder)
+                                          new-result))))
+        batch-node-id  (tempid/uuid)
+        batch-node-idx 0
+        remove!        *remove-send*
+        batch-node     {::txn/id             batch-node-id
+                        ::txn/idx            batch-node-idx
+                        ::txn/raw-body       {:queries (mapv
+                                                         (fn [{::txn/keys [ast]}] (futil/ast->query ast))
+                                                         batch)}
+                        ::txn/options        (or (::txn/options prime-leader) {})
+                        ::txn/batch          batch
+                        ::txn/update-handler (fn [combined-result]
+                                               (loop [{::txn/keys [update-handler]} (first batch)
+                                                      more-batch  (next batch)
+                                                      result      (first combined-result)
+                                                      more-result (next combined-result)]
+                                                 (when update-handler
+                                                   (update-handler result))
+                                                 (when (and (seq more-batch) (seq more-result))
+                                                   (recur (first more-batch) (next more-batch)
+                                                     (first more-result) (next more-result)))))
+                        ::txn/result-handler (fn [{:keys [body] :as batch-result}]
+                                               (remove! app remote-name batch-node-id batch-node-idx)
+                                               (loop [{::txn/keys [result-handler]} (first batch)
+                                                      more-batch  (next batch)
+                                                      result      (first body)
+                                                      more-result (next body)]
+                                                 (result-handler (assoc batch-result :body result))
+                                                 (when (and (seq more-batch) (seq more-result))
+                                                   (recur (first more-batch) (next more-batch)
+                                                     (first more-result) (next more-result)))))
+                        ::txn/active?        true}]
+    (when (> (count batch) 1) (log/debug "Batched:" (count batch)))
+    {::txn/send-node  batch-node
+     ::txn/send-queue (into [batch-node] remainder)}))
+
+(defn combine-sends
+  "Takes a send queue and returns a map containing a new combined send node that can act as a single network request,
+  along with the updated send queue."
+  [app remote-name send-queue]
+  [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::txn/send-queue => (s/keys :opt [::txn/send-node] :req [::txn/send-queue])]
+  (if (seq send-queue)
+    (let [{:keys [supports-raw-body?]} (get (app->remotes app) remote-name)
+          [_active-nodes send-queue] (split-with ::txn/active? send-queue)
+          send-queue        (sort-queue-writes-before-reads (vec send-queue))
+          id-to-send        (-> send-queue first ::txn/id)
+          [to-send to-defer] (split-with #(= id-to-send (::txn/id %)) send-queue)
+          leading-mutation? (mutation-node? (first to-send))
+          batched-reads?    (get-in app [:com.fulcrologic.fulcro.application/config :batching-enabled remote-name] false)
+          batch?            (and batched-reads? supports-raw-body?)]
+      (if (or leading-mutation? (not batch?))
+        (if (seq to-send)
+          (let [combined-node (create-combined-node app remote-name to-send)]
+            {::txn/send-node  combined-node
+             ::txn/send-queue (into [combined-node] to-defer)})
+          {::txn/send-queue send-queue})
+        (batch-sends app remote-name send-queue)))
+    {::txn/send-queue []}))
 
 (defn net-send!
   "Process the send against the user-defined remote. Catches exceptions and calls error handler with status code 500
   if the remote itself throws exceptions."
   [app send-node remote-name]
-  [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
+  [:com.fulcrologic.fulcro.application/app ::txn/send-node :com.fulcrologic.fulcro.application/remote-name => any?]
   (enc/if-let [remote    (get (app->remotes app) remote-name)
                transmit! (get remote :transmit!)]
     (try
-      (inspect/ilet [tx (futil/ast->query (::ast send-node))]
-        (inspect/send-started! app remote-name (::id send-node) tx))
+      (inspect/ido
+        (if-let [batch (::txn/batch send-node)]
+          (doseq [element-node batch]
+            (inspect/ilet [tx (futil/ast->query (::txn/ast element-node))]
+              (inspect/send-started! app remote-name (::txn/id element-node) tx)))
+          (inspect/ilet [tx (futil/ast->query (::txn/ast send-node))]
+            (inspect/send-started! app remote-name (::txn/id send-node) tx))))
       (transmit! remote send-node)
       (catch #?(:cljs :default :clj Exception) e
-        (log/error e "Send threw an exception for tx:" (futil/ast->query (::ast send-node)) "See https://book.fulcrologic.com/#err-txp-send-exc")
+        (log/error e "Send threw an exception for tx:" (futil/ast->query (::txn/ast send-node)) "See https://book.fulcrologic.com/#err-txp-send-exc")
         (try
           (inspect/ido
-            (inspect/send-failed! app (::id send-node) "Transmit Exception"))
-          ((::result-handler send-node) {:status-code      500
-                                         :client-exception e})
+            (if-let [batch (::txn/batch send-node)]
+              (doseq [element-node batch]
+                (inspect/send-failed! app (::txn/id element-node) "Transmit Exception"))
+              (inspect/send-failed! app (::txn/id send-node) "Transmit Exception")))
+          ((::txn/result-handler send-node) {:status-code      500
+                                             :client-exception e})
           (catch #?(:cljs :default :clj Exception) e
             (log/fatal e "Error handler failed to handle exception!")))))
     (do
       (log/error "Transmit was not defined on remote" remote-name "See https://book.fulcrologic.com/#err-txp-remote-lacks-transmit")
-      ((::result-handler send-node) {:status-code 500
-                                     :message     "Transmit missing on remote."}))))
+      ((::txn/result-handler send-node) {:status-code 500
+                                         :message     "Transmit missing on remote."}))))
 
 (defn process-send-queues!
   "Process the send queues against the remotes. Updates the send queues on the app and returns the updated send queues."
   [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app}]
-  [:com.fulcrologic.fulcro.application/app => ::send-queues]
-  (let [send-queues     (-> runtime-atom deref ::send-queues)
+  [:com.fulcrologic.fulcro.application/app => ::txn/send-queues]
+  (let [send-queues     (-> runtime-atom deref ::txn/send-queues)
         remote-names    (app->remote-names app)
         operations      (atom [])
         new-send-queues (reduce
@@ -178,15 +286,15 @@
                               (doseq [item p]
                                 (swap! operations conj #(net-send! app item remote)))
                               ;; sequential items are kept in queue to prevent out-of-order operation
-                              (if (::active? front)
+                              (if (::txn/active? front)
                                 (assoc new-send-queues remote serial)
-                                (let [{::keys [send-queue send-node]} (combine-sends app remote serial)]
+                                (let [{::txn/keys [send-queue send-node]} (combine-sends app remote serial)]
                                   (when send-node
                                     (swap! operations conj #(net-send! app send-node remote)))
                                   (assoc new-send-queues remote send-queue)))))
                           {}
                           remote-names)]
-    (swap! runtime-atom assoc ::send-queues new-send-queues)
+    (swap! runtime-atom assoc ::txn/send-queues new-send-queues)
     ;; Actual net sends are done after we set the queues, in case the remote behave synchronously and immediately gives
     ;; results (like errors). Otherwise, the queue updates of those handlers would be overwritten by our swap on the
     ;; prior line
@@ -196,10 +304,10 @@
 
 (defn tx-node
   ([tx]
-   [::tx => ::tx-node]
+   [::txn/tx => ::tx-node]
    (tx-node tx {}))
   ([tx options]
-   [::tx ::options => ::tx-node]
+   [::txn/tx ::txn/options => ::tx-node]
    (let [ast       (eql/query->ast tx)
          ast-nodes (:children ast)
          elements  (into []
@@ -207,58 +315,58 @@
                        (filter (fn txfilt* [n] (= :call (:type n))))
                        (map-indexed
                          (fn ->txnode* [idx ast-node]
-                           {::idx               idx
-                            ::original-ast-node ast-node
-                            ::started?          #{}
-                            ::complete?         #{}
-                            ::results           {}
-                            ::dispatch          {}})))
+                           {::txn/idx               idx
+                            ::txn/original-ast-node ast-node
+                            ::txn/started?          #{}
+                            ::txn/complete?         #{}
+                            ::txn/results           {}
+                            ::txn/dispatch          {}})))
                      ast-nodes)]
-     {::id       (tempid/uuid)
-      ::created  (futil/now)
-      ::options  options
-      ::tx       tx
-      ::elements elements})))
+     {::txn/id       (tempid/uuid)
+      ::txn/created  (futil/now)
+      ::txn/options  options
+      ::txn/tx       tx
+      ::txn/elements elements})))
 
 (defn build-env
-  ([app {::keys [options] :as tx-node} addl]
-   [:com.fulcrologic.fulcro.application/app ::tx-node map? => map?]
+  ([app {::txn/keys [options] :as tx-node} addl]
+   [:com.fulcrologic.fulcro.application/app ::txn/tx-node map? => map?]
    (let [{:keys [ref component]} options]
      (cond-> (merge addl {:state (-> app :com.fulcrologic.fulcro.application/state-atom)
                           :app   app})
-       options (assoc ::options options)
+       options (assoc ::txn/options options)
        ref (assoc :ref ref)
        component (assoc :component component))))
-  ([app {:keys [::options] :as tx-node}]
-   [:com.fulcrologic.fulcro.application/app ::tx-node => map?]
+  ([app {:keys [::txn/options] :as tx-node}]
+   [:com.fulcrologic.fulcro.application/app ::txn/tx-node => map?]
    (build-env app tx-node {})))
 
 (defn dispatch-elements
   "Run through the elements on the given tx-node and do the side-effect-free dispatch. This generates the dispatch map
   of things to do on that node."
   [tx-node env dispatch-fn]
-  [::tx-node map? any? => ::tx-node]
+  [::txn/tx-node map? any? => ::tx-node]
   (let [do-dispatch  (fn run* [env]
                        (try
                          (dispatch-fn env)
                          (catch #?(:clj Exception :cljs :default) e
                            (log/error e "Dispatch for mutation" (some-> env :ast futil/ast->query) "failed with an exception. No dispatch generated. See https://book.fulcrologic.com/#err-txp-mut-dispatch-exc")
                            {})))
-        dispatch     (fn dispatch* [{:keys [::original-ast-node] :as ele}]
+        dispatch     (fn dispatch* [{:keys [::txn/original-ast-node] :as ele}]
                        (let [{:keys [type]} original-ast-node
                              env (assoc env :ast original-ast-node)]
                          (cond-> ele
-                           (= :call type) (assoc ::dispatch (do-dispatch env)))))
+                           (= :call type) (assoc ::txn/dispatch (do-dispatch env)))))
         dispatch-all (fn [eles] (mapv dispatch eles))]
-    (update tx-node ::elements dispatch-all)))
+    (update tx-node ::txn/elements dispatch-all)))
 
 (defn application-rendered!
   "Should be called after the application renders to ensure that transactions blocked until the next render become
    unblocked. Schedules an activation."
   [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app} options]
-  (when (some #(boolean (-> % ::options :after-render?)) (-> runtime-atom deref ::submission-queue))
-    (swap! runtime-atom update ::submission-queue
-      (fn [queue] (mapv (fn [node] (update node ::options dissoc :after-render?)) queue)))
+  (when (some #(boolean (-> % ::txn/options :after-render?)) (-> runtime-atom deref ::txn/submission-queue))
+    (swap! runtime-atom update ::txn/submission-queue
+      (fn [queue] (mapv (fn [node] (update node ::txn/options dissoc :after-render?)) queue)))
     (schedule-activation! app 0)))
 
 (defn activate-submissions!
@@ -268,12 +376,12 @@
   Activation can be blocked by the tx-node options for things like waiting for the next render frame."
   [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app}]
   [:com.fulcrologic.fulcro.application/app => any?]
-  (let [{blocked true ready false} (group-by (comp boolean :after-render? ::options) (::submission-queue @runtime-atom))
+  (let [{blocked true ready false} (group-by (comp boolean :after-render? ::txn/options) (::txn/submission-queue @runtime-atom))
         dispatched-nodes (mapv #(dispatch-elements % (build-env app %) m/mutate) ready)]
     (swap! runtime-atom (fn [a]
                           (-> a
-                            (update ::active-queue #(reduce conj % dispatched-nodes))
-                            (assoc ::submission-queue (vec blocked)))))
+                            (update ::txn/active-queue #(reduce conj % dispatched-nodes))
+                            (assoc ::txn/submission-queue (vec blocked)))))
     (process-queue! app)))
 
 (defn schedule-activation!
@@ -281,7 +389,7 @@
    the active queue and immediately does an active queue processing step.  If `tm` is not supplied (in ms) it defaults to 10ms."
   ([app tm]
    [:com.fulcrologic.fulcro.application/app int? => any?]
-   (schedule! app ::activation-scheduled? activate-submissions! tm))
+   (schedule! app ::txn/activation-scheduled? activate-submissions! tm))
   ([app]
    [:com.fulcrologic.fulcro.application/app => any?]
    (schedule-activation! app 0)))
@@ -291,7 +399,7 @@
    If `tm` is not supplied (in ms) it defaults to 10ms."
   ([app tm]
    [:com.fulcrologic.fulcro.application/app int? => any?]
-   (schedule! app ::queue-processing-scheduled? process-queue! tm))
+   (schedule! app ::txn/queue-processing-scheduled? process-queue! tm))
   ([app]
    [:com.fulcrologic.fulcro.application/app => any?]
    (schedule-queue-processing! app 0)))
@@ -300,21 +408,21 @@
   "Schedule actual network activity. If `tm` is not supplied (in ms) it defaults to 0ms."
   ([app tm]
    [:com.fulcrologic.fulcro.application/app int? => any?]
-   (schedule! app ::sends-scheduled? process-send-queues! tm))
+   (schedule! app ::txn/sends-scheduled? process-send-queues! tm))
   ([app]
    [:com.fulcrologic.fulcro.application/app => any?]
    (schedule-sends! app 0)))
 
 (defn advance-actions!
   "Runs any incomplete and non-blocked optimistic operations on a node."
-  [app {::keys [id elements] :as node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
+  [app {::txn/keys [id elements] :as node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::tx-node]
   (let [remotes      (app->remote-names app)
         reduction    (reduce
                        (fn [{:keys [done? new-elements] :as acc} element]
                          (if done?
                            (update acc :new-elements conj element)
-                           (let [{::keys [complete? dispatch original-ast-node idx]} element
+                           (let [{::txn/keys [complete? dispatch original-ast-node idx]} element
                                  {:keys [action]} dispatch
                                  remote-set      (set/intersection remotes (set (keys dispatch)))
                                  exec?           (and action (not (or done? (complete? :action))))
@@ -323,8 +431,8 @@
                                  state           (:com.fulcrologic.fulcro.application/state-atom app)
                                  state-before    @state
                                  updated-element (if exec? (-> element
-                                                             (assoc ::state-before-action state-before)
-                                                             (update ::complete? conj :action)) element)
+                                                             (assoc ::txn/state-before-action state-before)
+                                                             (update ::txn/complete? conj :action)) element)
                                  done?           (not fully-complete?)
                                  new-acc         {:done?        done?
                                                   :new-elements (conj new-elements updated-element)}
@@ -346,22 +454,22 @@
                        {:done? false :new-elements []}
                        elements)
         new-elements (:new-elements reduction)]
-    (assoc node ::elements new-elements)))
+    (assoc node ::txn/elements new-elements)))
 
 (defn run-actions!
-  [app {::keys [id elements] :as node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
+  [app {::txn/keys [id elements] :as node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::tx-node]
   (let [new-elements (reduce
                        (fn [new-elements element]
-                         (let [{::keys [idx complete? dispatch original-ast-node]} element
+                         (let [{::txn/keys [idx complete? dispatch original-ast-node]} element
                                {:keys [action]} dispatch
                                exec?           (and action (not (complete? :action)))
                                state-id-before (inspect/current-history-id app)
                                state           (:com.fulcrologic.fulcro.application/state-atom app)
                                state-before    @state
                                updated-node    (if exec? (-> element
-                                                           (assoc ::state-before-action state-before)
-                                                           (update ::complete? conj :action)) element)
+                                                           (assoc ::txn/state-before-action state-before)
+                                                           (update ::txn/complete? conj :action)) element)
                                new-acc         (conj new-elements updated-node)
                                env             (build-env app node {:ast original-ast-node})]
                            (when exec?
@@ -378,55 +486,45 @@
                            new-acc))
                        []
                        elements)]
-    (assoc node ::elements new-elements)))
+    (assoc node ::txn/elements new-elements)))
 
 (defn fully-complete?
-  [app {:keys [::elements] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => boolean?]
-  (let [element-complete? (fn [{:keys [::dispatch ::complete?]}]
+  [app {:keys [::txn/elements] :as tx-node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => boolean?]
+  (let [element-complete? (fn [{:keys [::txn/dispatch ::txn/complete?]}]
                             (let [remotes     (app->remote-names app)
                                   active-keys (set/union #{:action} remotes)
                                   desired-set (set/intersection active-keys (set (keys dispatch)))]
                               (empty? (set/difference desired-set complete?))))]
     (every? element-complete? elements)))
 
-(defn remove-send!
-  "Removes the send node (if present) from the send queue on the given remote."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} remote txn-id ele-idx]
-  [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::id ::idx => any?]
-  (let [{:keys [::send-queues]} @runtime-atom
-        old-queue (get send-queues remote)
-        queue     (filterv (fn [{:keys [::id ::idx]}]
-                             (not (and (= txn-id id) (= ele-idx idx)))) old-queue)]
-    (swap! runtime-atom assoc-in [::send-queues remote] queue)))
-
 (defn record-result!
   "Record a network result on the given txn/element.
-   If result-key is given it is used, otherwise defaults to ::results. Also removes the network send from the send
+   If result-key is given it is used, otherwise defaults to ::txn/results. Also removes the network send from the send
    queue so that remaining items can proceed, and schedules send processing."
   ([{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} txn-id ele-idx remote result result-key]
-   [:com.fulcrologic.fulcro.application/app ::id int? keyword? any? keyword? => any?]
-   (let [active-queue (::active-queue @runtime-atom)
+   [:com.fulcrologic.fulcro.application/app ::txn/id int? keyword? any? keyword? => any?]
+   (let [active-queue (::txn/active-queue @runtime-atom)
          txn-idx      (reduce
-                        (fn [idx {:keys [::id]}]
+                        (fn [idx {:keys [::txn/id]}]
                           (if (= id txn-id)
                             (reduced idx)
                             (inc idx)))
                         0
                         active-queue)
-         not-found?   (or (>= txn-idx (count active-queue)) (not= txn-id (::id (get active-queue txn-idx))))]
+         not-found?   (or (>= txn-idx (count active-queue)) (not= txn-id (::txn/id (get active-queue txn-idx))))]
      (if not-found?
        (log/error "Network result for" remote "does not have a valid node on the active queue! See https://book.fulcrologic.com/#err-txp-res-lacks-valid-node")
-       (swap! runtime-atom assoc-in [::active-queue txn-idx ::elements ele-idx result-key remote] result))))
+       (swap! runtime-atom assoc-in [::txn/active-queue txn-idx ::txn/elements ele-idx result-key remote] result))))
   ([app txn-id ele-idx remote result]
-   [:com.fulcrologic.fulcro.application/app ::id int? keyword? any? => any?]
-   (record-result! app txn-id ele-idx remote result ::results)))
+   [:com.fulcrologic.fulcro.application/app ::txn/id int? keyword? any? => any?]
+   (record-result! app txn-id ele-idx remote result ::txn/results)))
 
 (defn compute-desired-ast-node
-  "Add the ::desired-ast-nodes and ::transmitted-ast-nodes for `remote` to the tx-element based on the dispatch for the `remote` of the original mutation."
+  "Add the ::txn/desired-ast-nodes and ::txn/transmitted-ast-nodes for `remote` to the tx-element based on the dispatch for the `remote` of the original mutation."
   [app remote tx-node tx-element]
-  [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::tx-node ::tx-element => ::tx-element]
-  (let [{::keys [dispatch original-ast-node state-before-action]} tx-element
+  [:com.fulcrologic.fulcro.application/app :com.fulcrologic.fulcro.application/remote-name ::txn/tx-node ::txn/tx-element => ::tx-element]
+  (let [{::txn/keys [dispatch original-ast-node state-before-action]} tx-element
         env             (build-env app tx-node {:ast                 original-ast-node
                                                 :state-before-action state-before-action})
         remote-fn       (get dispatch remote)
@@ -448,38 +546,39 @@
                           (query-transform desired-ast)
                           desired-ast)]
     (cond-> tx-element
-      desired-ast (assoc-in [::desired-ast-nodes remote] desired-ast)
-      ast (assoc-in [::transmitted-ast-nodes remote] ast))))
+      desired-ast (assoc-in [::txn/desired-ast-nodes remote] desired-ast)
+      ast (assoc-in [::txn/transmitted-ast-nodes remote] ast))))
 
 (defn add-send!
   "Generate a new send node and add it to the appropriate send queue. Returns the new send node."
-  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {::keys [id options] :as tx-node} ele-idx remote]
-  [:com.fulcrologic.fulcro.application/app ::tx-node ::idx :com.fulcrologic.fulcro.application/remote-name
-   => (s/nilable ::send-node)]
+  [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} {::txn/keys [id options parallel?] :as tx-node} ele-idx remote]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/idx :com.fulcrologic.fulcro.application/remote-name
+   => (s/nilable ::txn/send-node)]
   (let [update-handler (fn progress-handler* [result]
-                         (record-result! app id ele-idx remote result ::progress)
+                         (record-result! app id ele-idx remote result ::txn/progress)
                          (schedule-queue-processing! app 0))
-        ast            (get-in tx-node [::elements ele-idx ::transmitted-ast-nodes remote])
+        ast            (get-in tx-node [::txn/elements ele-idx ::txn/transmitted-ast-nodes remote])
+        remove!        *remove-send*
         handler        (fn result-handler* [result]
                          (when (:parallel? options)
                            (inspect/ilet [{:keys [status-code body]} result]
-                             (if (= 200 status-code)
-                               (inspect/send-finished! app remote id body)
-                               (inspect/send-failed! app id (str status-code)))))
+                            (if (= 200 status-code)
+                              (inspect/send-finished! app remote id body)
+                              (inspect/send-failed! app id (str status-code)))))
                          (record-result! app id ele-idx remote result)
-                         (remove-send! app remote id ele-idx)
+                         (remove! app remote id ele-idx)
                          (schedule-sends! app 1)
                          (schedule-queue-processing! app 0))
-        send-node      {::id             id
-                        ::idx            ele-idx
-                        ::ast            ast
-                        ::options        options
-                        ::active?        false
-                        ::result-handler handler
-                        ::update-handler update-handler}]
+        send-node      {::txn/id             id
+                        ::txn/idx            ele-idx
+                        ::txn/ast            ast
+                        ::txn/options        options
+                        ::txn/active?        false
+                        ::txn/result-handler handler
+                        ::txn/update-handler update-handler}]
     (if ast
       (do
-        (swap! runtime-atom update-in [::send-queues remote] (fnil conj []) send-node)
+        (swap! runtime-atom update-in [::txn/send-queues remote] (fnil conj []) send-node)
         send-node)
       (do
         (handler {:status-code 200 :body {}})
@@ -487,17 +586,17 @@
 
 (defn queue-element-sends!
   "Queue all (unqueued) remote actions for the given element.  Returns the (possibly updated) node."
-  [app tx-node {:keys [::idx ::dispatch ::started?]}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node ::tx-element => ::tx-node]
+  [app tx-node {:keys [::txn/idx ::txn/dispatch ::txn/started?]}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::tx-node]
   (let [remotes     (set/intersection (set (keys dispatch)) (app->remote-names app))
         to-dispatch (set/difference remotes started?)]
     (reduce
       (fn [node remote]
-        (if (contains? (get-in node [::elements idx ::started?] #{}) remote)
+        (if (contains? (get-in node [::txn/elements idx ::txn/started?] #{}) remote)
           node
           (let [updated-node (-> node
-                               (update-in [::elements idx] (fn [tx-element] (compute-desired-ast-node app remote node tx-element)))
-                               (update-in [::elements idx ::started?] conj remote))]
+                               (update-in [::txn/elements idx] (fn [tx-element] (compute-desired-ast-node app remote node tx-element)))
+                               (update-in [::txn/elements idx ::txn/started?] conj remote))]
             (add-send! app updated-node idx remote)
             updated-node)))
       tx-node
@@ -505,10 +604,10 @@
 
 (defn idle-node?
   "Returns true if the given node has no active network operations."
-  [{:keys [::elements] :as tx-node}]
-  [::tx-node => boolean?]
+  [{:keys [::txn/elements] :as tx-node}]
+  [::txn/tx-node => boolean?]
   (every?
-    (fn idle?* [{:keys [::started? ::complete?]}]
+    (fn idle?* [{:keys [::txn/started? ::txn/complete?]}]
       (let [in-progress (set/difference started? complete?)]
         (empty? in-progress)))
     elements))
@@ -518,8 +617,8 @@
    is no such element.
 
   remote-names is the set of legal remote names."
-  [remote-names {:keys [::dispatch ::started?] :as element}]
-  [:com.fulcrologic.fulcro.application/remote-names ::tx-element => (s/nilable ::tx-element)]
+  [remote-names {:keys [::txn/dispatch ::txn/started?] :as element}]
+  [:com.fulcrologic.fulcro.application/remote-names ::txn/tx-element => (s/nilable ::tx-element)]
   (let [todo      (set/intersection remote-names (set (keys dispatch)))
         remaining (set/difference todo started?)]
     (when (seq remaining)
@@ -529,8 +628,8 @@
   "Assumes tx-node is to be processed pessimistically. Queues the next send if the node is currently idle
   on the network and there are any sends left to do. Adds to the send queue, and returns the updated
   tx-node."
-  [app {:keys [::elements] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
+  [app {:keys [::txn/elements] :as tx-node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::tx-node]
   (if (idle-node? tx-node)
     (let [remotes   (app->remote-names app)
           with-work (partial element-with-work remotes)
@@ -543,8 +642,8 @@
 (defn queue-sends!
   "Finds any item(s) on the given node that are ready to be placed on the network queues and adds them. Non-optimistic
   multi-element nodes will only queue one remote operation at a time."
-  [app {:keys [::options ::elements] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
+  [app {:keys [::txn/options ::txn/elements] :as tx-node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::tx-node]
   (let [optimistic? (boolean (:optimistic? options))]
     (schedule-sends! app 0)
     (if optimistic?
@@ -560,8 +659,8 @@
   to it.
 
   Returns the tx-element with the remote marked complete."
-  [app tx-node {::keys [results dispatch desired-ast-nodes transmitted-ast-nodes original-ast-node] :as tx-element} remote]
-  [:com.fulcrologic.fulcro.application/app ::tx-node ::tx-element keyword? => ::tx-element]
+  [app tx-node {::txn/keys [results dispatch desired-ast-nodes transmitted-ast-nodes original-ast-node] :as tx-element} remote]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element keyword? => ::tx-element]
   (schedule-queue-processing! app 0)
   (let [result  (get results remote)
         handler (get dispatch :result-action)]
@@ -575,12 +674,12 @@
           (handler env)
           (catch #?(:cljs :default :clj Exception) e
             (log/error e "The result-action mutation handler for mutation" (:dispatch-key original-ast-node) "threw an exception. See https://book.fulcrologic.com/#err-txp-mut-res-action-exc"))))))
-  (update tx-element ::complete? conj remote))
+  (update tx-element ::txn/complete? conj remote))
 
 (defn distribute-element-results!
   "Distribute results and mark the remotes for those elements as complete."
-  [app tx-node {:keys [::results ::complete?] :as tx-element}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node ::tx-element => ::tx-element]
+  [app tx-node {:keys [::txn/results ::txn/complete?] :as tx-element}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node ::txn/tx-element => ::tx-element]
   (reduce
     (fn [new-element remote]
       (if (complete? remote)
@@ -592,21 +691,21 @@
 (defn distribute-results!
   "Walk all elements of the tx-node and call result dispatch handlers for any results that have
   not been distributed."
-  [app {:keys [::elements] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
+  [app {:keys [::txn/elements] :as tx-node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::tx-node]
   (assoc tx-node
-    ::elements (mapv
-                 (fn [element] (distribute-element-results! app tx-node element))
-                 elements)))
+    ::txn/elements (mapv
+                     (fn [element] (distribute-element-results! app tx-node element))
+                     elements)))
 
 (defn update-progress!
   "Report all progress items to any registered progress dispatch and clear them from the tx-node.
   Returns the updated tx-node."
-  [app {:keys [::elements] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => ::tx-node]
+  [app {:keys [::txn/elements] :as tx-node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => ::tx-node]
   (let [get-env (fn get-env* [remote progress] (build-env app tx-node {:remote remote :progress progress}))]
     (reduce
-      (fn [node {::keys [idx progress dispatch original-ast-node] :as element}]
+      (fn [node {::txn/keys [idx progress dispatch original-ast-node] :as element}]
         (doseq [[remote value] progress]
           (let [env    (get-env remote value)
                 action (get dispatch :progress-action)]
@@ -615,13 +714,13 @@
                 (action env)
                 (catch #?(:cljs :default :clj Exception) e
                   (log/error e "Progress action threw an exception in mutation" (:dispatch-key original-ast-node) "See https://book.fulcrologic.com/#err-txp-progress-action-exc"))))))
-        (update-in node [::elements idx] dissoc ::progress))
+        (update-in node [::txn/elements idx] dissoc ::txn/progress))
       tx-node
       elements)))
 
 (defn process-tx-node!
-  [app {:keys [::options] :as tx-node}]
-  [:com.fulcrologic.fulcro.application/app ::tx-node => (s/nilable ::tx-node)]
+  [app {:keys [::txn/options] :as tx-node}]
+  [:com.fulcrologic.fulcro.application/app ::txn/tx-node => (s/nilable ::tx-node)]
   (let [optimistic? (boolean (:optimistic? options))]
     (if (fully-complete? app tx-node)
       nil
@@ -635,29 +734,29 @@
           (distribute-results! app))))))
 
 (defn requested-refreshes [app queue]
-  [:com.fulcrologic.fulcro.application/app (s/coll-of ::tx-node) => set?]
+  [:com.fulcrologic.fulcro.application/app (s/coll-of ::txn/tx-node) => set?]
   "Returns a set of refreshes that have been requested by active mutations in the queue"
   (reduce
     (fn [outer-acc tx-node]
       (let [env (build-env app tx-node)]
         (reduce
           (fn [acc element]
-            (let [{::keys [dispatch]} element
+            (let [{::txn/keys [dispatch]} element
                   refresh (:refresh dispatch)]
               (if refresh
                 (into acc (set (refresh env)))
                 acc)))
           outer-acc
-          (::elements tx-node))))
+          (::txn/elements tx-node))))
     #{}
     queue))
 
 (defn remotes-active-on-node
   "Given a tx node and the set of legal remotes: returns a set of remotes that are active on that node."
-  [{::keys [elements] :as tx-node} remotes]
-  [::tx-node :com.fulcrologic.fulcro.application/remote-names
+  [{::txn/keys [elements] :as tx-node} remotes]
+  [::txn/tx-node :com.fulcrologic.fulcro.application/remote-names
    => :com.fulcrologic.fulcro.application/remote-names]
-  (let [active-on-element (fn [{::keys [dispatch complete?]}]
+  (let [active-on-element (fn [{::txn/keys [dispatch complete?]}]
                             (let [remotes (set remotes)]
                               (-> remotes
                                 (set/intersection (set (keys dispatch)))
@@ -671,7 +770,7 @@
 (defn active-remotes
   "Calculate which remotes still have network activity to do on the given active queue."
   [queue remotes]
-  [::active-queue :com.fulcrologic.fulcro.application/remote-names
+  [::txn/active-queue :com.fulcrologic.fulcro.application/remote-names
    => :com.fulcrologic.fulcro.application/active-remotes]
   (reduce
     (fn [ra n]
@@ -689,14 +788,14 @@
                                (conj new-queue new-node)
                                new-queue))
                            []
-                           (::active-queue @runtime-atom))
+                           (::txn/active-queue @runtime-atom))
         accumulate       (fn [r items] (into (set r) items))
         remotes          (app->remote-names app)
         schedule-render! (ah/app-algorithm app :schedule-render!)
         explicit-refresh (requested-refreshes app new-queue)
         remotes-active?  (active-remotes new-queue remotes)]
     (swap! state-atom assoc :com.fulcrologic.fulcro.application/active-remotes remotes-active?)
-    (swap! runtime-atom assoc ::active-queue new-queue)
+    (swap! runtime-atom assoc ::txn/active-queue new-queue)
     (when (seq explicit-refresh)
       (swap! runtime-atom update :com.fulcrologic.fulcro.application/to-refresh accumulate explicit-refresh))
     (schedule-render! app)
@@ -737,8 +836,8 @@
     (when mixed-tx-node
       (let [node         (run-actions! app mixed-tx-node)
             runtime-atom (:com.fulcrologic.fulcro.application/runtime-atom app)]
-        (reset! resulting-node-id (::id node))
-        (swap! runtime-atom update ::active-queue conj node)
+        (reset! resulting-node-id (::txn/id node))
+        (swap! runtime-atom update ::txn/active-queue conj node)
         (schedule-queue-processing! app 20)))
     (cond
       (and component (rc/component? component) (rc/has-ident? component))
@@ -779,10 +878,10 @@
   Returns the transaction ID of the submitted transaction.
   "
   ([app tx]
-   [:com.fulcrologic.fulcro.application/app ::tx => ::id]
+   [:com.fulcrologic.fulcro.application/app ::txn/tx => ::txn/id]
    (default-tx! app tx {}))
   ([{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} tx {:keys [synchronous?] :as options}]
-   [:com.fulcrologic.fulcro.application/app ::tx ::options => ::id]
+   [:com.fulcrologic.fulcro.application/app ::txn/tx ::txn/options => ::txn/id]
    (if synchronous?
      (transact-sync! app tx options)
      (do
@@ -794,13 +893,13 @@
              refresh         (cond-> (set refresh)
                                (seq follow-on-reads) (into follow-on-reads)
                                ref (conj ref))]
-         (swap! runtime-atom (fn [s] (cond-> (update s ::submission-queue (fn [v n] (conj (vec v) n)) node)
+         (swap! runtime-atom (fn [s] (cond-> (update s ::txn/submission-queue (fn [v n] (conj (vec v) n)) node)
                                        ;; refresh sets are cumulative because rendering is debounced
                                        (seq refresh) (update :com.fulcrologic.fulcro.application/to-refresh accumulate refresh)
                                        (seq only-refresh) (update :com.fulcrologic.fulcro.application/only-refresh accumulate only-refresh))))
-         (::id node))))))
+         (::txn/id node))))))
 
-(defn abort-elements!
+(defn- abort-elements!
   "Abort any elements in the given send-queue that have the given abort id.
 
   Aborting will cause the network to abort (which will report a result), or if the item is not yet active a
@@ -810,15 +909,16 @@
   [{:keys [abort!] :as remote} send-queue abort-id]
   (if abort!
     (reduce
-      (fn [result {::keys [active? options result-handler] :as send-node}]
-        (let [aid (or (-> options ::abort-id) (-> options :abort-id))]
+      (fn [result {::txn/keys [active? result-handler] :as send-node}]
+        (let [aid (node-abort-id send-node)]
           (cond
-            (not= aid abort-id) (conj result send-node)
+            (not= aid abort-id) (do
+                                  (conj result send-node))
             active? (do
                       (abort! remote abort-id)
                       result)
             :otherwise (do
-                         (result-handler {:status-text "Cancelled" ::aborted? true})
+                         (result-handler {:status-text "Cancelled" ::txn/aborted? true})
                          result))))
       []
       send-queue)
@@ -832,7 +932,7 @@
   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} (rc/any->app app)
         runtime-state   @runtime-atom
         {:com.fulcrologic.fulcro.application/keys [remotes]
-         ::keys                                   [send-queues]} runtime-state
+         ::txn/keys                               [send-queues]} runtime-state
         remote-names    (keys send-queues)
         new-send-queues (reduce
                           (fn [result remote-name]
@@ -841,7 +941,7 @@
                                                         (get send-queues remote-name) abort-id)))
                           {}
                           remote-names)]
-    (swap! runtime-atom assoc ::send-queues new-send-queues)))
+    (swap! runtime-atom assoc ::txn/send-queues new-send-queues)))
 
 (defn abort-remote!
   "Cause everything in the active network queue for remote to be cancelled. Any result that (finally) appears for aborted
@@ -854,19 +954,40 @@
         {:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} (rc/any->app app)
         {abort-network! :abort!
          :as            the-remote} (get @runtime-atom [:com.fulcrologic.fulcro.application/remotes remote])
-        old-send-queue (get-in @runtime-atom [::send-queues remote])]
-    (swap! runtime-atom assoc-in [::send-queues remote] [])
+        old-send-queue (get-in @runtime-atom [::txn/send-queues remote])]
+    (swap! runtime-atom assoc-in [::txn/send-queues remote] [])
     (swap! state-atom update :com.fulcrologic.fulcro.application/active-remotes (fnil disj #{}) remote)
-    (doseq [{::keys [active? options result-handler] :as send-node} old-send-queue
-            aid (or (-> options ::abort-id) (-> options :abort-id))]
+    (doseq [{::txn/keys [active? result-handler] :as send-node} old-send-queue
+            aid (node-abort-id send-node)]
       (try
         (when active?
           (if abort-network!
             (abort-network! the-remote aid)
             (log/warn "Remote does not support abort. Clearing the queue, but a spurious result may still appear. See https://book.fulcrologic.com/#warn-tx-remote-abort-not-supported")))
-        (result-handler {:status-code 500
-                         :body        {}
-                         :status-text "Globally Aborted"
-                         ::aborted?   true})
+        (result-handler {:status-code   500
+                         :body          {}
+                         :status-text   "Globally Aborted"
+                         ::txn/aborted? true})
         (catch #?(:clj Exception :cljs :default) e
           (log/error e "Failed to abort send node. See https://book.fulcrologic.com/#err-txp-abort-failed"))))))
+
+(defn with-batched-reads
+  "Modify the given fulcro app so that it does reads in batches when possible. Requires server support (which is
+  provided by Fulcro's handle-api-request), and a remote that can handle raw requests (see the latest http-remote).
+
+  Defaults to enabling batching on all remotes, but if any of your client-side remote code or servers do not support
+  batching, pass the `remotes` option, which is a set of keywords that names the remotes on which batching should
+  be enabled."
+  ([app] (with-batched-reads app nil))
+  ([app remotes]
+   (let [remotes          (or remotes
+                            (some-> app
+                              :com.fulcrologic.fulcro.application/runtime-atom
+                              deref
+                              :com.fulcrologic.fulcro.application/remotes
+                              keys))
+         batching-enabled (if (seq remotes) (zipmap remotes (repeat true)) {})]
+     (-> app
+       (assoc-in [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/tx!] default-tx!)
+       (assoc-in [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/abort!] abort!)
+       (assoc-in [:com.fulcrologic.fulcro.application/config :batching-enabled] batching-enabled)))))

@@ -1,12 +1,23 @@
 (ns fulcro-todomvc.ui
   (:require
     [com.fulcrologic.fulcro.algorithms.tempid :as tmp]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro-todomvc.api :as api]
     [fulcro-todomvc.app :refer [app]]
-    [goog.object :as gobj] ))
+    [goog.object :as gobj]))
+
+(comment
+  (comp/transact! app [(api/commit-label-change {:id 1 :text "A"})] {:abort-id 42})
+  (do (df/load! app [:list/id 1] TodoList {:abort-id 41})
+      (df/load! app [:list/id 2] TodoList {:abort-id 42})
+      (df/load! app [:list/id 3] TodoList {:abort-id 43}))
+  (app/abort! app 42)
+  ;; FIXME: on abort, not all of the combined nodes get the aborted result
+  )
 
 (defn is-enter? [evt] (= 13 (.-keyCode evt)))
 (defn is-escape? [evt] (= 27 (.-keyCode evt)))

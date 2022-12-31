@@ -30,12 +30,9 @@
 (>defn current-state
   "Get the current value of the application state database. If called without arguments it will attempt to find the app
    in the dynamically-bound comp/*app*, which is bound during render."
-  ([app-or-component]
-   [any? => map?]
-   (rapp/current-state app-or-component))
-  ([]
-   [=> (? map?)]
-   (some-> comp/*app* ::state-atom deref)))
+  [app-or-component]
+  [any? => map?]
+  (rapp/current-state app-or-component))
 
 (>defn tick!
   "Move the basis-t forward one tick. For internal use in internal algorithms. Fulcro
@@ -214,9 +211,13 @@
    * `:submit-transaction!` - A function to implement how to submit transactions. This allows you to override how transactions
      are processed in Fulcro.  Calls to `comp/transact!` will come through this algorithm.
    * `:abort-transaction!` - The function that can abort submitted transactions. Must be provided if you override
-     `:submit-transaction!`, since the two are related."
+     `:submit-transaction!`, since the two are related.
+   * `:batching-enabled` - Default none. A set of remote names on which batching of reads should be allowed.
+      If the tx processing supports it, then it will attempt to batch together multiple loads into
+     a single request. WARNING: The server MUST support this as well (the latest built-in handle-api-request does)."
   ([] (fulcro-app {}))
   ([{:keys [props-middleware
+            batching-enabled
             global-eql-transform
             global-error-action
             default-result-action!
@@ -247,15 +248,10 @@
                                 (let [{::keys [runtime-atom]} app
                                       {::keys [root-class]} (some-> runtime-atom deref)]
                                   (when root-class
-                                    (let [optimized-render! (ah/app-algorithm app :optimized-render!)
-                                          shared-props      (get @runtime-atom ::shared-props)]
-                                      (binding [fdn/*denormalize-time* (basis-t app)
-                                                comp/*app*             app
-                                                comp/*shared*          shared-props
-                                                comp/*depth*           0]
-                                        (if optimized-render!
-                                          (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
-                                          (log/debug "Render skipped. No optimized render is configured."))))))))
+                                    (let [optimized-render! (ah/app-algorithm app :optimized-render!)]
+                                      (if optimized-render!
+                                        (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
+                                        (log/debug "Render skipped. No optimized render is configured.")))))))
          :refresh-component! comp/refresh-component!
          :optimized-render! (or optimized-render! mrr/render!))))))
 
@@ -393,8 +389,7 @@
   [app-ish]
   (when-let [app (comp/any->app app-ish)]
     (update-shared! app)
-    (binding [comp/*blindly-render* true]
-      (render! app {:force-root? true}))))
+    (render! app {:force-root? true})))
 
 (defn abort!
   "Attempt to abort the send queue entries with the given abort ID.

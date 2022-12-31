@@ -1,18 +1,15 @@
 (ns com.fulcrologic.fulcro.cards.form-cards
   (:require
-    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
-    [nubank.workspaces.core :as ws]
-    [com.wsscode.pathom.connect :as pc]
-    [com.wsscode.pathom.core :as p]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.components :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [edn-query-language.core :as eql]))
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [edn-query-language.core :as eql]
+    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
+    [nubank.workspaces.core :as ws]
+    [taoensso.timbre :as log]))
 
 (defonce remote {:transmit! (fn transmit! [_ {:keys [::txn/ast ::txn/result-handler ::txn/update-handler] :as send-node}]
                               (let [edn        (eql/ast->query ast)
@@ -26,7 +23,7 @@
 (defsc Form [this {:form/keys [name] :as props}]
   {:query         [:form/id :form/name fs/form-config-join]
    :ident         :form/id
-   :initial-state {:form/id   1
+   :initial-state {:form/id   42
                    :form/name "Sam"}
    :form-fields   #{:form/name}
    :pre-merge     (fn [{:keys [data-tree]}]

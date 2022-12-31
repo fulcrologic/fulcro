@@ -4,7 +4,8 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     #?(:clj  [com.fulcrologic.fulcro.dom-server :as dom]
        :cljs [com.fulcrologic.fulcro.dom :as dom])
-    [fulcro-spec.core :refer [specification assertions behavior component =>]]))
+    [com.fulcrologic.fulcro.rendering.context :as context]
+    [fulcro-spec.core :refer [specification assertions when-mocking =>]]))
 
 (defsc A [this props]
   {:ident         :person/id
@@ -81,10 +82,17 @@
     (nil? (comp/registry-key->class `A)) => false))
 
 (specification "react-type"
-  (assertions
-    "Returns the class when passed an instance"
-    #?(:clj  (comp/react-type (ui-a {}))
-       :cljs (comp/react-type (A.))) => A))
+  #?(:cljs
+     (assertions
+       "Returns the class when passed an instance"
+       (comp/react-type (A.)) => A)
+     :clj
+     (when-mocking
+       (context/in-context p f) => (f {:app {}})
+
+       (assertions
+         "Returns the class when passed an instance"
+         (comp/react-type (ui-a {})) => A))))
 
 (specification "wrap-update-extra-props"
   (let [wrapper       (comp/wrap-update-extra-props (fn [_ p] (assoc p :X 1)))

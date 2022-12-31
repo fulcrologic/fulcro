@@ -72,9 +72,14 @@
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :refer [in-transaction]]))
   (:require
     [clojure.set :as set]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.algorithms.tx-processing.batched-processing :as btxn]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect :refer [ido ilet]]
     [com.fulcrologic.fulcro.mutations :as m]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
@@ -83,10 +88,10 @@
 
 (declare run-queue! available-work?)
 
-(defn current-thread-id 
+(defn current-thread-id
   "Get the current thread id on the JVM. Returns 0 on JS."
   []
-  #?(:clj (.getId (Thread/currentThread))
+  #?(:clj  (.getId (Thread/currentThread))
      :cljs 0))
 
 #?(:clj
@@ -102,7 +107,7 @@
   "Returns true if the current thread is running non-nested transaction processing code."
   [{:com.fulcrologic.fulcro.application/keys [id]}]
   (= 0
-     (count (-> apps-in-tx deref (get id [])))))
+    (count (-> apps-in-tx deref (get id [])))))
 
 (defn swap-submission-queue! [app & args] (apply swap! (get-in app [::config ::submission-queue]) args))
 (defn reset-submission-queue! [app v] (reset! (get-in app [::config ::submission-queue]) v))
@@ -145,11 +150,11 @@
   [{:com.fulcrologic.fulcro.application/keys [id] :as app}]
   (not= 0 (count (get @apps-in-tx id []))))
 
-(defn current-thread-running-tx? 
+(defn current-thread-running-tx?
   "Is the current thread running the TX queue?"
   [{:com.fulcrologic.fulcro.application/keys [id] :as app}]
   (contains? (set (get @apps-in-tx id []))
-             (current-thread-id)))
+    (current-thread-id)))
 
 (defn release-post-render-tasks!
   "Should be called after the application renders to ensure that transactions blocked until the next render become
@@ -228,8 +233,7 @@
   "Removes the send node (if present) from the send queue on the given remote."
   [app remote txn-id ele-idx]
   (swap-send-queue! app remote (fn [old-queue]
-                                 (filterv (fn [{::txn/keys [id idx]}]
-                                            (not (and (= txn-id id) (= ele-idx idx)))) old-queue))))
+                                 (filterv (fn [{::txn/keys [id idx]}] (not (and (= txn-id id) (= ele-idx idx)))) old-queue))))
 
 (defn add-send!
   "Generate a new send node and add it to the appropriate send queue."
@@ -240,6 +244,11 @@
                            (run-queue! app {})))
         ast            (get-in tx-node [::txn/elements ele-idx ::txn/transmitted-ast-nodes remote])
         handler        (fn result-handler* [result]
+                         (when (:parallel? options)
+                           (inspect/ilet [{:keys [status-code body]} result]
+                             (if (= 200 status-code)
+                               (inspect/send-finished! app remote id body)
+                               (inspect/send-failed! app id (str status-code)))))
                          (in-transaction app
                            (record-result! app id ele-idx remote result)
                            (remove-send! app remote id ele-idx)
@@ -296,26 +305,27 @@
 (defn process-send-queues!
   "Process the send queues against the remotes, which will cause idle remotes with queued work to issue network requests."
   [app]
-  (let [remote-names (txn/app->remote-names app)
-        operations   (atom [])]
-    (doseq [remote remote-names]
-      (let [send-queue (send-queue app remote)
-            [p serial] (txn/extract-parallel send-queue)
-            front      (first serial)]
-        ;; parallel items are removed from the queues, since they don't block anything
-        (doseq [item p]
-          (swap! operations conj #(txn/net-send! app item remote)))
-        ;; sequential items are kept in queue to prevent out-of-order operation
-        (if (::active? front)
-          (reset-send-queue! app remote serial)
-          (let [{::txn/keys [send-queue send-node]} (txn/combine-sends app remote serial)]
-            (when send-node
-              (swap! operations conj #(txn/net-send! app send-node remote)))
-            (reset-send-queue! app remote send-queue)))))
-    ;; Actual net sends are done after we set the queues, in case the remote behave synchronously and immediately gives
-    ;; results (like errors). Otherwise, nested send queue updates in those handlers could confuse our notion of what's going on.
-    (doseq [op @operations]
-      (op))))
+  (binding [btxn/*remove-send* remove-send!]
+    (let [remote-names (txn/app->remote-names app)
+          operations   (atom [])]
+      (doseq [remote remote-names]
+        (let [send-queue (send-queue app remote)
+              [p serial] (btxn/extract-parallel send-queue)
+              front      (first serial)]
+          ;; parallel items are removed from the queues, since they don't block anything
+          (doseq [item p]
+            (swap! operations conj #(btxn/net-send! app item remote)))
+          ;; sequential items are kept in queue to prevent out-of-order operation
+          (if (::txn/active? front)
+            (reset-send-queue! app remote serial)
+            (let [{::txn/keys [send-queue send-node]} (btxn/combine-sends app remote serial)]
+              (when send-node
+                (swap! operations conj #(btxn/net-send! app send-node remote)))
+              (reset-send-queue! app remote send-queue)))))
+      ;; Actual net sends are done after we set the queues, in case the remote behave synchronously and immediately gives
+      ;; results (like errors). Otherwise, nested send queue updates in those handlers could confuse our notion of what's going on.
+      (doseq [op @operations]
+        (op)))))
 
 (defn process-queue!
   "Run through the active queue and do a processing step."
@@ -403,18 +413,24 @@
      (when-not (in-transaction? app)
        (in-transaction app
          (run-queue! app options)))
-     #?(:clj (when-not (current-thread-running-tx? app) 
+     #?(:clj (when-not (current-thread-running-tx? app)
                (loop []
                  (when (in-transaction? app)
                    (Thread/sleep 1)
                    (recur)))))
      (::txn/id node))))
 
-(def abort!
-  "[app abort-id]
-
-   Implementation of abort when using this tx processing"
-  txn/abort!)
+(defn abort!
+  "Implementation of abort when using this tx processing"
+  [app-ish abort-id]
+  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom] :as app} (rc/any->app app-ish)
+        runtime-state @runtime-atom
+        {:com.fulcrologic.fulcro.application/keys [remotes]} runtime-state]
+    (doseq [[remote-name remote] remotes]
+      (let [send-queue (send-queue app remote-name)
+            new-queue  (txn/abort-elements! remote send-queue abort-id)]
+        #_(reset-active-queue! app (txn/abort-elements! remote (active-queue app) abort-id))
+        (reset-send-queue! app remote-name new-queue)))))
 
 (defn with-synchronous-transactions
   "Installs synchronous transaction processing on a fulcro application.
@@ -424,14 +440,18 @@
                  (app/fulcro-app {...})))
   ```
 
+  Passing a set of `batching-remotes` (a sequence of remote names) will enable automatic load
+  batching on the listed remotes. Transactions are not currently batched, and *pessimistic transaction are NOT supported*.
+
   This plug-in attempts to do as much work as possible synchronously, including the processing of \"remotes\" that
   can behave synchronously. This processing system
   preserves transactional ordering semantics for nested submissions, but cannot guarantee that the overall sequence of
   operations will exactly match what you'd see if using the standard tx processing.
 
   The options map you can pass to `transact!` supports most of the same things as the standard tx processing, with the significant exception of
-  `:optimistic? false` (pessimistic transactions). It also *always* assumes synchronous operation, thought the
-  `synchronous?` option (if used) does imply that only the current component should be refreshed in the UI.
+  `:optimistic? false` (pessimistic transactions). It also *always* assumes synchronous operation, though the
+  `synchronous?` option (if used) does imply that only the current component should be refreshed in the UI as an additinoal
+  optimization.
 
   - `:ref` - ident. The component ident to include in the transaction env.
   - `:component` - React element. The instance of the component that should appear in the transaction env.
@@ -450,15 +470,18 @@
 
   Returns the transaction ID of the submitted transaction.
   "
-  [app]
-  (let [remotes     (-> app :com.fulcrologic.fulcro.application/runtime-atom deref
-                      :com.fulcrologic.fulcro.application/remotes keys)
-        send-queues (zipmap remotes (repeatedly #(atom [])))]
-    (-> app
-      (update :com.fulcrologic.fulcro.application/algorithms assoc
-        :com.fulcrologic.fulcro.algorithm/tx! submit-sync-tx!
-        :com.fulcrologic.fulcro.algorithm/abort! abort!)
-      (assoc ::config {::submission-queue      (atom [])
-                       ::post-processing-steps (atom [])
-                       ::active-queue          (atom [])
-                       ::send-queues           send-queues}))))
+  ([app] (with-synchronous-transactions app nil))
+  ([app batching-remotes]
+   (let [remotes          (-> app :com.fulcrologic.fulcro.application/runtime-atom deref
+                            :com.fulcrologic.fulcro.application/remotes keys)
+         send-queues      (zipmap remotes (repeatedly #(atom [])))
+         batching-enabled (zipmap batching-remotes (repeat true))]
+     (-> app
+       (assoc-in [:com.fulcrologic.fulcro.application/config :batching-enabled] batching-enabled)
+       (update :com.fulcrologic.fulcro.application/algorithms assoc
+         :com.fulcrologic.fulcro.algorithm/tx! submit-sync-tx!
+         :com.fulcrologic.fulcro.algorithm/abort! abort!)
+       (assoc ::config {::submission-queue      (atom [])
+                        ::post-processing-steps (atom [])
+                        ::active-queue          (atom [])
+                        ::send-queues           send-queues})))))
