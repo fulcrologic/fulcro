@@ -14,7 +14,8 @@
        {:render-root!  (fn [ui-root mount-node]
                          (when-not @reactRoot
                            (vreset! reactRoot (dom-client/createRoot mount-node)))
-                         (.render ^js @reactRoot ui-root))
+                         (.render ^js @reactRoot ui-root)
+                         @reactRoot)
         :hydrate-root! (fn [ui-root mount-node] (dom-client/hydrateRoot mount-node ui-root))})
      :clj {}))
 

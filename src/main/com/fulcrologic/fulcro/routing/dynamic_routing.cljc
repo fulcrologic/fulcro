@@ -1150,7 +1150,7 @@
      well-connected (graph/state) from which to scan, and will get back paths relative to that `starting-from`
      (a component, element, or factory if you're using factory-based dynamic queries)."
     ([app]
-     (active-routes app (app/app-root app)))
+     (active-routes app (app/root-class app)))
     ([app starting-from]
      (let [state-map (app/current-state app)
            query     (comp/get-query starting-from state-map)
