@@ -3,7 +3,6 @@
    to support sequences of transactions."
   (:require
     [clojure.set :as set]
-    [clojure.pprint :refer [pprint]]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
