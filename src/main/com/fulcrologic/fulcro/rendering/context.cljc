@@ -30,22 +30,23 @@
 (defonce Provider #?(:cljs (.-Provider rendering-context) :clj nil))
 (defonce Consumer #?(:cljs (.-Consumer rendering-context) :clj nil))
 
-(def root-provider-context-object (memoize (fn [app-id] #js {})))
+(defonce root-provider-context-object (memoize (fn [app-id] #?(:cljs (js/Object.)))))
+(defn- gset [obj k v] #?(:cljs (gobj/set obj k v)))
 
 #?(:clj
    (defmacro ui-provider
      ([app child] `(ui-provider ~app ~child false))
      ([app child force-render?]
-      (let [cmap `{:app              ~app
-                   :parent           nil
-                   :shared           (some-> ~app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props)
-                   :force-render?    ~force-render?
-                   :query-state      (some-> ~app :com.fulcrologic.fulcro.application/state-atom deref)}]
+      (let [cmap `{:app           ~app
+                   :parent        nil
+                   :shared        (some-> ~app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props)
+                   :force-render? ~force-render?
+                   :query-state   (some-> ~app :com.fulcrologic.fulcro.application/state-atom deref)}]
         (if (boolean (:ns &env))
           `(let [cobj# (root-provider-context-object (:com.fulcrologic.fulcro.application/id ~app))
-                 arg#  (js/Object.)]
-             (goog.object/set cobj# "context" ~cmap)
-             (goog.object/set arg# "value" cobj#)
+                 arg#  ~(JSValue. {})]
+             (gset cobj# "context" ~cmap)
+             (gset arg# "value" cobj#)
              (com.fulcrologic.fulcro.rendering.context/create-element Provider arg# ~child))
           `(binding [rendering-context ~cmap] ~child))))))
 
