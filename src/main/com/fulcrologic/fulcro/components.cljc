@@ -283,19 +283,19 @@
      [raw-next-props raw-next-state]
      #?(:clj true
         :cljs (this-as this
-                (let [context (rcontext/current-context-value context/rendering-context)
+                (let [context (some-> (rcontext/current-context-value context/rendering-context) (gobj/get "context"))
                       {:keys [force-render? parent] :as c} (if (map? context) context {})
                       root?   (nil? parent)]
                   (or root? force-render?
-                    (let [current-props     (props this)
-                          next-props        (raw->newest-props raw-next-props raw-next-state)
-                          next-state        (gobj/get raw-next-state "fulcro$state")
-                          current-state     (gobj/getValueByKeys this "state" "fulcro$state")
-                          props-changed?    (not= current-props next-props)
-                          state-changed?    (not= current-state next-state)
-                          next-children     (gobj/get raw-next-props "children")
-                          children-changed? (not= (gobj/getValueByKeys this "props" "children") next-children)]
-                      (or props-changed? state-changed? children-changed?)))))))
+                    (let [current-props (props this)
+                          next-props    (raw->newest-props raw-next-props raw-next-state)
+                          next-state    (gobj/get raw-next-state "fulcro$state")
+                          current-state (gobj/getValueByKeys this "state" "fulcro$state")
+                          next-children (gobj/get raw-next-props "children")]
+                      (or ; these are not in the let because they will short-circuit, and are not necessarily cheap
+                        (not= current-state next-state)
+                        (not= (gobj/getValueByKeys this "props" "children") next-children)
+                        (not= current-props next-props))))))))
    (component-did-update
      [raw-prev-props raw-prev-state snapshot]
      #?(:cljs
@@ -359,16 +359,18 @@
                (binding [*parent* (first args)]
                  (apply render args)))
         :cljs
-        (fn [& args]
-          (this-as this
-            (context/merge-context {:parent this}
-              (fn [{:keys [app shared parent]}]
-                (if app
-                  (binding [*app*    app
-                            *shared* shared
-                            *parent* parent]
-                    (apply render this args))
-                  (log/fatal "Cannot find app on component!"))))))))]
+        (let [context-obj #js {}]
+          (fn [& args]
+            (this-as this
+              (context/in-context
+                (fn [{:keys [app shared] :as context}]
+                  (when app
+                    (gobj/set context-obj "context" (merge context {:parent this}))
+                    (context/create-element context/Provider #js {:value context-obj}
+                      (binding [*app*    app
+                                *shared* shared
+                                *parent* this]
+                        (apply render this args)))))))))))]
 
   (defn configure-component!
     "Configure the given `cls` (a function) to act as a react component within the Fulcro ecosystem.
@@ -611,8 +613,6 @@
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
   ([class-or-factory]
-   ;; TASK: calls to get-query need to ALWAYS bind this
-   ;; TASK: Denormalize time needs work as well
    (rc/get-query class-or-factory rc/*query-state*))
   ([class-or-factory state-map]
    (binding [rc/*query-state* state-map]

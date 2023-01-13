@@ -37,7 +37,7 @@
                                       com.wsscode/pathom                {:mvn/version "2.3.1"}
                                       com.fulcrologic/fulcro-websockets {:mvn/version "3.2.0"
                                                                          :exclusions [com.fulcrologic/fulcro]}
-                                      binaryage/devtools                {:mvn/version "1.0.0"}
+                                      binaryage/devtools                {:mvn/version "1.0.6"}
                                       ring/ring-core                    {:mvn/version "1.8.1"}
                                       org.immutant/web                  {:mvn/version "2.1.10"}
                                       org.clojure/tools.namespace       {:mvn/version "1.0.0"}}}

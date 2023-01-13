@@ -8,8 +8,8 @@
     "karma": "6.3.2",
     "karma-chrome-launcher": "3.1.0",
     "karma-cljs-test": "0.1.0",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "shadow-cljs": "2.14.5",
     "transit-js": "^0.8.867"
   },
