@@ -38,7 +38,6 @@
      ([app child] `(ui-provider ~app ~child false))
      ([app child force-render?]
       (let [cmap `{:app           ~app
-                   :parent        nil
                    :shared        (some-> ~app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/shared-props)
                    :force-render? ~force-render?
                    :query-state   (some-> ~app :com.fulcrologic.fulcro.application/state-atom deref)}]

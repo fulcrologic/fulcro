@@ -284,7 +284,8 @@
      #?(:clj true
         :cljs (this-as this
                 (let [context (some-> (rcontext/current-context-value context/rendering-context) (gobj/get "context"))
-                      {:keys [force-render? parent] :as c} (if (map? context) context {})
+                      parent  (gobj/get raw-next-props "fulcro$parent")
+                      {:keys [force-render?] :as c} (if (map? context) context {})
                       root?   (nil? parent)]
                   (or root? force-render?
                     (let [current-props (props this)
@@ -359,18 +360,15 @@
                (binding [*parent* (first args)]
                  (apply render args)))
         :cljs
-        (let [context-obj #js {}]
-          (fn [& args]
-            (this-as this
-              (context/in-context
-                (fn [{:keys [app shared] :as context}]
-                  (when app
-                    (gobj/set context-obj "context" (merge context {:parent this}))
-                    (context/create-element context/Provider #js {:value context-obj}
-                      (binding [*app*    app
-                                *shared* shared
-                                *parent* this]
-                        (apply render this args)))))))))))]
+        (fn [& args]
+          (this-as this
+            (context/in-context
+              (fn [{:keys [app shared] :as context}]
+                (when app
+                  (binding [*app*    app
+                            *shared* shared
+                            *parent* this]
+                    (apply render this args)))))))))]
 
   (defn configure-component!
     "Configure the given `cls` (a function) to act as a react component within the Fulcro ecosystem.
@@ -739,12 +737,13 @@
    (let [qid (query-id class qualifier)]
      (with-meta
        (fn element-factory [props & children]
-         (let [key (:react-key props)
-               key (cond
-                     key key
-                     keyfn (keyfn props))]
+         (let [key    (:react-key props)
+               key    (cond
+                        key key
+                        keyfn (keyfn props))
+               parent *parent*]
            (context/in-context (if key {:key key} nil)
-             (fn [{:keys [app parent]}]
+             (fn [{:keys [app]}]
                (if app
                  (let [ref              (:ref props)
                        ref              (cond-> ref (keyword? ref) str)
@@ -1034,7 +1033,7 @@
      "
      [outer-parent & body]
      `(context/ui-provider (any->app ~outer-parent)
-        (do
+        (binding [*parent* ~outer-parent]
           ~@body))))
 
 (defn ptransact!
