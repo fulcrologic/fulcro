@@ -292,7 +292,7 @@
                           next-state    (gobj/get raw-next-state "fulcro$state")
                           current-state (gobj/getValueByKeys this "state" "fulcro$state")
                           next-children (gobj/get raw-next-props "children")]
-                      (or ; these are not in the let because they will short-circuit, and are not necessarily cheap
+                      (or                                   ; these are not in the let because they will short-circuit, and are not necessarily cheap
                         (not= current-state next-state)
                         (not= (gobj/getValueByKeys this "props" "children") next-children)
                         (not= current-props next-props))))))))
@@ -613,7 +613,9 @@
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
   ([class-or-factory]
-   (rc/get-query class-or-factory rc/*query-state*))
+   (binding [rc/*query-state* (or rc/*query-state*
+                                #?(:cljs (some-> (rcontext/current-context-value context/rendering-context) (gobj/get "context") :query-state)))]
+     (rc/get-query class-or-factory rc/*query-state*)))
   ([class-or-factory state-map]
    (binding [rc/*query-state* state-map]
      (rc/get-query class-or-factory state-map))))
