@@ -6,16 +6,16 @@
   (ns app.ui
     (:require
       #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [com.fulcrologic.fulcro.dom :as dom])))"
-  (:refer-clojure :exclude [map meta time mask select use set symbol filter])
+  (:refer-clojure :exclude [filter map mask meta select set symbol time use])
   (:require
-    [com.fulcrologic.fulcro.dom-common :as cdom]
-    [com.fulcrologic.fulcro.raw.components :as rc :refer [component-instance?]]
+    [clojure.core.reducers :as r]
+    [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
-    [clojure.spec.alpha :as s]
-    [clojure.core.reducers :as r]
-    [com.fulcrologic.fulcro.rendering.context :as context]
-    [taoensso.encore :as encore]))
+    [com.fulcrologic.fulcro.dom-common :as cdom]
+    [com.fulcrologic.fulcro.raw.components :as rc :refer [component-instance?]]
+    [taoensso.encore :as encore]
+    [taoensso.timbre :as log]))
 
 (definterface IReactDOMElement
   (^StringBuilder renderToString [react-id ^StringBuilder sb]))
@@ -448,11 +448,10 @@
 (defn assign-react-checksum [^StringBuilder sb]
   (.insert sb (.indexOf sb ">") (str " data-react-checksum=\"" (adler32 sb) "\"")))
 
-(defmacro render-to-str [x]
-  `(context/ui-provider {}
-     (let [sb# (#'render-to-str* ~x)]
-       (assign-react-checksum sb#)
-       (.toString sb#))))
+(defn render-to-str ^String [x]
+  (let [sb (render-to-str* x)]
+    (assign-react-checksum sb)
+    (.toString sb)))
 
 (defn node
   "Returns the dom node associated with a component's React ref.
@@ -476,18 +475,21 @@
 (defn gen-tag-fn [tag]
   `(defn ~tag ~(cdom/gen-docstring tag false)
      [& ~'args]
-     (let [conformed-args# (util/conform! ::dom-element-args ~'args)
-           {attrs#    :attrs
-            children# :children
-            css#      :css} conformed-args#
-           children#       (mapv second children#)
-           attrs-value#    (or (second attrs#) {})]
-       (element {:tag       '~tag
-                 :attrs     (-> (cdom/interpret-classes attrs-value#)
-                              (dissoc :ref :key)
-                              (cdom/add-kwprops-to-props css#))
-                 :react-key (:key attrs-value#)
-                 :children  children#}))))
+     (try
+       (let [conformed-args# (util/conform! ::dom-element-args ~'args)
+            {attrs#    :attrs
+             children# :children
+             css#      :css} conformed-args#
+            children#       (mapv second children#)
+            attrs-value#    (or (second attrs#) {})]
+        (element {:tag       '~tag
+                  :attrs     (-> (cdom/interpret-classes attrs-value#)
+                               (dissoc :ref :key)
+                               (cdom/add-kwprops-to-props css#))
+                  :react-key (:key attrs-value#)
+                  :children  children#}))
+       (catch Exception e#
+         (log/error e# ~'args)))))
 
 (defmacro gen-all-tags []
   (when-not (boolean (:ns &env))

@@ -253,7 +253,7 @@
                                                          (use-lifecycle
                                                            (fn [] (mrr/register-root! this))
                                                            (fn [] (mrr/deregister-root! this)))
-                                                         (binding [comp/*parent* parent-this]
+                                                         (comp/with-parent-context parent-this
                                                            (child-factory (get fulcro-props join-key initial-state) @pass-through-props)))
                                                        {:query         (fn [_] [{join-key (comp/get-query child-class)}])
                                                         :initial-state (fn [_] {join-key initial-state})

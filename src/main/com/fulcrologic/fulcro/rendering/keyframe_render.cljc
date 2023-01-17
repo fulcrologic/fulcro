@@ -5,7 +5,6 @@
        ["react-dom" :as react.dom])
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.raw.application :as rapp]
-    [com.fulcrologic.fulcro.rendering.context :as context]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.components :as comp]
     [taoensso.timbre :as log]))
@@ -15,15 +14,18 @@
   actually changing the app state**. Used by Inspect for DOM preview. Forces a root-based render with no props diff optimization.
   The app must already be mounted. Returns the result of render."
   [app state-map]
-  (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
-        {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom
-        r!        (or (ah/app-algorithm app :render-root!) #?(:cljs react.dom/render))
-        query     (comp/get-query root-class state-map)
-        data-tree (if query
-                    (fdn/db->tree query state-map state-map)
-                    state-map)]
-    (when (and r! root-factory)
-      (r! (context/ui-provider app (root-factory data-tree) true) mount-node))))
+  (comp/enable-forced-refresh! 1000)
+  (binding [comp/*app*    app
+            comp/*shared* (comp/shared app)]
+    (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
+          {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom
+          r!        (or (ah/app-algorithm app :render-root!) #?(:cljs react.dom/render))
+          query     (comp/get-query root-class state-map)
+          data-tree (if query
+                      (fdn/db->tree query state-map state-map)
+                      state-map)]
+      (when (and r! root-factory)
+        (r! (root-factory data-tree) mount-node)))))
 
 (defn render!
   "Render the UI. The keyframe render runs a full UI query and then asks React to render the root component.
@@ -49,6 +51,10 @@
                            state-map)
         app-root #?(:clj {}
                     :cljs (when root-factory
-                            (r! (context/ui-provider app (root-factory data-tree) force-root?) mount-node)))]
+                            (when force-root? (comp/enable-forced-refresh! 1000))
+                            (binding [comp/*app*    app
+                                      comp/*parent* nil
+                                      comp/*shared* (comp/shared app)]
+                              (r! (root-factory data-tree) mount-node))))]
     (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/app-root app-root)
     #?(:cljs app-root)))

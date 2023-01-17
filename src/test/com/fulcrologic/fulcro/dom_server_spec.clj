@@ -1,8 +1,8 @@
 (ns com.fulcrologic.fulcro.dom-server-spec
   (:require
-    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.dom-server :as dom :refer [div p span render-to-str]]))
+    [com.fulcrologic.fulcro.dom-server :as dom :refer [div p render-to-str span]]
+    [fulcro-spec.core :refer [=> assertions provided specification]]))
 
 (defsc Sample [this props] (dom/div "Hello"))
 (def ui-sample (comp/factory Sample))

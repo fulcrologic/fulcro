@@ -1,7 +1,6 @@
 (ns com.fulcrologic.fulcro.component-dynamic-query-spec
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.rendering.context :as context]
     [taoensso.timbre :as log]
     [fulcro-spec.core :refer [specification behavior component assertions when-mocking]]
     #?(:cljs [goog.object :as gobj])
@@ -20,29 +19,29 @@
     (comp/query-id A :x) => "com.fulcrologic.fulcro.component-dynamic-query-spec/A$:x"))
 
 (specification "UI Factory"
-  (assertions
-    "Adds  react-class to the metadata of the generated factory"
-    (some-> (comp/factory A) meta :class) => A
-    "Adds an optional qualifier to the metadata of the generated factory"
-    (some-> (comp/factory A) meta :qualifier) => nil
-    (some-> (comp/factory A {:qualifier :x}) meta :qualifier) => :x)
-  (behavior "Adds an internal query id to the props passed by the factory"
-    #?(:cljs
-       (when-mocking
-         (context/in-context m f) => (f {:app {}})
-         (comp/query-id c q) => :ID
-         (comp/create-element class props children) => (do
-                                                         (assertions
-                                                           (gobj/get props "fulcro$queryid") => :ID))
-
-         ((comp/factory A) {}))
-       :clj
-       (let [class (fn [_ _ props _] (assertions (:fulcro$queryid props) => :ID))]
+  (binding [comp/*app* {}]
+    (assertions
+      "Adds  react-class to the metadata of the generated factory"
+      (some-> (comp/factory A) meta :class) => A
+      "Adds an optional qualifier to the metadata of the generated factory"
+      (some-> (comp/factory A) meta :qualifier) => nil
+      (some-> (comp/factory A {:qualifier :x}) meta :qualifier) => :x)
+    (behavior "Adds an internal query id to the props passed by the factory"
+      #?(:cljs
          (when-mocking
            (comp/query-id c q) => :ID
-           ;(comp/init-local-state c) => nil
+           (comp/create-element class props children) => (do
+                                                           (assertions
+                                                             (gobj/get props "fulcro$queryid") => :ID))
 
-           ((comp/factory class) {}))))))
+           ((comp/factory A) {}))
+         :clj
+         (let [class (fn [_ _ props _] (assertions (:fulcro$queryid props) => :ID))]
+           (when-mocking
+             (comp/query-id c q) => :ID
+             ;(comp/init-local-state c) => nil
+
+             ((comp/factory class) {})))))))
 
 (defsc Q [_ _] {:query [:a :b]})
 (def ui-q (comp/factory Q))

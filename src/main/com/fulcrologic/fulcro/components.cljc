@@ -12,8 +12,6 @@
     [taoensso.timbre :as log]
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.rendering.context :as context]
-    [com.fulcrologic.fulcro.react.context :as rcontext]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
@@ -32,6 +30,20 @@
 (def ^:dynamic *app* nil)
 (def ^:dynamic *parent* nil)
 (def ^:dynamic *shared* nil)
+(def ^:private force-refresh (volatile! false))
+
+(defn enable-forced-refresh!
+  "When called this enables forced refresh for the given amount of time in ms. (Does nothing in CLJ)"
+  [ms]
+  #?(:clj  nil
+     :cljs (do
+             (vreset! force-refresh true)
+             (js/setTimeout (fn [] (vreset! force-refresh false)) ms))))
+
+(defn force-refresh?
+  "Returns true if a rendering request wants all components to render even if their props and state have not changed."
+  []
+  @force-refresh)
 
 (def isoget-in
   "
@@ -282,21 +294,18 @@
    (should-component-update?
      [raw-next-props raw-next-state]
      #?(:clj true
-        :cljs (this-as this
-                (let [context (some-> (rcontext/current-context-value context/rendering-context) (gobj/get "context"))
-                      parent  (gobj/get raw-next-props "fulcro$parent")
-                      {:keys [force-render?] :as c} (if (map? context) context {})
-                      root?   (nil? parent)]
-                  (or root? force-render?
-                    (let [current-props (props this)
-                          next-props    (raw->newest-props raw-next-props raw-next-state)
-                          next-state    (gobj/get raw-next-state "fulcro$state")
-                          current-state (gobj/getValueByKeys this "state" "fulcro$state")
-                          next-children (gobj/get raw-next-props "children")]
-                      (or                                   ; these are not in the let because they will short-circuit, and are not necessarily cheap
-                        (not= current-state next-state)
-                        (not= (gobj/getValueByKeys this "props" "children") next-children)
-                        (not= current-props next-props))))))))
+        :cljs (if (and goog.DEBUG (force-refresh?))
+                true
+                (this-as this
+                  (let [current-props (props this)
+                        next-props    (raw->newest-props raw-next-props raw-next-state)
+                        next-state    (gobj/get raw-next-state "fulcro$state")
+                        current-state (gobj/getValueByKeys this "state" "fulcro$state")
+                        next-children (gobj/get raw-next-props "children")]
+                    (or                                     ; these are not in the let because they will short-circuit, and are not necessarily cheap
+                      (not= current-state next-state)
+                      (not= (gobj/getValueByKeys this "props" "children") next-children)
+                      (not= current-props next-props)))))))
    (component-did-update
      [raw-prev-props raw-prev-state snapshot]
      #?(:cljs
@@ -362,13 +371,12 @@
         :cljs
         (fn [& args]
           (this-as this
-            (context/in-context
-              (fn [{:keys [app shared] :as context}]
-                (when app
-                  (binding [*app*    app
-                            *shared* shared
-                            *parent* this]
-                    (apply render this args)))))))))]
+            (if-let [app (any->app this)]
+              (binding [*app*    app
+                        *shared* (shared this)
+                        *parent* this]
+                (apply render this args))
+              (log/fatal "Cannot find app on component!"))))))]
 
   (defn configure-component!
     "Configure the given `cls` (a function) to act as a react component within the Fulcro ecosystem.
@@ -611,12 +619,10 @@
   query of the class. If a state map is supplied, then the dynamically set queries in that state will result in
   the current dynamically-set query according to that state."
   ([class-or-factory]
-   (binding [rc/*query-state* (or rc/*query-state*
-                                #?(:cljs (some-> (rcontext/current-context-value context/rendering-context) (gobj/get "context") :query-state)))]
-     (rc/get-query class-or-factory rc/*query-state*)))
+   (rc/get-query class-or-factory (or rc/*query-state*
+                                    (some-> *app* :com.fulcrologic.fulcro.application/state-atom deref) {})))
   ([class-or-factory state-map]
-   (binding [rc/*query-state* state-map]
-     (rc/get-query class-or-factory state-map))))
+   (rc/get-query class-or-factory state-map)))
 
 (defn make-state-map
   "Build a component's initial state using the defsc initial-state-data from
@@ -737,50 +743,50 @@
    (let [qid (query-id class qualifier)]
      (with-meta
        (fn element-factory [props & children]
-         (let [key    (:react-key props)
-               key    (cond
-                        key key
-                        keyfn (keyfn props))
-               parent *parent*]
-           (context/in-context (if key {:key key} nil)
-             (fn [{:keys [app]}]
-               (if app
-                 (let [ref              (:ref props)
-                       ref              (cond-> ref (keyword? ref) str)
-                       props-middleware (some-> app (ah/app-algorithm :props-middleware))
-                       ;; Our data-readers.clj makes #js == identity in CLJ
-                       props            #js {:fulcro$value   props
-                                             :fulcro$queryid qid
-                                             :fulcro$parent  parent
-                                             :fulcro$app     app}
-                       props            (if props-middleware
-                                          (props-middleware class props)
-                                          props)]
-                   #?(:cljs
-                      (do
-                        (when key
-                          (gobj/set props "key" key))
-                        (when ref
-                          (gobj/set props "ref" ref))
-                        ;; dev time warnings/errors
-                        (when goog.DEBUG
-                          (when (or (map? key) (vector? key))
-                            (log/warn "React key for " (component-name class) " is not a simple scalar value. This could cause spurious component remounts. See https://book.fulcrologic.com/#warn-react-key-not-simple-scalar"))
+         (let [key                     (:react-key props)
+               key                     (cond
+                                         key key
+                                         keyfn (keyfn props))
+               parent                  *parent*
+               app #?(:cljs *app* :clj {})]
+           (if app
+             (let [ref              (:ref props)
+                   ref              (cond-> ref (keyword? ref) str)
+                   props-middleware (some-> app (ah/app-algorithm :props-middleware))
+                   ;; Our data-readers.clj makes #js == identity in CLJ
+                   props            #js {:fulcro$value   props
+                                         :fulcro$queryid qid
+                                         :fulcro$parent  parent
+                                         :fulcro$app     app}
+                   props            (if props-middleware
+                                      (props-middleware class props)
+                                      props)]
+               #?(:cljs
+                  (do
+                    (when key
+                      (gobj/set props "key" key))
+                    (when ref
+                      (gobj/set props "ref" ref))
+                    ;; dev time warnings/errors
+                    (when goog.DEBUG
+                      (when (or (map? key) (vector? key))
+                        (log/warn "React key for " (component-name class) " is not a simple scalar value. This could cause spurious component remounts. See https://book.fulcrologic.com/#warn-react-key-not-simple-scalar"))
 
-                          (when (string? ref)
-                            (log/warn "String ref on " (component-name class) " should be a function. See https://book.fulcrologic.com/#warn-string-ref-not-function"))
+                      (when (string? ref)
+                        (log/warn "String ref on " (component-name class) " should be a function. See https://book.fulcrologic.com/#warn-string-ref-not-function"))
 
-                          (when (or (nil? props) (not (gobj/containsKey props "fulcro$value")))
-                            (log/error "Props middleware seems to have corrupted props for " (component-name class) "See https://book.fulcrologic.com/#err-comp-props-middleware-corrupts"))
+                      (when (or (nil? props) (not (gobj/containsKey props "fulcro$value")))
+                        (log/error "Props middleware seems to have corrupted props for " (component-name class) "See https://book.fulcrologic.com/#err-comp-props-middleware-corrupts"))
 
-                          (when-not ((fnil map? {}) (gobj/get props "fulcro$value"))
-                            (log/error "Props passed to" (component-name class) "are of the type"
-                              (type->str (type (gobj/get props "fulcro$value")))
-                              "instead of a map. Perhaps you meant to `map` the component over the props? See https://book.fulcrologic.com/#err-comp-props-not-a-map")))))
-                   (create-element class props children))
-                 (do
-                   (log/error "App was not found in context! This should not be possible.")
-                   []))))))
+                      (when-not ((fnil map? {}) (gobj/get props "fulcro$value"))
+                        (log/error "Props passed to" (component-name class) "are of the type"
+                          (type->str (type (gobj/get props "fulcro$value")))
+                          "instead of a map. Perhaps you meant to `map` the component over the props? See https://book.fulcrologic.com/#err-comp-props-not-a-map")))))
+               (create-element class props children))
+             (do
+               (log/error
+                 "A Fulcro component was rendered outside of a parent context. This probably means you are using a library that has you pass rendering code to it as a lambda. Use `with-parent-context` to fix this. See https://book.fulcrologic.com/#err-comp-rendered-outside-parent-ctx")
+               []))))
        {:class     class
         :queryid   qid
         :qualifier qualifier}))))
@@ -1032,9 +1038,16 @@
      ```
      "
      [outer-parent & body]
-     `(context/ui-provider (any->app ~outer-parent)
-        (binding [*parent* ~outer-parent]
-          ~@body))))
+     (if-not (:ns &env)
+       `(do ~@body)
+       `(let [parent# ~outer-parent
+              app#    (or *app* (any->app parent#))
+              s#      (shared app#)
+              p#      (or *parent* parent#)]
+          (binding [*app*    app#
+                    *shared* s#
+                    *parent* p#]
+            ~@body)))))
 
 (defn ptransact!
   "
@@ -1248,9 +1261,12 @@
        `(~'fn ~render-fn [~thissym ~propsym]
           (com.fulcrologic.fulcro.components/wrapped-render ~thissym
             (fn []
-              (let [~@computed-bindings
-                    ~@extended-bindings]
-                ~@body)))))))
+              (binding [*app*    (or *app* (isoget-in ~thissym ["props" "fulcro$app"]))
+                        *shared* (shared (or *app* (isoget-in ~thissym ["props" "fulcro$app"])))
+                        *parent* ~thissym]
+                (let [~@computed-bindings
+                      ~@extended-bindings]
+                  ~@body))))))))
 
 #?(:clj
    (defn- build-and-validate-initial-state-map [env sym initial-state legal-keys children-by-query-key]

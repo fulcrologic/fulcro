@@ -248,10 +248,13 @@
                                 (let [{::keys [runtime-atom]} app
                                       {::keys [root-class]} (some-> runtime-atom deref)]
                                   (when root-class
-                                    (let [optimized-render! (ah/app-algorithm app :optimized-render!)]
-                                      (if optimized-render!
-                                        (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
-                                        (log/debug "Render skipped. No optimized render is configured.")))))))
+                                    (let [optimized-render! (ah/app-algorithm app :optimized-render!)
+                                          shared-props      (get @runtime-atom ::shared-props)]
+                                      (binding [comp/*app*    app
+                                                comp/*shared* shared-props]
+                                        (if optimized-render!
+                                          (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
+                                          (log/debug "Render skipped. No optimized render is configured."))))))))
          :refresh-component! comp/refresh-component!
          :optimized-render! (or optimized-render! mrr/render!))))))
 

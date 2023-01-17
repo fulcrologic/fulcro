@@ -3,6 +3,7 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
+    [com.fulcrologic.fulcro.react.version18 :as react18]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
     [nubank.workspaces.core :as ws]
     [taoensso.timbre :as log]))
@@ -126,7 +127,8 @@
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       Root
-     ::ct.fulcro/app        {:client-will-mount (fn [app]
-                                                  (reset! SPA app)
-                                                  (dr/initialize! app)
-                                                  (dr/change-route! app ["a" "a1"]))}}))
+     ::ct.fulcro/app        (merge (react18/react18-options)
+                              {:client-will-mount (fn [app]
+                                                    (reset! SPA app)
+                                                    (dr/initialize! app)
+                                                    (dr/change-route! app ["a" "a1"]))})}))
