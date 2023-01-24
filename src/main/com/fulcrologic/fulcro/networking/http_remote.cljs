@@ -291,6 +291,7 @@
   * `:request-middleware` - See below
   * `:response-middleware` - See below
   * `:make-xhrio` - A constructor function to build a goog.net.XhrIo object, initialized however you see fit.
+  * `:preprocess-error` - A `(fn [xhrio-result] fulcro-result)`. Defaults to #(merge % {:status-code 500}).
 
   The request middleware is a `(fn [request] modified-request)`. The `request` will have `:url`, `:body`, `:method`, and `:headers`. The
   request middleware defaults to `wrap-fulcro-request` (which encodes the request in transit+json). The result of this
@@ -320,10 +321,11 @@
   for any merges.
 
   See the top-level application configuration and Developer's Guide for more details."
-  [{:keys [url request-middleware response-middleware make-xhrio] :or {url                 "/api"
-                                                                       response-middleware (wrap-fulcro-response)
-                                                                       request-middleware  (wrap-fulcro-request)
-                                                                       make-xhrio          make-xhrio} :as options}]
+  [{:keys [url request-middleware response-middleware make-xhrio preprocess-error] :or {url                 "/api"
+                                                                                        response-middleware (wrap-fulcro-response)
+                                                                                        request-middleware  (wrap-fulcro-request)
+                                                                                        preprocess-error    (fn [r] (merge r {:status-code 500}))
+                                                                                        make-xhrio          make-xhrio} :as options}]
   [(s/keys :opt-un [::url ::request-middleware ::response-middleware ::make-xhrio]) => ::fulcro-remote]
   (merge options
     {:active-requests    (atom {})
@@ -348,7 +350,7 @@
                                                             (log/error e "Update handler for remote" url "failed with an exception. See https://book.fulcrologic.com/#err-httpr-update-handler-exc"))))))
                                  error-handler    (fn [error-result]
                                                     (try
-                                                      (let [error (merge error-result {:status-code 500})]
+                                                      (let [error (preprocess-error error-result)]
                                                         (log/error (ex-info "Remote Error" error) "See https://book.fulcrologic.com/#err-httpr-remote-err")
                                                         (result-handler error))
                                                       (catch :default e
@@ -357,8 +359,8 @@
                                                      (request-middleware {:headers {} :body base-body :url url :method :post})
                                                      (catch :default e
                                                        (log/error e "Send aborted due to middleware failure. Did you accidentally put a lambda in params? See https://book.fulcrologic.com/#err-httpr-send-abort")
-                                                    (when-let [errant-data (some-> e (.-data) (.-obj))]
-                                                      (log/error "Cannot encode" errant-data))
+                                                       (when-let [errant-data (some-> e (.-data) (.-obj))]
+                                                         (log/error "Cannot encode" errant-data))
                                                        nil))]
                                (let [abort-id             (or
                                                             (-> send-node ::txn/options ::txn/abort-id)
