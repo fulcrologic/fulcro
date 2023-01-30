@@ -296,25 +296,26 @@
   nor can you pass it as a parameter to this function. Therefore, it is not recommended to use load-field from within
   a component that has a dynamic query unless you can base it on the original static query.
   "
-  [component field-or-fields options]
-  (let [app          (rc/any->app component)
-        {:keys [parallel update-query]} options
-        {:keys [load-mutation]} (-> app :com.fulcrologic.fulcro.application/config)
-        load-sym     (or load-mutation `internal-load!)
-        ident        (rc/get-ident component)
-        update-query (fn [q]
-                       (cond-> (eql/focus-subquery q (if (vector? field-or-fields)
-                                                       field-or-fields
-                                                       [field-or-fields]))
-                         update-query (update-query)))
-        params       (load-params* app ident component (assoc options
-                                                         :update-query update-query
-                                                         :source-key (rc/get-ident component)))
-        abort-id     (:abort-id params)]
-    (rc/transact! app [(list load-sym params)]
-      (cond-> {}
-        (boolean? parallel) (assoc :parallel? parallel)
-        abort-id (assoc ::txn/abort-id abort-id)))))
+  ([component field-or-fields] (load-field! component field-or-fields {})
+  ([component field-or-fields options]
+   (let [app          (rc/any->app component)
+         {:keys [parallel update-query]} options
+         {:keys [load-mutation]} (-> app :com.fulcrologic.fulcro.application/config)
+         load-sym     (or load-mutation `internal-load!)
+         ident        (rc/get-ident component)
+         update-query (fn [q]
+                        (cond-> (eql/focus-subquery q (if (vector? field-or-fields)
+                                                        field-or-fields
+                                                        [field-or-fields]))
+                          update-query (update-query)))
+         params       (load-params* app ident component (assoc options
+                                                          :update-query update-query
+                                                          :source-key (rc/get-ident component)))
+         abort-id     (:abort-id params)]
+     (rc/transact! app [(list load-sym params)]
+       (cond-> {}
+         (boolean? parallel) (assoc :parallel? parallel)
+         abort-id (assoc ::txn/abort-id abort-id))))))
 
 (defn refresh!
   ([component load-options]
