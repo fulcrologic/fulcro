@@ -296,7 +296,7 @@
   nor can you pass it as a parameter to this function. Therefore, it is not recommended to use load-field from within
   a component that has a dynamic query unless you can base it on the original static query.
   "
-  ([component field-or-fields] (load-field! component field-or-fields {})
+  ([component field-or-fields] (load-field! component field-or-fields {}))
   ([component field-or-fields options]
    (let [app          (rc/any->app component)
          {:keys [parallel update-query]} options
