@@ -490,11 +490,12 @@
        \"docstring\" [params-map]
        (action [env] ...)
        (ok-action [env] ...)
+       (error-action [env] ...)
        (result-action [env] ((-> env :handlers :ok-action) env)))
      ```
 
      This macro normally adds a `:result-action` handler that does normal Fulcro mutation remote result logic unless
-     you supply your own.
+     you supply your own. The default result-action ends up invoking either `ok-action` or `error-action`.
 
      Remotes in Fulcro 3 are also lambdas, and are called with an `env` that contains the state as it exists *after*
      the `:action` has run in `state`, but also include the 'before action state' as a map in `:state-before-action`.
