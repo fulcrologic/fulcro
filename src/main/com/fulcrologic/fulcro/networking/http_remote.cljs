@@ -139,7 +139,7 @@
      (fn [{:keys [headers body] :as request}]
        (let [[body response-type] (desired-response-type request)
              body    (ct/write writer body)
-             headers (assoc headers "Content-Type" "application/transit+json")]
+             headers (assoc headers "Content-Type" "application/transit+json" "Accept" "application/transit+json")]
          (handler (merge request {:body body :headers headers :method :post :response-type response-type}))))))
   ([handler addl-transit-handlers] (wrap-fulcro-request handler addl-transit-handlers nil))
   ([handler] (wrap-fulcro-request handler nil nil))
