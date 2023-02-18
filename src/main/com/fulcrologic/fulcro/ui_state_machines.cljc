@@ -1063,7 +1063,7 @@
         options (-> (dissoc options ::ok-event ::ok-data ::error-event ::error-data :com.fulcrologic.fulcro.components/component-class
                       ::target-alias ::target-actor)
                   (assoc :marker marker
-                    :abort-id asm-id
+                    :abort-id (get options :abort-id asm-id)
                     :fallback `handle-load-error
                     :post-mutation-params (merge ok-data (:post-mutation-params options) {::asm-id asm-id}))
                   (cond->
