@@ -357,7 +357,7 @@
                                                         (log/error e "Error handler for remote" url "failed with an exception. See https://book.fulcrologic.com/#err-httpr-err-handler-exc"))))]
                              (if-let [real-request (try
                                                      (request-middleware {:headers {} :body base-body :url url :method :post})
-                                                     (catch :default e
+                                                     (catch :default ^js e
                                                        (log/error e "Send aborted due to middleware failure. Did you accidentally put a lambda in params? See https://book.fulcrologic.com/#err-httpr-send-abort")
                                                        (when-let [errant-data (some-> e (.-data) (.-obj))]
                                                          (log/error "Cannot encode" errant-data))
