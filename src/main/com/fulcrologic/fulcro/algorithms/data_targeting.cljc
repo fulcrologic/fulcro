@@ -5,6 +5,7 @@
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :as gw :refer [>defn => >def]]
     [edn-query-language.core :as eql]
+    [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
 (>def ::target vector?)
@@ -153,4 +154,10 @@
                          (log/warn "Target processing found an unsupported case. See https://book.fulcrologic.com/#warn-target-unsuported-case")
                          state-map))))]
      (cond-> (process-target-impl state-map source-path target)
-       (and remove-source? (not (eql/ident? source-path))) (dissoc source-path)))))
+       (and remove-source?
+            (keyword? source-path))
+       (dissoc source-path)
+       (and remove-source?
+           (not (eql/ident? source-path))
+           (vector? source-path))
+       (enc/dissoc-in source-path)))))
