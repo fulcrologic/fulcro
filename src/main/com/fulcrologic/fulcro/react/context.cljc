@@ -1,5 +1,4 @@
 (ns com.fulcrologic.fulcro.react.context
-  #?(:cljs (:require-macros com.fulcrologic.fulcro.rendering.context))
   #?(:cljs (:require
              ["react" :as react]
              [goog.object :as gobj]))
