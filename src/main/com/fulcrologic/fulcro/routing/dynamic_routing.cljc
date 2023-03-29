@@ -690,7 +690,7 @@
              route-denied (rc/component-options target :route-denied)]
          (log/debug "Route request denied by on-screen target" target ". Calling component's :route-denied (if defined).")
          (when route-denied
-           (route-denied target relative-class-or-instance new-route))
+           (route-denied target relative-class-or-instance new-route timeouts-and-params))
          :denied)
 
        :otherwise
@@ -772,12 +772,14 @@
   be asked. This is primarily used when you want to be able to use js/confirm in a component to ask the user if
   they \"really mean to navigate away\". You MUST pass the arguments that `:route-denied` received
   or you can easily cause an infinite loop. Other on-screen targets can still potentially abort the route."
-  [denied-target-instance relative-root path]
-  #?(:cljs
-     (do
-       (log/debug "Retrying route at the request of " (rc/component-name denied-target-instance))
-       (set-force-route-flag! denied-target-instance)
-       (change-route-relative! denied-target-instance relative-root path))))
+  ([denied-target-instance relative-root path]
+   (retry-route! denied-target-instance relative-root path {}))
+  ([denied-target-instance relative-root path timeouts-and-params]
+   #?(:cljs
+      (do
+        (log/debug "Retrying route at the request of " (rc/component-name denied-target-instance))
+        (set-force-route-flag! denied-target-instance)
+        (change-route-relative! denied-target-instance relative-root path timeouts-and-params)))))
 
 (defn change-route!
   "Trigger a route change.
