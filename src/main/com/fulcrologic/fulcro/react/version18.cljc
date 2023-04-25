@@ -24,14 +24,15 @@
   [app]
   #?(:cljs (let [reactRoot (volatile! nil)]
              (-> app
-               (assoc-in
-                 [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/render-root!]
-                 (fn [ui-root mount-node]
-                   (when-not @reactRoot
-                     (vreset! reactRoot (dom-client/createRoot mount-node)))
-                   (.render ^js @reactRoot ui-root)
-                   @reactRoot))
-               (assoc-in
-                 [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/hydrate-root!]
-                 (fn [ui-root mount-node] (dom-client/hydrateRoot mount-node ui-root)))))
+                 (assoc ::reactRoot reactRoot)
+                 (assoc-in
+                  [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/render-root!]
+                  (fn [ui-root mount-node]
+                    (when-not @reactRoot
+                      (vreset! reactRoot (dom-client/createRoot mount-node)))
+                    (.render ^js @reactRoot ui-root)
+                    @reactRoot))
+                 (assoc-in
+                  [:com.fulcrologic.fulcro.application/algorithms :com.fulcrologic.fulcro.algorithm/hydrate-root!]
+                  (fn [ui-root mount-node] (dom-client/hydrateRoot mount-node ui-root)))))
      :clj  app))
