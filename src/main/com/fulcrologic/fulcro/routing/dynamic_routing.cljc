@@ -686,7 +686,7 @@
 
        (not (can-change-route? app-or-comp relative-class))
        (let [app          (rc/any->app app-or-comp)
-             target       (target-denying-route-changes app)
+             target       (target-denying-route-changes app relative-class)
              route-denied (rc/component-options target :route-denied)]
          (log/debug "Route request denied by on-screen target" target ". Calling component's :route-denied (if defined).")
          (when route-denied
