@@ -191,7 +191,7 @@
     (dom/ul
       (mapv ui-recipe recipes))))
 
-(ws/defcard form-pre-merge-sample
+(ws/defcard dynamic-recursive-entity-card
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? true
      ::ct.fulcro/root       RecipeList
