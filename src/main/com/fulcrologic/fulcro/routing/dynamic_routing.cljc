@@ -760,7 +760,7 @@
            (doseq [action @routing-actions]
              (action))
            (when (or (seq @pessimistic-txn) (seq @delayed-targets))
-             (log/info "Running pessimistic transaction" @pessimistic-txn "with delayed targets" @delayed-targets)
+             (log/debug "Running pessimistic transaction" @pessimistic-txn "with delayed targets" @delayed-targets)
              (comp/transact! app (into [] (concat @pessimistic-txn (reverse @delayed-targets)))
                {:optimistic? false})))
          :routing)))))

@@ -124,9 +124,12 @@
   Returns env."
   [env]
   [::env => ::env]
-  (let [{:keys [app dispatch result]} env
+  (let [{:keys [app dispatch result transmitted-ast]} env
         {:keys [ok-action error-action]} dispatch
-        remote-error? (ah/app-algorithm app :remote-error?)]
+        remote-error? (ah/app-algorithm app :remote-error?)
+        {:keys [dispatch-key]} transmitted-ast
+        return-value  (when dispatch-key (get-in result [:body dispatch-key]))
+        env (assoc env :mutation-return-value return-value)]
     (if (remote-error? result)
       (when error-action
         (error-action env))
@@ -426,7 +429,7 @@
                                       (into acc
                                         (if action?
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args
-                                                                                                    (binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
+                                                                            (binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
                                                                               ~@handler-body)
                                                                             nil)]
                                           [(keyword (name handler-name)) `(fn ~handler-name ~handler-args ~@handler-body)]))))
@@ -439,7 +442,7 @@
                             `{~(first handlers) ~@(rest handlers)}
                             `{~(first handlers) ~@(rest handlers)
                               :result-action    (fn [~'env]
-                                                                      (binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
+                                                  (binding [com.fulcrologic.fulcro.raw.components/*after-render* true]
                                                     (when-let [~'default-action (ah/app-algorithm (:app ~'env) :default-result-action!)]
                                                       (~'default-action ~'env))))})
            doc            (or doc "")
