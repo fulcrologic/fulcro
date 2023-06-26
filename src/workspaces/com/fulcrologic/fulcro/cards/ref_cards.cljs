@@ -20,50 +20,52 @@
 
 (def ui-custom-input (comp/factory CustomInput))
 
-(defsc HooksUI [this props]
-  {:use-hooks? true}
-  (let [[v setv!] (hooks/use-state "")
-        input-ref (hooks/use-ref nil)]
-    (hooks/use-effect
-      (fn []
-        (let [input (.-current input-ref)]
-          (when input
-            (js/console.log input)
-            (.focus input)))
+(def HooksUI (comp/sc ::HooksUI {:use-hooks? true}
+               (fn [this props]
+                 (let [[v setv!] (hooks/use-state "")
+                       input-ref (hooks/use-ref nil)]
+                   (hooks/use-effect
+                     (fn []
+                       (let [input (.-current input-ref)]
+                         (when input
+                           (js/console.log input)
+                           (.focus input)))
 
-        (fn []))
-      [(.-current input-ref)])
-    (div
-      (dom/h4 "My Form")
-      (ui-custom-input
-        {:label       "My Input"
-         :value       v
-         :forward-ref input-ref
-         :onChange    (fn [v] (setv! v))}))))
+                       (fn []))
+                     [(.-current input-ref)])
+                   (div
+                     (dom/h4 "My Form")
+                     (ui-custom-input
+                       {:label       "My Input"
+                        :value       v
+                        :forward-ref input-ref
+                        :onChange    (fn [v] (setv! v))}))))))
 
 (ws/defcard ref-hooks-demo-card
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       HooksUI}))
 
-(defsc StdUI [^js this {:keys [value]}]
-  {:query             [:id :value]
-   :ident             :id
-   :initLocalState    (fn [^js this props] (set! (.-inputref this) (react/createRef)))
-   :initial-state     {:id    42
-                       :value "Bob"}
-   :componentDidMount (fn [^js this]
-                        (let [input-ref (.-current (.-inputref this))]
-                          (when input-ref
-                            (.focus input-ref))))}
-  (let [input-ref (.-inputref this)]
-    (div
-      (dom/h4 "My Form")
-      (ui-custom-input
-        {:label       "My Input"
-         :value       value
-         :forward-ref input-ref
-         :onChange    (fn [v] (m/set-string!! this :value :value (evt/target-value v)))}))))
+(def StdUI (comp/sc
+             ::StdUI
+             {:query             [:id :value]
+              :ident             :id
+              :initLocalState    (fn [^js this props] (set! (.-inputref this) (react/createRef)))
+              :initial-state     (fn [_] {:id    42
+                                          :value "Bob"})
+              :componentDidMount (fn [^js this]
+                                   (let [input-ref (.-current (.-inputref this))]
+                                     (when input-ref
+                                       (.focus input-ref))))}
+             (fn render* [^js this {:keys [value]}]
+               (let [input-ref (.-inputref this)]
+                 (div
+                   (dom/h4 "My Form")
+                   (ui-custom-input
+                     {:label       "My Input"
+                      :value       value
+                      :forward-ref input-ref
+                      :onChange    (fn [v] (m/set-string!! this :value :value (evt/target-value v)))}))))))
 
 (ws/defcard ref-demo-card
   (ct.fulcro/fulcro-card

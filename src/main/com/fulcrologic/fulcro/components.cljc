@@ -1436,6 +1436,58 @@
               (def ~(vary-meta sym assoc :doc doc :once true)
                 (com.fulcrologic.fulcro.components/configure-component! ~(str sym) ~fqkw options#))))))))
 
+(let [hot-reload-cache (volatile! {})]
+  (defn sc
+    "Create a Fulcro stateful component. Calling this will overwrite whatever is currently in the registry. You MAY
+     supply shortcut notation for query and ident.
+
+     :query - A vector, map (for unions), or (fn [this]).
+     :ident - A keyword, vector, or (fn [this props])
+     :initial-state - A (fn [params] )
+
+     The `render-fn` is a `(fn [this props])`.
+    "
+    [registry-key {:keys [use-hooks? query ident] :as component-options} render-fn]
+    (assert (qualified-keyword? registry-key) "The registry key must be a qualified keyword.")
+    (let [render-fn (if use-hooks?
+                      (fn render-fn* [this props]
+                        (com.fulcrologic.fulcro.components/wrapped-render this
+                          (fn []
+                            (when render-fn
+                              (binding [*app*    (or *app* (isoget-in this ["props" "fulcro$app"]))
+                                        *shared* (shared (or *app* (isoget-in this ["props" "fulcro$app"])))
+                                        *parent* this]
+                                (render-fn this props))))))
+                      (fn render-fn* [this]
+                        (com.fulcrologic.fulcro.components/wrapped-render this
+                          (fn [] (when render-fn
+                                   (render-fn this (props this)))))))
+          options   (-> component-options
+                      (assoc :componentName registry-key :render render-fn)
+                      (cond->
+                        (not (fn? query)) (assoc :query (fn [_] query))
+                        (keyword? ident) (assoc :ident (fn [_ p] [ident (get p ident)]))
+                        (vector? ident) (assoc :ident (fn [_ p] [(first ident) (get p (second ident))]))))]
+      #?(:clj
+         (com.fulcrologic.fulcro.components/configure-component! nil registry-key options)
+         :cljs
+         (if use-hooks?
+           (let [wrapped-hook (or (get @hot-reload-cache registry-key)
+                                (fn wrapped-hook* [js-props]
+                                  (let [[this props] (use-fulcro js-props wrapped-hook*)]
+                                    (render-fn this props))))]
+             (when goog.debug
+               (vswap! hot-reload-cache assoc registry-key wrapped-hook))
+             (add-hook-options! wrapped-hook options)
+             wrapped-hook)
+           (let [constructor (or                            ; using `or` to short-circuit the call to react-constructor
+                               (get @hot-reload-cache registry-key)
+                               (react-constructor (get component-options :initLocalState)))]
+             (when goog.DEBUG
+               (vswap! hot-reload-cache assoc registry-key constructor))
+             (com.fulcrologic.fulcro.components/configure-component! constructor registry-key options)
+             constructor))))))
+
 #?(:clj
    (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI class with a query,
    optional ident (if :ident is specified in options), optional initial state, optional css, lifecycle methods,
