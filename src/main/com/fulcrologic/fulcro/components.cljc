@@ -1476,7 +1476,7 @@
                                 (fn wrapped-hook* [js-props]
                                   (let [[this props] (use-fulcro js-props wrapped-hook*)]
                                     (render-fn this props))))]
-             (when goog.debug
+             (when goog.DEBUG
                (vswap! hot-reload-cache assoc registry-key wrapped-hook))
              (add-hook-options! wrapped-hook options)
              wrapped-hook)
