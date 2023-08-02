@@ -140,6 +140,12 @@
       {:point {123 {:bar "baz" :extra "data"}}})
     => {:entry {[:point 123] {:bar "baz", :extra "data"}}}
 
+    "ident query with `false` value"
+    (verify-db->tree [{:entry [[:point 456]]}]
+                     {:entry {:data "foo"}}
+      {:point {456 false}})
+    => {:entry {[:point 456] false}}
+
     "ident join"
     (verify-db->tree [{[:point 123] [:bar]}]
       {:entry {:data "foo"}}
@@ -190,6 +196,13 @@
       {:x 22}
       {:root/value {:a 1 :b 2}})
     => {:root/value {:a 1}}
+
+    "link query with `false` value"
+    (denorm/db->tree
+      [[:root/value '_]]
+      {}
+      {:root/value false})
+    => {:root/value false}
 
     "wildcard"
     (verify-db->tree
