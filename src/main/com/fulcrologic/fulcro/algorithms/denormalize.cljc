@@ -61,9 +61,10 @@
   (reduce
     (fn [n {:keys [key]}]
       (if (lookup-ref? key)
-        (if-let [x (follow-ref state-map key)]
-          (assoc! n (ref-key key) x)
-          n)
+        (let [x (follow-ref state-map key)]
+          (if (some? x)
+            (assoc! n (ref-key key) x)
+            n))
         (if-let [entry (and (coll? entity) (find entity key))]
           (assoc! n key (second entry))
           n)))
