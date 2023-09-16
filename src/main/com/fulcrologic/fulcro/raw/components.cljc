@@ -108,7 +108,7 @@
   #?(:cljs {:tag boolean})
   [x]
   #?(:clj  (boolean (and (map? x) (:com.fulcrologic.fulcro.components/component-class? x)))
-     :cljs (boolean (gobj/containsKey x "fulcro$class"))))
+     :cljs (boolean (enc/catching (gobj/containsKey x "fulcro$class")))))
 
 (defn component-name
   "Returns a string version of the given react component's name. Works on component instances and classes."
