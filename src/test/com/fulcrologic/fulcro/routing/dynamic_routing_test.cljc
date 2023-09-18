@@ -148,7 +148,7 @@
     "Can replace parameters via a map at the end"
     (dr/path-to A B C {:a/param "hello" :c/param "there"}) => ["a" "hello" "b" "c" "there"]))
 
-(specification "resolve-path"
+(specification "resolve-path" :focus
   (assertions
     "resolves paths from some relative starting point"
     (dr/resolve-path Root2 Settings {}) => ["settings"]

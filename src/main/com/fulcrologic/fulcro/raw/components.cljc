@@ -21,6 +21,12 @@
 
 (defonce ^:private component-registry (atom {}))
 
+(defn legal-registry-lookup-key?
+  "Returns true if `k` is a legal thing to with `registry-key->class`. The registry contains keywords, but that helper
+   function accepts (and converts) strings or symbols as well."
+  [k]
+  (or (qualified-keyword? k) (qualified-symbol? k) (and (string? k) (str/includes? k "/"))))
+
 ;; Used internally by get-query for resolving dynamic queries (was created to prevent the need for external API change in 3.x)
 (def ^:dynamic *query-state* nil)
 
@@ -124,9 +130,12 @@
   "Look up the given component in Fulcro's global component registry. Will only be able to find components that have
   been (transitively) required by your application.
 
-  `classname` can be a fully-qualified keyword or symbol."
+  `classname` can be a fully-qualified keyword, string, symbol, or component class. In the latter
+  case this function just acts as `identity`. This allows this function to act as a coercion
+  that ensures you have a class."
   [classname]
   (cond
+    (component-class? classname) classname
     (keyword? classname) (get @component-registry classname)
     (symbol? classname) (let [k (keyword (namespace classname) (name classname))]
                           (get @component-registry k))
@@ -703,9 +712,9 @@
                                          "props" {"fulcro$queryid" :anonymous}})
                                       {:query-id :anonymous})
                               (not ident) (assoc :ident
-                                            (fn [this props]
-                                              (when-let [k (union-keys props)]
-                                                [k (get props k)])))
+                                                 (fn [this props]
+                                                   (when-let [k (union-keys props)]
+                                                     [k (get props k)])))
                               componentName (assoc :componentName componentName)))]
         (assoc original-node :component component))
       (let [real-id-key  (ast-id-key children)
@@ -956,21 +965,3 @@
             o#     (cond-> o#
                      ident# (assoc :ident ident#))]
         (def ~sym (nc ~query o#))))))
-
-(comment
-  (def Person (entity->component
-                {:person/id        1
-                 :ui/checked?      true
-                 :person/name      "Bob"
-                 :person/addresses [{:ui/autocomplete ""
-                                     :address/id      11
-                                     :address/street  "111 Main St"}
-                                    {:ui/autocomplete ""
-                                     :address/id      12
-                                     :address/street  "222 Main St"}]}
-                {:componentName ::MyThing}))
-
-  (def Address (get-subquery-component Person [:person/addresses]))
-
-  (get-ident Address {:address/id 99})
-  )
