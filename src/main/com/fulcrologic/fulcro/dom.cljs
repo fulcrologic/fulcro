@@ -71,8 +71,14 @@
   [component el]
   (react.dom/render component el))
 
-(defn render-to-str
-  "Equivalent to React.renderToString. NOTE: You must make sure js/ReactDOMServer is defined (e.g. require cljsjs.react.dom.server) to use this function."
+(defn ^:deprecated render-to-str
+  "This fn is outdated - it expects js/ReactDOMServer to be defined (used to be provided cljsjs.react.dom.server).
+  It is better to do it yourself (under shadow-cljs):
+   
+   ```clj
+   (ns ex (:require [\"react-dom/server\" :as react-dom-server] ...))
+   (react-dom-server/renderToString c)
+   ```"
   [c]
   (js/ReactDOMServer.renderToString c))
 
