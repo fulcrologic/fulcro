@@ -1,4 +1,19 @@
 (ns com.fulcrologic.fulcro.cards.data-view-cards
+  "A demonstration of pivoting a table. This example shows one way of dealing with a UI/data layout mismatch that
+   might lead to rendering slowness if you just rendered it via raw fns (which is a good, simple option for smaller
+   numbers of components).
+
+   The idea is that we want to compare apartments where the apartment names are the cols, and the row names are the aspect
+   of the apartment (number of bedrooms)...but the apartments are normalized by their ID.
+
+   The key realization is that an ident can have a compound ID, so we can generate view components (Cell) that have
+   and ident tied to the position in the table [:cell/id (apt id, apt attribute)]. We could also use an ident like
+   [apt-attribute apt-id]. As long as the cell has a unique ident, we can use sync transact to force a synchronous
+   re-render of JUST that cell.
+
+   So, we have Table/Row/Cell classes that deal with the dataified structure of the normalized view, and the ultimate cell
+   *does* query for the apartment used by that cell. This ensures that if the apartment is updated OUTSIDE of the cell, the
+   cell will still refresh properly."
   (:require
     [cljs.core.async :as async]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -7,7 +22,6 @@
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.dom :refer [table td th tr thead tbody div h2 input button]]
     [com.fulcrologic.fulcro.dom.events :as evt]
-    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
     [com.wsscode.pathom.connect :as pc]
@@ -17,18 +31,24 @@
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
-(def apartments [{:apartment/id    1
-                  :apartment/label "Town Place"}
-                 {:apartment/id    2
-                  :apartment/label "Foobar Apts"}
-                 {:apartment/id    3
-                  :apartment/label "Fancy Lake Place"}
-                 {:apartment/id    4
-                  :apartment/label "Happy homes"}
-                 {:apartment/id    5
-                  :apartment/label "The Place"}
-                 {:apartment/id    6
-                  :apartment/label "Smallville Apts"}])
+(def apartments [{:apartment/id       1
+                  :apartment/bedrooms 2
+                  :apartment/label    "Town Place"}
+                 {:apartment/id       2
+                  :apartment/bedrooms 1
+                  :apartment/label    "Foobar Apts"}
+                 {:apartment/id       3
+                  :apartment/bedrooms 2
+                  :apartment/label    "Fancy Lake Place"}
+                 {:apartment/id       4
+                  :apartment/bedrooms 2
+                  :apartment/label    "Happy homes"}
+                 {:apartment/id       5
+                  :apartment/bedrooms 4
+                  :apartment/label    "The Place"}
+                 {:apartment/id       6
+                  :apartment/bedrooms 1
+                  :apartment/label    "Smallville Apts"}])
 
 (pc/defresolver apartments-resolver [_ _]
   {
@@ -125,7 +145,7 @@
   {:ident         (fn [] [:component/id ::Table])
    :query         [{:table/rows (comp/get-query Row)}]
    :initial-state {:table/rows []}}
-  (let [row (log/spy :info (first rows))]
+  (let [row (first rows)]
     (table nil
       (when row
         (thead nil
@@ -137,16 +157,25 @@
 
 (def ui-table (comp/factory Table))
 
-(defmutation mock-load [_]
+(defmutation set-all-bedrooms
+  "Demonstrate that external modifications affect table content by setting the number of bedrooms on all apartments"
+  [{:keys [n]}]
   (action [{:keys [state]}]
-    (swap! state #(reduce (fn [sm apt] (merge/merge-component sm Apartment apt)) % apartments))))
+    (let [apartments (vals (:apartment/id @state))]
+      (swap! state
+        #(reduce
+           (fn [sm {:apartment/keys [id]}]
+             (assoc-in sm [:apartment/id id :apartment/bedrooms] n))
+           %
+           apartments)))))
 
-(defmutation create-table-view [_]
+(defmutation create-table-view
+  "Mutation. Converts all of the apartments that were loaded into a table view."
+  [_]
   (action [{:keys [state]}]
     (let [apartments (mapv
-                       (fn [ident] (log/spy :info (fns/ui->props @state Apartment ident)))
-                       (log/spy :info
-                         (fns/sort-idents-by @state (:apartments/all @state) :apartment/label)))
+                       (fn [ident] (fns/ui->props @state Apartment ident))
+                       (fns/sort-idents-by @state (:apartments/all @state) :apartment/label))
           rows       (mapv
                        (fn [a]
                          {:row/cells (mapv (fn [apt]
@@ -164,6 +193,9 @@
     (button
       {:onClick (fn [] (df/load! this :apartments/all Apartment {:post-mutation `create-table-view}))}
       "Load apartments")
+    (button
+      {:onClick (fn [] (comp/transact! this [(set-all-bedrooms {:n 3})]))}
+      "Set all apartments to 3 bedroom")
     (ui-table table)))
 
 (ws/defcard dynamic-recursive-entity-card
