@@ -1470,7 +1470,7 @@
                         (keyword? ident) (assoc :ident (fn [_ p] [ident (get p ident)]))
                         (vector? ident) (assoc :ident (fn [_ p] [(first ident) (get p (second ident))]))))]
       #?(:clj
-         (com.fulcrologic.fulcro.components/configure-component! nil registry-key options)
+         (configure-component! nil registry-key options)
          :cljs
          (if use-hooks?
            (let [wrapped-hook (or (get @hot-reload-cache registry-key)
@@ -1486,8 +1486,7 @@
                                (react-constructor (get component-options :initLocalState)))]
              (when goog.DEBUG
                (vswap! hot-reload-cache assoc registry-key constructor))
-             (com.fulcrologic.fulcro.components/configure-component! constructor registry-key options)
-             constructor))))))
+             (configure-component! constructor registry-key options)))))))
 
 #?(:clj
    (defmacro ^{:doc      "Define a stateful component. This macro emits a React UI class with a query,
