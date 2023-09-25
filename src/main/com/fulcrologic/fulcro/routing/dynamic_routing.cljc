@@ -1086,29 +1086,33 @@
 
 (defn resolve-path-components
   ([StartingClass RouteTarget]
-   (resolve-path-components StartingClass RouteTarget []))
+   (resolve-path-components StartingClass RouteTarget [] {}))
   ([StartingClass RouteTarget base-path]
+   (resolve-path-components StartingClass RouteTarget base-path {}))
+  ([StartingClass RouteTarget base-path {:keys [ParentRouter] :as options}]
    (if (= StartingClass RouteTarget)
      (let [parent     (last base-path)
            final-path (conj base-path RouteTarget)]
-       (when (router? parent) final-path))
+       (when (and (router? parent)
+               (or (nil? ParentRouter) (= ParentRouter parent))) final-path))
      (let [path (conj base-path StartingClass)]
        (if (router? StartingClass)
          (let [targets (get-targets StartingClass rc/*query-state*)]
            (->> targets
-             (keep #(resolve-path-components % RouteTarget path))
+             (keep #(resolve-path-components % RouteTarget path options))
              (first)))
          (let [candidates (->> (comp/get-query StartingClass)
                             (eql/query->ast)
                             :children
                             (keep :component))]
            (->> candidates
-             (keep #(resolve-path-components % RouteTarget path))
+             (keep #(resolve-path-components % RouteTarget path options))
              (first))))))))
 
 (defn resolve-path
   "Attempts to resolve a path from StartingClass to the given RouteTarget. Can also be passed `resolved-components`, which
-   is the output of `resolve-path-components`.
+   is the output of `resolve-path-components`. If ParentRouter is supplied, then if RouteTarget is in multiple places in the
+   UI this function will only consider the path that includes ParentRouter as the immediate parent of the target.
 
    NOTE: This function works against static queries UNLESS you bind `rc/*query-state*` to `app/current-state`.
 
@@ -1124,9 +1128,10 @@
                (if (contains? params ele)
                  (str (get params ele))
                  ele)) base-path))))
-  ([StartingClass RouteTarget params]
+  ([StartingClass RouteTarget params] (resolve-path StartingClass RouteTarget params {}))
+  ([StartingClass RouteTarget params {:keys [ParentRouter] :as options}]
    (if (:route-segment (comp/component-options RouteTarget))
-     (resolve-path (resolve-path-components StartingClass RouteTarget) params)
+     (resolve-path (resolve-path-components StartingClass RouteTarget [] options) params)
      (log/warn "Attempt to resolve the path to a component that has no route-segment"))))
 
 (defn resolve-target
@@ -1343,13 +1348,16 @@
   "Get the absolute path for the given route target.
 
    NOTE: Using this on a route target that is on multiple paths of your application
-   can lead to ambiguity and failure of general routing, since this will then return an unpredictable result."
-  [app-ish RouteTarget route-params]
-  (let [app       (comp/any->app app-ish)
-        app-root  (app/root-class app)
-        state-map (app/current-state app)]
-    (binding [rc/*query-state* state-map]
-      (resolve-path app-root RouteTarget route-params))))
+   can lead to ambiguity and failure of general routing, since this will then return an unpredictable result.
+   In those cases you must supply the options map with the ParentRouter of the RouteTarget, which will resolve the ambiguity. "
+  ([app-ish RouteTarget route-params {:keys [ParentRouter] :as options}]
+   (let [app       (comp/any->app app-ish)
+         app-root  (app/root-class app)
+         state-map (app/current-state app)]
+     (binding [rc/*query-state* state-map]
+       (resolve-path app-root RouteTarget route-params options))))
+  ([app-ish RouteTarget route-params]
+   (absolute-path app-ish RouteTarget route-params {})))
 
 (defn- loaded? [k] #?(:cljs (or (nil? k) (enc/catching (loader/loaded? k))) :clj true))
 
@@ -1418,8 +1426,7 @@
                                                         :auto-add?    false}))))
 
       (and present? RouteTarget)
-      ;; TODO: We can disambiguate sibling collisions using Router, if supplied.
-      (if-let [path (absolute-path app RouteTarget route-params)]
+      (if-let [path (absolute-path app RouteTarget route-params {:ParentRouter Router})]
         (do
           (when-not (every? string? path)
             (log/warn "Insufficient route parameters passed. Resulting route is probably invalid."

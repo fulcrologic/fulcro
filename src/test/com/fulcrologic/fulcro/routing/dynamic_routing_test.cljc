@@ -226,3 +226,13 @@
                                                :target-class B}
                                               {:path         ["middle" "router3" "a" :a/param]
                                                :target-class A}})))))
+
+(specification "Resolving path components" :focus
+  (assertions
+    "Can resolve an absolute path to a leaf (unambiguous path)"
+    (mapv comp/component-name (dr/resolve-path-components Root2 Pane1)) => (mapv comp/component-name
+                                                                             [Root2 RootRouter2 Settings SettingsPaneRouter Pane1])
+    "Can disambiguate the path if given a required parent router (ambiguous leaf exists in multiple paths)"
+    (mapv comp/component-name
+      (dr/resolve-path-components ARRoot A [] {:ParentRouter ARRouter4})) => (mapv comp/component-name
+                                                                               [ARRoot ARRouter ARMiddle ARRouter4 A])))
