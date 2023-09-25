@@ -880,10 +880,11 @@
            getq                   (fn [s] `(or (rc/get-query ~s)
                                              (throw (ex-info (str "Route target has no query! "
                                                                (rc/component-name ~s)) {}))))
-           base-query             (cond-> [::id
-                                           [::uism/asm-id id]
-                                           ::dynamic-router-targets]
-                                    (seq router-targets) (conj {::current-route (getq (first router-targets))}))
+           base-query             [::id
+                                   [::uism/asm-id id]
+                                   ::dynamic-router-targets
+                                   (if (seq router-targets) {::current-route (getq (first router-targets))}
+                                                            ::current-route)]
            query                  (into base-query
                                     (map-indexed
                                       (fn [idx s]
