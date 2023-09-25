@@ -876,24 +876,26 @@
      (when-not (s/valid? ::defrouter-options options)
        (compile-error env options (str "defrouter options are invalid: " (s/explain-str ::defrouter-options options))))
      (let [{:keys [router-targets]} options
-           _                      (when (empty? router-targets)
-                                    (compile-error env options "defrouter requires a vector of :router-targets with at least one target"))
            id                     (keyword router-ns (name router-sym))
            getq                   (fn [s] `(or (rc/get-query ~s)
                                              (throw (ex-info (str "Route target has no query! "
                                                                (rc/component-name ~s)) {}))))
-           query                  (into [::id
-                                         [::uism/asm-id id]
-                                         ::dynamic-router-targets
-                                         {::current-route (getq (first router-targets))}]
+           base-query             (cond-> [::id
+                                           [::uism/asm-id id]
+                                           ::dynamic-router-targets]
+                                    (seq router-targets) (conj {::current-route (getq (first router-targets))}))
+           query                  (into base-query
                                     (map-indexed
                                       (fn [idx s]
                                         (when (nil? s)
                                           (compile-error env options "defrouter :target contains nil!"))
                                         {(keyword (str "alt" idx)) (getq s)})
                                       (rest router-targets)))
-           initial-state-map      (into {::id            id
-                                         ::current-route `(rc/get-initial-state ~(first router-targets) ~'params)}
+           base-initial-state     (cond-> {::id id}
+                                    (seq router-targets) (assoc
+                                                           ::current-route
+                                                           `(rc/get-initial-state ~(first router-targets) ~'params)))
+           initial-state-map      (into base-initial-state
                                     (map-indexed
                                       (fn [idx s] [(keyword (str "alt" idx)) `(rc/get-initial-state ~s {})])
                                       (rest router-targets)))
@@ -951,20 +953,21 @@
 
      The options are:
 
-     `:router-targets` - (REQUIRED) A *vector* of ui components that are router targets. The first one is considered the \"default\"
-     (purely for the purpose of initial state; you always need to explicitly route to a particular target).
-     Other defsc options - (LIMITED) You may not specify query/initial-state/protocols/ident, but you can define things like react
-     lifecycle methods. See defsc.
+     `:router-targets` - (REQUIRED) A *vector* (which may be empty if you want to only add targets at runtime) of ui
+                         components that are router targets. The first one is considered the \"default\"
+                         (purely for the purpose of initial state; you always need to explicitly route to a particular target).
+                         Other defsc options - (LIMITED) You may not specify query/initial-state/protocols/ident, but you can define things like react
+                         lifecycle methods. See defsc.
      `:always-render-body?` - (OPTIONAL) When true this router expects that you will supply a render body, and
-     it will always be rendered. The props available in the body will include:
+                              it will always be rendered. The props available in the body will include:
 
      - `:current-state` - The state of the routing state machine. (:initial, :pending, :failed, :routed)
      - `:route-factory` - A factory that can generate the current route.
      - `:route-props` -  The props that should be passed to the route factory. You can augment these with computed if you
-     wish. The router normally passes computed through like so: `(route-factory (comp/computed route-props (comp/get-computed this)))`
+                         wish. The router normally passes computed through like so: `(route-factory (comp/computed route-props (comp/get-computed this)))`
      - `:pending-path-segment` - The route that we're going to (when in pending state).
      - `:router-state` - A map of the path management details of the router. Includes the pending path segment (if deferred), the
-       target, and the path segment of the current route.
+                         target, and the path segment of the current route.
 
      The optional body, if defined, will *only* be used if the router has the `:always-render-body?` option set or
      it is in one of the following states:

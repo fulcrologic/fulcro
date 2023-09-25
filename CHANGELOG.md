@@ -1,5 +1,24 @@
 See git commit history for further change log entries. 
-This file is only updated if there are breaking changes.
+This file is often not updated.
+
+3.7.0
+-----
+- Dynamic Routing improvements: 
+  - Added ability to dynamically add targets to a router at runtime.
+  - Added cljs.loader support, so that code can be loaded before adding/routing to a target.
+    See `dr/add-route-target!` and `dr/route-to!` for details.
+  - Added `route-to!` helper for routing to a target by class instead of by path,
+    with support for resolution of ambiguities with the same target is in the UI
+    more than once.
+  - Removed the requirement that a router have at least one (static) target, since
+    it is now possible to add targets dynamically, and you might want a completely
+    dynamic router. :router-targets is still required (but now allowed to be empty)
+    to help new users remember (and spellcheck) the option.
+- Deprecated client dom/render-to-string, since it just called React directly, and
+  caused dependency weirdness. Much better to use the React API directly.
+- Made registry-key->class ok with being passed a class
+- Added workspaces data-view example that shows how to create a materialized
+  view in a case where the normalized data does not match the UI shape/needs.
 
 3.1.0
 -----
