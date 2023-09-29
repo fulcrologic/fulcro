@@ -74,7 +74,7 @@
 (defn ^:deprecated render-to-str
   "This fn is outdated - it expects js/ReactDOMServer to be defined (used to be provided cljsjs.react.dom.server).
   It is better to do it yourself (under shadow-cljs):
-   
+
    ```clj
    (ns ex (:require [\"react-dom/server\" :as react-dom-server] ...))
    (react-dom-server/renderToString c)
@@ -86,7 +86,7 @@
   "Returns the dom node associated with a component's React ref."
   ([component]
    (react.dom/findDOMNode component))
-  ([component name]
+  ([^js component name]
    (some-> (.-refs component) (gobj/get name) (react.dom/findDOMNode))))
 
 (def Input
@@ -137,7 +137,7 @@
 
 (defn- update-state
   "Updates the state of the wrapped input element."
-  [component next-props value]
+  [^js component next-props value]
   (let [on-change  (gobj/getValueByKeys component "state" "cached-props" "onChange")
         next-state #js {}
         inputRef   (gobj/get next-props "inputRef")]
