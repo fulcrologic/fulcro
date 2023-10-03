@@ -6,3 +6,7 @@ tests:
 
 dev:
 	clojure -A:dev:test:clj-tests -J-Dguardrails.config=guardrails-test.edn -J-Dguardrails.enabled --watch --fail-fast --no-capture-output
+
+deploy:
+	rm -rf target
+	mvn deploy
