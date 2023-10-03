@@ -153,7 +153,7 @@
                 last-time (or last-attempt 0)
                 n         (min attempt 1000)
                 delay     (min backoff-limit-ms (* n n 1000))
-                options   (if (keyword? (:component options))
+                options   (if (rc/legal-registry-lookup-key? (:component options))
                             (update options :component rc/registry-key->class)
                             options)]
             (if (or (= 0 attempt) (> (- now last-time) delay))
@@ -234,7 +234,7 @@
   [app mutation-store tempid-strategy]
   (let [app (-> app
               (update :com.fulcrologic.fulcro.application/config merge {::mutation-store  mutation-store
-                                          ::tempid-strategy tempid-strategy})
+                                                                        ::tempid-strategy tempid-strategy})
               (with-augmented-result-action)
               (with-durable-transact))]
     (transaction-loop! app)

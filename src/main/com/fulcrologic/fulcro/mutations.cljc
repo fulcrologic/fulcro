@@ -129,7 +129,7 @@
         remote-error? (ah/app-algorithm app :remote-error?)
         {:keys [dispatch-key]} transmitted-ast
         return-value  (when dispatch-key (get-in result [:body dispatch-key]))
-        env (assoc env :mutation-return-value return-value)]
+        env           (assoc env :mutation-return-value return-value)]
     (if (remote-error? result)
       (when error-action
         (error-action env))
@@ -342,17 +342,15 @@
    (returning env class nil))
   ([env class {:keys [query-params]
                :as   opts}]
-   (let [class (if (or (keyword? class) (symbol? class))
-                 (rc/registry-key->class class)
-                 class)]
+   (let [class (rc/registry-key->class class)]
      (let [{:keys [state ast]} env
-           {:keys [key params query]} ast]
-       (let [component-query (rc/get-query class @state)
-             updated-query   (cond-> (eql/query->ast component-query)
-                               query-params (update-in [:children 0] assoc :params query-params)
-                               :then (eql/ast->query)
-                               query (vary-meta #(merge (meta query) %)))]
-         (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}])))))))
+           {:keys [key params query]} ast
+           component-query (rc/get-query class @state)
+           updated-query   (cond-> (eql/query->ast component-query)
+                             query-params (update-in [:children 0] assoc :params query-params)
+                             :then (eql/ast->query)
+                             query (vary-meta #(merge (meta query) %)))]
+       (assoc env :ast (eql/query->ast1 [{(list key params) updated-query}]))))))
 
 
 
