@@ -1636,3 +1636,9 @@
                      (= (isoget old-props :fulcro$value) (isoget new-props :fulcro$value)))]
              (react/memo ComponentClass fulcro-props-equal?))
      :clj  ComponentClass))
+
+(def registered-components
+  "Returns a map from registry key (keyword) to the fulcro components that have registered. Registration is
+   automatic for many of the component generation facilities (macros) as long as they were assigned a registry
+   name."
+  rc/registered-components)

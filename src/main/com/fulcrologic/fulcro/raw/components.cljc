@@ -21,6 +21,13 @@
 
 (defonce ^:private component-registry (atom {}))
 
+(defn registered-components
+  "Returns a map from registry key (keyword) to the fulcro components that have registered. Registration is
+   automatic for many of the component generation facilities (macros) as long as they were assigned a registry
+   name."
+  []
+  @component-registry)
+
 (defn legal-registry-lookup-key?
   "Returns true if `k` is a legal thing to with `registry-key->class`. The registry contains keywords, but that helper
    function accepts (and converts) strings or symbols as well."
