@@ -1435,7 +1435,11 @@
           (when-not (every? string? path)
             (log/warn "Insufficient route parameters passed. Resulting route is probably invalid."
               (comp/component-name RouteTarget) route-params))
-          (when (and (can-change-route? app path) (fn? before-change))
+          (when (and
+                  (if Router
+                    (can-change-route? app Router)
+                    (can-change-route? app))
+                  (fn? before-change))
             (before-change app {:target       RouteTarget
                                 :path         path
                                 :route-params route-params}))
