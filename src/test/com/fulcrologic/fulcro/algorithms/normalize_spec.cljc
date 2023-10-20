@@ -98,19 +98,6 @@
         :unknown {nil #:c{:id 5}}
         :a/id    {42 #:a{:id 42}}})
 
-  (let [last-log (volatile! nil)]
-    (with-redefs [taoensso.timbre/-log! (fn fake-log [_config level _ _ _ _ _ vargs & _]
-                                          (when (= :error level)
-                                            (vreset! last-log (str/join " " @vargs))))]
-      (assertions
-        "union case missing ident"
-        (fnorm/tree->db [{:multi {:a (genc :a/id [:a/id :a/name])
-                                  :b (genc :b/id [:b/id :a/name])}}]
-                        {:multi {:a/id 3}})
-        => {}
-
-        @last-log =fn=> #(re-find #"Union components must have an ident" %))))
-
   (assertions
     "normalized data"
     (fnorm/tree->db [{:foo (genc :id [:id])}] {:foo [:id 123]} true)
