@@ -49,14 +49,16 @@
       ;; union case
       (map? query)
       (let [class (-> query meta :component)
-            ident (get-ident class (hide-not-found data))]
-        (if (nil? ident)
-          (throw (ex-info "Union components must have an ident" {}))
+            ident (some->> data (hide-not-found) (get-ident class))]
+        (if (and (seq data) (nil? ident))
+          (log/warn "Union component received data, but the ident function returned nil."
+            {:component (rc/component-name class)
+             :data      data})
           (do
             (when (nil? (second ident))
               (log/warn "Union component returned nil for the ID of an ident during normalize."))
             (vary-meta (normalize* (get query (first ident)) data tables union-seen transform)
-             assoc ::tag (first ident)))))
+              assoc ::tag (first ident)))))
 
       (vector? data) data                                   ;; already normalized
 
