@@ -295,7 +295,7 @@
    (should-component-update?
      [raw-next-props raw-next-state]
      #?(:clj true
-        :cljs (if (and goog.DEBUG (force-refresh?))
+        :cljs (if (force-refresh?)
                 true
                 (this-as this
                   (let [current-props (props this)
