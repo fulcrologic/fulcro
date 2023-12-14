@@ -205,13 +205,11 @@
 
 (>defn asm-path
   "Returns the path to an asm elements in an asm `env`."
-  [{::keys [state-map asm-id] :as env} ks]
+  [{::keys [asm-id] :as env} ks]
   [::env (s/or :v vector? :k keyword?) => vector?]
   (let [path (if (vector? ks)
                (into [::state-map ::asm-id asm-id] ks)
                [::state-map ::asm-id asm-id ks])]
-    (when (not (get-in state-map [::asm-id asm-id]))
-      (log/warn (ex-info "" {}) "Attempt to get an ASM path" ks "for a state machine that is not in Fulcro state. ASM ID: " asm-id "See https://book.fulcrologic.com/#warn-uism-sm-not-in-state"))
     path))
 
 (>defn asm-value
@@ -1063,9 +1061,9 @@
         options (-> (dissoc options ::ok-event ::ok-data ::error-event ::error-data :com.fulcrologic.fulcro.components/component-class
                       ::target-alias ::target-actor)
                   (assoc :marker marker
-                    :abort-id (get options :abort-id asm-id)
-                    :fallback `handle-load-error
-                    :post-mutation-params (merge ok-data (:post-mutation-params options) {::asm-id asm-id}))
+                         :abort-id (get options :abort-id asm-id)
+                         :fallback `handle-load-error
+                         :post-mutation-params (merge ok-data (:post-mutation-params options) {::asm-id asm-id}))
                   (cond->
                     (or target-actor target-alias) (assoc :target (compute-target env options))
                     ok-event (->
