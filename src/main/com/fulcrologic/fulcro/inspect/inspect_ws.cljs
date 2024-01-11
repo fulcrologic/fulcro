@@ -1,12 +1,8 @@
 (ns ^:no-doc com.fulcrologic.fulcro.inspect.inspect-ws
   (:require
-    [cljs.core.async :as async :refer [>! <!] :refer-macros [go go-loop]]
+    [cljs.core.async :as async :refer [<! >!] :refer-macros [go go-loop]]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
-    [com.fulcrologic.fulcro.inspect.transit :as inspect.transit]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid :refer [TempId]]
-    [com.fulcrologic.fulcro.algorithms.transit :as ot]
     [com.fulcrologic.fulcro.inspect.transit :as encode]
-    [taoensso.sente.packers.transit :as st]
     [taoensso.encore :as enc]
     [taoensso.sente :as sente]
     [taoensso.timbre :as log]))

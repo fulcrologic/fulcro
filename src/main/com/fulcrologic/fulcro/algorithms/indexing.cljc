@@ -4,14 +4,11 @@
    like targeted refresh. You are allowed to use the indexes to find components for whatever
    purpose suits your needs (e.g. looking at component options)."
   (:require
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [clojure.set :as set]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [com.fulcrologic.guardrails.core :as gw :refer [>defn]]
-    [clojure.set :as set]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as encore]
     [taoensso.timbre :as log]))
 
 (defn- index-query*
@@ -58,7 +55,6 @@
   "Index the root query (see index-query) and side-effect the result (`prop->classes`) into the given app.
   This function assumes the `root-class` has already been supplied to the app (i.e. is has been mounted)."
   [app]
-  (log/debug "(Re)indexing application query for prop->classes")
   (let [{:com.fulcrologic.fulcro.application/keys [state-atom runtime-atom]} app
         {:com.fulcrologic.fulcro.application/keys [root-class]} @runtime-atom
         state-map       @state-atom
@@ -122,7 +118,7 @@
    (let [{:keys [:com.fulcrologic.fulcro.application/runtime-atom]} (rc/any->app this)
          cls (rc/component-type this)]
      (when (and #?(:cljs goog.DEBUG :clj true) ident)
-       (log/debug "Dropping component from index" (rc/component-name cls) ident))
+       (log/trace "Dropping component from index" (rc/component-name cls) ident))
      (when ident
        (swap! runtime-atom drop-component* this ident cls))))
   ([this]
