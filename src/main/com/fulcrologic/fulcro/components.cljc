@@ -495,10 +495,12 @@
            current-state           (aget tunnelled-props-state 0 "fulcro$value")
            props                   (isoget js-props :fulcro$value)
            children                (isoget js-props :children)
+           parent                  (isoget js-props :fulcro$parent)
            current-props           (newer-props props current-state)
            current-ident           (when ident (ident faux-class current-props))
            shared-props            (when app (shared app))]
        (doto (gobj/get faux-component "props")
+         (gobj/set "fulcro$parent" parent)
          (gobj/set "fulcro$shared" shared-props)
          (gobj/set "fulcro$value" current-props)
          (gobj/set "children" children))
