@@ -187,7 +187,9 @@
 
 (def ^:deprecated default-tx! txn/default-tx!)
 
-(defrecord FulcroApp [])
+(defrecord FulcroApp []
+  Object
+  (toString [_] "#<FulcroApp>"))
 
 #?(:clj
    (defmethod clojure.core/print-method FulcroApp
