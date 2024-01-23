@@ -187,6 +187,18 @@
 
 (def ^:deprecated default-tx! txn/default-tx!)
 
+(defrecord FulcroApp [])
+
+#?(:clj
+   (defmethod clojure.core/print-method FulcroApp
+     [_app ^java.io.Writer writer]
+     (.write writer "#<FulcroApp>"))
+   :cljs
+   (extend-protocol IPrintWithWriter
+     FulcroApp
+     (-pr-writer [_app writer _opts]
+       (-write writer "#<FulcroApp>"))))
+
 (defn fulcro-app
   "Create a new Fulcro application. See com.fulcrologic.fulcro.application/fulcro-app for the React-based initializer,
   which describes all supported options.
@@ -242,70 +254,70 @@
             refresh-component!
             shared-fn] :as options}]
    (let [tx! (or submit-transaction! txn/default-tx!)]
-     {:com.fulcrologic.fulcro.application/id           (tempid/uuid)
-      :com.fulcrologic.fulcro.application/state-atom   (atom (or initial-db {}))
-      :com.fulcrologic.fulcro.application/config       {:load-marker-default     load-marker-default
-                                                        :batching-enabled        (or batching-enabled {})
-                                                        :client-did-mount        (or client-did-mount (:started-callback options))
-                                                        :client-will-mount       client-will-mount
-                                                        :external-config         external-config
-                                                        :query-transform-default query-transform-default
-                                                        :load-mutation           load-mutation}
-      :com.fulcrologic.fulcro.application/algorithms   (cond-> {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
-                                                                :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
-                                                                :com.fulcrologic.fulcro.algorithm/batch-notifications    batch-notifications
-                                                                :com.fulcrologic.fulcro.algorithm/core-render!           (or core-render! identity)
-                                                                :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! identity)
-                                                                :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
-                                                                :com.fulcrologic.fulcro.algorithm/shared-fn              shared-fn
-                                                                :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
-                                                                :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
-                                                                :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
-                                                                :com.fulcrologic.fulcro.algorithm/refresh-component!     refresh-component!
-                                                                :com.fulcrologic.fulcro.algorithm/render!                render!
-                                                                :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
-                                                                :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
-                                                                :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
-                                                                :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
-                                                                :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
-                                                                :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
-                                                                :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
-                                                                :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
-                                                                :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
-                                                                :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
-                                                                :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
-                                                         (fn? before-render) (assoc :com.fulcrologic.fulcro.algorithm/before-render before-render))
-      :com.fulcrologic.fulcro.application/runtime-atom (atom
-                                                         {:com.fulcrologic.fulcro.application/app-root            nil
-                                                          :com.fulcrologic.fulcro.application/mount-node          nil
-                                                          :com.fulcrologic.fulcro.application/root-class          root-class
-                                                          :com.fulcrologic.fulcro.application/root-factory        nil
-                                                          :com.fulcrologic.fulcro.application/basis-t             1
-                                                          :com.fulcrologic.fulcro.application/last-rendered-state {}
+     (map->FulcroApp
+       {:com.fulcrologic.fulcro.application/id           (tempid/uuid)
+        :com.fulcrologic.fulcro.application/state-atom   (atom (or initial-db {}))
+        :com.fulcrologic.fulcro.application/config       {:load-marker-default     load-marker-default
+                                                          :batching-enabled        (or batching-enabled {})
+                                                          :client-did-mount        (or client-did-mount (:started-callback options))
+                                                          :client-will-mount       client-will-mount
+                                                          :external-config         external-config
+                                                          :query-transform-default query-transform-default
+                                                          :load-mutation           load-mutation}
+        :com.fulcrologic.fulcro.application/algorithms   (cond-> {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
+                                                                  :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
+                                                                  :com.fulcrologic.fulcro.algorithm/batch-notifications    batch-notifications
+                                                                  :com.fulcrologic.fulcro.algorithm/core-render!           (or core-render! identity)
+                                                                  :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! identity)
+                                                                  :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
+                                                                  :com.fulcrologic.fulcro.algorithm/shared-fn              shared-fn
+                                                                  :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
+                                                                  :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
+                                                                  :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
+                                                                  :com.fulcrologic.fulcro.algorithm/refresh-component!     refresh-component!
+                                                                  :com.fulcrologic.fulcro.algorithm/render!                render!
+                                                                  :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
+                                                                  :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
+                                                                  :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
+                                                                  :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
+                                                                  :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
+                                                                  :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
+                                                                  :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
+                                                                  :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
+                                                                  :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
+                                                                  :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
+                                                                  :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
+                                                                 (fn? before-render) (assoc :com.fulcrologic.fulcro.algorithm/before-render before-render))
+        :com.fulcrologic.fulcro.application/runtime-atom (atom
+                                                           {:com.fulcrologic.fulcro.application/app-root            nil
+                                                            :com.fulcrologic.fulcro.application/mount-node          nil
+                                                            :com.fulcrologic.fulcro.application/root-class          root-class
+                                                            :com.fulcrologic.fulcro.application/root-factory        nil
+                                                            :com.fulcrologic.fulcro.application/basis-t             1
+                                                            :com.fulcrologic.fulcro.application/last-rendered-state {}
 
-                                                          :com.fulcrologic.fulcro.application/static-shared-props shared
-                                                          :com.fulcrologic.fulcro.application/shared-props        {}
+                                                            :com.fulcrologic.fulcro.application/static-shared-props shared
+                                                            :com.fulcrologic.fulcro.application/shared-props        {}
 
-                                                          :com.fulcrologic.fulcro.application/remotes             (or remotes
-                                                                                                                    {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
-                                                                                                                                           (log/fatal "Remote requested, but no remote defined.")
-                                                                                                                                           (result-handler {:status-code 418 :body {}}))}})
-                                                          :com.fulcrologic.fulcro.application/indexes             {:ident->components {}}
-                                                          :com.fulcrologic.fulcro.application/mutate              mut/mutate
-                                                          :com.fulcrologic.fulcro.application/render-listeners    (cond-> {}
-                                                                                                                    (= tx! txn/default-tx!) (assoc ::txn/after-render txn/application-rendered!))
-                                                          ::txn/activation-scheduled?                             false
-                                                          ::txn/queue-processing-scheduled?                       false
-                                                          ::txn/sends-scheduled?                                  false
-                                                          ::txn/submission-queue                                  []
-                                                          ::txn/active-queue                                      []
-                                                          ::txn/send-queues                                       {}})})))
+                                                            :com.fulcrologic.fulcro.application/remotes             (or remotes
+                                                                                                                        {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
+                                                                                                                                               (log/fatal "Remote requested, but no remote defined.")
+                                                                                                                                               (result-handler {:status-code 418 :body {}}))}})
+                                                            :com.fulcrologic.fulcro.application/indexes             {:ident->components {}}
+                                                            :com.fulcrologic.fulcro.application/mutate              mut/mutate
+                                                            :com.fulcrologic.fulcro.application/render-listeners    (cond-> {}
+                                                                                                                            (= tx! txn/default-tx!) (assoc ::txn/after-render txn/application-rendered!))
+                                                            ::txn/activation-scheduled?                             false
+                                                            ::txn/queue-processing-scheduled?                       false
+                                                            ::txn/sends-scheduled?                                  false
+                                                            ::txn/submission-queue                                  []
+                                                            ::txn/active-queue                                      []
+                                                            ::txn/send-queues                                       {}})}))))
 
 (defn fulcro-app?
   "Returns true if the given `x` is a Fulcro application."
   [x]
-  (boolean
-    (and (map? x) (contains? x :com.fulcrologic.fulcro.application/state-atom) (contains? x :com.fulcrologic.fulcro.application/runtime-atom))))
+  (instance? FulcroApp x))
 
 (defn abort!
   "Attempt to abort the send queue entries with the given abort ID.
