@@ -1,6 +1,10 @@
 See git commit history for further change log entries. 
 This file is often not updated.
 
+3.7.2
+-----
+- Make fulcro apps more friendly when printed by accident.
+
 3.7.1
 -----
 - Fixed bug where `parent` didn't work in hooks
