@@ -139,7 +139,9 @@
   ([router state-map]
    (enc/when-let [[router router-ident] (cond
                                           (rc/component-class? router) [router (rc/get-ident router {})]
-                                          (rc/component-instance? router) [router (rc/get-ident router)]
+                                          (rc/component-instance? router) (let [p (rc/props router)]
+                                                                            ;; in case it isn't mounted yet, props could be nil
+                                                                            [router (rc/get-ident router (or p {}))])
                                           (eql/ident? router) [(rc/registry-key->class (second router)) router]
                                           (rc/legal-registry-lookup-key? router) (enc/when-let [cls (some-> router (rc/registry-key->class))]
                                                                                    [cls (rc/get-ident cls {})]))
@@ -851,7 +853,7 @@
 (defn validate-route-targets
   "Run a runtime validation on route targets to verify that they at least declare a route-segment that is a vector."
   [router-instance]
-  (when #?(:cljs goog.DEBUG :clj true)
+  (when (and router-instance (rc/component-instance? router-instance) #?(:cljs goog.DEBUG :clj true))
     (let [state-map (app/current-state router-instance)]
       (doseq [t (get-targets router-instance state-map)
               :let [segment (route-segment t)
