@@ -13,14 +13,15 @@
    :clj
    (do
      (defonce timeout-queue (async/chan 100))
-     (defonce loop (async/go-loop []
-                     (let [{:keys [active f]} (async/<! timeout-queue)]
-                       (when @active
-                         (try
-                           (f)
-                           (catch Exception e
-                             (log/error e "Deferred function crash")))))
-                     (recur)))
+     (defonce scheduling-timeout-loop
+       (async/go-loop []
+         (let [{:keys [active f]} (async/<! timeout-queue)]
+           (when @active
+             (try
+               (f)
+               (catch Exception e
+                 (log/error e "Deferred function crash")))))
+         (recur)))
      (defn defer
        "Schedule f to run in `tm` ms."
        [f tm]
