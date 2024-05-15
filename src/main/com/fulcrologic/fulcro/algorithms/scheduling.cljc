@@ -5,20 +5,32 @@
     [clojure.core.async :as async]
     [taoensso.timbre :as log]))
 
-(defn defer
-  "Schedule f to run in `tm` ms."
-  [f tm]
-  #?(:cljs (js/setTimeout f tm)
-     :clj  (let [active (atom true)
-                 cancel (fn [] (reset! active false))]
-             (async/go
-               (async/<! (async/timeout tm))
-               (when (and @active f)
-                 (try
-                   (f)
-                   (catch Exception e
-                     (log/error e "Deferred function crash")))))
-             cancel)))
+#?(:cljs
+   (defn defer
+     "Schedule f to run in `tm` ms."
+     [f tm]
+     (js/setTimeout f tm))
+   :clj
+   (do
+     (defonce timeout-queue (async/chan 100))
+     (defonce loop (async/go-loop []
+                     (let [{:keys [active f]} (async/<! timeout-queue)]
+                       (when @active
+                         (try
+                           (f)
+                           (catch Exception e
+                             (log/error e "Deferred function crash")))))
+                     (recur)))
+     (defn defer
+       "Schedule f to run in `tm` ms."
+       [f tm]
+       (let [active (volatile! true)
+             cancel (fn [] (reset! active false))]
+         (async/go
+           (async/<! (async/timeout tm))
+           (async/>! timeout-queue {:active active
+                                    :f      f}))
+         cancel))))
 
 (defn schedule!
   "Schedule the processing of a specific action in the runtime atom. This is a no-op if the item is already scheduled.
