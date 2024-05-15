@@ -306,7 +306,7 @@
      (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
            {:keys [client-did-mount client-will-mount]} (::config app)
            reset-mountpoint! (fn []
-                               (let [dom-node     (if (string? node) #?(:cljs (gdom/getElement node)) node)
+                               (let [dom-node     (if (string? node) #?(:clj nil :cljs (gdom/getElement node)) node)
                                      root-factory (comp/factory root)]
                                  (if (nil? dom-node)
                                    (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root) "See https://book.fulcrologic.com/#err-mount-cannot-find-node")
