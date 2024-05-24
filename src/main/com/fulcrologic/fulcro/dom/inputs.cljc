@@ -30,18 +30,18 @@
                  (cljs.core/this-as this
                    (let [props         (gobj/get props "fulcro$value")
                          {:keys [value]} props
-                         initial-state {:oldPropValue value
-                                        :on-change    (fn [evt]
-                                                        (let [{:keys [value onChange]} (comp/props this)
-                                                              nsv (evt/target-value evt)
-                                                              nv  (string->model nsv)]
-                                                          (comp/set-state! this {:stringValue   nsv
-                                                                                 :oldPropValue  value
-                                                                                 :cacheValue    nv
-                                                                                 :cacheInvalid? false})
-                                                          (when (and onChange (not= value nv))
-                                                            (onChange nv))))
-                                        :stringValue  (model->string value)
+                         initial-state {:oldPropValue  value
+                                        :on-change     (fn [evt]
+                                                         (let [{:keys [value onChange]} (comp/props this)
+                                                               nsv (evt/target-value evt)
+                                                               nv  (string->model nsv)]
+                                                           (comp/set-state! this {:stringValue   nsv
+                                                                                  :oldPropValue  value
+                                                                                  :cacheValue    nv
+                                                                                  :cacheInvalid? false})
+                                                           (when (and onChange (not= value nv))
+                                                             (onChange nv))))
+                                        :stringValue   (model->string value)
                                         :cacheInvalid? true}]
                      (set! (.-state this) (cljs.core/js-obj "fulcro$state" initial-state)))
                    nil)))]
@@ -49,14 +49,17 @@
       {:getDerivedStateFromProps
        (fn [latest-props state]
          (let [{:keys [value]} latest-props
-               {:keys [oldPropValue stringValue cacheValue cacheInvalid?]} state
-               ignorePropValue?  (or (= oldPropValue value) (when-not cacheInvalid? (= value cacheValue)))
+               {:keys [oldPropValue cacheValue cacheInvalid? stringValue]} state
+               ignorePropValue?  (or (= oldPropValue value)
+                                   (and (not cacheInvalid?) (= value cacheValue)))
                cacheInvalid?     (or cacheInvalid? ignorePropValue?)
                stringValue       (cond-> (if ignorePropValue?
                                            stringValue
                                            (model->string value))
                                    string-filter string-filter)
-               new-derived-state (merge state {:stringValue stringValue :oldPropValue value :cacheInvalid? cacheInvalid?})]
+               new-derived-state (merge state {:stringValue   stringValue
+                                               :oldPropValue  value
+                                               :cacheInvalid? cacheInvalid?})]
            #js {"fulcro$state" new-derived-state}))
        :render
        (fn [this]
