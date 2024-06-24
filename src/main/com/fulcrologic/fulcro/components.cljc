@@ -746,12 +746,12 @@
    (let [qid (query-id class qualifier)]
      (with-meta
        (fn element-factory [props & children]
-         (let [key                     (:react-key props)
-               key                     (cond
-                                         key key
-                                         keyfn (keyfn props))
-               parent                  *parent*
-               app #?(:cljs *app* :clj {})]
+         (let [key    (:react-key props)
+               key    (cond
+                        key key
+                        keyfn (keyfn props))
+               parent *parent*
+               app    *app*]
            (if app
              (let [ref              (:ref props)
                    ref              (cond-> ref (keyword? ref) str)
