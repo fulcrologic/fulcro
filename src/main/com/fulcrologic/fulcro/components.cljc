@@ -751,7 +751,7 @@
                         key key
                         keyfn (keyfn props))
                parent *parent*
-               app    *app*]
+               app    #?(:cljs *app* :clj (or *app* {}))]
            (if app
              (let [ref              (:ref props)
                    ref              (cond-> ref (keyword? ref) str)
