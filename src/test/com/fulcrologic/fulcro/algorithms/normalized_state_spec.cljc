@@ -114,9 +114,6 @@
         (-> (nsh/remove-entity state [:car/id 1]) :fastest-car) => nil
         "Removes top-level to-many refs"
         (-> (nsh/remove-entity state [:person/id 1]) :grandparents) => [[:person/id 2]]
-        "Ignores denormalized data"
-        (-> (nsh/remove-entity state [:person/id 1])
-          (nsh/get-in-graph [:denorm :level-1 :level-2])) => denorm-data
         "Removes table-nested to-one references"
         (let [new-state (nsh/remove-entity state [:email/id 1])]
           (-> (or

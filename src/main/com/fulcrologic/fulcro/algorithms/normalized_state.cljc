@@ -168,7 +168,7 @@
                                       (ident-specific-paths state ident)))
 
          remove-leftovers         (fn [state]
-                                    (walk/postwalk
+                                    (walk/prewalk
                                       (fn [ele]
                                         (cond
                                           (map? ele) (enc/remove-vals #(= ident %) ele)
