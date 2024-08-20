@@ -4,13 +4,15 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.algorithms.normalized-state))
   (:require
     [clojure.set :as set]
+    [clojure.walk :as walk]
     [com.fulcrologic.fulcro.components :as comp]
     [edn-query-language.core :as eql]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [>defn =>]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [taoensso.encore :as enc]))
 
 (def integrate-ident
   "[state ident & named-parameters]
@@ -165,6 +167,15 @@
                                       state
                                       (ident-specific-paths state ident)))
 
+         remove-leftovers         (fn [state]
+                                    (walk/postwalk
+                                      (fn [ele]
+                                        (cond
+                                          (map? ele) (enc/remove-vals #(= ident %) ele)
+                                          (vector? ele) (filterv #(not= ident %) ele)
+                                          :else ele))
+                                      state))
+
          state-without-entity     (->
                                     ;; remove pointers to the entity
                                     (remove-ident-from-tables state-map ident)
@@ -183,13 +194,14 @@
                                         cascade
                                         (set (keys target-entity)))))
 
-         final-state              (reduce
-                                    (fn [state edge]
-                                      (if (every? eql/ident? edge)
-                                        (reduce (fn [new-state ident] (remove-entity new-state ident cascade)) state edge)
-                                        (remove-entity state edge cascade)))
-                                    state-without-entity
-                                    cascaded-idents)]
+         final-state              (remove-leftovers
+                                    (reduce
+                                      (fn [state edge]
+                                        (if (every? eql/ident? edge)
+                                          (reduce (fn [new-state ident] (remove-entity new-state ident cascade)) state edge)
+                                          (remove-entity state edge cascade)))
+                                      state-without-entity
+                                      cascaded-idents))]
 
      final-state)))
 
