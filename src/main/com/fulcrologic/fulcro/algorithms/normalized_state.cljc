@@ -171,8 +171,12 @@
                                     (walk/prewalk
                                       (fn [ele]
                                         (cond
-                                          (map? ele) (enc/remove-vals #(= ident %) ele)
-                                          (vector? ele) (filterv #(not= ident %) ele)
+                                          (map? ele) (with-meta
+                                                       (enc/remove-vals #(= ident %) ele)
+                                                       (meta ele))
+                                          (vector? ele) (with-meta
+                                                          (filterv #(not= ident %) ele)
+                                                          (meta ele))
                                           :else ele))
                                       state))
 
