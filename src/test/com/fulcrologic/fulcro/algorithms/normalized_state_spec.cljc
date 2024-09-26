@@ -1,8 +1,8 @@
 (ns com.fulcrologic.fulcro.algorithms.normalized-state-spec
   (:require
-    [fulcro-spec.core :refer [assertions specification component when-mocking behavior]]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]))
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
+    [com.fulcrologic.fulcro.components :refer [defsc]]
+    [fulcro-spec.core :refer [=> assertions behavior specification]]))
 
 (specification "tree-path->db-path"
 
@@ -180,7 +180,25 @@
                           #{:person/children :person/spouse})]
           (or
             (get new-state [:person/id 2])
-            (get new-state [:person/id 3]))) => nil))))
+            (get new-state [:person/id 3]))) => nil)))
+
+  (behavior "With deep removal"
+    (let [state {:person/id {1 {:person/id       1
+                                :person/spouse   [:person/id 2]
+                                :person/children [[:person/id 3]]}
+                             2 {:person/id       2
+                                :ui/params       {:foo {:bar [:person/id 1]}}
+                                :person/spouse   [:person/id 1]
+                                :person/children [[:person/id 3]]}
+                             3 {:person/id 3}}}]
+      (assertions
+        "Normally leaves the nested ident in place"
+        (let [new-state (nsh/remove-entity state [:person/id 1] #{:person/children} {:clear-nested-idents? false})]
+          (nsh/get-in-graph new-state [:person/id 2 :ui/params :foo])) => {:bar [:person/id 1]}
+
+        "But can be asked to remove it"
+        (let [new-state (nsh/remove-entity state [:person/id 1] #{:person/children} {:clear-nested-idents? true})]
+          (nsh/get-in-graph new-state [:person/id 2 :ui/params :foo])) => {}))))
 
 
 #_(specification "remove-edge*"

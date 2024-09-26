@@ -122,6 +122,12 @@
   The optional `cascade` parameter is a set of keywords that represent edges that should cause recursive deletes
   (i.e. it indicates edge names that *own* something, indicating it is safe to remove those entities as well).
 
+  The options map can include:
+
+  * `clear-nested-idents?` defaults to false. Normally remove entity only removes the ident from the normalized
+    locations (table level), and NOT within deeply nested data. Setting this to true also find the nested ones and
+    removes them.
+
   Returns the new state map with the entity(ies) removed."
 
   ([state-map ident]
@@ -130,7 +136,10 @@
 
   ([state-map ident cascade]
    [map? eql/ident? (s/coll-of keyword? :kind set?) => map?]
+   (remove-entity state-map ident cascade {:clear-nested-idents? false}))
 
+  ([state-map ident cascade {:keys [clear-nested-idents?] :as options}]
+   [map? eql/ident? (s/coll-of keyword? :kind set?) map? => map?]
    (let [;; "Walks the tree in a depth first manner and returns the normalized possible paths"
          normalized-paths         (letfn [(paths* [ps ks m]
                                             (reduce-kv
@@ -196,14 +205,14 @@
                                         cascade
                                         (set (keys target-entity)))))
 
-         final-state              (remove-leftovers
-                                    (reduce
-                                      (fn [state edge]
-                                        (if (every? eql/ident? edge)
-                                          (reduce (fn [new-state ident] (remove-entity new-state ident cascade)) state edge)
-                                          (remove-entity state edge cascade)))
-                                      state-without-entity
-                                      cascaded-idents))]
+         final-state              (cond-> (reduce
+                                            (fn [state edge]
+                                              (if (every? eql/ident? edge)
+                                                (reduce (fn [new-state ident] (remove-entity new-state ident cascade options)) state edge)
+                                                (remove-entity state edge cascade options)))
+                                            state-without-entity
+                                            cascaded-idents)
+                                    clear-nested-idents? (remove-leftovers))]
 
      final-state)))
 
