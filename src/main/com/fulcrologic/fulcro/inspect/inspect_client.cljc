@@ -106,12 +106,14 @@
 (defn start-send-message-loop []
   #?(:cljs
      (async/go-loop []
+       ;; LANDMARK: App inspect code -> Window Event that the Content Script watches
        (when-let [[type data] (async/<! send-ch)]
          (.postMessage js/window (clj->js {:fulcro-inspect-remote-message (encode/write {:type type :data data :timestamp (js/Date.)})}) "*")
          (recur)))))
 
 (defn listen-local-messages []
   #?(:cljs
+     ;; LANDMARK: listener for incoming messages from Content Script
      (.addEventListener js/window "message"
        (fn [^js event]
          (cond
@@ -186,7 +188,7 @@
                                                        :fulcro.inspect.ui.network/request-finished-at finished
                                                        :fulcro.inspect.ui.network/error               error})]))))
 
-;; LANDMARK: Incoming message handler for Inspect
+;; LANDMARK: Incoming message handler for Inspect (Content Script event)
 (defn handle-devtool-message [{:keys [type data] :as message}]
   (log/debug "Devtools Message received" message)
   #?(:cljs
@@ -253,22 +255,22 @@
 
        ;; These couple us to react, and side-effect are often tied to React lifecycle, so they are not worth the glamor
        #_#_:fulcro.inspect.client/show-dom-preview
-           (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
-                           app (some-> @apps* (get app-uuid))
-                           {:keys [value]} (get-history-entry app (:fulcro.inspect.client/state-id data))]
-             (if (map? value)
-               (binding [fdn/*denormalize-time* 900000000   ; force our props to seem like the most recent
-                         comp/*app*             app
-                         rc/*shared*            {}          ;; TODO: don't have historical shared props...
-                         comp/*depth*           0]
-                 (render-state! app value))
-           (log/error "Unable to find app/state for preview. See https://book.fulcrologic.com/#err-inspect-cant-find-app")))
+               (encore/if-let [{:fulcro.inspect.core/keys [app-uuid]} data
+                               app (some-> @apps* (get app-uuid))
+                               {:keys [value]} (get-history-entry app (:fulcro.inspect.client/state-id data))]
+                 (if (map? value)
+                   (binding [fdn/*denormalize-time* 900000000 ; force our props to seem like the most recent
+                             comp/*app*             app
+                             rc/*shared*            {}      ;; TODO: don't have historical shared props...
+                             comp/*depth*           0]
+                     (render-state! app value))
+                   (log/error "Unable to find app/state for preview. See https://book.fulcrologic.com/#err-inspect-cant-find-app")))
 
        #_#_:fulcro.inspect.client/hide-dom-preview
-           (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
-                             app     (some-> @apps* (get app-uuid))
-                             render! (ah/app-algorithm app :render!)]
-             (render! app {:force-root? true}))
+               (encore/when-let [{:fulcro.inspect.core/keys [app-uuid]} data
+                                 app     (some-> @apps* (get app-uuid))
+                                 render! (ah/app-algorithm app :render!)]
+                 (render! app {:force-root? true}))
 
        :fulcro.inspect.client/network-request
        (let [{:keys                          [query mutation]
@@ -340,7 +342,7 @@
          (record-history-entry! app @state*)
          (swap! state* assoc app-uuid-key app-uuid)
          (post-message :fulcro.inspect.client/init-app {app-uuid-key                         app-uuid
-                                                        :fulcro.inspect.core/app-id          (app-id app)
+                                                        :fulcro.inspect.core/app-id          (log/spy :info (app-id app))
                                                         :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) (keys networking))
                                                         :fulcro.inspect.client/initial-state @state*})
          (add-watch state* app-uuid #(db-changed! app %3 %4))))))

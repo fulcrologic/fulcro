@@ -151,7 +151,7 @@
 
 (defn http-server []
   (let [result (web/run middleware {:host "0.0.0.0"
-                                    :port 8080})]
+                                    :port 8001})]
     (custom-types/install!)
     (reset! server result)
     (fn [] (web/stop result))))
