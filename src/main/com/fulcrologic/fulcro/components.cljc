@@ -1020,7 +1020,9 @@
                           [{} args])]
        (vec children))
      :cljs
-     (let [[props children] (if (map? (first args))
+     (let [[props children] (if (and (map? (first args))
+                                     ;; fragment only supports key,children
+                                     (= ["key"] (->> args first keys (map name))))
                               [(first args) (rest args)]
                               [#js {} args])]
        (apply react/createElement react/Fragment (clj->js props) (force-children children)))))
