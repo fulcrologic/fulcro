@@ -3,6 +3,7 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.inspect.inspect-client))
   (:require
     [edn-query-language.core :as eql]
+    [clojure.walk :as walk]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     #?@(:cljs [[goog.object :as gobj]
                [com.fulcrologic.fulcro.inspect.diff :as diff]
@@ -188,6 +189,22 @@
                                                        :fulcro.inspect.ui.network/request-finished-at finished
                                                        :fulcro.inspect.ui.network/error               error})]))))
 
+(defn statechart-event! [app session-id event data new-config]
+  #?(:cljs
+     (let [app-uuid (app-uuid app)]
+       (post-message :fulcro.inspect.client/statechart-event {app-uuid-key app-uuid
+                                                              :session-id  session-id
+                                                              :event       event
+                                                              :data        data
+                                                              :new-config  new-config}))))
+
+(defn respond-to-query! [msg-id body]
+  (post-message :fulcro.inspect.client/message-response
+    {:fulcro.inspect.ui-parser/msg-id       msg-id
+     :fulcro.inspect.ui-parser/msg-response body}))
+
+(defn strip-lambdas [x] (walk/prewalk (fn [ele] (if (fn? ele) "FN" ele)) x))
+
 ;; LANDMARK: Incoming message handler for Inspect (Content Script event)
 (defn handle-devtool-message [{:keys [type data] :as message}]
   (log/debug "Devtools Message received" message)
@@ -293,9 +310,7 @@
                                                                                                   (if (error? result)
                                                                                                     (send-failed! app tx-id result)
                                                                                                     (send-finished! app remote-name tx-id body)))
-                                                                                                (post-message :fulcro.inspect.client/message-response
-                                                                                                  {:fulcro.inspect.ui-parser/msg-id       msg-id
-                                                                                                   :fulcro.inspect.ui-parser/msg-response body}))})))
+                                                                                                (respond-to-query! msg-id body))})))
 
        :fulcro.inspect.client/console-log
        (let [{:keys [log log-js warn error]} data]
@@ -315,8 +330,36 @@
        :fulcro.inspect.client/check-client-version
        (post-message :fulcro.inspect.client/client-version {:version "3.0.0"})
 
-       (log/debug "Unknown message" type))))
+       :fulcro.inspect.client/statechart-sessions
+       (let [{:fulcro.inspect.ui-parser/keys [msg-id]
+              :fulcro.inspect.core/keys      [app-uuid]} data
+             app (get @apps* app-uuid)]
+         (when app
+           (let [{session-id->session :com.fulcrologic.statecharts/session-id :as state-map} (app-state app)
+                 runtime-env          (some-> (runtime-atom app) deref :com.fulcrologic.statecharts/env)
+                 chart-id->definition (some-> runtime-env :com.fulcrologic.statecharts/statechart-registry :charts deref
+                                        strip-lambdas)
+                 definitions          (mapv (fn [[k v]]
+                                              {:statechart/registry-key k
+                                               :statechart/chart        v})
+                                        chart-id->definition)
+                 available-sessions   (mapv
+                                        (fn [session]
+                                          (let [src-id (:com.fulcrologic.statecharts/statechart-src session)]
+                                            (-> session
+                                              (select-keys [:com.fulcrologic.statecharts/session-id
+                                                            :com.fulcrologic.statecharts/history-value
+                                                            :com.fulcrologic.statecharts/parent-session-id
+                                                            :com.fulcrologic.statecharts/statechart-src
+                                                            :com.fulcrologic.statecharts/configuration])
+                                              (assoc :com.fulcrologic.statecharts/statechart {:statechart/registry-key src-id
+                                                                                              :statechart/chart (chart-id->definition src-id)}))))
+                                        (vals session-id->session))]
+             (log/info "Responding to query" [msg-id available-sessions])
+             (respond-to-query! msg-id {:statechart/available-sessions available-sessions
+                                        :statechart/definitions        definitions}))))
 
+       (log/debug "Unknown message" type))))
 
 (defn install [_]
   #?(:cljs
