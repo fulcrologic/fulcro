@@ -339,8 +339,6 @@
                                (ilet [tx (eql/ast->expr original-ast-node true)]
                                  (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
                                                                                :state-id-before state-id-before
-                                                                               :db-before       state-before
-                                                                               :db-after        @state
                                                                                :tx              tx})))
                              new-acc)))
                        {:done? false :new-elements []}
@@ -372,8 +370,6 @@
                              (ilet [tx (eql/ast->expr original-ast-node true)]
                                (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
                                                                              :state-id-before state-id-before
-                                                                             :db-before       state-before
-                                                                             :db-after        @state
                                                                              :tx              tx})))
                            new-acc))
                        []

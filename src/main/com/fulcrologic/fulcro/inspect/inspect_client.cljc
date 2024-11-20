@@ -69,7 +69,7 @@
 (defn record-history-entry!
   "Record a state change in this history. Returns the ID of the newly recorded entry."
   [app state]
-  (let [now (current-history-id app)]
+  (let [now (inc (current-history-id app))]
     (swap! (runtime-atom app)
       (fn [runtime]
         (let [history        (::history runtime)
@@ -80,7 +80,7 @@
               new-history    (conj pruned-history {:id    now
                                                    :value state})]
           (assoc runtime
-            ::time (inc now)
+            ::time now
             ::history new-history))))
     now))
 
@@ -243,13 +243,13 @@
               :fulcro.inspect.core/keys [app-uuid]} data]
          (enc/when-let [app (get @apps* app-uuid)
                         {:keys [value]} (get-history-entry app id)]
-           (let [prior-state (get-history-entry app based-on)
-                 diff        (when prior-state (diff/diff prior-state value))]
+           (let [{prior-state :value} (get-history-entry app based-on)
+                 diff (when prior-state (diff/diff prior-state value))]
              (post-message :fulcro.inspect.client/history-entry
                (cond-> {app-uuid-key                  app-uuid
                         :fulcro.inspect.core/state-id id}
                  diff (assoc :fulcro.inspect.client/diff diff
-                             :based-on based-on)
+                             :fulcro.inspect.client/based-on based-on)
                  (not diff) (assoc :fulcro.inspect.client/state value))))))
 
 
@@ -353,7 +353,7 @@
                                                             :com.fulcrologic.statecharts/statechart-src
                                                             :com.fulcrologic.statecharts/configuration])
                                               (assoc :com.fulcrologic.statecharts/statechart {:statechart/registry-key src-id
-                                                                                              :statechart/chart (chart-id->definition src-id)}))))
+                                                                                              :statechart/chart        (chart-id->definition src-id)}))))
                                         (vals session-id->session))]
              (log/info "Responding to query" [msg-id available-sessions])
              (respond-to-query! msg-id {:statechart/available-sessions available-sessions
@@ -385,7 +385,7 @@
          (record-history-entry! app @state*)
          (swap! state* assoc app-uuid-key app-uuid)
          (post-message :fulcro.inspect.client/init-app {app-uuid-key                         app-uuid
-                                                        :fulcro.inspect.core/app-id          (log/spy :info (app-id app))
+                                                        :fulcro.inspect.core/app-id          (app-id app)
                                                         :fulcro.inspect.client/remotes       (sort-by (juxt #(not= :remote %) str) (keys networking))
                                                         :fulcro.inspect.client/initial-state @state*})
          (add-watch state* app-uuid #(db-changed! app %3 %4))))))
@@ -397,7 +397,7 @@
    env - The mutation env that completed."
   [app
    {:keys [component ref state com.fulcrologic.fulcro.algorithms.tx-processing/options]}
-   {:keys [tx-id tx state-id-before db-before db-after]}]
+   {:keys [tx-id tx state-id-before]}]
   #?(:cljs
      (let [component-name (get-component-name component)
            current-id     (current-history-id app)

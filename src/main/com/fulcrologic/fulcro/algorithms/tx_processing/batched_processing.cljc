@@ -446,8 +446,6 @@
                                (ilet [tx (eql/ast->expr original-ast-node true)]
                                  (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
                                                                                :state-id-before state-id-before
-                                                                               :db-before       state-before
-                                                                               :db-after        @state
                                                                                :tx              tx})))
                              new-acc)))
                        {:done? false :new-elements []}
@@ -479,8 +477,6 @@
                              (ilet [tx (eql/ast->expr original-ast-node true)]
                                (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
                                                                              :state-id-before state-id-before
-                                                                             :db-before       state-before
-                                                                             :db-after        @state
                                                                              :tx              tx})))
                            new-acc))
                        []
@@ -561,9 +557,9 @@
         handler        (fn result-handler* [result]
                          (when (:parallel? options)
                            (inspect/ilet [{:keys [status-code body]} result]
-                            (if (= 200 status-code)
-                              (inspect/send-finished! app remote id body)
-                              (inspect/send-failed! app id (str status-code)))))
+                             (if (= 200 status-code)
+                               (inspect/send-finished! app remote id body)
+                               (inspect/send-failed! app id (str status-code)))))
                          (record-result! app id ele-idx remote result)
                          (remove! app remote id ele-idx)
                          (schedule-sends! app 1)
