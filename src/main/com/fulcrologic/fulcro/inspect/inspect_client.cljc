@@ -192,11 +192,11 @@
 (defn statechart-event! [app session-id event data new-config]
   #?(:cljs
      (let [app-uuid (app-uuid app)]
-       (post-message :fulcro.inspect.client/statechart-event {app-uuid-key app-uuid
-                                                              :session-id  session-id
-                                                              :event       event
-                                                              :data        data
-                                                              :new-config  new-config}))))
+       (post-message :fulcro.inspect.client/statechart-event {app-uuid-key                               app-uuid
+                                                              :com.fulcrologic.statecharts/session-id    session-id
+                                                              :event                                     event
+                                                              :data                                      data
+                                                              :com.fulcrologic.statecharts/configuration new-config}))))
 
 (defn respond-to-query! [msg-id body]
   (post-message :fulcro.inspect.client/message-response
