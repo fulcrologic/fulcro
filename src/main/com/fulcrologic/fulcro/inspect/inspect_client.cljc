@@ -91,6 +91,10 @@
                          (seq history)))]
     entry))
 
+(defn earliest-history-step [app]
+  (let [history (-> app runtime-atom deref ::history)]
+    (some-> history (first) :id)))
+
 
 (defn db-changed!
   "Notify Inspect that the database changed"
@@ -242,6 +246,7 @@
        (let [{:keys                     [id based-on]
               :fulcro.inspect.core/keys [app-uuid]} data]
          (enc/when-let [app (get @apps* app-uuid)
+                        id  (or id (earliest-history-step app))
                         {:keys [value]} (get-history-entry app id)]
            (let [{prior-state :value} (get-history-entry app based-on)
                  diff (when prior-state (diff/diff prior-state value))]
@@ -381,6 +386,7 @@
        (let [networking (remotes app)
              state*     (state-atom app)
              app-uuid   (fulcro-app-id app)]
+         (log/info "Inspect initializing app" app-uuid)
          (swap! apps* assoc app-uuid app)
          (record-history-entry! app @state*)
          (swap! state* assoc app-uuid-key app-uuid)
