@@ -29,11 +29,12 @@
                                 :host           SERVER_HOST
                                 :port           SERVER_PORT
                                 :packer         (make-packer)
+                                :protocol       :http
                                 :wrap-recv-evs? false
                                 :backoff-ms-fn  backoff-ms}]
         (sente/make-channel-socket-client! "/chsk" "no-token-desired"
-          (if (= (:protocol (enc/get-win-loc)) "file:")
-            (assoc socket-client-opts :protocol :http)
+          (if (= (:protocol (enc/get-win-loc)) "https:")
+            (assoc socket-client-opts :protocol :https)
             socket-client-opts))))
     (log/debug "Starting websockets at:" SERVER_HOST ":" SERVER_PORT)
     (go-loop [attempt 1]
