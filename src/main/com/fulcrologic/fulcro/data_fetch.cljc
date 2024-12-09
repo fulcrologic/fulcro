@@ -70,7 +70,12 @@
   "Remove items from a query when the query element where the (node-predicate key) returns true. Commonly used with
    a set as a predicate to elide specific well-known UI-only paths."
   [query node-predicate]
-  (-> query eql/query->ast (elide-ast-nodes node-predicate) eql/ast->query))
+  (-> query
+      (as-> <> [{::temp-root <>}])
+      eql/query->ast
+      (elide-ast-nodes node-predicate)
+      eql/ast->query
+      (get-in [0 ::temp-root])))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
