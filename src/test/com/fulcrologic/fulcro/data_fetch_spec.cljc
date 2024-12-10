@@ -30,12 +30,22 @@
    :ident         [:parent/by-id :x]
    :query         [:x :z {:child (comp/get-query InitTestChild)}]})
 
+(defsc UnionComponent [this props]
+  {:initial-state (fn [params] {:a/id 1 :a/name "Alice"})
+   :ident (fn [] (cond
+                   (:a/id props) [:a/id (:a/id props)]
+                   (:b/id props) [:b/id (:b/id props)]
+                   :else nil))
+   :query (fn [] {:a/id [:a/id :a/name]
+                  :b/id [:b/id :b/another-prop]})})
+
 (def app (app/fulcro-app))
 
 (specification "Load parameters"
   (let [
         query-with-params       (:query (df/load-params* app :prop Person {:params {:n 1}}))
-        ident-query-with-params (:query (df/load-params* app [:person/by-id 1] Person {:params {:n 1}}))]
+        ident-query-with-params (:query (df/load-params* app [:person/by-id 1] Person {:params {:n 1}}))
+        union-query (:query (df/load-params* app :prop UnionComponent {:without #{}}))]
     (assertions
       "Accepts nil for subquery and params"
       (:query (df/load-params* app [:person/by-id 1] nil {})) => [[:person/by-id 1]]
@@ -48,7 +58,9 @@
       (:target (df/load-params* app :prop Person {:target [:a :b]})) => [:a :b]
       "Constructs a JOIN query (with params on join and prop)"
       query-with-params => `[({:prop ~(comp/get-query Person)} {:n 1})]
-      ident-query-with-params => `[({[:person/by-id 1] ~(comp/get-query Person)} {:n 1})]))
+      ident-query-with-params => `[({[:person/by-id 1] ~(comp/get-query Person)} {:n 1})]
+      "Properly handles components with a union query"
+      union-query => [{:prop (comp/get-query UnionComponent)}]))
   (behavior "can focus the query"
     (assertions
       (:query (df/load-params* app [:item/by-id 1] Item {:focus [:name {:comments [:title]}]}))
