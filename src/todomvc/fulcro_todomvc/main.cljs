@@ -5,6 +5,7 @@
     [com.fulcrologic.fulcro.algorithms.timbre-support :refer [console-appender prefix-output-fn]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.data-fetch :as df]
+    [fulcro.inspect.tool :as it]
     [taoensso.timbre :as log]
     [fulcro-todomvc.custom-types :as custom-types]
     [fulcro-todomvc.app :refer [app]]))
@@ -14,6 +15,7 @@
 
 (defn ^:export start []
   (app/mount! app ui/Root "app")
+  (it/add-fulcro-inspect! app)
   (df/load! app [:list/id 1] ui/TodoList)
   (log/merge-config! {:output-fn prefix-output-fn
                       :appenders {:console (console-appender)}}))

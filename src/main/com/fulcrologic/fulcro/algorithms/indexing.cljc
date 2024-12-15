@@ -122,7 +122,7 @@
      (when ident
        (swap! runtime-atom drop-component* this ident cls))))
   ([this]
-   (let [old-ident (rc/get-ident this)]
+   (when-let [old-ident (when (rc/has-ident? this) (rc/get-ident this))]
      (drop-component! this old-ident))))
 
 (defmutation reindex

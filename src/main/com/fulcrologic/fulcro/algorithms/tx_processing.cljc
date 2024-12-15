@@ -128,7 +128,7 @@
                                                   (inspect/ilet [{:keys [status-code body]} result]
                                                     (if (= 200 status-code)
                                                       (inspect/send-finished! app remote-name combined-node-id body)
-                                                      (inspect/send-failed! app combined-node-id (str status-code))))
+                                                      (inspect/send-failed! app remote-name combined-node-id (str status-code))))
                                                   (result-handler result)))
                                               (remove-send! app remote-name combined-node-id combined-node-idx))
                            ::active?        true}]
@@ -152,7 +152,7 @@
         (log/error e "Send threw an exception for tx:" (futil/ast->query (::ast send-node)) "See https://book.fulcrologic.com/#err-txp-send-exc")
         (try
           (inspect/ido
-            (inspect/send-failed! app (::id send-node) "Transmit Exception"))
+            (inspect/send-failed! app remote-name (::id send-node) "Transmit Exception"))
           ((::result-handler send-node) {:status-code      500
                                          :client-exception e})
           (catch #?(:cljs :default :clj Exception) e
@@ -336,9 +336,11 @@
                                  (catch #?(:cljs :default :clj Exception) e
                                    (let [mutation-symbol (:dispatch-key original-ast-node)]
                                      (log/error e "The `action` section of mutation" mutation-symbol "threw an exception. See https://book.fulcrologic.com/#err-txp-mut-action-exc"))))
-                               (ilet [tx (eql/ast->expr original-ast-node true)]
+                               (ilet [tx    (eql/ast->expr original-ast-node true)
+                                      sends (set/intersection (app->remote-names app) (set (keys dispatch)))]
                                  (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
                                                                                :state-id-before state-id-before
+                                                                               :sends           sends
                                                                                :tx              tx})))
                              new-acc)))
                        {:done? false :new-elements []}
@@ -367,8 +369,10 @@
                                (action env)
                                (catch #?(:cljs :default :clj Exception) e
                                  (log/error e "The `action` section threw an exception for mutation: " (:dispatch-key original-ast-node) "See https://book.fulcrologic.com/#err-txp-mut-action-exc2")))
-                             (ilet [tx (eql/ast->expr original-ast-node true)]
+                             (ilet [tx    (eql/ast->expr original-ast-node true)
+                                    sends (set/intersection (app->remote-names app) (set (keys dispatch)))]
                                (inspect/optimistic-action-finished! app env {:tx-id           (str id "-" idx)
+                                                                             :sends           sends
                                                                              :state-id-before state-id-before
                                                                              :tx              tx})))
                            new-acc))
@@ -461,7 +465,7 @@
                            (inspect/ilet [{:keys [status-code body]} result]
                              (if (= 200 status-code)
                                (inspect/send-finished! app remote id body)
-                               (inspect/send-failed! app id (str status-code)))))
+                               (inspect/send-failed! app remote id (str status-code)))))
                          (record-result! app id ele-idx remote result)
                          (remove-send! app remote id ele-idx)
                          (schedule-sends! app 1)

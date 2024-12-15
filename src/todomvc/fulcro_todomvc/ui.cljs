@@ -140,7 +140,8 @@
                           :list.filter/active (filterv (comp not :item/complete) items)
                           :list.filter/completed completed-todos
                           items)
-        delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))]
+        delete-item     (fn [item-id] (comp/transact! this [(api/todo-delete-item {:list-id id :id item-id})]
+                                        {:parallel? true }))]
     (dom/div {}
       (dom/section :.todoapp {}
         (header this title)
@@ -151,8 +152,8 @@
                           :className "toggle-all"
                           :checked   all-completed?
                           :onClick   (fn [] (if all-completed?
-                                              (comp/transact! this `[(api/todo-uncheck-all {:list-id ~id})])
-                                              (comp/transact! this `[(api/todo-check-all {:list-id ~id})])))})
+                                              (comp/transact! this [(api/todo-uncheck-all {:list-id id})])
+                                              (comp/transact! this [(api/todo-check-all {:list-id id})])))})
               (dom/label {:htmlFor "toggle-all"} "Mark all as complete")
               (dom/ul :.todo-list {}
                 (map #(ui-todo-item % {:delete-item delete-item}) filtered-todos)))

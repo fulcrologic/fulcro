@@ -157,7 +157,7 @@
   "Install element picker support."
   []
   (log/info "Installing Inspect Element Picker")
-  (reset! inspect/run-picker
+  #_(reset! inspect/run-picker
     (fn [data]
       (let [{:fulcro.inspect.core/keys [app-uuid]} data]
         (pick-element

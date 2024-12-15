@@ -11,7 +11,6 @@
     [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => | ?]]
     #?@(:cljs [[goog.object :as gobj]
@@ -255,8 +254,8 @@
                                         (if optimized-render!
                                           (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
                                           (log/debug "Render skipped. No optimized render is configured."))))))))
-         :refresh-component! comp/refresh-component!
-         :optimized-render! (or optimized-render! mrr/render!))))))
+              :refresh-component! comp/refresh-component!
+              :optimized-render! (or optimized-render! mrr/render!))))))
 
 (>defn fulcro-app?
   "Returns true if the given `x` is a Fulcro application."
@@ -325,7 +324,6 @@
          (do
            (swap! (::state-atom app) #(merge {:fulcro.inspect.core/app-id (comp/component-name root)} %))
            (set-root! app root {:initialize-state? initialize-state?})
-           (inspect/app-started! app)
            (when (and client-will-mount (not disable-client-did-mount?))
              (client-will-mount app))
            (reset-mountpoint!)
@@ -466,6 +464,9 @@
   This function changes the content of the application's runtime atom so you do not need to capture the return value, which
   is the app you passed in."
   [app remote-name remote]
-  [::app keyword? map? => ::app]
-  (swap! (::runtime-atom app) assoc-in [::remotes remote-name] remote)
-  app)
+  (rapp/set-remote! app remote-name remote))
+
+(defn get-remote
+  "Returns the remote that is in use for the given remote name. This is a map with at least :transmit!"
+  [app remote-name]
+  (rapp/get-remote app remote-name))

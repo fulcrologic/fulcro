@@ -289,7 +289,7 @@
                                                                   :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
                                                                   :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
                                                                   :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
-                                                                 (fn? before-render) (assoc :com.fulcrologic.fulcro.algorithm/before-render before-render))
+                                                           (fn? before-render) (assoc :com.fulcrologic.fulcro.algorithm/before-render before-render))
         :com.fulcrologic.fulcro.application/runtime-atom (atom
                                                            {:com.fulcrologic.fulcro.application/app-root            nil
                                                             :com.fulcrologic.fulcro.application/mount-node          nil
@@ -302,13 +302,13 @@
                                                             :com.fulcrologic.fulcro.application/shared-props        {}
 
                                                             :com.fulcrologic.fulcro.application/remotes             (or remotes
-                                                                                                                        {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
-                                                                                                                                               (log/fatal "Remote requested, but no remote defined.")
-                                                                                                                                               (result-handler {:status-code 418 :body {}}))}})
+                                                                                                                      {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
+                                                                                                                                             (log/fatal "Remote requested, but no remote defined.")
+                                                                                                                                             (result-handler {:status-code 418 :body {}}))}})
                                                             :com.fulcrologic.fulcro.application/indexes             {:ident->components {}}
                                                             :com.fulcrologic.fulcro.application/mutate              mut/mutate
                                                             :com.fulcrologic.fulcro.application/render-listeners    (cond-> {}
-                                                                                                                            (= tx! txn/default-tx!) (assoc ::txn/after-render txn/application-rendered!))
+                                                                                                                      (= tx! txn/default-tx!) (assoc ::txn/after-render txn/application-rendered!))
                                                             ::txn/activation-scheduled?                             false
                                                             ::txn/queue-processing-scheduled?                       false
                                                             ::txn/sends-scheduled?                                  false
@@ -401,6 +401,11 @@
   [app remote-name remote]
   (swap! (:com.fulcrologic.fulcro.application/runtime-atom app) assoc-in [:com.fulcrologic.fulcro.application/remotes remote-name] remote)
   app)
+
+(defn get-remote
+  "Returns the remote defined for remote-name, if any."
+  [app remote-name]
+  (some-> app :com.fulcrologic.fulcro.application/runtime-atom deref :com.fulcrologic.fulcro.application/remotes remote-name))
 
 (defn get-root-subtree-props
   "Uses `fdn/traced-db->tree` to get the props of the subtree at `root-key`. If `prior-props` are not stale, those are

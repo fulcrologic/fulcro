@@ -1,6 +1,5 @@
 (ns ^:no-doc com.fulcrologic.fulcro.inspect.diff
-  "Internal algorithms for sending db diffs to Inspect tool."
-  (:require [clojure.spec.alpha :as s]))
+  "Internal algorithms for sending db diffs to Inspect tool.")
 
 (defn updates [a b]
   (reduce
@@ -58,5 +57,5 @@
 
 (defn patch [x diff]
   (-> x
-      (patch-updates diff)
-      (patch-removals diff)))
+    (patch-updates diff)
+    (patch-removals diff)))

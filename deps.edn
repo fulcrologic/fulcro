@@ -4,18 +4,15 @@
            "src/clj-kondo"]
 
  :deps    {edn-query-language/eql     {:mvn/version "1.0.2"}
-           com.taoensso/timbre        {:mvn/version "4.10.0"}
-           com.taoensso/encore        {:mvn/version "3.45.0"}
-
-           ;; Used for Electron app inspect comms.
-           com.taoensso/sente         {:mvn/version "1.16.2"}
+           com.taoensso/timbre        {:mvn/version "6.5.0"}
+           com.taoensso/encore        {:mvn/version "3.127.0"}
 
            com.cognitect/transit-clj  {:mvn/version "1.0.329"}
            com.cognitect/transit-cljs {:mvn/version "0.8.280"}
-           com.fulcrologic/guardrails {:mvn/version "1.1.11"}
+           com.fulcrologic/guardrails {:mvn/version "1.2.9"}
 
-           org.clojure/clojure        {:mvn/version "1.10.3" :scope "provided"}
-           org.clojure/clojurescript  {:mvn/version "1.10.866" :scope "provided"}
+           org.clojure/clojure        {:mvn/version "1.11.3" :scope "provided"}
+           org.clojure/clojurescript  {:mvn/version "1.11.132" :scope "provided"}
            org.clojure/core.async     {:mvn/version "1.3.610"}}
 
  :aliases {:test       {:extra-paths ["src/test"]
@@ -30,17 +27,19 @@
 
            :workspaces {:extra-paths ["src/workspaces"]
                         :extra-deps  {com.github.awkay/workspaces {:mvn/version "1.0.3"
-                                                                   :exclusions [com.fulcrologic/fulcro]}}}
+                                                                   :exclusions  [com.fulcrologic/fulcro]}}}
 
            :dev        {:extra-paths ["src/dev" "resources" "src/todomvc"]
-                        :extra-deps  {thheller/shadow-cljs              {:mvn/version "2.14.5"}
-                                      com.wsscode/pathom                {:mvn/version "2.3.1"}
-                                      com.fulcrologic/fulcro-websockets {:mvn/version "3.2.0"
-                                                                         :exclusions [com.fulcrologic/fulcro]}
-                                      binaryage/devtools                {:mvn/version "1.0.6"}
-                                      ring/ring-core                    {:mvn/version "1.8.1"}
-                                      org.immutant/web                  {:mvn/version "2.1.10"}
-                                      org.clojure/tools.namespace       {:mvn/version "1.0.0"}}}
+                        :extra-deps  {thheller/shadow-cljs                   {:mvn/version "2.28.20"}
+                                      com.wsscode/pathom                     {:mvn/version "2.3.1"}
+                                      com.fulcrologic/fulcro-websockets      {:mvn/version "3.2.0"
+                                                                              :exclusions  [com.fulcrologic/fulcro]}
+                                      com.fulcrologic/fulcro-inspect         {:mvn/version "0.1.0"}
+                                      ;com.fulcrologic/fulcro-devtools-remote {:mvn/version "0.2.0-SNAPSHOT"}
+                                      binaryage/devtools                     {:mvn/version "1.0.6"}
+                                      ring/ring-core                         {:mvn/version "1.8.1"}
+                                      org.immutant/web                       {:mvn/version "2.1.10"}
+                                      org.clojure/tools.namespace            {:mvn/version "1.0.0"}}}
 
-           :build      {:deps {io.github.seancorfield/build-clj {:tag "v0.6.7" :sha "22c2d09"}}
+           :build      {:deps       {io.github.seancorfield/build-clj {:tag "v0.6.7" :sha "22c2d09"}}
                         :ns-default build}}}

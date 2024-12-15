@@ -248,7 +248,7 @@
                            (inspect/ilet [{:keys [status-code body]} result]
                              (if (= 200 status-code)
                                (inspect/send-finished! app remote id body)
-                               (inspect/send-failed! app id (str status-code)))))
+                               (inspect/send-failed! app remote id (str status-code)))))
                          (in-transaction app
                            (record-result! app id ele-idx remote result)
                            (remove-send! app remote id ele-idx)

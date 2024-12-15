@@ -89,7 +89,7 @@
                     (update :item/id dissoc id))))
   (error-action [{:keys [result] :as env}]
     (log/info "Delete cancelled!!!" result))
-  (remote [_] true))
+  (other [_] true))
 
 (defn on-all-items-in-list
   "Run the xform on all of the todo items in the list with list-id. The xform will be called with the state map and the
@@ -104,7 +104,7 @@
 (defmutation todo-check-all [{:keys [list-id]}]
   (action [{:keys [state]}]
     (swap! state on-all-items-in-list list-id set-item-checked* true))
-  (remote [_] true))
+  (other [_] true))
 
 (defmutation todo-uncheck-all [{:keys [list-id]}]
   (action [{:keys [state]}]
@@ -140,4 +140,3 @@
       (if list-id
         (swap! state assoc-in [:list/id list-id :list/filter] filter)
         (swap! state assoc :root/desired-filter filter)))))
-
