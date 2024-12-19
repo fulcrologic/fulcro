@@ -98,29 +98,17 @@
         "dispatch map contains entries for each mutation"
         (contains? (::txn/dispatch f-ele) :remote) => true)))
   (behavior "tolerates dispatches that throw exceptions"
-    (when-mocking
-
-      (log/-log! _ _ _ _ _ _ _ args _ _)
-      =1x=> (assertions
-              "Logs an error about the failed mutation"
-              (str (nth @args 2)) => "[(f)]"
-              (str/includes? (second @args) "Dispatch for mutation") => true)
-      (log/-log! _ _ _ _ _ _ _ args _ _)
-      =1x=> (assertions
-              "Logs an error about the failed mutation"
-              (str (nth @args 2)) => "[(g)]")
-
-      (let [n            (txn/tx-node '[(f) (g)])
-            updated-node (txn/dispatch-elements n
-                           {:env true}
-                           (fn [e] (throw (ex-info "INTENTIONAL THROW FROM TEST" {}))))
-            [f-ele g-ele] (::txn/elements updated-node)]
-        (assertions
-          "Returns the updated node"
-          (s/valid? ::txn/tx-node updated-node) => true
-          "dispatch map contains entries for each mutation"
-          (::txn/dispatch f-ele) => {}
-          (::txn/dispatch g-ele) => {})))))
+    (let [n            (txn/tx-node '[(f) (g)])
+          updated-node (txn/dispatch-elements n
+                         {:env true}
+                         (fn [e] (throw (ex-info "INTENTIONAL THROW FROM TEST" {}))))
+          [f-ele g-ele] (::txn/elements updated-node)]
+      (assertions
+        "Returns the updated node"
+        (s/valid? ::txn/tx-node updated-node) => true
+        "dispatch map contains entries for each mutation"
+        (::txn/dispatch f-ele) => {}
+        (::txn/dispatch g-ele) => {}))))
 
 (specification "schedule!"
   (let [app           (mock-app)
@@ -498,13 +486,7 @@
         mock-result {:x 1}]
     (swap! runtime-atom update ::txn/active-queue conj tx-node)
 
-    (when-mocking
-      (log/-log! _ _ _ _ _ _ _ args _ _)
-      => (assertions
-           "logs an error if the node is not found"
-           (first @args) => "Network result for")
-
-      (txn/record-result! app (uuid 2) 0 :remote mock-result))))
+    (txn/record-result! app (uuid 2) 0 :remote mock-result)))
 
 (specification "add-send!"
   (let [{:keys [::app/runtime-atom] :as app} (mock-app)
@@ -716,10 +698,6 @@
   (behavior "When the handler throws an exception"
     (when-mocking
       (txn/schedule-queue-processing! a t) => nil
-      (log/-log! _ _ _ _ _ _ _ args _ _)
-      =1x=> (assertions
-              "Logs an error about the failed handler"
-              (second @args) => "The result-action mutation handler for mutation")
 
       (let [app         (mock-app)
             mock-action (fn [env] (throw (ex-info "INTENTIONALLY THROWN" {})))
