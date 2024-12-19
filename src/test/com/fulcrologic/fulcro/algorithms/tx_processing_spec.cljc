@@ -698,7 +698,6 @@
   (behavior "When the handler throws an exception"
     (when-mocking
       (txn/schedule-queue-processing! a t) => nil
-
       (let [app         (mock-app)
             mock-action (fn [env] (throw (ex-info "INTENTIONALLY THROWN" {})))
             tx-node     (-> (txn/tx-node `[(f {})])
