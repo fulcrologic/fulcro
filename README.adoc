@@ -14,34 +14,13 @@ image:https://circleci.com/gh/fulcrologic/fulcro/tree/main.svg?style=svg["Circle
 Fulcro is a library for building data-driven full-stack applications for the web, native, and desktop (via electron). It uses React and is written in
 Clojure and Clojurescript.
 
-== Fulcro 3.6, and React 18 Notes
+== Fulcro 3.8 Important Notice
 
-React 18 finally made changes that required some (minor) breaking changes to Fulcro. The support for async rendering
-in version 18 meant that we could no longer rely on dynamic vars in the internals (React 15 had no other way to
-do it).
+Fulcro 3.8+ use a new version of Fulcro Inspect, and it requires you change how you build the development version of your app. Old versions of Fulcro Inspect Electron and Chrome will not work with Fulcro 3.8+.
 
-As a result, some (hopefully never or rarely-used) features are deprecated or slightly modified:
+The rewrite of Fulcro Inspect is available via the releases page of https://github.com/fulcrologic/fulcro-inspect/releases[Fulcro Inspect]. And there are preliminary instructions for using it with the latest Fulcro.
 
-* The dynamic vars `\*app*`, `\*parent*`, `\*shared*`, `\*depth*`, and `\*blindly-render?*` should not be used. An
-attempt was made to make most of them continue to work.
-* The 0-arity version of comp/current-state is no longer available. Pass `this` to it instead.
-* The 0-arity version of comp/shared is no longer available. Pass `this` or `app` to it instead.
-* Custom renderers (if you wrote one yourself) MUST now set a React context. See keyframe-renderer for details.
-* `\*query-state*` still exists, but is for internal use only, and cannot be trusted within render. Pass app state to calls to
-`get-query` if you're using dynamic queries.
-
-Using full React 18 requires that you wrap your app with a version helper:
-
-[source]
------
-(ns example.app
-    (:require
-      [com.fulcrologic.fulcro.react.version18 :refer [with-react18]]
-      [com.fulcrologic.fulcro.application :as app]
-      ...)
-
-(def app (with-react18 (app/fulcro-app {})))
------
+The alpha versions of Fulcro 3.8 are alpha purely because of this development-time change and its potential issues, and are otherwise production ready.
 
 == Trying it Out
 
