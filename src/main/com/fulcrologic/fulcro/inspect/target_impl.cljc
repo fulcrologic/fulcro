@@ -107,33 +107,38 @@
       (log/error "Transact on invalid uuid" app-uuid "See https://book.fulcrologic.com/#err-inspect-invalid-app-uuid"))
     nil))
 
-(defmutation run-network-request [env params]
-  {::pc/sym `target/run-network-request}
-  (let [{:keys [eql remote]} params
+(defn run-network-request* [params]
+  (let [{remote-name :remote
+         :keys       [eql]} params
         app-uuid       (mk/target-id params)
         result-channel (async/chan)]
     (enc/if-let [app   (get @apps* app-uuid)
-                 {:keys [transmit!]} (rapp/get-remote app remote)
+                 {:keys [transmit!] :as remote} (rapp/get-remote app remote-name)
                  ast   (eql/query->ast eql)
                  tx-id (random-uuid)]
       (do
-        (send-started! app remote tx-id eql)
+        (send-started! app remote-name tx-id eql)
         (transmit! remote {:com.fulcrologic.fulcro.algorithms.tx-processing/id             tx-id
                            :com.fulcrologic.fulcro.algorithms.tx-processing/ast            ast
                            :com.fulcrologic.fulcro.algorithms.tx-processing/idx            0
                            :com.fulcrologic.fulcro.algorithms.tx-processing/options        {}
                            :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler identity
                            :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler (fn [{:keys [body] :as result}]
-                                                                                             (let [error? (ah/app-algorithm app :remote-error?)]
-                                                                                               (if (error? result)
-                                                                                                 (send-failed! app remote tx-id result)
-                                                                                                 (send-finished! app remote tx-id body)))
+                                                                                             (enc/catching
+                                                                                               (let [error? (ah/app-algorithm app :remote-error?)]
+                                                                                                 (if (error? result)
+                                                                                                   (send-failed! app remote-name tx-id result)
+                                                                                                   (send-finished! app remote-name tx-id body))))
                                                                                              (async/go
                                                                                                (async/>! result-channel body)))}))
       (do
         (log/trace "Request not attempted.")
         (async/go (async/>! result-channel {:error "Unable to run network request"}))))
     result-channel))
+
+(defmutation run-network-request [env params]
+  {::pc/sym `target/run-network-request}
+  (run-network-request* params))
 
 (defresolver statechart-definition-resolver [env input]
   {::pc/output [{:statechart/definitions [:statechart/registry-key
@@ -179,3 +184,14 @@
                                                                                          :statechart/chart        (chart-id->definition src-id)}))))
                                    (vals session-id->session))]
         {:statechart/available-sessions available-sessions}))))
+
+(defresolver pathom-connect-index-resolver [env input]
+  {::pc/output [{:pathom/indexes [::pc/idents ::pc/index-io ::pc/autocomplete-ignore]}]}
+  (async/go
+    (let [params (:query-params env)
+          {remote-name :remote} params
+          {::pc/keys [indexes]
+           :as       resp} (async/<! (run-network-request* {mk/target-id (mk/target-id params)
+                                                            :remote      remote-name
+                                                            :eql         [{::pc/indexes [::pc/idents ::pc/index-io ::pc/autocomplete-ignore]}]}))]
+      {:pathom/indexes indexes})))
