@@ -13,7 +13,6 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.inspect.inspect-client))
   (:require
     [com.fulcrologic.fulcro.inspect.devtool-api :as devtool]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.inspect.diff :as diff]
     [com.fulcrologic.fulcro.inspect.tools :as fit]
     #?@(:cljs [[goog.object :as gobj]])))

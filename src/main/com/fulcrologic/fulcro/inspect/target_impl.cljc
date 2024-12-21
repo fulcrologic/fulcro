@@ -20,17 +20,6 @@
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
-;; TASK: Cleanup. Need to figure out the cross-references of namespaces and make sure things are in the right spot.
-;;  * Inspect can require fulcro namespaces
-;;  * Fulcro namespaces can require inspect LIBRARY namespaces ONLY
-;;  * Fulcro namespaces should avoid directly using the devtools remote nses, except where it is using inspect nses
-;; This should make it so if you DON'T have inspect on the classpath, as long as you don't try to enable inspect you
-;; should not get errors.
-;; TASK: Test that an app can NOT include inspect or devtools remove in its deps
-;; TASK: Figure out how people are supposed to do dev-time vs release time Inspect code (different app creation nses?). Actually,
-;;   is it OK for us to keep inspect on the classpath: will the lack of a preload get us optimal release code without overhead?
-;;   add-devtool-remote! seems like it will get schemas/protocols/resolvers. Perhaps ido???
-
 (defonce apps* (atom {}))
 
 (defmulti handle-inspect-event (fn [tconn app event] (:type event)))
@@ -60,12 +49,9 @@
     (dp/transmit! tconn app-uuid
       [(devtool/optimistic-action (assoc event :fulcro.inspect.client/tx-ref [:network-history/id [app-uuid-key app-uuid]]))])))
 
-;; TASK: Fix app labels. Currently just using app id. Label should default to the root class name
-:fulcro.inspect.core/app-id
 (defmutation connected [{:devtool/keys [connection]
                          :fulcro/keys  [app]} {::mk/keys [target-id connected?]}]
   {::pc/sym `bi/devtool-connected}
-  (log/info "CONNECTED" target-id connected?)
   (let [networking (remotes app)
         state*     (state-atom app)
         id         (app-uuid app)]
@@ -77,27 +63,6 @@
                                                        :history/version                       (record-history-entry! app @state*)
                                                        :history/value                         @state*}})])))
 
-;; TASK: Not used...when do we query for this?
-(defresolver page-apps-resolver [env input]
-  {::pc/output [{:page/apps [app-uuid-key
-                             :fulcro.inspect.client/remotes
-                             {:fulcro.inspect.client/initial-history-step [app-uuid-key
-                                                                           :history/value
-                                                                           :history/version]}]}]}
-  {:page/apps
-   (mapv
-     (fn [app]
-       (let [state        (app-state app)
-             version      (record-history-entry! app state)
-             remote-names (remotes app)]
-         {app-uuid-key                                (app-uuid app)
-          ;; app label
-          :fulcro.inspect.client/remotes              (sort-by (juxt #(not= :remote %) str) (keys remote-names))
-          :fulcro.inspect.client/initial-history-step {app-uuid-key     (app-uuid app)
-                                                       :history/version version
-                                                       :history/value   state}}))
-     (vals @apps*))})
-
 (defmutation reset-app [{:fulcro/keys [app]} {:history/keys [version]}]
   {::pc/sym `target/reset-app}
   (let [render! (ah/app-algorithm app :schedule-render!)]
@@ -107,7 +72,7 @@
         (render! app {:force-root? true}))
       (log/error "Reset failed. No target state ID supplied"))))
 
-;; TASK: Test if this works, since we might want to avoid the diff system. Or at least test diff with huge app state and see the overhead
+;; TODO: Test if this works, since we might want to avoid the diff system. Or at least test diff with huge app state and see the overhead
 (defresolver history-resolver [env {:history/keys [id]}]
   {::pc/input  #{:history/id}
    ::pc/output [app-uuid-key
@@ -130,7 +95,7 @@
           (not diff?) (assoc :history/value value)))
       (log/error "Failed to resolve history step."))))
 
-;; TASK: Did we used to run EQL transactions from inspect AS transactions? If so, fix.
+;; FIXME: Did we used to run EQL transactions from inspect AS transactions? If so, fix.
 (defmutation run-transaction [env params]
   {::pc/sym `target/run-transaction}
   (let [{:keys [tx tx-ref]} params
@@ -166,7 +131,7 @@
                                                                                              (async/go
                                                                                                (async/>! result-channel body)))}))
       (do
-        (log/info "Request not attempted.")
+        (log/trace "Request not attempted.")
         (async/go (async/>! result-channel {:error "Unable to run network request"}))))
     result-channel))
 
