@@ -23,5 +23,6 @@
   send-started
   send-finished
   send-failed
+  focus-target
   optimistic-action
   statechart-event)
