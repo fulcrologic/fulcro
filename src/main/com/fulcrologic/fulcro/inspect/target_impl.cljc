@@ -140,51 +140,6 @@
   {::pc/sym `target/run-network-request}
   (run-network-request* params))
 
-(defresolver statechart-definition-resolver [env input]
-  {::pc/output [{:statechart/definitions [:statechart/registry-key
-                                          :statechart/chart]}]}
-  (let [params   (:query-params env)
-        app-uuid (app-uuid params)
-        app      (get @apps* app-uuid)]
-    (when app
-      (let [runtime-env          (some-> (runtime-atom app) deref :com.fulcrologic.statecharts/env)
-            chart-id->definition (some-> runtime-env :com.fulcrologic.statecharts/statechart-registry :charts deref
-                                   strip-lambdas)
-            definitions          (mapv (fn [[k v]]
-                                         {:statechart/registry-key k
-                                          :statechart/chart        v})
-                                   chart-id->definition)]
-        {:statechart/definitions definitions}))))
-
-(defresolver statechart-session-resolver [env input]
-  {::pc/output [{:statechart/available-sessions [:com.fulcrologic.statecharts/session-id
-                                                 :com.fulcrologic.statecharts/history-value
-                                                 :com.fulcrologic.statecharts/parent-session-id
-                                                 :com.fulcrologic.statecharts/statechart-src
-                                                 :com.fulcrologic.statecharts/configuration
-                                                 :com.fulcrologic.statecharts/statechart]}]}
-  (let [params   (:query-params env)
-        app-uuid (app-uuid params)
-        app      (get @apps* app-uuid)]
-    (when app
-      (let [{session-id->session :com.fulcrologic.statecharts/session-id :as state-map} (app-state app)
-            runtime-env          (some-> (runtime-atom app) deref :com.fulcrologic.statecharts/env)
-            chart-id->definition (some-> runtime-env :com.fulcrologic.statecharts/statechart-registry :charts deref
-                                   strip-lambdas)
-            available-sessions   (mapv
-                                   (fn [session]
-                                     (let [src-id (:com.fulcrologic.statecharts/statechart-src session)]
-                                       (-> session
-                                         (select-keys [:com.fulcrologic.statecharts/session-id
-                                                       :com.fulcrologic.statecharts/history-value
-                                                       :com.fulcrologic.statecharts/parent-session-id
-                                                       :com.fulcrologic.statecharts/statechart-src
-                                                       :com.fulcrologic.statecharts/configuration])
-                                         (assoc :com.fulcrologic.statecharts/statechart {:statechart/registry-key src-id
-                                                                                         :statechart/chart        (chart-id->definition src-id)}))))
-                                   (vals session-id->session))]
-        {:statechart/available-sessions available-sessions}))))
-
 (defresolver pathom-connect-index-resolver [env input]
   {::pc/output [{:pathom/indexes [::pc/idents ::pc/index-io ::pc/autocomplete-ignore]}]}
   (async/go

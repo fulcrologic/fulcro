@@ -122,16 +122,6 @@
                                              :fulcro.inspect.ui.network/request-finished-at finished
                                              :fulcro.inspect.ui.network/error               error}))))
 
-;; TASK: Move to statecharts library, since it can go there now!
-(defn statechart-event! [app session-id event data new-config]
-  #?(:cljs
-     (let [app-uuid (app-uuid app)]
-       (fit/notify! app `devtool/statechart-event {app-uuid-key                               app-uuid
-                                                   :com.fulcrologic.statecharts/session-id    session-id
-                                                   :event                                     event
-                                                   :data                                      data
-                                                   :com.fulcrologic.statecharts/configuration new-config}))))
-
 (defn optimistic-action-finished!
   "Notify inspect that a transaction finished.
 
