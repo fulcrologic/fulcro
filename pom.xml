@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
@@ -69,12 +70,12 @@
         <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>clojure</artifactId>
-            <version>1.10.3</version>
+            <version>1.11.3</version>
         </dependency>
         <dependency>
             <groupId>com.fulcrologic</groupId>
             <artifactId>guardrails</artifactId>
-            <version>1.1.11</version>
+            <version>1.2.9</version>
         </dependency>
         <dependency>
             <groupId>edn-query-language</groupId>
@@ -84,7 +85,7 @@
         <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>encore</artifactId>
-            <version>3.45.0</version>
+            <version>3.127.0</version>
         </dependency>
         <dependency>
             <groupId>com.cognitect</groupId>
@@ -94,17 +95,12 @@
         <dependency>
             <groupId>org.clojure</groupId>
             <artifactId>clojurescript</artifactId>
-            <version>1.10.866</version>
-        </dependency>
-        <dependency>
-            <groupId>com.taoensso</groupId>
-            <artifactId>sente</artifactId>
-            <version>1.16.2</version>
+            <version>1.11.132</version>
         </dependency>
         <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>timbre</artifactId>
-            <version>4.10.0</version>
+            <version>6.5.0</version>
         </dependency>
         <dependency>
             <groupId>com.cognitect</groupId>
