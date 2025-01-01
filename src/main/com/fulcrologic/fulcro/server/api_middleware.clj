@@ -3,11 +3,10 @@
   like Pathom to create a parser that can properly dispatch resolution of requests. See the Developer's Guide or
   the Fulcro template for examples of usage."
   (:require
-    [clojure.pprint :refer [pprint]]
+    [clojure.core.async :as async]
     [clojure.test :refer :all]
-    [clojure.repl :refer [doc source]]
-    [com.fulcrologic.fulcro.algorithms.transit :as transit]
     [cognitect.transit :as ct]
+    [com.fulcrologic.fulcro.algorithms.transit :as transit]
     [taoensso.timbre :as log])
   (:import (java.io ByteArrayOutputStream)))
 
@@ -58,6 +57,39 @@
   [response]
   (->> (keep #(some-> (second %) meta ::augment-response) response)
     (reduce (fn [response f] (f response)) {})))
+
+(defn handle-async-api-request
+  "Async version of handle-api-request. Notice the arguments have a reverse order from the non-async one. Returns a channel
+   containing the result.
+
+   async-query-processor - A (fn [query] chan-with-response)
+   query - The query to run
+
+   Returns a channel containing the Ring response."
+  [async-query-processor query]
+  (async/go
+    (generate-response
+      (let [parse-result (async/<!
+                           (try
+                             (cond
+                               (vector? query)
+                               (async-query-processor query)
+
+                               (and (map? query) (contains? query :queries))
+                               (let [{:keys [queries]} query
+                                     result (->> queries
+                                              (map (fn [query] (async-query-processor query)))
+                                              (async/merge)
+                                              (async/reduce conj []))]
+                                 result)
+
+                               :else (async/go (ex-info "Invalid query from client" {:query query})))
+                             (catch Exception e
+                               (log/error e "Parser threw an exception on" query " See https://book.fulcrologic.com/#err-parser-errored-on-query")
+                               (async/go e))))]
+        (if (instance? Throwable parse-result)
+          {:status 500 :body "Internal server error. Parser threw an exception. See server logs for details."}
+          (merge {:status 200 :body parse-result} (apply-response-augmentations parse-result)))))))
 
 (defn handle-api-request
   "Given a parser and a query: Runs the parser on the query,
@@ -173,6 +205,18 @@
     (.reset baos)
     ret))
 
+(defn transit-response
+  "Encode the :body of the response as transit. Only does so if body is a clojure Collection. Otherwise it returns the
+   response unchanged. This is what wrap-transit-response does as middleware."
+  ([response] (transit-response response :json {}))
+  ([response encoding opts]
+   (if (coll? (:body response))
+     (let [transit-response (update-in response [:body] write encoding opts)]
+       (if (contains? (:headers response) "Content-Type")
+         transit-response
+         (set-content-type transit-response (format "application/transit+%s; charset=utf-8" (name encoding)))))
+     response)))
+
 (defn wrap-transit-response
   "Middleware that converts responses with a map or a vector for a body into a
   Transit response.
@@ -184,13 +228,7 @@
   (let [{:keys [encoding opts] :or {encoding :json}} options]
     (assert (#{:json :json-verbose :msgpack} encoding) "The encoding must be one of #{:json :json-verbose :msgpack}.")
     (fn [request]
-      (let [response (handler request)]
-        (if (coll? (:body response))
-          (let [transit-response (update-in response [:body] write encoding opts)]
-            (if (contains? (:headers response) "Content-Type")
-              transit-response
-              (set-content-type transit-response (format "application/transit+%s; charset=utf-8" (name encoding)))))
-          response)))))
+      (transit-response (handler request) encoding opts))))
 
 (defn wrap-api
   "Wrap Fulcro API request processing. Required options are:
