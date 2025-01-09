@@ -112,7 +112,7 @@
            (doseq [{:keys [dispatch-key params]} (:children ast)]
              (when-let [uploads (::uploads params)]
                (doseq [{:file/keys [name content content-type]} uploads]
-                 (let [name-with-mutation (str dispatch-key "|" name)
+                 (let [name-with-mutation (str dispatch-key "%" name)
                        js-value           (-> content meta :js-value)
                        content            (some-> js-value (js-value->uploadable-object content-type))]
                    (.append form "files" content name-with-mutation)))))
