@@ -30,7 +30,7 @@
   (try
     (let [ast             (eql/query->ast txn)
           mutation->files (reduce (fn [result {:keys [filename] :as file}]
-                                    (enc/if-let [[mutation-name filename] (some-> filename (str/split #"[|]"))
+                                    (enc/if-let [[mutation-name filename] (some-> filename (str/split #"[%]"))
                                                  mutation-sym (some-> mutation-name (edn/read-string))]
                                       (update result mutation-sym (fnil conj []) (assoc file :filename filename))
                                       (do
