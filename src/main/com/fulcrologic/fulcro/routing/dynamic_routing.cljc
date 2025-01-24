@@ -869,6 +869,11 @@
             "does not declare a valid :route-segment. Route segments must be non-empty vector that contain only strings"
             "and keywords. See https://book.fulcrologic.com/#err-dr-target-lacks-r-segment"))))))
 
+(defn alt-key
+  "Creates the key used for alternative router targets given an index"
+  [idx]
+  (keyword (str "alt" idx)))
+
 #?(:clj
    (defn defrouter* [env router-ns router-sym arglist options body]
      (when-not (and (vector? arglist) (= 2 (count arglist)))
@@ -892,7 +897,7 @@
                                       (fn [idx s]
                                         (when (nil? s)
                                           (compile-error env options "defrouter :target contains nil!"))
-                                        {(keyword (str "alt" idx)) (getq s)})
+                                        {(alt-key idx) (getq s)})
                                       (rest router-targets)))
            base-initial-state     (cond-> {::id id}
                                     (seq router-targets) (assoc
@@ -900,7 +905,7 @@
                                                            `(rc/get-initial-state ~(first router-targets) ~'params)))
            initial-state-map      (into base-initial-state
                                     (map-indexed
-                                      (fn [idx s] [(keyword (str "alt" idx)) `(rc/get-initial-state ~s {})])
+                                      (fn [idx s] [(alt-key idx) `(rc/get-initial-state ~s {})])
                                       (rest router-targets)))
            ident-method           (apply list `(fn [] [::id ~id]))
            initial-state-lambda   (apply list `(fn [~'params] ~initial-state-map))
@@ -1230,7 +1235,7 @@
                                {::current-route (or
                                                   (rc/get-query main-target)
                                                   (throw (ex-info (str "Route target has no query! " (rc/component-name main-target)) {})))}]
-                              (map-indexed (fn [idx c] {(keyword "alt" idx) (rc/get-query c)}))
+                              (map-indexed (fn [idx c] {(alt-key idx) (rc/get-query c)}))
                               alt-targets)
          addl-options       (dissoc options :render)
          user-render        (fn [this router-props route-factory current-route-target-props]
@@ -1260,7 +1265,7 @@
                                      (into
                                        {::id            router-registry-key
                                         ::current-route (rc/get-initial-state (first router-targets) params)}
-                                       (map-indexed (fn [idx c] [(keyword (str "alt" idx)) (rc/get-initial-state c {})]))
+                                       (map-indexed (fn [idx c] [(alt-key idx) (rc/get-initial-state c {})]))
                                        (rest router-targets)))
           :query                   (fn [_] static-query)})
        (fn [this {::keys [id current-route] :as props}]
