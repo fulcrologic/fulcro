@@ -1072,7 +1072,7 @@
   (defsc B [_ _]
     {:route-segment [\"b\" :b-param]})
 
-  (route-segment A a-param1 B b-param ...)
+  (path-to A a-param1 B b-param ...)
   ```
 
   where the parameters for a target immediately follow the component that requires them. Alternatively
@@ -1083,7 +1083,7 @@
   (defsc A [_ _]
     {:route-segment [\"a\" :a-param]})
 
-  (route-segment A B C D {:a-param 1})
+  (path-to A B C D {:a-param 1})
   ```
   "
   ([& targets-and-params]
