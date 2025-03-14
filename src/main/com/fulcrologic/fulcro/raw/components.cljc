@@ -960,7 +960,7 @@
                 (name (ns-name *ns*)))
          fqkw (keyword (str nspc) (name sym))
          ]
-     `(let [o#     (dissoc (merge ~options {:componentName ~fqkw}) :ident :query)
+     `(let [o#     (merge ~options {:componentName ~fqkw})
             ident# (:ident o#)
             ident# (cond
                      (= :constant ident#) (fn [~'_ ~'_] [:Constant/id ~fqkw])
@@ -969,6 +969,6 @@
                      :else (do
                              (log/error "corrupt ident on component " ~fqkw)
                              nil))
-            o#     (cond-> o#
+            o#     (cond-> (dissoc o# :ident :query)
                      ident# (assoc :ident ident#))]
         (def ~sym (nc ~query o#))))))
