@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
     [com.fulcrologic.fulcro.react.version18 :as react18]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
@@ -108,16 +109,24 @@
 
 (def ui-a (comp/factory A {:keyfn :id}))
 
-(defrouter RootRouter [this props]
-  {:router-targets [A B]})
+(defrouter RootRouter [this {:keys [route-factory route-props]}]
+  {:router-targets      [A B]
+   :use-hooks?          true
+   :always-render-body? true}
+  (hooks/use-effect
+    (fn [] (js/console.log (str "This is demo number: " (random-uuid))))
+    [])
+  (when route-factory
+    (route-factory (comp/computed route-props (comp/get-computed this)))))
+
 (def ui-router (comp/factory RootRouter))
 
 (defsc Root [this {:root/keys [:router] :as props}]
   {:query         [{:root/router (comp/get-query RootRouter)}]
    :initial-state {:root/router {}}}
   (dom/div
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["a" "a1"]))} "A1 ")
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b" "b2"]))} "B2 ")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["a" "a1"]))} "A1")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b" "b2"]))} "B2")
     (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["a"]))} "A")
     (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b"]))} "B")
     (ui-router router)))
