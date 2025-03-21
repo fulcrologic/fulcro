@@ -22,6 +22,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [edn-query-language.core :as eql]
@@ -934,15 +935,22 @@
                                                                               :current-state        ~'current-state}]
                                                        ~@body)))))
            options                (merge
-                                    `{:componentDidMount (fn [this#] (validate-route-targets this#))}
+                                    `{:componentDidMount (fn [this#] (validate-route-targets this#))
+                                      :use-hooks?        false}
                                     options
                                     `{:query                   ~query
                                       :ident                   ~ident-method
-                                      :use-hooks?              false
                                       :initial-state           ~initial-state-lambda
-                                      :preserve-dynamic-query? true})]
+                                      :preserve-dynamic-query? true})
+           if-hook-validate       (and
+                                    (:use-hooks? options) ; If rendering body and using hooks, validate-route-targets once
+                                    `(hooks/use-effect (fn []
+                                                         (validate-route-targets this)
+                                                         js/undefined)
+                                                       []))]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
+          ~if-hook-validate
           (let [~'current-state (uism/get-active-state ~'this ~id)
                 ~'state-map (comp/component->state-map ~'this)
                 ~'sm-env (uism/state-machine-env ~'state-map nil ~id :fake {})
