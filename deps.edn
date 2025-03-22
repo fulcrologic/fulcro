@@ -41,4 +41,7 @@
                                       org.clojure/tools.namespace       {:mvn/version "1.0.0"}}}
 
            :build      {:deps       {io.github.seancorfield/build-clj {:tag "v0.6.7" :sha "22c2d09"}}
-                        :ns-default build}}}
+                        :ns-default build}
+
+           :check-clj-doc {:deps {io.github.cljdoc/cljdoc-analyzer {:tag "v1.0.802" :sha "911656c5"}}
+                           :ns-default cljdoc-analyzer.deps-tool}}}
