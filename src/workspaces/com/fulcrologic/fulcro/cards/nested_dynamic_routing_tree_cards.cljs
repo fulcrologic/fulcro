@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
     [com.fulcrologic.fulcro.react.version18 :as react18]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
@@ -108,27 +109,69 @@
 
 (def ui-a (comp/factory A {:keyfn :id}))
 
-(defrouter RootRouter [this props]
-  {:router-targets [A B]})
-(def ui-router (comp/factory RootRouter))
+(defrouter ClassRootRouter [this {:keys [route-factory route-props]}]
+  {:router-targets      [A B]
+   :always-render-body? true}
 
-(defsc Root [this {:root/keys [:router] :as props}]
-  {:query         [{:root/router (comp/get-query RootRouter)}]
+  (when route-factory
+    (dom/div {}
+      (dom/p (str 'ClassRootRouter " targeted class: " (comp/component-name (dr/current-route-class this))))
+      (route-factory (comp/computed route-props (comp/get-computed this))))))
+
+(def ui-class-router (comp/factory ClassRootRouter))
+
+(defrouter HooksRootRouter [this {:keys [route-factory route-props]}]
+  {:router-targets      [A B]
+   :use-hooks?          true
+   :always-render-body? true}
+
+  (hooks/use-effect
+    (fn [] (log/info (str "This is demo number: " (random-uuid))))
+    [])
+
+  (when route-factory
+    (dom/div {}
+      (dom/p (str 'HooksRootRouter " targeted class: " (comp/component-name (dr/current-route-class this))))
+      (route-factory (comp/computed route-props (comp/get-computed this))))))
+
+(def ui-hooks-router (comp/factory HooksRootRouter))
+
+(defsc ClassRoot
+  [this {:root/keys [:router] :as props}]
+  {:query         [{:root/router (comp/get-query ClassRootRouter)}]
    :initial-state {:root/router {}}}
   (dom/div
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["a" "a1"]))} "A1 ")
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b" "b2"]))} "B2 ")
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["a"]))} "A")
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b"]))} "B")
-    (ui-router router)))
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this ClassRoot ["a" "a1"]))} "A1")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this ClassRoot ["b" "b2"]))} "B2")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this ClassRoot ["a"]))} "A")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this ClassRoot ["b"]))} "B")
+    (ui-class-router router)))
+
+(defsc HooksRoot [this {:root/keys [:router] :as props}]
+  {:query         [{:root/router (comp/get-query HooksRootRouter)}]
+   :initial-state {:root/router {}}}
+  (dom/div
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this HooksRoot ["a" "a1"]))} "A1")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this HooksRoot ["b" "b2"]))} "B2")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this HooksRoot ["a"]))} "A")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this HooksRoot ["b"]))} "B")
+    (ui-hooks-router router)))
 
 (defonce SPA (atom nil))
-(ws/defcard nested-routing-demo
+
+(defn client-will-mount [app]
+  (reset! SPA app)
+  (dr/initialize! app)
+  (dr/change-route! app ["a" "a1"]))
+
+(ws/defcard nested-routing-class-demo
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
-     ::ct.fulcro/root       Root
-     ::ct.fulcro/app        (merge (react18/react18-options)
-                              {:client-will-mount (fn [app]
-                                                    (reset! SPA app)
-                                                    (dr/initialize! app)
-                                                    (dr/change-route! app ["a" "a1"]))})}))
+     ::ct.fulcro/root       ClassRoot
+     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+
+(ws/defcard nested-routing-hooks-demo
+  (ct.fulcro/fulcro-card
+    {::ct.fulcro/wrap-root? false
+     ::ct.fulcro/root       HooksRoot
+     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
