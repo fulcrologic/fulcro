@@ -10,3 +10,7 @@ dev:
 deploy:
 	rm -rf target
 	mvn deploy
+
+check-clj-doc:
+	clojure -T:build jar
+	clojure -T:check-clj-doc analyze-local

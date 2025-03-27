@@ -1,4 +1,4 @@
-(ns com.fulcrologic.fulcro.inspect.target-impl
+(ns ^:no-doc com.fulcrologic.fulcro.inspect.target-impl
   (:require
     [clojure.core.async :as async]
     [com.fulcrologic.devtools.common.built-in-mutations :as bi]
