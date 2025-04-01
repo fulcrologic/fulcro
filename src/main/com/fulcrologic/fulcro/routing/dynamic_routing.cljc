@@ -22,6 +22,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [edn-query-language.core :as eql]
@@ -210,7 +211,7 @@
   (let [router-class (-> router meta :component)
         router-id    (second router)
         target-class (-> target meta :component)]
-    (log/debug "Applying route ident" target "to router" router-id)
+    (log/debug "Applying route ident" target "for routed class" target-class "to router" router-id)
     (when (nil? router-class)
       (log/error "apply-route* was called without a proper :router argument. See https://book.fulcrologic.com/#err-dr-apply-route-lacks-router"))
     (when (nil? target-class)
@@ -934,20 +935,28 @@
                                                                               :current-state        ~'current-state}]
                                                        ~@body)))))
            options                (merge
-                                    `{:componentDidMount (fn [this#] (validate-route-targets this#))}
+                                    `{:componentDidMount (fn [this#] (validate-route-targets this#))
+                                      :use-hooks?        false}
                                     options
                                     `{:query                   ~query
                                       :ident                   ~ident-method
-                                      :use-hooks?              false
                                       :initial-state           ~initial-state-lambda
-                                      :preserve-dynamic-query? true})]
+                                      :preserve-dynamic-query? true})
+           hook-validate          `(hooks/use-effect (fn [] ; If using hooks, validate-route-targets once
+                                                       (validate-route-targets this)
+                                                       js/undefined)
+                                     [])
+           body*                  `(let [~'current-state (uism/get-active-state ~'this ~id)
+                                         ~'state-map (comp/component->state-map ~'this)
+                                         ~'sm-env (uism/state-machine-env ~'state-map nil ~id :fake {})
+                                         ~'pending-path-segment (when (uism/asm-active? ~'this ~id) (uism/retrieve ~'sm-env :pending-path-segment))]
+                                     ~render-cases)
+           body                   (cond-> body*
+                                    (:use-hooks? options)
+                                    ((fn add-hook-validation [body] `(do ~hook-validate ~body))))]
        `(comp/defsc ~router-sym [~'this {::keys [~'id ~'current-route] :as ~'props}]
           ~options
-          (let [~'current-state (uism/get-active-state ~'this ~id)
-                ~'state-map (comp/component->state-map ~'this)
-                ~'sm-env (uism/state-machine-env ~'state-map nil ~id :fake {})
-                ~'pending-path-segment (when (uism/asm-active? ~'this ~id) (uism/retrieve ~'sm-env :pending-path-segment))]
-            ~render-cases)))))
+          ~body))))
 
 #?(:clj
    (s/fdef defrouter
@@ -1268,13 +1277,12 @@
                                        (map-indexed (fn [idx c] [(alt-key idx) (rc/get-initial-state c {})]))
                                        (rest router-targets)))
           :query                   (fn [_] static-query)})
-       (fn [this {::keys [id current-route] :as props}]
+       (fn [this {::keys [current-route] :as props}]
          (let [TargetClass   (current-route-class this)
                route-factory (some-> TargetClass (comp/computed-factory))]
            (if always-render-body?
              (user-render this props route-factory current-route)
-             (let [TargetClass            (current-route-class this)
-                   current-state          (uism/get-active-state this router-registry-key)
+             (let [current-state          (uism/get-active-state this router-registry-key)
                    states-to-render-route (if render #{:routed :deferred} (constantly true))]
                (if (states-to-render-route current-state)
                  (render-target-only this current-route route-factory)
