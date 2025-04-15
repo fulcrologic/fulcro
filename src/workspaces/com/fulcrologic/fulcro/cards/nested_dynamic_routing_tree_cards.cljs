@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
     [com.fulcrologic.fulcro.react.version18 :as react18]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
@@ -108,27 +109,131 @@
 
 (def ui-a (comp/factory A {:keyfn :id}))
 
-(defrouter RootRouter [this props]
-  {:router-targets [A B]})
-(def ui-router (comp/factory RootRouter))
+(defrouter ClassRootRouter [this {:keys [route-factory route-props]}]
+  {:router-targets      [A B]
+   :always-render-body? true}
 
-(defsc Root [this {:root/keys [:router] :as props}]
-  {:query         [{:root/router (comp/get-query RootRouter)}]
-   :initial-state {:root/router {}}}
+  (when route-factory
+    (dom/div {}
+      (dom/p (str 'ClassRootRouter " targeting: " (comp/component-name (dr/current-route-class this))))
+      (route-factory (comp/computed route-props (comp/get-computed this))))))
+
+(def ui-class-router (comp/factory ClassRootRouter))
+
+(defrouter HooksRootRouter [this {:keys [route-factory route-props]}]
+  {:router-targets      [A B]
+   :use-hooks?          true
+   :always-render-body? true}
+
+  (hooks/use-effect
+    (fn []
+      (log/info (str "This is demo number: " (random-uuid)))
+      js/undefined)
+    [])
+
+  (when route-factory
+    (dom/div {}
+      (dom/p (str 'HooksRootRouter " targeting: " (comp/component-name (dr/current-route-class this))))
+      (route-factory (comp/computed route-props (comp/get-computed this))))))
+
+(def ui-hooks-router (comp/factory HooksRootRouter))
+
+(def FunctionCallRouter (dr/dynamic-router ::FunctionCallRouter
+                          [A B]
+                          {:always-render-body? true
+                           :render              (fn [this {:keys [route-factory route-props]}]
+                                                  (when route-factory
+                                                    (dom/div {}
+                                                      (dom/p (str 'FunctionCallRouter ", a router created with a function call, is targeting: " (comp/component-name (dr/current-route-class this))))
+                                                      (route-factory (comp/computed route-props (comp/get-computed this))))))}))
+
+(def ui-function-call-router (comp/factory FunctionCallRouter))
+
+(def FunctionCallRouterHooksEnabled (dr/dynamic-router ::FunctionCallRouterHooksEnabled
+                                      [A B]
+                                      {:always-render-body? true
+                                       :use-hooks?          true
+                                       :render              (fn [this {:keys [route-factory route-props]}]
+                                                              (hooks/use-effect
+                                                                (fn []
+                                                                  (log/info (str "Starting " (comp/component-name FunctionCallRouterHooksEnabled)))
+                                                                  js/undefined)
+                                                                [])
+                                                              (when route-factory
+                                                                (dom/div {}
+                                                                  (dom/p (str 'FunctionCallRouterHooksEnabled ", a router created with a function call, is targeting: " (comp/component-name (dr/current-route-class this))))
+                                                                  (route-factory (comp/computed route-props (comp/get-computed this))))))}))
+
+(def ui-function-call-router-hooks-enabled (comp/factory FunctionCallRouterHooksEnabled))
+
+(defsc NavigationAndRouter
+  "Common between all Roots that contain the router types being tested"
+  [this {::keys [router relative-class-or-instance factory]}]
+  {}
   (dom/div
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["a" "a1"]))} "A1 ")
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b" "b2"]))} "B2 ")
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["a"]))} "A")
-    (dom/button {:onClick (fn [] (dr/change-route-relative! this Root ["b"]))} "B")
-    (ui-router router)))
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this relative-class-or-instance ["a" "a1"]))} "A1")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this relative-class-or-instance ["b" "b2"]))} "B2")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this relative-class-or-instance ["a"]))} "A")
+    (dom/button {:onClick (fn [] (dr/change-route-relative! this relative-class-or-instance ["b"]))} "B")
+    (factory router)))
+
+(def ui-navigation-and-router (comp/factory NavigationAndRouter))
+
+(defsc ClassRoot
+  "ClassRootRouter is a (default) React Class component"
+  [_this {:root/keys [:router]}]
+  {:query         [{:root/router (comp/get-query ClassRootRouter)}]
+   :initial-state {:root/router {}}}
+  (ui-navigation-and-router {::router router ::relative-class-or-instance ClassRoot ::factory ui-class-router}))
+
+(defsc ClassRootWithFunctionalRouter
+  "FunctionCallRouter is created with a function call, and created as a React class component"
+  [_this {:root/keys [:router]}]
+  {:query         [{:root/router (comp/get-query FunctionCallRouter)}]
+   :initial-state {:root/router {}}}
+  (ui-navigation-and-router {::router router ::relative-class-or-instance FunctionCallRouter ::factory ui-function-call-router}))
+
+(defsc HooksRoot
+  "ClassRootRouter is a React hooks component, set by :use-hooks?"
+  [this {:root/keys [:router] :as props}]
+  {:query         [{:root/router (comp/get-query HooksRootRouter)}]
+   :initial-state {:root/router {}}}
+  (ui-navigation-and-router {::router router ::relative-class-or-instance HooksRoot ::factory ui-hooks-router}))
+
+(defsc HooksRootWithFunctionalRouter
+  "FunctionCallRouter is created with a function call, and created as a React class component"
+  [_this {:root/keys [:router]}]
+  {:query         [{:root/router (comp/get-query FunctionCallRouterHooksEnabled)}]
+   :initial-state {:root/router {}}}
+  (ui-navigation-and-router {::router router ::relative-class-or-instance FunctionCallRouterHooksEnabled ::factory ui-function-call-router-hooks-enabled}))
 
 (defonce SPA (atom nil))
-(ws/defcard nested-routing-demo
+
+(defn client-will-mount [app]
+  (reset! SPA app)
+  (dr/initialize! app)
+  (dr/change-route! app ["a" "a1"]))
+
+(ws/defcard nested-routing-class-demo
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
-     ::ct.fulcro/root       Root
-     ::ct.fulcro/app        (merge (react18/react18-options)
-                              {:client-will-mount (fn [app]
-                                                    (reset! SPA app)
-                                                    (dr/initialize! app)
-                                                    (dr/change-route! app ["a" "a1"]))})}))
+     ::ct.fulcro/root       ClassRoot
+     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+
+(ws/defcard nested-routing-class-with-functional-router-demo
+  (ct.fulcro/fulcro-card
+    {::ct.fulcro/wrap-root? false
+     ::ct.fulcro/root       ClassRootWithFunctionalRouter
+     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+
+(ws/defcard nested-routing-hooks-demo
+  (ct.fulcro/fulcro-card
+    {::ct.fulcro/wrap-root? false
+     ::ct.fulcro/root       HooksRoot
+     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+
+(ws/defcard nested-routing-hooks-with-functional-router-demo
+  (ct.fulcro/fulcro-card
+    {::ct.fulcro/wrap-root? false
+     ::ct.fulcro/root       HooksRootWithFunctionalRouter
+     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
