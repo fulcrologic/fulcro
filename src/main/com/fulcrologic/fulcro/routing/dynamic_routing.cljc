@@ -1117,17 +1117,23 @@
                (or (nil? ParentRouter) (= ParentRouter parent))) final-path))
      (let [path (conj base-path StartingClass)]
        (if (router? StartingClass)
-         (let [targets (get-targets StartingClass rc/*query-state*)]
-           (->> targets
-             (keep #(resolve-path-components % RouteTarget path options))
-             (first)))
+         (let [targets (get-targets StartingClass rc/*query-state*)
+               matches (->> targets
+                         (keep #(resolve-path-components % RouteTarget path options)))]
+           (when (< 1 (count matches))
+             (log/warn "More than one match found resolving path components. You probably want to specify ParentRouter to avoid ambiguity:"
+                StartingClass " -> " RouteTarget matches))
+           (first matches))
          (let [candidates (->> (comp/get-query StartingClass)
                             (eql/query->ast)
                             :children
-                            (keep :component))]
-           (->> candidates
-             (keep #(resolve-path-components % RouteTarget path options))
-             (first))))))))
+                            (keep :component))
+               matches (->> candidates
+                         (keep #(resolve-path-components % RouteTarget path options)))]
+           (when (< 1 (count matches))
+             (log/warn "More than one match found resolving path components. You probably want to specify ParentRouter to avoid ambiguity:"
+                " -> " RouteTarget matches))
+           (first matches)))))))
 
 (defn resolve-path
   "Attempts to resolve a path from StartingClass to the given RouteTarget. Can also be passed `resolved-components`, which
