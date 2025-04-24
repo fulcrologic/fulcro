@@ -116,9 +116,11 @@
 (defn use-imperative-handle
   "A simple wrapper around React/useImperativeHandle.
 
-  React docs: https://reactjs.org/docs/hooks-reference.html#useimperativehandle"
-  [ref f]
-  #?(:cljs (react/useImperativeHandle ref f)))
+  React docs: https://react.dev/reference/react/useImperativeHandle"
+  ([ref f]
+   #?(:cljs (react/useImperativeHandle ref f)))
+  ([ref f args]
+   #?(:cljs (react/useImperativeHandle ref f (to-array args)))))
 
 (defn use-layout-effect
   "A simple wrapper around React/useLayoutEffect.
