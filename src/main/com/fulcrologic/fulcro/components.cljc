@@ -131,7 +131,9 @@
   Look up the given component in Fulcro's global component registry. Will only be able to find components that have
   been (transitively) required by your application.
 
-  `classname` can be a fully-qualified keyword or symbol."
+  `classname` can be a fully-qualified keyword, string, symbol, or component class. In the latter
+  case this function just acts as `identity`. This allows this function to act as a coercion
+  that ensures you have a class."
   rc/registry-key->class)
 
 (def computed
