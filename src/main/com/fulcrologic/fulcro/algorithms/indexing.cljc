@@ -6,6 +6,7 @@
   (:require
     [clojure.set :as set]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.raw.components :as rc]
     [edn-query-language.core :as eql]
@@ -129,6 +130,6 @@
   "Mutation: re-index the application (typically after a dynamic query change)."
   [_]
   (action [{:keys [app]}]
-    (if app
-      (index-root! app)
+    (if-let [index-root-set-in-app! (ah/app-algorithm app :index-root!)]
+      (index-root-set-in-app! app)
       (log/error "Unable to re-index root. App was not set in the mutation env. See https://book.fulcrologic.com/#err-idx-missing-app"))))
