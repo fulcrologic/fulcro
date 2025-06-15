@@ -3,9 +3,9 @@
     [com.fulcrologic.fulcro.algorithms.tempid :as tmp]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
-    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro-todomvc.api :as api]
     [fulcro-todomvc.app :refer [app]]
     [goog.object :as gobj]))
@@ -64,11 +64,11 @@
                                    (comp/transact! this tx {:only-refresh [(comp/get-ident this)]})))})
         (dom/label {:onDoubleClick (fn []
                                      (mut/toggle! this :ui/editing)
-                                     (mut/set-string! this :ui/edit-text :value label))} label)
+                                     (mut/set-string! this :ui/edit-text :value (str label)))} label)
         (dom/button :.destroy {:onClick #(delete-item id)}))
       (dom/input {:ref       (comp/get-state this :save-ref)
                   :className "edit"
-                  :value     (or edit-text "")
+                  :value     (str edit-text)
                   :onChange  #(mut/set-string! this :ui/edit-text :event %)
                   :onKeyDown #(cond
                                 (is-enter? %) (submit-edit %)
@@ -82,7 +82,7 @@
   (let [{:keys [list/id ui/new-item-text]} (comp/props component)]
     (dom/header :.header {}
       (dom/h1 {} title)
-      (dom/input {:value       (or new-item-text "")
+      (dom/input {:value       (str new-item-text)
                   :className   "new-todo"
                   :onKeyDown   (fn [evt]
                                  (when (is-enter? evt)
@@ -141,7 +141,7 @@
                           :list.filter/completed completed-todos
                           items)
         delete-item     (fn [item-id] (comp/transact! this [(api/todo-delete-item {:list-id id :id item-id})]
-                                        {:parallel? true }))]
+                                        {:parallel? true}))]
     (dom/div {}
       (dom/section :.todoapp {}
         (header this title)
@@ -150,8 +150,8 @@
             (dom/section :.main {}
               (dom/input {:type      "checkbox"
                           :className "toggle-all"
-                          :checked   all-completed?
-                          :onClick   (fn [] (if all-completed?
+                          :checked   (boolean all-completed?)
+                          :onChange  (fn [] (if all-completed?
                                               (comp/transact! this [(api/todo-uncheck-all {:list-id id})])
                                               (comp/transact! this [(api/todo-check-all {:list-id id})])))})
               (dom/label {:htmlFor "toggle-all"} "Mark all as complete")

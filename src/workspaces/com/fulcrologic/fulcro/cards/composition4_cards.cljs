@@ -1,34 +1,29 @@
 (ns com.fulcrologic.fulcro.cards.composition4-cards
   (:require
     ["react-dom" :as react-dom]
-    [clojure.pprint :refer [pprint]]
-    [nubank.workspaces.model :as wsm]
-    [nubank.workspaces.card-types.react :as ct.react]
-    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
-    [nubank.workspaces.core :as ws]
-
     [cljs.core.async :as async]
-    [com.fulcrologic.fulcro.dom :as dom :refer [div p input button h2 label]]
+    [clojure.pprint :refer [pprint]]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as dt]
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
+    [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.dom :as dom :refer [button div h2 input label p]]
+    [com.fulcrologic.fulcro.dom.events :as evt]
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
-    [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [com.wsscode.pathom.core :as p]
+    [com.fulcrologic.fulcro.ui-state-machines :as uism]
     [com.wsscode.pathom.connect :as pc]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as dt]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.dom.events :as evt]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
-    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.ui-state-machines :as uism]))
+    [com.wsscode.pathom.core :as p]
+    [nubank.workspaces.card-types.react :as ct.react]
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mock Server and database, in Fulcro client format for ease of use in demo
@@ -145,13 +140,12 @@
                                   (pathom-parser {} eql))))
         app         (app/fulcro-app {:remotes             {:remote (mock-http-server {:parser process-eql})}
                                      :batch-notifications (fn [render!] (react-dom/unstable_batchedUpdates render!))})]
-    (inspect/app-started! app)
     app))
 
 ;; TODO: Write `raw/formc` that makes a form automatically with form config join and form fields on everything that isn't an id
 #_#_(def Settings (raw/nc [:settings/id :settings/marketing? fs/form-config-join] {:form-fields #{:settings/marketing?}}))
-    (def User (raw/nc [:user/id :user/name fs/form-config-join {:user/settings (comp/get-query Settings)}] {:form-fields #{:user/name
-                                                                                                                           :user/settings}}))
+        (def User (raw/nc [:user/id :user/name fs/form-config-join {:user/settings (comp/get-query Settings)}] {:form-fields #{:user/name
+                                                                                                                               :user/settings}}))
 
 (def User (fs/formc [:ui/saving? [df/marker-table '_]
                      :user/id :user/name

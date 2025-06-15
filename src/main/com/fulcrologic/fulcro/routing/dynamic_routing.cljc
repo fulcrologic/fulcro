@@ -943,7 +943,7 @@
                                       :initial-state           ~initial-state-lambda
                                       :preserve-dynamic-query? true})
            hook-validate          `(hooks/use-effect (fn [] ; If using hooks, validate-route-targets once
-                                                       (validate-route-targets this)
+                                                       (validate-route-targets ~'this)
                                                        js/undefined)
                                      [])
            body*                  `(let [~'current-state (uism/get-active-state ~'this ~id)

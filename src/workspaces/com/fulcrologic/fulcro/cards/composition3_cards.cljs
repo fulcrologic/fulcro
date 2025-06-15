@@ -19,7 +19,6 @@
     [com.wsscode.pathom.core :as p]
     [com.wsscode.pathom.connect :as pc]
     [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.dom.events :as evt]))
@@ -96,7 +95,6 @@
   (let [process-eql (fn [eql] (async/go
                                 (pathom-parser {} eql)))
         app         (app/fulcro-app {:remotes {:remote (mock-http-server {:parser process-eql})}})]
-    (inspect/app-started! app)
     app))
 
 (m/defmutation bump [{:counter/keys [id]}]

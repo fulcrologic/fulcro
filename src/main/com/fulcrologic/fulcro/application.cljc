@@ -1,5 +1,6 @@
 (ns com.fulcrologic.fulcro.application
   (:require
+    [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
@@ -14,11 +15,33 @@
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => | ?]]
     #?@(:cljs [[goog.object :as gobj]
+               ["react" :as react]
+               ["react-dom/client" :as dom-client]
                [goog.functions :refer [debounce]]
                [goog.dom :as gdom]])
     [taoensso.encore :as enc]
     [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
+
+(defn- react-version []
+  #?(:clj  0
+     :cljs (or
+             (some-> (.-version react)
+               (str/split #"\.")
+               (first)
+               (parse-long))
+             17)))
+
+(defn- render-options []
+  #?(:clj {}
+     :cljs
+     (let [reactRoot (volatile! nil)]
+       {:render-root!  (fn [ui-root mount-node]
+                         (when-not @reactRoot
+                           (vreset! reactRoot (dom-client/createRoot mount-node)))
+                         (.render ^js @reactRoot ui-root)
+                         @reactRoot)
+        :hydrate-root! (fn [ui-root mount-node] (dom-client/hydrateRoot mount-node ui-root))})))
 
 (>defn basis-t
   "Return the current basis time of the app."
@@ -240,8 +263,14 @@
             shared
             external-config
             shared-fn] :as options}]
+
+   (when (< (react-version) 18)
+     (throw (ex-info "React-based Fulcro requires React 18 or above."
+              {:current-version (react-version)})))
+
    (rapp/fulcro-app
      (-> options
+       (merge (render-options))
        (assoc :core-render! (or core-render!
                               (fn [app {:keys [root-props-changed?] :as options}]
                                 (let [{::keys [runtime-atom]} app

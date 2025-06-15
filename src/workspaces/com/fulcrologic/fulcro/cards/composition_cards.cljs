@@ -1,23 +1,20 @@
 (ns com.fulcrologic.fulcro.cards.composition-cards
   (:require
-    [com.fulcrologic.fulcro.dom :as dom]
-    [nubank.workspaces.model :as wsm]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect-client]
     [nubank.workspaces.card-types.react :as ct.react]
     [nubank.workspaces.core :as ws]
-    ["react-dom" :as react-dom]
-    [taoensso.timbre :as log]))
+    [nubank.workspaces.model :as wsm]
+    ["react-dom" :as react-dom]))
 
 ;; The raw fulcro-app has NO renderer installed. We're doing this example with nothing but raw react. Of course, this
 ;; means you could embed it in *any* React-based system, since only hooks are required.
 (defonce APP (let [app (rapp/fulcro-app {:batch-notifications (fn [render!] (react-dom/unstable_batchedUpdates render!))})]
-               (inspect-client/app-started! app)
                app))
 
 (m/defmutation bump [{:counter/keys [id]}]

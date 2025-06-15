@@ -1,18 +1,15 @@
 (ns com.fulcrologic.fulcro.dom
   "Client-side DOM macros and functions. For isomorphic (server) support, see also com.fulcrologic.fulcro.dom-server"
-  (:refer-clojure :exclude [map meta time mask select use set symbol filter])
+  (:refer-clojure :exclude [filter map mask meta select set symbol time use])
   (:require-macros [com.fulcrologic.fulcro.dom])
   (:require
-    [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.components :as comp]
     ["react" :as react]
     ["react-dom" :as react.dom]
-    [goog.object :as gobj]
-    [goog.dom :as gdom]
-    [com.fulcrologic.fulcro.dom.inputs :as inputs]
     [com.fulcrologic.fulcro.dom-common :as cdom]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.dom.inputs :as inputs]
+    [goog.object :as gobj]))
 
 (declare a abbr address altGlyph altGlyphDef altGlyphItem animate animateColor animateMotion animateTransform area
   article aside audio b base bdi bdo big blockquote body br button canvas caption circle cite clipPath code
@@ -82,12 +79,10 @@
   [c]
   (js/ReactDOMServer.renderToString c))
 
-(defn node
-  "Returns the dom node associated with a component's React ref."
-  ([component]
-   (react.dom/findDOMNode component))
-  ([^js component name]
-   (some-> (.-refs component) (gobj/get name) (react.dom/findDOMNode))))
+(defn ^:deprecated node
+  "Use React refs. Finding the node this way doesn't work anymore. React internal changes."
+  ([component])
+  ([^js component name]))
 
 (def Input
   "React component that wraps dom/input to prevent cursor madness."
@@ -99,11 +94,7 @@
    for `dom/input`.
 
    NOTE: The onChange and onBlur handlers will receive a string value, not an event. If you want the raw event on changes use onInput."
-  (let [factory (comp/factory Input {:keyfn :key})]
-    (fn [props]
-      (if-let [ref (:ref props)]
-        (factory (assoc props :ref (fn [r] (ref (some-> r (node))))))
-        (factory props)))))
+  (comp/factory Input {:keyfn :key}))
 
 (defn create-element
   "Create a DOM element for which there exists no corresponding function.
@@ -135,78 +126,50 @@
   {:pre [(array? arr)]}
   (.apply react/createElement nil arr))
 
-(defn- update-state
-  "Updates the state of the wrapped input element."
-  [^js component next-props value]
-  (let [on-change  (gobj/getValueByKeys component "state" "cached-props" "onChange")
-        next-state #js {}
-        inputRef   (gobj/get next-props "inputRef")]
-    (gobj/extend next-state next-props #js {:onChange on-change})
-    (gobj/set next-state "value" value)
-    (when inputRef
-      (gobj/remove next-state "inputRef")
-      (gobj/set next-state "ref" inputRef))
-    (.setState component #js {"cached-props" next-state})))
-
 (defonce form-elements? #{"input" "select" "option" "textarea"})
 
 (defn is-form-element? [element]
   (let [tag (.-tagName element)]
     (and tag (form-elements? (str/lower-case tag)))))
 
-(defn wrap-form-element [element]
-  (let [ctor (fn [props]
-               (this-as this
-                 (set! (.-state this)
-                   (let [state #js {:ref (gobj/get props "inputRef")}]
-                     (->> #js {:onChange (goog/bind (gobj/get this "onChange") this)}
-                       (gobj/extend state props))
-                     (gobj/remove state "inputRef")
-                     #js {"cached-props" state}))
-                 (.apply react/Component this (js-arguments))))]
-    (set! (.-displayName ctor) (str "wrapped-" element))
-    (goog.inherits ctor react/Component)
-    (specify! (.-prototype ctor)
-      Object
-      (onChange [this event]
-        (when-let [handler (gobj/get (.-props this) "onChange")]
-          (handler event)
-          (update-state
-            this (.-props this)
-            (gobj/getValueByKeys event "target" "value"))))
+(defn update-value! [js-props value-field input-ref set-cached-props! new-value]
+  (let [new-props      (gobj/clone js-props)
+        user-on-change (gobj/get js-props "onChange")]
+    (gobj/set new-props "ref" input-ref)
+    (gobj/set new-props value-field new-value)
+    (gobj/set new-props "onChange" (fn [^js evt]
+                                     (let [new-value (some->> evt (.-target) (.-value))]
+                                       (update-value! js-props value-field input-ref set-cached-props! new-value))
+                                     (when user-on-change
+                                       (user-on-change evt))))
+    (set-cached-props! new-props)))
 
-      (UNSAFE_componentWillReceiveProps [this new-props]
-        (let [state-value   (gobj/getValueByKeys this "state" "cached-props" "value")
-              this-node     (react.dom/findDOMNode this)
-              value-node    (if (is-form-element? this-node)
-                              this-node
-                              (gdom/findNode this-node #(is-form-element? %)))
-              element-value (gobj/get value-node "value")]
-          (when goog.DEBUG
-            (when (and state-value element-value (not= (type state-value) (type element-value)))
-              (log/warn "There is a mismatch for the data type of the value on an input with value " element-value
-                ". This will cause the input to miss refreshes. In general you should force the :value of an input to
-                be a string since that is how values are stored on most real DOM elements. See https://book.fulcrologic.com/#warn-dom-type-mismatch")))
-          (if (not= state-value element-value)
-            (update-state this new-props element-value)
-            (update-state this new-props (gobj/get new-props "value")))))
-
-      (render [this]
-        (react/createElement element (gobj/getValueByKeys this "state" "cached-props"))))
-    (let [real-factory (fn [& args] (apply react/createElement ctor args))]
-      (fn [props & children]
-        (let [t (gobj/get props "type")]
-          (if (= t "file")
-            (apply react/createElement "input" props children)
-            (if-let [r (gobj/get props "ref")]
-              (if (string? r)
-                (apply real-factory props children)
-                (let [p #js{}]
-                  (gobj/extend p props)
-                  (gobj/set p "inputRef" r)
-                  (gobj/remove p "ref")
-                  (apply real-factory p children)))
-              (apply real-factory props children))))))))
+(defn wrap-form-element [input-type]
+  (let [element (fn [^js props]
+                  (let [internal-ref      (react/useRef nil)
+                        checkbox?         (= "checkbox" (gobj/get props "type"))
+                        value-field       (if checkbox? "checked" "value")
+                        new-value         (gobj/get props value-field)
+                        ref               (or (gobj/get props "ref") internal-ref)
+                        pstate            (react/useState props)
+                        cached-props      (aget pstate 0)
+                        set-cached-props! (aget pstate 1)
+                        node              (when ref (gobj/get ref "current"))
+                        node-value        (when node (gobj/get node value-field))]
+                    (react/useEffect
+                      (fn []
+                        (cond
+                          checkbox?
+                          (update-value! props value-field ref set-cached-props! new-value)
+                          (and (some? node-value) (not= new-value node-value))
+                          (update-value! props value-field ref set-cached-props! node-value)
+                          (nil? node-value)
+                          (update-value! props value-field ref set-cached-props! new-value))
+                        js/undefined)
+                      #js [new-value])
+                    (create-element input-type cached-props)))]
+    (fn [^js props]
+      (create-element element props))))
 
 
 (def wrapped-input "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "input"))

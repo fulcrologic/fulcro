@@ -1,13 +1,9 @@
 (ns com.fulcrologic.fulcro.rendering.keyframe-render
   "The keyframe optimized render."
   (:require
-    #?(:cljs
-       ["react-dom" :as react.dom])
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.components :as comp]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.components :as comp]))
 
 (defn render-state!
   "This function renders given state map over top of the current app. This allows you to render previews of state **without
@@ -19,7 +15,7 @@
             comp/*shared* (comp/shared app)]
     (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
           {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom
-          r!        (or (ah/app-algorithm app :render-root!) #?(:cljs react.dom/render))
+          r!        (ah/app-algorithm app :render-root!)
           query     (comp/get-query root-class state-map)
           data-tree (if query
                       (fdn/db->tree query state-map state-map)
@@ -42,8 +38,8 @@
   (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
         {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom
         r!               (if hydrate?
-                           (or (ah/app-algorithm app :hydrate-root!) #?(:cljs react.dom/hydrate) #?(:cljs react.dom/render))
-                           (or (ah/app-algorithm app :render-root!) #?(:cljs react.dom/render)))
+                           (ah/app-algorithm app :hydrate-root!)
+                           (ah/app-algorithm app :render-root!))
         state-map        @state-atom
         query            (comp/get-query root-class state-map)
         data-tree        (if query

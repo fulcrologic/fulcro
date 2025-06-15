@@ -1,38 +1,32 @@
-{:deps     {:aliases [:dev :test :workspaces]}
+{:deps     {:aliases [:dev :test]}
  :nrepl    {:port 9000}
  :dev-http {9001 "resources/public"}
  :jvm-opts ["-Xmx2G"]
- :builds   {:workspaces {:target           nubank.workspaces.shadow-cljs.target
-                         :ns-regexp        "-cards$"
-                         :output-dir       "resources/public/js/workspaces"
-                         :asset-path       "/js/workspaces"
-                         :compiler-options {:external-config {:fulcro {:html-source-annotations? true}}}
-                         :preloads         [com.fulcrologic.fulcro.inspect.preload
-                                            com.fulcrologic.fulcro.inspect.dom-picker-preload]}
+ :builds   {
 
-            :todomvc    {:target     :browser
-                         :output-dir "resources/public/js/todomvc"
-                         :asset-path "/js/todomvc"
-                         :dev        {:compiler-options {:external-config {:guardrails {}}}}
-                         :modules    {:main {:entries [fulcro-todomvc.main]}}
-                         :devtools   {:preloads [com.fulcrologic.devtools.chrome-preload]}}
+            :todomvc  {:target     :browser
+                       :output-dir "resources/public/js/todomvc"
+                       :asset-path "/js/todomvc"
+                       :dev        {:compiler-options {:external-config {:guardrails {}}}}
+                       :modules    {:main {:entries [fulcro-todomvc.main]}}
+                       :devtools   {:preloads [com.fulcrologic.devtools.chrome-preload]}}
 
-            :test       {:target           :browser-test
-                         :test-dir         "resources/public/js/test"
-                         :ns-regexp        "-(test|spec)$"
-                         :compiler-options {:static-fns      false
-                                            :external-config {:guardrails {:throw? true :emit-spec? true}}}
-                         :js-options       {:resolve {"react-dom" {:target  :npm
-                                                                   :require "react-dom/cjs/react-dom.production.min.js"}
-                                                      "react"     {:target  :npm
-                                                                   :require "react/cjs/react.production.min.js"}}}
-                         :devtools         {:http-port          9002
-                                            :http-resource-root "public"
-                                            :http-root          "resources/public/js/test"}}
+            :test     {:target           :browser-test
+                       :test-dir         "resources/public/js/test"
+                       :ns-regexp        "-(test|spec)$"
+                       :compiler-options {:static-fns      false
+                                          :external-config {:guardrails {:throw? true :emit-spec? true}}}
+                       :js-options       {:resolve {"react-dom" {:target  :npm
+                                                                 :require "react-dom/cjs/react-dom.production.min.js"}
+                                                    "react"     {:target  :npm
+                                                                 :require "react/cjs/react.production.min.js"}}}
+                       :devtools         {:http-port          9002
+                                          :http-resource-root "public"
+                                          :http-root          "resources/public/js/test"}}
 
-            :ci-tests   {:target           :karma
-                         :js-options       {:js-provider :shadow}
-                         :compiler-options {:static-fns      false ; required for mocking to work
-                                            :external-config {:guardrails {:throw? true :emit-spec? true}}}
-                         :output-to        "target/ci.js"
-                         :ns-regexp        "-(test|spec)$"}}}
+            :ci-tests {:target           :karma
+                       :js-options       {:js-provider :shadow}
+                       :compiler-options {:static-fns      false ; required for mocking to work
+                                          :external-config {:guardrails {:throw? true :emit-spec? true}}}
+                       :output-to        "target/ci.js"
+                       :ns-regexp        "-(test|spec)$"}}}

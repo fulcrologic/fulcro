@@ -4,7 +4,6 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.react.hooks :as hooks]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]
-    [com.fulcrologic.fulcro.react.version18 :as react18]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
     [nubank.workspaces.core :as ws]
     [taoensso.timbre :as log]))
@@ -218,22 +217,22 @@
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       ClassRoot
-     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+     ::ct.fulcro/app        {:client-will-mount client-will-mount}}))
 
 (ws/defcard nested-routing-class-with-functional-router-demo
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       ClassRootWithFunctionalRouter
-     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+     ::ct.fulcro/app        {:client-will-mount client-will-mount}}))
 
 (ws/defcard nested-routing-hooks-demo
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       HooksRoot
-     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+     ::ct.fulcro/app        {:client-will-mount client-will-mount}}))
 
 (ws/defcard nested-routing-hooks-with-functional-router-demo
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       HooksRootWithFunctionalRouter
-     ::ct.fulcro/app        (merge (react18/react18-options) {:client-will-mount client-will-mount})}))
+     ::ct.fulcro/app        {:client-will-mount client-will-mount}}))
