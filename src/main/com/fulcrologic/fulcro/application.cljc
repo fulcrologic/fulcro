@@ -24,7 +24,7 @@
   #?(:clj (:import (clojure.lang IDeref))))
 
 (defn- react-version []
-  #?(:clj  0
+  #?(:clj  19
      :cljs (or
              (some-> (.-version react)
                (str/split #"\.")
