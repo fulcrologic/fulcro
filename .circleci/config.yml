@@ -1,13 +1,14 @@
 version: 2.1
 orbs:
-  browser-tools: circleci/browser-tools@1.5.3
+  browser-tools: circleci/browser-tools@2.1.2
 jobs:
   cljs:
     docker:
-      - image: cimg/clojure:1.10.3-browsers
+      - image: cimg/clojure:1.12.0-openjdk-21.0-browsers
+
     steps:
       - checkout
-      - browser-tools/install-browser-tools
+      - browser-tools/install_browser_tools
       - restore_cache:
           key: cljs-{{ checksum "deps.edn" }}-{{ checksum "package.json" }}
       - run: npm install
@@ -21,7 +22,7 @@ jobs:
                 key: cljs-{{ checksum "deps.edn" }}-{{ checksum "package.json" }}
   clj:
     docker:
-      - image: cimg/clojure:1.10.3
+      - image: cimg/clojure:1.12.0-openjdk-21.0-browsers
     steps:
       - checkout
       - restore_cache:
