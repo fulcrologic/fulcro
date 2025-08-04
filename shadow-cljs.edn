@@ -9,7 +9,8 @@
                        :asset-path "/js/todomvc"
                        :dev        {:compiler-options {:external-config {:guardrails {}}}}
                        :modules    {:main {:entries [fulcro-todomvc.main]}}
-                       :devtools   {:preloads [com.fulcrologic.devtools.chrome-preload]}}
+                       :devtools   {:preloads   [com.fulcrologic.devtools.chrome-preload]
+                                    :after-load fulcro-todomvc.main/refresh!}}
 
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
