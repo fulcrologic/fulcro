@@ -169,6 +169,12 @@
                                             (not (gobj/equals cached-clone props-clone)))]
                     (react/useEffect
                       (fn []
+                        (update-value! props value-field ref set-cached-props! new-value)
+                        js/undefined)
+                      #js [props-changed?])
+
+                    (react/useEffect
+                      (fn []
                         (cond
                           checkbox?
                           (update-value! props value-field ref set-cached-props! new-value)
@@ -180,12 +186,9 @@
                           (update-value! props value-field ref set-cached-props! node-value)
 
                           (nil? node-value)
-                          (update-value! props value-field ref set-cached-props! new-value)
-
-                          props-changed?
                           (update-value! props value-field ref set-cached-props! new-value))
                         js/undefined)
-                      #js [new-value props-changed?])
+                      #js [new-value])
                     (create-element input-type cached-props)))]
     (fn [^js props]
       (create-element element props))))
