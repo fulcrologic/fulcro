@@ -190,8 +190,8 @@
                         js/undefined)
                       #js [new-value])
                     (create-element input-type cached-props)))]
-    (fn [^js props]
-      (create-element element props))))
+    (fn [^js props & children]
+      (create-element element props children))))
 
 
 (def wrapped-input "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "input"))
