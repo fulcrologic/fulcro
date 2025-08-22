@@ -145,35 +145,36 @@
     (set-cached-props! new-props)))
 
 (defn wrap-form-element [input-type]
-  (let [element (fn [^js props]
-                  (let [internal-ref      (react/useRef nil)
-                        checkbox?         (= "checkbox" (gobj/get props "type"))
-                        value-field       (if checkbox? "checked" "value")
-                        new-value         (gobj/get props value-field)
-                        ref               (or (gobj/get props "ref") internal-ref)
-                        pstate            (react/useState props)
-                        cached-props      (aget pstate 0)
-                        set-cached-props! (aget pstate 1)
-                        node              (when ref (gobj/get ref "current"))
-                        node-value        (when node (gobj/get node value-field))
-                        ;; Check if non-value props have changed
-                        props-changed?    (let [cached-clone (gobj/clone cached-props)
-                                                props-clone  (gobj/clone props)]
-                                            ;; Remove value fields for comparison
-                                            (gobj/remove cached-clone value-field)
-                                            (gobj/remove cached-clone "onChange")
-                                            (gobj/remove cached-clone "ref")
-                                            (gobj/remove props-clone value-field)
-                                            (gobj/remove props-clone "onChange")
-                                            (gobj/remove props-clone "ref")
-                                            (not (gobj/equals cached-clone props-clone)))]
-                    (react/useEffect
+  (let [element (react/forwardRef
+                 (fn [^js props ^js ref]
+                   (let [internal-ref (react/useRef nil)
+                         checkbox? (= "checkbox" (gobj/get props "type"))
+                         value-field (if checkbox? "checked" "value")
+                         new-value (gobj/get props value-field)
+                         ref (or ref internal-ref)
+                         pstate (react/useState props)
+                         cached-props (aget pstate 0)
+                         set-cached-props! (aget pstate 1)
+                         node (when ref (gobj/get ref "current"))
+                         node-value (when node (gobj/get node value-field))
+                         ;; Check if non-value props have changed
+                         props-changed? (let [cached-clone (gobj/clone cached-props)
+                                              props-clone (gobj/clone props)]
+                                          ;; Remove value fields for comparison
+                                          (gobj/remove cached-clone value-field)
+                                          (gobj/remove cached-clone "onChange")
+                                          (gobj/remove cached-clone "ref")
+                                          (gobj/remove props-clone value-field)
+                                          (gobj/remove props-clone "onChange")
+                                          (gobj/remove props-clone "ref")
+                                          (not (gobj/equals cached-clone props-clone)))]
+                     (react/useEffect
                       (fn []
                         (update-value! props value-field ref set-cached-props! new-value)
                         js/undefined)
                       #js [props-changed?])
 
-                    (react/useEffect
+                     (react/useEffect
                       (fn []
                         (cond
                           checkbox?
@@ -189,7 +190,7 @@
                           (update-value! props value-field ref set-cached-props! new-value))
                         js/undefined)
                       #js [new-value])
-                    (create-element input-type cached-props)))]
+                     (create-element input-type cached-props))))]
     (fn [^js props & children]
       (create-element element props children))))
 
