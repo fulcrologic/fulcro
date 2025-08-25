@@ -10,7 +10,7 @@ jobs:
       - uses: actions/setup-java@v2
         with:
           distribution: 'adopt'
-          java-version: 11
+          java-version: 21
       - name: Setup Clojure
         uses: DeLaGuardo/setup-clojure@master
         with:
@@ -30,4 +30,3 @@ jobs:
       - run: clojure -T:build jar
       - name: Check CljDoc
         uses: cljdoc/cljdoc-check-action@v0.0.3
-
