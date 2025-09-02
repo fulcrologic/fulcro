@@ -258,8 +258,16 @@
   [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app} options]
   (when (some #(boolean (-> % ::options :after-render?)) (-> runtime-atom deref ::submission-queue))
     (swap! runtime-atom update ::submission-queue
-      (fn [queue] (mapv (fn [node] (update node ::options dissoc :after-render?)) queue)))
-    (schedule-activation! app 0)))
+           (fn [queue] (mapv (fn [node] (update node ::options dissoc :after-render?)) queue)))
+      ;; Instead of immediate activation, wait for React to finish
+    #?(:cljs
+       (js/requestAnimationFrame
+        (fn []
+          (js/queueMicrotask
+           (fn []
+             (schedule-activation! app 0)))))
+       :clj
+       (schedule-activation! app 0))))
 
 (defn activate-submissions!
   "Activate all of the transactions that have been submitted since the last activation. After the items are activated

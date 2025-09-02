@@ -359,14 +359,7 @@
         dispatch-all (fn [eles] (mapv dispatch eles))]
     (update tx-node ::txn/elements dispatch-all)))
 
-(defn application-rendered!
-  "Should be called after the application renders to ensure that transactions blocked until the next render become
-   unblocked. Schedules an activation."
-  [{:keys [:com.fulcrologic.fulcro.application/runtime-atom] :as app} options]
-  (when (some #(boolean (-> % ::txn/options :after-render?)) (-> runtime-atom deref ::txn/submission-queue))
-    (swap! runtime-atom update ::txn/submission-queue
-      (fn [queue] (mapv (fn [node] (update node ::txn/options dissoc :after-render?)) queue)))
-    (schedule-activation! app 0)))
+(def application-rendered! txn/application-rendered!)
 
 (defn activate-submissions!
   "Activate all of the transactions that have been submitted since the last activation. After the items are activated
