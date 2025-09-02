@@ -40,17 +40,12 @@
         r!               (if hydrate?
                            (ah/app-algorithm app :hydrate-root!)
                            (ah/app-algorithm app :render-root!))
-        state-map        @state-atom
-        query            (comp/get-query root-class state-map)
-        data-tree        (if query
-                           (fdn/db->tree query state-map state-map)
-                           state-map)
         app-root #?(:clj {}
                     :cljs (when root-factory
                             (when force-root? (comp/enable-forced-refresh! 1000))
                             (binding [comp/*app*    app
                                       comp/*parent* nil
                                       comp/*shared* (comp/shared app)]
-                              (r! (root-factory data-tree) mount-node))))]
+                              (r! (root-factory {}) mount-node))))]
     (swap! runtime-atom assoc :com.fulcrologic.fulcro.application/app-root app-root)
     #?(:cljs app-root)))

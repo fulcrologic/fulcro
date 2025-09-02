@@ -150,6 +150,7 @@
   ([app]
    (render! app {}))
   ([app {:keys [force-root? root-props-changed?] :as options}]
+   (log/info "MRR render")
    (if (or force-root? root-props-changed?)
      (render-roots! app options)
      (try

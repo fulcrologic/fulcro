@@ -96,7 +96,8 @@
    (tick! app)
    (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom state-atom]} app
          {:com.fulcrologic.fulcro.application/keys [root-class]} (some-> runtime-atom deref)
-         before-render (ah/app-algorithm app :before-render)]
+         before-render (ah/app-algorithm app :before-render)
+         sync-render!  (some-> (ah/app-algorithm app :vtx-render) deref)]
      (when before-render
        (try
          (before-render app root-class)
@@ -107,8 +108,9 @@
              root-props-changed? (root-props-changed? app)]
          (when (or force-root? root-props-changed?)
            (update-shared! app))
-         (when core-render!
-           (core-render! app (merge options {:root-props-changed? root-props-changed?})))
+         (cond
+           sync-render! (sync-render!)
+           core-render! (core-render! app (merge options {:root-props-changed? root-props-changed?})))
          (swap! runtime-atom assoc
            :com.fulcrologic.fulcro.application/last-rendered-state @state-atom
            :com.fulcrologic.fulcro.application/only-refresh #{}
@@ -267,6 +269,7 @@
                                                           :query-transform-default query-transform-default
                                                           :load-mutation           load-mutation}
         :com.fulcrologic.fulcro.application/algorithms   (cond-> {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
+                                                                  :com.fulcrologic.fulcro.algorithm/vtx-render             (volatile! nil)
                                                                   :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
                                                                   :com.fulcrologic.fulcro.algorithm/batch-notifications    batch-notifications
                                                                   :com.fulcrologic.fulcro.algorithm/core-render!           (or core-render! identity)

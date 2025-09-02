@@ -9,6 +9,7 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
+    [com.fulcrologic.fulcro.algorithms.react-interop :refer [react-factory]]
     [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
@@ -332,16 +333,39 @@
      (log/fatal "Root is not allowed to have an `:ident`. It is a special node that is co-located over the entire database. If you
     are tempted to do things like `merge!` against Root then that component should *not* be considered Root: make another layer in your UI.")
      (let [initialize-state? (if (boolean? initialize-state?) initialize-state? true)
-           {:keys [client-did-mount client-will-mount]} (::config app)
+           {:keys [client-did-mount client-will-mount vtx-render]} (::config app)
            reset-mountpoint! (fn []
-                               (let [dom-node     (if (string? node) #?(:clj nil :cljs (gdom/getElement node)) node)
-                                     root-factory (comp/factory root)]
+                               (let [dom-node                (if (string? node) #?(:clj nil :cljs (gdom/getElement node)) node)
+                                     root-factory            (comp/factory root)
+                                     vtx-render              (ah/app-algorithm app :vtx-render)
+                                     subscribe               (fn [do-render!]
+                                                               (vreset! vtx-render do-render!)
+                                                               (fn []
+                                                                 (vreset! vtx-render nil)))
+                                     tracking                (volatile! {:old-state nil :tree nil})
+                                     get-snapshot            (fn []
+                                                               (let [current-state (current-state app)
+                                                                     {:keys [old-state tree]} @tracking]
+                                                                 (if (identical? current-state old-state)
+                                                                   tree
+                                                                   (let [q        (comp/get-query root current-state)
+                                                                         new-tree (fdn/db->tree q current-state current-state)]
+                                                                     (vswap! tracking assoc :old-state current-state :tree new-tree)
+                                                                     new-tree))))
+                                     wrapper #?(:clj         root
+                                                :cljs (fn FulcroRootWrapper [& args]
+                                                        (let [props (react/useSyncExternalStore subscribe get-snapshot)]
+                                                          (binding [comp/*app*    app
+                                                                    comp/*parent* nil
+                                                                    comp/*shared* (comp/shared app)]
+                                                            (root-factory props)))))
+                                     wrapper-factory #?(:clj root-factory :cljs (react-factory wrapper))]
                                  (if (nil? dom-node)
                                    (log/error "Mount cannot find DOM node" node "to mount" (comp/class->registry-key root) "See https://book.fulcrologic.com/#err-mount-cannot-find-node")
                                    (do
                                      (swap! (::runtime-atom app) assoc
                                        ::mount-node dom-node
-                                       ::root-factory root-factory
+                                       ::root-factory wrapper-factory
                                        ::root-class root)
                                      (update-shared! app)
                                      (util/dev-check-query (comp/get-query root (current-state app)) comp/component-name)
