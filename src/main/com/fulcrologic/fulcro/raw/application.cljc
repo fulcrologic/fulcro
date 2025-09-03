@@ -109,7 +109,7 @@
          (when (or force-root? root-props-changed?)
            (update-shared! app))
          (cond
-           sync-render! (sync-render!)
+           (and (not force-root?) sync-render!) (sync-render!)
            core-render! (core-render! app (merge options {:root-props-changed? root-props-changed?})))
          (swap! runtime-atom assoc
            :com.fulcrologic.fulcro.application/last-rendered-state @state-atom
