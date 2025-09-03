@@ -12,7 +12,7 @@
     [com.fulcrologic.fulcro.algorithms.react-interop :refer [react-factory]]
     [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
+    [com.fulcrologic.fulcro.rendering.keyframe-render :as kr]
     com.fulcrologic.fulcro.specs
     [com.fulcrologic.guardrails.core :refer [>defn => | ?]]
     #?@(:cljs [[goog.object :as gobj]
@@ -285,7 +285,7 @@
                                           (optimized-render! app (merge options {:root-props-changed? root-props-changed?}))
                                           (log/debug "Render skipped. No optimized render is configured."))))))))
               :refresh-component! comp/refresh-component!
-              :optimized-render! (or optimized-render! mrr/render!))))))
+              :optimized-render! (or optimized-render! kr/render!))))))
 
 (>defn fulcro-app?
   "Returns true if the given `x` is a Fulcro application."

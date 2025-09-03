@@ -18,7 +18,6 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
-    [com.fulcrologic.fulcro.rendering.multiple-roots-renderer :as mrr]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
@@ -217,59 +216,6 @@
     (fn []
       (let [state (-> this-or-app comp/any->app :com.fulcrologic.fulcro.application/state-atom)]
         (swap! state fns/remove-entity ident edges)))))
-
-(let [initial-mount-state (fn []
-                            (let [componentName (keyword "com.fulcrologic.fulcro.floating-root" (gensym "generated-root"))]
-                              #?(:clj [componentName nil] :cljs #js [componentName nil])))]
-  (defn use-fulcro-mount
-    "
-    NOTE: In many cases you are better off using the other hooks support in this ns, such as `use-component`, since
-    they do not have a render integration requirement.
-
-    Generate a new sub-root that is controlled and rendered by Fulcro's multi-root-renderer.
-
-    ```
-    ;; important, you must use hooks (`defhc` or `:use-hooks? true`)
-    (defsc NewRoot [this props]
-      {:use-hooks? true}
-      (let [f (use-fulcro-mount this {:child-class SomeChild})]
-        ;; parent props will show up in SomeChild as computed props.
-        (f props)))
-    ```
-
-    WARNING: Requires you use multi-root-renderer."
-    [parent-this {:keys [child-class
-                         initial-state-params]}]
-    ;; factories are functions, and if you pass a function to setState it will run it, which is NOT what we want...
-    (let [st                 (useState initial-mount-state)
-          pass-through-props (atom {})
-          key-and-root       (aget st 0)
-          setRoot!           (aget st 1)
-          _                  (use-lifecycle
-                               (fn []
-                                 (let [join-key      (aget key-and-root 0)
-                                       child-factory (comp/computed-factory child-class)
-                                       initial-state (comp/get-initial-state child-class (or initial-state-params {}))
-                                       cls           (comp/configure-hooks-component!
-                                                       (fn [this fulcro-props]
-                                                         (use-lifecycle
-                                                           (fn [] (mrr/register-root! this))
-                                                           (fn [] (mrr/deregister-root! this)))
-                                                         (comp/with-parent-context parent-this
-                                                           (child-factory (get fulcro-props join-key initial-state) @pass-through-props)))
-                                                       {:query         (fn [_] [{join-key (comp/get-query child-class)}])
-                                                        :initial-state (fn [_] {join-key initial-state})
-                                                        :componentName join-key})
-                                       real-factory  (comp/factory cls {:keyfn (fn [_] join-key)})
-                                       factory       (fn [props]
-                                                       (reset! pass-through-props props)
-                                                       (real-factory {}))]
-                                   (setRoot! #?(:clj [join-key factory] :cljs #js [join-key factory]))))
-                               (fn []
-                                 (let [join-key (aget key-and-root 0)
-                                       state    (-> parent-this comp/any->app :com.fulcrologic.fulcro.application/state-atom)]
-                                   (swap! state dissoc join-key))))]
-      (aget key-and-root 1))))
 
 (defn- pcs [app component prior-props-tree-or-ident]
   (let [ident           (if (eql/ident? prior-props-tree-or-ident)

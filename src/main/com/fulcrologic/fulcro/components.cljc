@@ -460,7 +460,7 @@
   component-options *must* include a unique `:componentName` (keyword) that will be used for registering the given
   function as the faux class in the component registry."
   [render-fn component-options]
-  (rc/configure-anonymous-component! render-fn component-options))
+  (rc/configure-anonymous-component! render-fn component-options false))
 
 (defn use-fulcro
   "Allows you to use a plain function as a Fulcro-managed React hooks component.
@@ -748,12 +748,12 @@
    (let [qid (query-id class qualifier)]
      (with-meta
        (fn element-factory [props & children]
-         (let [key    (:react-key props)
-               key    (cond
-                        key key
-                        keyfn (keyfn props))
-               parent *parent*
-               app    #?(:cljs *app* :clj (or *app* {}))]
+         (let [key                     (:react-key props)
+               key                     (cond
+                                         key key
+                                         keyfn (keyfn props))
+               parent                  *parent*
+               app #?(:cljs *app* :clj (or *app* {}))]
            (if app
              (let [ref              (:ref props)
                    ref              (cond-> ref (keyword? ref) str)
@@ -1405,6 +1405,7 @@
                                               ;; after build-query-forms as it also does some useful checks
                                               (check-query-looks-valid env sym (:template query-template-or-method)))
            hooks?                           (and (cljs? env) (:use-hooks? options))
+           memoize?                         (= :pure hooks?)
            render-form                      (if hooks?
                                               (build-hooks-render sym thissym propsym computedsym extra-args body)
                                               (build-render sym thissym propsym computedsym extra-args body))
@@ -1417,14 +1418,17 @@
                                               hooks? (assoc :componentName fqkw)
                                               render-form (assoc :render render-form))]
        (cond
-         hooks?
-         `(do
-            (defonce ~sym
-              (fn [js-props#]
-                (let [render# (:render (component-options ~sym))
-                      [this# props#] (use-fulcro js-props# ~sym)]
-                  (render# this# props#))))
-            (add-hook-options! ~sym ~options-map))
+         hooks? (let [component-form `(fn [js-props#]
+                                        (let [render# (:render (component-options ~sym))
+                                              [this# props#] (use-fulcro js-props# ~sym)]
+                                          (render# this# props#)))]
+                  (if memoize?
+                    `(do
+                       (defonce ~sym (com.fulcrologic.fulcro.components/memo ~component-form))
+                       (add-hook-options! ~sym ~options-map))
+                    `(do
+                       (defonce ~sym ~component-form)
+                       (add-hook-options! ~sym ~options-map))))
 
          (cljs? env)
          `(do
@@ -1552,7 +1556,7 @@
 
       ; React Hooks support
       ;; if true, creates a function-based instead of a class-based component, see the Developer's Guide for details
-      :use-hooks? true
+      :use-hooks? true ; OR :pure. A :pure component is memoized using react memo. Note: Changing to/from :pure requires a browser reload
 
       ; BODY forms. May be omitted IFF there is an options map, in order to generate a component that is used only for queries/normalization.
       (dom/div #js {:onClick onSelect} x))

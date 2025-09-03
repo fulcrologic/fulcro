@@ -242,27 +242,38 @@
 
   IMPORTANT: In CLJS this function adds extra things to the mutable js fn. In CLJ, components are just maps, and this
   side-effect cannot modify it. As such it returns the configured component so you can use it in CLJ."
-  [render-fn component-options]
-  (let [k              (:componentName component-options)
-        faux-classname (if k
-                         (str/join "/" [(namespace k) (name k)])
-                         "anonymous")
-        result #?(:clj {:com.fulcrologic.fulcro.components/component-class? true
-                        :fulcro$options                                     component-options
-                        :fulcro$registryKey                                 k
-                        :displayName                                        faux-classname}
-                  :cljs (gobj/extend render-fn
-                          #js {:fulcro$options         component-options
-                               :displayName            faux-classname
-                               :fulcro$class           render-fn
-                               :type                   render-fn
-                               :cljs$lang$type         true
-                               :cljs$lang$ctorStr      faux-classname
-                               :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
-                               :fulcro$registryKey     (:componentName component-options)}))]
-    (when k
-      (register-component! k #?(:cljs render-fn :clj result)))
-    #?(:cljs render-fn :clj result)))
+  ([render-fn component-options]
+   (configure-anonymous-component! render-fn component-options true))
+  ([render-fn component-options set-type?]
+   (let [k              (:componentName component-options)
+         faux-classname (if k
+                          (str/join "/" [(namespace k) (name k)])
+                          "anonymous")
+         result #?(:clj {:com.fulcrologic.fulcro.components/component-class? true
+                         :fulcro$options                                     component-options
+                         :fulcro$registryKey                                 k
+                         :displayName                                        faux-classname}
+                   :cljs (if set-type?
+                           (gobj/extend render-fn
+                             #js {:fulcro$options         component-options
+                                  :displayName            faux-classname
+                                  :fulcro$class           render-fn
+                                  :type                   render-fn
+                                  :cljs$lang$type         true
+                                  :cljs$lang$ctorStr      faux-classname
+                                  :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
+                                  :fulcro$registryKey     (:componentName component-options)})
+                           (gobj/extend render-fn
+                             #js {:fulcro$options         component-options
+                                  :displayName            faux-classname
+                                  :fulcro$class           render-fn
+                                  :cljs$lang$type         true
+                                  :cljs$lang$ctorStr      faux-classname
+                                  :cljs$lang$ctorPrWriter (fn [_ writer _] (cljs.core/-write writer faux-classname))
+                                  :fulcro$registryKey     (:componentName component-options)})))]
+     (when k
+       (register-component! k #?(:cljs render-fn :clj result)))
+     #?(:cljs render-fn :clj result))))
 
 (defn get-initial-state
   "Get the declared :initial-state value for a component."
