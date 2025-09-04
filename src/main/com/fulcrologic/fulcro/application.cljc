@@ -373,7 +373,7 @@
                                      (render! app {:force-root? true
                                                    :hydrate?    hydrate?})))))]
        (if (mounted? app)
-         (reset-mountpoint!)
+         (render! app {:force-root? true})
          (do
            (swap! (::state-atom app) #(merge {:fulcro.inspect.core/app-id (comp/component-name root)} %))
            (set-root! app root {:initialize-state? initialize-state?})
