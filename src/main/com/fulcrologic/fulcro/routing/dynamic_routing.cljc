@@ -919,19 +919,23 @@
                                                    (let [~(first arglist) ~'this
                                                          ~(second arglist) {:pending-path-segment ~'pending-path-segment
                                                                             :route-props          ~'current-route
-                                                                            :route-factory        (when ~'class (comp/factory ~'class))
+                                                                            :route-factory        (when ~'class
+                                                                                                    (comp/computed-factory ~'class
+                                                                                                      {:keyfn (fn [props#] (str (comp/get-ident ~'class props#)))}))
                                                                             :current-state        ~'current-state
                                                                             :router-state         (get-in ~'props [[::uism/asm-id ~id] ::uism/local-storage])}]
                                                      ~@body)))
                                     (apply list `(let [~'class (current-route-class ~'this)]
                                                    (if (~states-to-render-route ~'current-state)
                                                      (when ~'class
-                                                       (let [~'factory (comp/factory ~'class)]
+                                                       (let [~'factory (comp/computed-factory ~'class {:keyfn (fn [p#] (str (comp/get-ident ~'class p#)))})]
                                                          (~'factory (rc/computed ~'current-route (rc/get-computed ~'this)))))
                                                      (let [~(first arglist) ~'this
                                                            ~(second arglist) {:pending-path-segment ~'pending-path-segment
                                                                               :route-props          ~'current-route
-                                                                              :route-factory        (when ~'class (comp/factory ~'class))
+                                                                              :route-factory        (when ~'class
+                                                                                                      (comp/factory ~'class
+                                                                                                        {:keyfn (fn [props#] (str (comp/get-ident ~'class props#)))}))
                                                                               :current-state        ~'current-state}]
                                                        ~@body)))))
            options                (merge
@@ -1122,17 +1126,17 @@
                          (keep #(resolve-path-components % RouteTarget path options)))]
            (when (< 1 (count matches))
              (log/warn "More than one match found resolving path components. You probably want to specify ParentRouter to avoid ambiguity:"
-                StartingClass " -> " RouteTarget matches))
+               StartingClass " -> " RouteTarget matches))
            (first matches))
          (let [candidates (->> (comp/get-query StartingClass)
                             (eql/query->ast)
                             :children
                             (keep :component))
-               matches (->> candidates
-                         (keep #(resolve-path-components % RouteTarget path options)))]
+               matches    (->> candidates
+                            (keep #(resolve-path-components % RouteTarget path options)))]
            (when (< 1 (count matches))
              (log/warn "More than one match found resolving path components. You probably want to specify ParentRouter to avoid ambiguity:"
-                " -> " RouteTarget matches))
+               " -> " RouteTarget matches))
            (first matches)))))))
 
 (defn resolve-path
@@ -1285,7 +1289,7 @@
           :query                   (fn [_] static-query)})
        (fn [this {::keys [current-route] :as props}]
          (let [TargetClass   (current-route-class this)
-               route-factory (some-> TargetClass (comp/computed-factory))]
+               route-factory (some-> TargetClass (comp/computed-factory {:keyfn (fn [props] (str (comp/get-ident TargetClass props)))}))]
            (if always-render-body?
              (user-render this props route-factory current-route)
              (let [current-state          (uism/get-active-state this router-registry-key)
