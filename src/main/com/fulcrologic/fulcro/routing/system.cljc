@@ -60,12 +60,25 @@
    * :target A component class that you wish to be on-screen
    * :route A vector of strings/keywords that abstractly define a path to a target. E.g. [\"account\" :account_id]
    * :params An arbitrary map of data to be sent along with the routing command which can affect how the route is interpreted.
+   * :force? Attempt to force the routing
   "
   [app-ish options]
   [any? ::target-or-route-with-params => any?]
   (rrun! app-ish sp/-route-to! options))
 
+(>defn replace-route!
+  "Change the top of the route history (if there is any) and update the URL (if that is in play), but do NOT actually
+   manipulate the app's internals (route). This is for cases where the logical name of the existing route has changed, but
+   the UI should not. For example, when creating a form the URL might be /create/person, but after save it
+   might need to change to /edit/person/11 to reflect the saved state of the same form."
+  [app-ish new-route]
+  [any? ::target-or-route-with-params => any?]
+  (rrun! app-ish sp/-replace-route! new-route))
+
 (>defn current-route
+  "Get the current route, a map
+  {:route [path segments]
+   :params {... ...}}"
   [app-ish]
   [any? => (? ::target-or-route-with-params)]
   (rrun! app-ish sp/-current-route))
@@ -78,8 +91,10 @@
 (defn back!
   "Attempt to go to the last place the routing system was before the current route. Optional, and may have limits to
    the number of calls that can be successful (e.g. history support may be limited or non-existent)."
-  [app-ish]
-  (rrun! app-ish sp/-back!))
+  ([app-ish]
+   (rrun! app-ish sp/-back! false))
+  ([app-ish force?]
+   (rrun! app-ish sp/-back! force?)))
 
 (defn set-route-params!
   "Attempt to OVERWRITE the parameters of the current route (in history). The may affect the URL. `params` should be a map
@@ -108,3 +123,13 @@
         new-params (apply f old-params args)]
     (when (map? new-params)
       (set-route-params! app-ish new-params))))
+
+(defn add-route-listener!
+  "Add a route listener (fn [{:keys [route params]}] ...) known by the key k."
+  [app-ish k listener]
+  (rrun! app-ish sp/-add-route-listener! k listener))
+
+(defn remove-route-listener!
+  "Remove the route listener known by `k`"
+  [app-ish k]
+  (rrun! app-ish sp/-remove-route-listener! k))

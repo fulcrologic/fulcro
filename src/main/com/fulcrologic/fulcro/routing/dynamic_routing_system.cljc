@@ -36,10 +36,13 @@
                                                                                :params route-params}))
                                  ::dr/force? (boolean force?))
                           (dissoc :params)))))
+  (-replace-route! [this {:keys [target route params] :as new-route}]
+    (let [path (or route (dr/absolute-path app target params))]
+      (vswap! vhistory (fn [old] (cons (assoc new-route :route path) (rest old))))))
   (-current-route [this] (first @vhistory))
   (-current-route-busy? [this] (not (dr/can-change-route? app)))
-  (-back! [this]
-    (if (sp/-current-route-busy? this)
+  (-back! [this force?]
+    (if (and (not force?) (sp/-current-route-busy? this))
       (notify! (vals @vlisteners) {:desired-route (second @vhistory)
                                    :direction     :back
                                    :denied?       true})
@@ -48,6 +51,7 @@
         (let [{:keys [route params] :as rte} (first @vhistory)
               Target (dr/resolve-target app route)]
           (dr/route-to! app {:target       Target
+                             :force? force?
                              :route-params params})
           (notify! (vals @vlisteners) rte)))))
   (-current-route-params [this] (:params (first @vhistory)))

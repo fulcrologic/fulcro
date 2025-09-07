@@ -9,9 +9,15 @@
      Use the `route-to!` wrapper instead of this.
 
      Will be a no-op if the current route is busy unless the `force?` option is true.")
+  (-replace-route! [this {:keys [route params]}]
+    "Change the top of the route history (if there is any) and update the URL (if that is in play), but do NOT actually
+     manipulate the app's internals. This is for cases where the logical name of the existing route has changed, but
+     the UI should not. For example, when creating a form the URL might be /create/person, but after save it
+     might need to change to /edit/person/11 to reflect the saved state of the same form.")
   (-current-route [this] "Returns the current route as a map with keys :target :route and :params.")
   (-current-route-busy? [this] "Returns true if the active leaf of routing is busy and should prevent routing.")
-  (-back! [this] "Attempt to go to the prior route. Useful for screens that have things like a Cancel button that are used from multiple places.")
+  (-back! [this force?] "Attempt to go to the prior route. Override route denials when force? is true.
+   Useful for screens that have things like a Cancel button that are used from multiple places.")
   (-current-route-params [this] "Returns the current route params as a map, or nil if there are none.")
   (-set-route-params! [this params]
     "Change the params that are recorded with the current route (if history is in play). This doesn't change the

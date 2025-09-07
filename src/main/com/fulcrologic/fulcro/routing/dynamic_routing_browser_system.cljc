@@ -164,6 +164,9 @@
                                                       (notify! (vals @vlisteners) rte))))
                                  ::dr/force? (boolean force?))
                           (dissoc :params)))))
+  (-replace-route! [this {:keys [route target params] :as new-route}]
+    (let [path (or route (dr/absolute-path app target params))]
+      (replace-state! @vnumber (route->url (assoc new-route :route path)))))
   (-current-route [this]
     (let [routes  (dr/active-routes app)
           nroutes (count routes)
@@ -176,7 +179,10 @@
           {:route  path
            :target target-component}))))
   (-current-route-busy? [this] (not (dr/can-change-route? app)))
-  (-back! [this] (browser-back!))
+  (-back! [this force?]
+    (when force?
+      (some-> (dr/target-denying-route-changes app) (dr/set-force-route-flag!)))
+    (browser-back!))
   (-current-route-params [this] (:params (current-url->route)))
   (-set-route-params! [this params]
     (replace-state! @vnumber (route->url (assoc (current-url->route)
