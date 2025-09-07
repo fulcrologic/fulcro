@@ -2,6 +2,10 @@
   "A generalization of routing, useful when different libraries/applications want to be isloated from the real underlying
    routing implementation.
 
+   A routing system needs to be installed on your Fulcro application at creation time, and your application
+   should probably also explicitly set/restore some route during initialization. The routing system itself
+   is allowed to do its own initialization,
+
    ALPHA: This namespace and any that use it should be considered UNSTABLE and EXPERIMENTAL. These are being
    published in order to get feedback and ensure they meet the feature needs of users before freezing the API.
    Every attempt will be made to prevent breaking changes, but while in this stage there are no guarantees.
@@ -38,8 +42,8 @@
 (s/def ::route (s/every (s/or :s string? :k keyword) :kind vector?))
 (s/def ::params map?)
 (s/def ::target-or-route-with-params (s/or
-                 :class-based (s/keys :req-un [::target] :opt-un [::params])
-                 :vector-based (s/keys :req-un [::route] :opt-un [::params])))
+                                       :class-based (s/keys :req-un [::target] :opt-un [::params])
+                                       :vector-based (s/keys :req-un [::route] :opt-un [::params])))
 
 (defn- rrun!
   "Run the given routing system f on the app. Returns what f returns, or nil if no routing system."
@@ -95,4 +99,12 @@
   [app-ish params-to-merge]
   (let [old-params (current-route-params app-ish)
         new-params (merge old-params params-to-merge)]
-    (set-route-params! app-ish (merge old-params params-to-merge))))
+    (set-route-params! app-ish new-params)))
+
+(defn update-route-params!
+  "Like `update`, but for route params. Runs `(apply f old-params args)` and stores the result as the new params."
+  [app-ish f & args]
+  (let [old-params (current-route-params app-ish)
+        new-params (apply f old-params args)]
+    (when (map? new-params)
+      (set-route-params! app-ish new-params))))

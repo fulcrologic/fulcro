@@ -38,6 +38,13 @@
   #?(:clj (:import (java.net URLDecoder URLEncoder)
                    (java.nio.charset StandardCharsets))))
 
+;; js wrappers
+(defn push-state! [n url] #?(:cljs (.pushState js/history #js {"n" n} "" url)))
+(defn replace-state! [n url] #?(:cljs (.replaceState js/history #js {"n" n} "" url)))
+(defn add-popstate-listener! [f] #?(:cljs (.addEventListener js/window "popstate" f)))
+(defn browser-back! [] #?(:cljs (.back js/history)))
+(defn browser-forward! [] #?(:cljs (.forward js/history)))
+
 (>defn decode-uri-component
   "Decode the given string as a transit and URI encoded CLJ(s) value."
   [v]
@@ -57,7 +64,7 @@
 (>defn query-params
   [raw-search-string]
   [string? => map?]
-  (try
+  (enc/try*
     (let [param-string (str/replace raw-search-string #"^[?]" "")]
       (reduce
         (fn [result assignment]
@@ -68,7 +75,7 @@
               :else result)))
         {}
         (str/split param-string #"&")))
-    (catch #?(:clj Exception :cljs :default) e
+    (catch :all e
       (log/error e "Cannot decode query param string")
       {})))
 
@@ -126,9 +133,10 @@
         {:route  route
          :params params}))))
 
-
-(defn- push-state! [n url] (.pushState js/history #js {"n" n} "" url))
-(defn- replace-state! [n url] (.replaceState js/history #js {"n" n} "" url))
+(defn- notify! [listeners event]
+  (doseq [f listeners]
+    (enc/catching
+      (f event))))
 
 (deftype DynamicRoutingBrowserSystem [app vnumber vlisteners route->url url->route]
   sp/RoutingSystem
@@ -141,9 +149,11 @@
                                  :route-params params
                                  :before-change (fn [_ {:keys [target path route-params]}]
                                                   (when-not external?
-                                                    (vswap! vnumber inc)
-                                                    (push-state! @vnumber (route->url {:route  path
-                                                                                       :params route-params}))))
+                                                    (let [rte {:route  path
+                                                               :params route-params}]
+                                                      (vswap! vnumber inc)
+                                                      (push-state! @vnumber (route->url rte))
+                                                      (notify! (vals @vlisteners) rte))))
                                  ::dr/force? (boolean force?))
                           (dissoc :params)))))
   (-current-route [this]
@@ -158,18 +168,13 @@
           {:route  path
            :target target-component}))))
   (-current-route-busy? [this] (not (dr/can-change-route? app)))
-  (-back! [this] (.back js/history))
+  (-back! [this] (browser-back!))
   (-current-route-params [this] (:params (current-url->route)))
   (-set-route-params! [this params]
     (replace-state! @vnumber (route->url (assoc (current-url->route)
                                            :params params))))
   (-add-route-listener! [this k listener] (vswap! vlisteners assoc k listener) nil)
   (-remove-route-listener! [this k] (vswap! vlisteners dissoc k) nil))
-
-(defn- notify! [listeners event]
-  (doseq [f listeners]
-    (enc/catching
-      (f event))))
 
 (defn install-dynamic-routing-browser-system!
   "Install the dynamic router system with support for browser history/URL"
@@ -222,14 +227,13 @@
                                                            :external?     true
                                                            :denied?       true})
                                        (if forward?
-                                         (.back js/history)
-                                         (.forward js/history)))
+                                         (browser-back!)
+                                         (browser-forward!)))
                                      (do
                                        (log/debug "Navigating history")
                                        (vreset! vnumber route-sequence-number)
                                        (sys/route-to! app (assoc current-route ::external? true))
                                        (notify! listeners route-event)))))))]
     (sys/install-routing-system! app sys)
-    (.addEventListener js/window "popstate" pop-state-listener)
-    (replace-state! @vnumber "/"))
+    (add-popstate-listener! pop-state-listener))
   app)
