@@ -12,6 +12,15 @@
                        :devtools   {:preloads   [com.fulcrologic.devtools.chrome-preload]
                                     :after-load fulcro-todomvc.main/refresh!}}
 
+            :routing  {:target           :browser
+                       :output-dir       "resources/public/js/routing"
+                       :asset-path       "/js/routing"
+                       :compiler-options {:source-map true}
+                       :dev              {:compiler-options {:external-config {:guardrails {}}}}
+                       :modules          {:main {:init-fn fulcro.routing.dynamic-browser/init}}
+                       :devtools         {:preloads   [com.fulcrologic.devtools.chrome-preload]
+                                          :after-load fulcro.routing.dynamic-browser/refresh}}
+
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
                        :ns-regexp        "-(test|spec)$"

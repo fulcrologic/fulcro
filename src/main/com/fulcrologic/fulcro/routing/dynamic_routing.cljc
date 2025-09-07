@@ -718,7 +718,9 @@
          (log/error "Could not find route targets for new-route" new-route "See https://book.fulcrologic.com/#err-dr-new-route-target-not-found")
          :invalid)
 
-       (not (can-change-route? app-or-comp relative-class))
+       (and
+         (not (::force? timeouts-and-params))
+         (not (can-change-route? app-or-comp relative-class)))
        (let [app          (rc/any->app app-or-comp)
              target       (target-denying-route-changes app relative-class)
              route-denied (rc/component-options target :route-denied)]
