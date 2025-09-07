@@ -5,6 +5,9 @@
 
    The back support works for up to 10 steps, and route parameters properly work but are simply stored in local
    RAM for runtime-only use.
+
+   No history is recorded on startup. It is recommended that you issue an explicit route-to! on the system at startup
+   to establish a known location and start of history.
    "
   (:require
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]

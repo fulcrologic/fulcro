@@ -22,7 +22,15 @@
    be careful not to overwrite parameters that are also used in your route segments! Getting those out of sync can cause
    strange behavior. In general, use non-namespaced keywords for your route segments, and namespaced ones for your
    custom route-specific data.
-   "
+
+   = System Startup
+
+   When you enter your application the user MAY have pasted a particular bookmark. Since authentication is your responsibility,
+   this system makes no attempt to *restore* the URL as app state. Instead, you must figure out what to do.
+
+   You can decode the URL as a route using the `current-url->route` function from this namespace.
+
+   You *SHOULD* explicitly issue a route-to! call, even if it is just to put that route you decoded into effect."
   (:require
     [clojure.string :as str]
     [com.fulcrologic.guardrails.core :refer [>defn => ?]]
