@@ -32,119 +32,11 @@
 
    You *SHOULD* explicitly issue a route-to! call, even if it is just to put that route you decoded into effect."
   (:require
-    [clojure.string :as str]
-    [com.fulcrologic.guardrails.core :refer [>defn => ?]]
-    [clojure.spec.alpha :as s]
-    [com.fulcrologic.fulcro.algorithms.transit :refer [transit-clj->str transit-str->clj]]
-    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.routing.browser-history-utils :as bhu]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
-    [com.fulcrologic.fulcro.routing.system :as sys]
+    [com.fulcrologic.fulcro.routing.system :as sys :refer [notify!]]
     [com.fulcrologic.fulcro.routing.system-protocol :as sp]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :refer [base64-encode base64-decode]]
-    [taoensso.encore :as enc]
-    [taoensso.timbre :as log])
-  #?(:clj (:import (java.net URLDecoder URLEncoder)
-                   (java.nio.charset StandardCharsets))))
-
-;; js wrappers
-(defn push-state! [n url] #?(:cljs (.pushState js/history #js {"n" n} "" url)))
-(defn replace-state! [n url] #?(:cljs (.replaceState js/history #js {"n" n} "" url)))
-(defn add-popstate-listener! [f] #?(:cljs (.addEventListener js/window "popstate" f)))
-(defn browser-back! [] #?(:cljs (.back js/history)))
-(defn browser-forward! [] #?(:cljs (.forward js/history)))
-
-(>defn decode-uri-component
-  "Decode the given string as a transit and URI encoded CLJ(s) value."
-  [v]
-  [(? string?) => (? string?)]
-  (when (string? v)
-    #?(:clj  (URLDecoder/decode ^String v (.toString StandardCharsets/UTF_8))
-       :cljs (js/decodeURIComponent v))))
-
-(>defn encode-uri-component
-  "Encode a key/value pair of CLJ(s) data such that it can be safely placed in browser query params. If `v` is
-   a plain string, then it will not be transit-encoded."
-  [v]
-  [string? => string?]
-  #?(:clj  (URLEncoder/encode ^String v (.toString StandardCharsets/UTF_8))
-     :cljs (js/encodeURIComponent v)))
-
-(>defn query-params
-  [raw-search-string]
-  [string? => map?]
-  (enc/try*
-    (let [param-string (str/replace raw-search-string #"^[?]" "")]
-      (reduce
-        (fn [result assignment]
-          (let [[k v] (str/split assignment #"=")]
-            (cond
-              (and k v (= k "_rp_")) (merge result (transit-str->clj (base64-decode (decode-uri-component v))))
-              (and k v) (assoc result (keyword (decode-uri-component k)) (decode-uri-component v))
-              :else result)))
-        {}
-        (str/split param-string #"&")))
-    (catch :all e
-      (log/error e "Cannot decode query param string")
-      {})))
-
-(>defn query-string
-  "Convert a map to an encoded string that is acceptable on a URL.
-  The param-map allows any data type acceptable to transit. The additional key-values must all be strings
-  (and will be coerced to string if not). "
-  [param-map & {:as string-key-values}]
-  [map? (s/* string?) => string?]
-  (str "?_rp_="
-    (encode-uri-component (base64-encode (transit-clj->str param-map)))
-    "&"
-    (str/join "&"
-      (map (fn [[k v]]
-             (str (encode-uri-component (name k)) "=" (encode-uri-component (str v)))) string-key-values))))
-
-(>defn route->url
-  "Construct URL from route and params"
-  [route params hash-based?]
-  [coll? (? map?) boolean? => string?]
-  (let [q (query-string (or params {}))]
-    (if hash-based?
-      (str q "#/" (str/join "/" (map str route)))
-      (str "/" (str/join "/" (map str route)) q))))
-
-(defn current-url->route
-  "Convert the current browser URL into a route path and parameter map. Returns:
-
-   ```
-   {:route [\"path\" \"segment\"]
-    :params {:param value}}
-   ```
-
-   You can save this value and later use it with `apply-route!`.
-
-   Parameter hash-based? specifies whether to expect hash based routing. If no
-   parameter is provided the mode is autodetected from presence of hash segment in URL.
-  "
-  ([] (current-url->route #?(:clj  false
-                             :cljs (some? (seq (.. js/document -location -hash)))) nil))
-  ([hash-based?] (current-url->route hash-based? nil))
-  ([hash-based? prefix]
-   #?(:cljs
-      (let [path      (if hash-based?
-                        (str/replace (.. js/document -location -hash) #"^[#]" "")
-                        (.. js/document -location -pathname))
-            pcnt      (count prefix)
-            prefixed? (> pcnt 0)
-            path      (if (and prefixed? (str/starts-with? path prefix))
-                        (subs path pcnt)
-                        path)
-            route     (vec (drop 1 (str/split path #"/")))
-            params    (or (some-> (.. js/document -location -search) (query-params)) {})]
-        (log/debug "Decoded params" params)
-        {:route  route
-         :params params}))))
-
-(defn- notify! [listeners event]
-  (doseq [f listeners]
-    (enc/catching
-      (f event))))
+    [taoensso.timbre :as log]))
 
 (deftype DynamicRoutingBrowserSystem [app vnumber vlisteners route->url url->route]
   sp/RoutingSystem
@@ -160,13 +52,13 @@
                                                     (let [rte {:route  path
                                                                :params route-params}]
                                                       (vswap! vnumber inc)
-                                                      (push-state! @vnumber (route->url rte))
+                                                      (bhu/push-state! @vnumber (route->url rte))
                                                       (notify! (vals @vlisteners) rte))))
                                  ::dr/force? (boolean force?))
                           (dissoc :params)))))
   (-replace-route! [this {:keys [route target params] :as new-route}]
     (let [path (or route (dr/absolute-path app target params))]
-      (replace-state! @vnumber (route->url (assoc new-route :route path)))))
+      (bhu/replace-state! @vnumber (route->url (assoc new-route :route path)))))
   (-current-route [this]
     (let [routes  (dr/active-routes app)
           nroutes (count routes)
@@ -174,7 +66,7 @@
       (if (> nroutes 1)
         (do
           (log/debug "Current route was ambiguous in code (sibling routers). Returning URL route instead")
-          (current-url->route))
+          (bhu/current-url->route))
         (when path
           {:route  path
            :target target-component}))))
@@ -182,72 +74,27 @@
   (-back! [this force?]
     (when force?
       (some-> (dr/target-denying-route-changes app) (dr/set-force-route-flag!)))
-    (browser-back!))
-  (-current-route-params [this] (:params (current-url->route)))
+    (bhu/browser-back!))
+  (-current-route-params [this] (:params (bhu/current-url->route)))
   (-set-route-params! [this params]
-    (replace-state! @vnumber (route->url (assoc (current-url->route)
-                                           :params params))))
+    (bhu/replace-state! @vnumber (route->url (assoc (bhu/current-url->route)
+                                               :params params))))
   (-add-route-listener! [this k listener] (vswap! vlisteners assoc k listener) nil)
   (-remove-route-listener! [this k] (vswap! vlisteners dissoc k) nil))
 
 (defn install-dynamic-routing-browser-system!
   "Install the dynamic router system with support for browser history/URL"
-  [app]
-  (let [vnumber            (volatile! 0)
-        vlisteners         (volatile! {})
-        vignore            (volatile! 0)
-        sys                (->DynamicRoutingBrowserSystem app vnumber vlisteners
-                             (fn [{:keys [route params]}] (route->url route params false))
-                             current-url->route)
-        pop-state-listener (fn [evt]
-                             ;; The scheme for handling popstate events is as follows:
-                             ;; We keep track of a monotonically increasing number as the user navigates through
-                             ;; routes (not forward/back button). If we receive an event, it means the user used
-                             ;; forward/back OR we called .forward/.back.
-                             ;; The incoming event will contain the assigned route sequence number.
-                             ;; When we DO honor that route, we update our sequence tracking such that we are ON
-                             ;; that number again (in other words, vnumber tracks the route sequence number we're on)
-                             ;; This means that when the user side-effects a history traversal, we move the vnumber to
-                             ;; that historical route sequence number. This allows us to detect if the user is going
-                             ;; forward or backwards.
-                             ;; If the user tries to use forward/back buttons, but the current system does NOT currently
-                             ;; allow moving the route, then we immediately UNDO the route  change by calling .back/.forward.
-                             ;; Unfortunately this has the effect of triggering a recursive event for us, so we use the
-                             ;; vignore as a counter of how many times we've called the API, so we can ignore that many
-                             ;; events. The count may be overkill (a boolean might suffice), but trying to cover the
-                             ;; case where the user can mash on the fwd/back button quickly and possibly cause multiple
-                             ;; events.
-                             (if (pos? @vignore)
-                               (vswap! vignore dec)
-                               (when (rc/isoget-in evt ["state"])
-                                 (let [current-sequence-number @vnumber
-                                       route-sequence-number   (rc/isoget-in evt ["state" "n"])
-                                       forward?                (and
-                                                                 route-sequence-number current-sequence-number
-                                                                 (< current-sequence-number route-sequence-number))
-                                       listeners               (vals @vlisteners)
-                                       current-route           (sys/current-route app)
-                                       direction               (if forward? :forward :back)
-                                       route-event             (assoc current-route
-                                                                 :external? true
-                                                                 :direction direction)]
-                                   (js/console.log "Got pop state event." evt)
-                                   (if (sys/current-route-busy? app)
-                                     (do
-                                       (vswap! vignore inc)
-                                       (log/debug "Browser state change event denied")
-                                       (notify! listeners {:desired-route (current-url->route)
-                                                           :direction     direction
-                                                           :external?     true
-                                                           :denied?       true})
-                                       (if forward?
-                                         (browser-back!)
-                                         (browser-forward!)))
-                                     (do
-                                       (log/debug "Navigating history")
-                                       (vreset! vnumber route-sequence-number)
-                                       (sys/route-to! app (assoc current-route ::external? true))
-                                       (notify! listeners route-event)))))))]
-    (sys/install-routing-system! app sys)
-    (add-popstate-listener! pop-state-listener))
-  app)
+  ([app]
+   (install-dynamic-routing-browser-system! app nil))
+  ([app {:keys [prefix hash?]}]
+   (let [vnumber            (volatile! 0)
+         vlisteners         (volatile! {})
+         sys                (->DynamicRoutingBrowserSystem app vnumber vlisteners
+                              (fn [{:keys [route params]}]
+                                (cond->> (bhu/route->url route params hash?)
+                                  (seq prefix) (str prefix "/")))
+                              (fn [] (bhu/current-url->route hash? prefix)))
+         pop-state-listener (bhu/build-popstate-listener app vnumber vlisteners)]
+     (sys/install-routing-system! app sys)
+     (bhu/add-popstate-listener! pop-state-listener)
+     app)))

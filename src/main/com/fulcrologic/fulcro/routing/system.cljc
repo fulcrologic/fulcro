@@ -15,6 +15,7 @@
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.routing.system-protocol :as sp]
     [com.fulcrologic.guardrails.core :refer [=> >defn ?]]
+    [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
 (s/def ::RoutingSystem #(satisfies? sp/RoutingSystem %))
@@ -133,3 +134,12 @@
   "Remove the route listener known by `k`"
   [app-ish k]
   (rrun! app-ish sp/-remove-route-listener! k))
+
+(defn notify!
+  "Helper function for implementations. Notifies all of the listeners of the current routing system about a
+   given routing event."
+  [listeners event]
+  (doseq [f listeners]
+    (enc/catching
+      (f event))))
+

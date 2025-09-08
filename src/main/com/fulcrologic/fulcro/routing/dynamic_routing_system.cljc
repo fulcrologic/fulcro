@@ -12,16 +12,10 @@
   (:require
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
     [com.fulcrologic.fulcro.routing.system :as sys]
-    [com.fulcrologic.fulcro.routing.system-protocol :as sp]
-    [taoensso.encore :as enc]))
+    [com.fulcrologic.fulcro.routing.system-protocol :as sp]))
 
 (defn push-route [history route] (take 10 (cons route history)))
 (defn pop-route [history] (drop 1 history))
-
-(defn- notify! [listeners event]
-  (doseq [f listeners]
-    (enc/catching
-      (f event))))
 
 (deftype DynamicRoutingSystem [app vhistory vlisteners]
   sp/RoutingSystem
@@ -43,17 +37,17 @@
   (-current-route-busy? [this] (not (dr/can-change-route? app)))
   (-back! [this force?]
     (if (and (not force?) (sp/-current-route-busy? this))
-      (notify! (vals @vlisteners) {:desired-route (second @vhistory)
-                                   :direction     :back
-                                   :denied?       true})
+      (sys/notify! (vals @vlisteners) {:desired-route (second @vhistory)
+                                       :direction     :back
+                                       :denied?       true})
       (do
         (vswap! vhistory pop-route)
         (let [{:keys [route params] :as rte} (first @vhistory)
               Target (dr/resolve-target app route)]
           (dr/route-to! app {:target       Target
-                             :force? force?
+                             :force?       force?
                              :route-params params})
-          (notify! (vals @vlisteners) rte)))))
+          (sys/notify! (vals @vlisteners) rte)))))
   (-current-route-params [this] (:params (first @vhistory)))
   (-set-route-params! [this params]
     (vswap! vhistory (fn [[rt & others :as old-history]] (cons (assoc rt :params params) others))))
