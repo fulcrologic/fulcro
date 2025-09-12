@@ -985,3 +985,29 @@
             o#     (cond-> (dissoc o# :ident :query)
                      ident# (assoc :ident ident#))]
         (def ~sym (nc ~query o#))))))
+
+(defn replace-join!
+  "Update the query and state of Parent such that `join-key` is an EQL join to `Target`, and the join key
+   at the `parent-ident` has the value `target-ident`.
+
+   No other parts of the query will be affected.
+
+   NOTE: hot code reloads that call `refresh-dynamic-queries!` will undo this operation unless the Parent is marked with
+   the component option `:preserve-dynamic-query? true`."
+  [app Parent parent-ident join-key Target target-ident]
+  (let [{:com.fulcrologic.fulcro.application/keys [state-atom]} app
+        state-map @state-atom
+        old-query (get-query Parent state-map)
+        oq-ast    (eql/query->ast old-query)
+        nq-ast    (update oq-ast :children
+                    (fn [cs]
+                      (conj (vec (remove #(= join-key (:dispatch-key %)) cs))
+                        (eql/query->ast1 [{join-key (get-query Target state-map)}]))))
+        new-query (eql/ast->query nq-ast)]
+    (when (and (not parent-ident) (has-ident? Parent))
+      (log/error "Unable to fix join. Route will have no props because parent has no ident."
+        {:parent (component-name Parent)
+         :target (component-name Target)}))
+    (swap! state-atom assoc-in (conj parent-ident join-key) target-ident)
+    (set-query! app Parent {:query new-query})))
+
