@@ -745,7 +745,11 @@
    defsc."
   ([class] (factory class nil))
   ([class {:keys [keyfn qualifier] :as opts}]
-   (let [qid (query-id class qualifier)]
+   (let [qid    (query-id class qualifier)
+         ident? (has-ident? class)
+         keyfn  (cond
+                  keyfn keyfn
+                  ident? (fn [props] (-> (get-ident class props) (second) (str))))]
      (with-meta
        (fn element-factory [props & children]
          (let [key                     (:react-key props)
