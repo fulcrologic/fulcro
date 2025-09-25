@@ -988,7 +988,8 @@
 
 (defn replace-join!
   "Update the query and state of Parent such that `join-key` is an EQL join to `Target`, and the join key
-   at the `parent-ident` has the value `target-ident`.
+   at the `parent-ident` has the value `target-ident`. This *will* work on your application root. Just supply
+   `nil` for `parent-ident` and the top-level keys of the state map will end up with the join.
 
    No other parts of the query will be affected.
 
