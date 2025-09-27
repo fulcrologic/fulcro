@@ -5,7 +5,9 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
     [fulcro-todomvc.api :as api]
     [fulcro-todomvc.app :refer [app]]
     [goog.object :as gobj]))
@@ -185,3 +187,58 @@
    :query         [{:root/todo (comp/get-query TodoList)}]}
   (dom/div {}
     (ui-todo-list todo)))
+
+(comment
+  ;; Example to try to make dom inputs screw up
+
+
+  (defsc PrintingButton [_ {:keys [onClick]}]
+    {}
+    (dom/div (dom/input
+               {:id       "file-input"
+                :type     "file"
+                :accept   "csv"
+                :multiple false
+                :onChange (fn [evt]
+                            (when onClick (onClick)))})
+      (dom/button {:onClick (fn [_]
+                              (println "before click")
+                              (onClick)
+                              (println "after click"))}
+        "Click to print")))
+
+  (def printing-button-ui (comp/factory PrintingButton))
+
+  (defsc TopChrome [this {:ui/keys [value]}]
+    {:query         [:ui/value]
+     :ident         (fn [] [:component/id :top-chrome])
+     :initial-state (fn [_] {:ui/value ""})
+     :use-hooks?    true}
+    (let [eleRef (hooks/use-ref nil)]
+      (dom/div
+        (dom/span "Enter something here:")
+        (dom/button {:onClick (fn []
+                                (some-> (.-current eleRef) (.focus))
+                                (some-> (.-current eleRef) (.select)))} "Focus")
+        (dom/div
+          (dom/input {:value    value
+                      :ref      eleRef
+                      :onChange (fn [e] (m/set-string! this :ui/value :event e))}))
+        (dom/div
+          (printing-button-ui {:onClick (fn [] (println (str "<value>" value "</value>"))) :data value})
+          (dom/span "You entered: " value)))))
+
+  (def top-chrome-ui (comp/factory TopChrome))
+
+  (defsc Root [this {:root/keys [top-chrome]}]
+    {:query         [{:root/top-chrome (comp/get-query TopChrome)}]
+     :initial-state (fn [_] {:root/top-chrome (comp/get-initial-state TopChrome {})})}
+    (dom/div {}
+      (top-chrome-ui top-chrome)
+      (dom/ul {}
+        (mapv
+          (fn [n]
+            (dom/li {}
+              (str "Hello " (rand-int 1000))))
+          (range 1000))))
+    ))
