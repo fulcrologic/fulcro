@@ -18,7 +18,7 @@ Clojure and Clojurescript.
 
 Fulcro 3.8+ use a new version of Fulcro Inspect, and it requires you change how you build the development version of your app. Old versions of Fulcro Inspect Electron and Chrome will not work with Fulcro 3.8+.
 
-The rewrite of Fulcro Inspect is available via the releases page of https://github.com/fulcrologic/fulcro-inspect/releases[Fulcro Inspect]. And there are preliminary instructions for using it with the latest Fulcro.
+The rewrite of Fulcro Inspect is available via the releases page of https://github.com/fulcrologic/fulcro-inspect/releases[Fulcro Inspect]. And there are https://github.com/fulcrologic/fulcro-inspect[preliminary instructions] for using it with the latest Fulcro.
 
 The alpha versions of Fulcro 3.8 are alpha purely because of this development-time change and its potential issues, and are otherwise production ready.
 
