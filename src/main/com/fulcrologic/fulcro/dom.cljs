@@ -145,30 +145,39 @@
     (set-cached-props! new-props)))
 
 (defn wrap-form-element [input-type]
-  (let [element (fn [^js props]
-                  (let [checkbox?         (= "checkbox" (gobj/get props "type"))
-                        value-field       (if checkbox? "checked" "value")
-                        props-value       (or (gobj/get props value-field) "")
-                        local-state-value (react/useState props)
-                        local-value       (aget local-state-value 0)
-                        set-local-value!  (aget local-state-value 1)]
-                    (react/useEffect
-                      (fn []
-                        (when (not= props-value local-value)
-                          (set-local-value! props-value))
-                        js/undefined)
-                      #js [props-value])
-                    (if (gobj/containsKey props value-field)
-                      (let [new-props      (gobj/clone props)
-                            user-on-change (gobj/get props "onChange")
-                            on-change      (fn [^js evt]
-                                             (set-local-value! (gobj/getValueByKeys "target" "value"))
-                                             (when user-on-change
-                                               (user-on-change evt)))]
-                        (gobj/set new-props "value" local-value)
-                        (gobj/set new-props "onChange" on-change)
-                        (create-element input-type new-props))
-                      (create-element input-type props))))]
+  (let [element (react/forwardRef
+                  (fn [^js props ^js ref]
+                    (let [checkbox?         (= "checkbox" (gobj/get props "type"))
+                          value-field       (if checkbox? "checked" "value")
+                          props-value       (or (gobj/get props value-field) "")
+                          local-state-value (react/useState props)
+                          local-value       (aget local-state-value 0)
+                          set-local-value!  (aget local-state-value 1)]
+                      (react/useEffect
+                        (fn []
+                          (when (not= props-value local-value)
+                            (set-local-value! props-value))
+                          js/undefined)
+                        #js [props-value])
+                      (if (gobj/containsKey props value-field)
+                        (let [new-props      (gobj/clone props)
+                              user-on-change (gobj/get props "onChange")
+                              on-change      (fn [^js evt]
+                                               (set-local-value! (gobj/getValueByKeys "target" "value"))
+                                               (when user-on-change
+                                                 (user-on-change evt)))]
+                          (gobj/set new-props "value" local-value)
+                          (gobj/set new-props "onChange" on-change)
+                          ;; Forward the ref to the actual input element
+                          (when ref
+                            (gobj/set new-props "ref" ref))
+                          (create-element input-type new-props))
+                        ;; No value field - pass through props and ref
+                        (let [final-props (if ref
+                                            (doto (gobj/clone props)
+                                              (gobj/set "ref" ref))
+                                            props)]
+                          (create-element input-type final-props))))))]
     (fn [^js props & children]
       (create-element element props children))))
 
