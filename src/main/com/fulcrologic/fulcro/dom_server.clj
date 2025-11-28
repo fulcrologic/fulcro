@@ -11,11 +11,10 @@
     [clojure.core.reducers :as r]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [com.fulcrologic.fulcro.raw.components :as rc :refer [component-instance?]]
-    [taoensso.encore :as encore]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.react.hooks-context :as hooks-ctx]
+    [taoensso.encore :as encore]))
 
 (definterface IReactDOMElement
   (^StringBuilder renderToString [react-id ^StringBuilder sb]))
@@ -32,6 +31,51 @@
   [x]
   (instance? IReactDOMElement x))
 
+(defn- child->typed-child
+  "Converts a child to a tagged tuple for consistent handling."
+  [child]
+  (cond
+    (string? child) [:string child]
+    (number? child) [:number child]
+    (or (vector? child) (seq? child)) [:collection child]
+    (nil? child) [:nil child]
+    (component-instance? child) [:component child]
+    (element? child) [:element child]
+    :else [:unknown child]))
+
+(defn parse-args
+  "Runtime parsing of DOM tag arguments. Returns a map with keys :css, :attrs, and :children.
+   This matches the CLJS implementation for consistent behavior."
+  [args]
+  (letfn [(parse-css [[args result :as pair]]
+            (let [arg (first args)]
+              (if (keyword? arg)
+                [(next args) (assoc result :css arg)]
+                pair)))
+          (parse-attrs [[args result :as pair]]
+            (let [has-arg? (seq args)
+                  arg      (first args)]
+              (cond
+                ;; nil is valid attrs
+                (and has-arg? (nil? arg))
+                [(next args) (assoc result :attrs [:nil nil])]
+                ;; Map that is NOT a component instance or element is attrs
+                (and (map? arg)
+                  (not (component-instance? arg))
+                  (not (element? arg)))
+                [(next args) (assoc result :attrs [:map arg])]
+                ;; Otherwise, no attrs - leave for children
+                :else pair)))
+          (parse-children [[args result]]
+            [nil (cond-> result
+                   (seq args) (assoc :children (mapv child->typed-child args)))])]
+    (-> [args {}]
+      (parse-css)
+      (parse-attrs)
+      (parse-children)
+      second)))
+
+;; Keep spec for documentation/validation purposes but not used for runtime parsing
 (s/def ::dom-element-args
   (s/cat
     :css (s/? keyword?)
@@ -236,14 +280,19 @@
                              (let [c' (cond
                                         (element? c) c
 
-                                        (component-instance? c) (let [rendered      (if-let [element (render-component c)]
-                                                                                      element
-                                                                                      (react-empty-node))
-                                                                      add-react-key (fn [c]
-                                                                                      (assoc c :react-key (some-> (:props c) :fulcro$reactKey)))]
-                                                                  (if (vector? rendered)
-                                                                    (react-fragment-node (mapv add-react-key rendered))
-                                                                    (add-react-key rendered)))
+                                        (component-instance? c)
+                                        ;; In headless hooks context, preserve component instances for later rendering
+                                        ;; with proper path tracking. Otherwise, render immediately for SSR.
+                                        (if hooks-ctx/*current-path*
+                                          c
+                                          (let [rendered      (if-let [element (render-component c)]
+                                                                element
+                                                                (react-empty-node))
+                                                add-react-key (fn [c]
+                                                                (assoc c :react-key (some-> (:props c) :fulcro$reactKey)))]
+                                            (if (vector? rendered)
+                                              (react-fragment-node (mapv add-react-key rendered))
+                                              (add-react-key rendered))))
 
                                         (or (string? c) (number? c))
                                         (let [c (cond-> c (number? c) str)]
@@ -475,21 +524,18 @@
 (defn gen-tag-fn [tag]
   `(defn ~tag ~(cdom/gen-docstring tag false)
      [& ~'args]
-     (try
-       (let [conformed-args# (util/conform! ::dom-element-args ~'args)
-            {attrs#    :attrs
-             children# :children
-             css#      :css} conformed-args#
-            children#       (mapv second children#)
-            attrs-value#    (or (second attrs#) {})]
-        (element {:tag       '~tag
-                  :attrs     (-> (cdom/interpret-classes attrs-value#)
-                               (dissoc :ref :key)
-                               (cdom/add-kwprops-to-props css#))
-                  :react-key (:key attrs-value#)
-                  :children  children#}))
-       (catch Exception e#
-         (log/error e# ~'args)))))
+     (let [parsed#      (parse-args ~'args)
+           {attrs#    :attrs
+            children# :children
+            css#      :css} parsed#
+           children#    (mapv second children#)
+           attrs-value# (or (second attrs#) {})]
+       (element {:tag       '~tag
+                 :attrs     (-> (cdom/interpret-classes attrs-value#)
+                              (dissoc :ref :key)
+                              (cdom/add-kwprops-to-props css#))
+                 :react-key (:key attrs-value#)
+                 :children  children#}))))
 
 (defmacro gen-all-tags []
   (when-not (boolean (:ns &env))

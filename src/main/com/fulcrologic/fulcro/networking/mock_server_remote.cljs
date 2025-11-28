@@ -1,10 +1,10 @@
 (ns com.fulcrologic.fulcro.networking.mock-server-remote
   "Simple adapter code that allows you to use a generic parser 'as if' it were a client remote in CLJS."
   (:require
+    [cljs.core.async :as async]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [taoensso.timbre :as log]
     [edn-query-language.core :as eql]
-    [cljs.core.async :as async]))
+    [taoensso.timbre :as log]))
 
 (defn mock-http-server
   "Create a remote that mocks a Fulcro remote server.

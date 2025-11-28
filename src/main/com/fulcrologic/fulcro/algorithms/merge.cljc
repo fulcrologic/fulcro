@@ -2,13 +2,13 @@
   "Various algorithms that are used for merging trees of data into a normalized Fulcro database."
   (:require
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
-    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [edn-query-language.core :as eql]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
+    [taoensso.timbre :as log]))
 
 (defn remove-ident*
   "Removes an ident, if it exists, from a list of idents in app state. This
@@ -220,10 +220,10 @@
 (defn- component-pre-merge [class query state data options]
   (if (rc/has-pre-merge? class)
     (let [entity (some->> (rc/get-ident class data) (get-in state))
-          result (rc/pre-merge class {:state-map            state
-                                        :current-normalized entity
-                                        :data-tree          data
-                                        :query              query})]
+          result (rc/pre-merge class {:state-map          state
+                                      :current-normalized entity
+                                      :data-tree          data
+                                      :query              query})]
       result)
     data))
 

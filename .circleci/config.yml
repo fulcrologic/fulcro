@@ -27,7 +27,7 @@ jobs:
       - checkout
       - restore_cache:
           key: clj-{{ checksum "deps.edn" }}
-      - run: clojure -A:dev:test:clj-tests -J-Dguardrails.enabled=true -J-Dguardrails.config=guardrails-test.edn
+      - run: clojure -A:dev:test:clj-tests -J-Dguardrails.enabled=true -J-Dguardrails.config=guardrails-test.edn -J-Dcom.fulcrologic.fulcro.inspect=true
       - save_cache:
           paths:
             - ~/.m2

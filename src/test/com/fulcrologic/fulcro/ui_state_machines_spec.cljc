@@ -2,20 +2,18 @@
   (:require
     [clojure.pprint :refer [pprint]]
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.guardrails.core :refer [>defn]]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.raw.application :as rapp]
-    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.fulcro.ui-state-machines :as uism]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.specs]
+    [com.fulcrologic.fulcro.ui-state-machines :as uism]
     [edn-query-language.core :as eql]
-    [fulcro-spec.core :refer [specification provided provided! when-mocking when-mocking! behavior assertions component]]))
+    [fulcro-spec.core :refer [assertions behavior component provided! specification when-mocking when-mocking!]]))
 
 (declare => =1x=>)
 
@@ -477,23 +475,23 @@
     (behavior "When there is an error event in the original load request (post mutation params)"
       (when-mocking
         (rc/transact! r tx) => (let [{:keys [params]} (-> tx eql/query->ast1)
-                                       {::uism/keys [event-id event-data asm-id]} params]
-                                   (assertions
-                                     "it triggers that event with the error data"
-                                     event-id => :foo
-                                     event-data => {:y 1}
-                                     asm-id => :fake))
+                                     {::uism/keys [event-id event-data asm-id]} params]
+                                 (assertions
+                                   "it triggers that event with the error data"
+                                   event-id => :foo
+                                   event-data => {:y 1}
+                                   asm-id => :fake))
         (uism/handle-load-error* (app/fulcro-app {}) {:post-mutation-params {::uism/asm-id      :fake
                                                                              ::uism/error-event :foo
                                                                              ::uism/error-data  {:y 1}}})))
     (behavior "When the error event is not present in the original load request (post mutation params)"
       (when-mocking
         (rc/transact! r tx) => (let [{:keys [params]} (-> tx eql/query->ast1)
-                                       {::uism/keys [event-id event-data asm-id]} params]
-                                   (assertions
-                                     "it triggers ::uism/load-error"
-                                     event-id => ::uism/load-error
-                                     asm-id => :fake))
+                                     {::uism/keys [event-id event-data asm-id]} params]
+                                 (assertions
+                                   "it triggers ::uism/load-error"
+                                   event-id => ::uism/load-error
+                                   asm-id => :fake))
         (uism/handle-load-error* (app/fulcro-app {}) {:post-mutation-params {::uism/asm-id :fake}}))))
 
   (specification "queue-actor-load!"
@@ -608,8 +606,8 @@
                                                                   p => trigger)
                                                                 [[:table 1]])
         (rapp/schedule-render! app options) => (assertions
-                                                "Queues the actors for UI refresh"
-                                                (nil? app) => false)
+                                                 "Queues the actors for UI refresh"
+                                                 (nil? app) => false)
 
         (action menv))))
 
@@ -762,8 +760,8 @@
                                                             (::uism/asm-id p) => :fake)
                                                           [[:A 1]])
           (rapp/schedule-render! app) => (assertions
-                                          "Updates the UI"
-                                          (nil? app) => false)
+                                           "Updates the UI"
+                                           (nil? app) => false)
 
           (action mutation-env)
 
@@ -774,8 +772,8 @@
        (component "(the wrapper function begin!)"
          (when-mocking
            (rc/transact! t tx) => (assertions
-                                      "runs fulcro transact on the begin mutation"
-                                      (ffirst tx) => `uism/begin)
+                                    "runs fulcro transact on the begin mutation"
+                                    (ffirst tx) => `uism/begin)
 
 
            (uism/begin! mock-app test-machine :fake {:dialog [:table 1]}))))))
@@ -844,7 +842,7 @@
 
 (defsc TestRoot [_ _]
   {:query         [:WOW {:root/child (comp/get-query Child)}]
-   :initial-state {:WOW 0
+   :initial-state {:WOW        0
                    :root/child {}}})
 
 (specification "Integration test (using sync tx processing)" :focus

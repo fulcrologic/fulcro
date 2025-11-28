@@ -17,13 +17,13 @@
   This is a limitation of the operation of the language itself (if you want both macros for performance in CLJ and CLJS
   (expanded at compile time to optimal form) as well as function versions for use as lambdas).
   "
-  (:refer-clojure :exclude [map meta time mask select use set symbol filter])
+  (:refer-clojure :exclude [filter map mask meta select set symbol time use])
   (:require
     [clojure.spec.alpha :as s]
+    [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.dom-common :as cdom]
-    [clojure.string :as str])
+    [com.fulcrologic.fulcro.dom-common :as cdom])
   (:import
     (cljs.tagged_literals JSValue)
     (clojure.lang ExceptionInfo)))
@@ -71,19 +71,19 @@
 
 (defn annotate-with-source-attributes [env form attrs-type attrs-expr]
   (if-not (emit-fulcro-source-annotations?) attrs-expr
-    (let [NS   (if (comp/cljs? env)
-                 (some-> env :ns :name str)
-                 (name (ns-name *ns*)))
-          line (or (some-> form clojure.core/meta :line) "?")
-          source-attrs {:data-fulcro-source (str NS ":" line)}]
-      (if-not NS attrs-expr
-        (case attrs-type
-          :nil         source-attrs
-          :js-object   attrs-expr
-          :map         (merge attrs-expr source-attrs)
-          :runtime-map `(merge ~source-attrs ~attrs-expr)
-          `(let [a# ~attrs-expr]
-             (cond->> a# (map? a#) (merge ~source-attrs))))))))
+                                            (let [NS           (if (comp/cljs? env)
+                                                                 (some-> env :ns :name str)
+                                                                 (name (ns-name *ns*)))
+                                                  line         (or (some-> form clojure.core/meta :line) "?")
+                                                  source-attrs {:data-fulcro-source (str NS ":" line)}]
+                                              (if-not NS attrs-expr
+                                                         (case attrs-type
+                                                           :nil source-attrs
+                                                           :js-object attrs-expr
+                                                           :map (merge attrs-expr source-attrs)
+                                                           :runtime-map `(merge ~source-attrs ~attrs-expr)
+                                                           `(let [a# ~attrs-expr]
+                                                              (cond->> a# (map? a#) (merge ~source-attrs))))))))
 
 (defn emit-tag
   "PRIVATE.  DO NOT USE.

@@ -1,9 +1,8 @@
 (ns com.fulcrologic.fulcro.raw.components-spec
   (:require
-    [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.components :refer [defsc]]
-    [fulcro-spec.core :refer [specification assertions behavior component =>]]
-    [edn-query-language.core :as eql]))
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [fulcro-spec.core :refer [=> assertions component specification]]))
 
 (defsc Product [_ _]
   {:query [:product/id :product/name]

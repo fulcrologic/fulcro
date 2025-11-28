@@ -351,17 +351,17 @@
 (defn -load-routes [{:keys [state] :as env} routes]
   #?(:clj (log/info "Dynamic loading of routes is not done on the server itself.")
      :cljs
-          (let [loaded        (atom 0)
-                pending-route (get @state ::pending-route)
-                to-load       (count routes)
-                finish        (fn [k]
-                                (fn []
-                                  (swap! loaded inc)
-                                  (when (= @loaded to-load)
-                                    (swap! state add-route-state k (get-dynamic-router-target k))
-                                    (-process-pending-route! env))))]
-            (doseq [r routes]
-              (-load-dynamic-route state pending-route r (finish r))))))
+     (let [loaded        (atom 0)
+           pending-route (get @state ::pending-route)
+           to-load       (count routes)
+           finish        (fn [k]
+                           (fn []
+                             (swap! loaded inc)
+                             (when (= @loaded to-load)
+                               (swap! state add-route-state k (get-dynamic-router-target k))
+                               (-process-pending-route! env))))]
+       (doseq [r routes]
+         (-load-dynamic-route state pending-route r (finish r))))))
 
 (defn route-to-impl!
   "Mutation implementation, for use as a composition into other mutations. This function can be used

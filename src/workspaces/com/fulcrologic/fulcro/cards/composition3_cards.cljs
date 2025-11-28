@@ -1,27 +1,27 @@
 (ns com.fulcrologic.fulcro.cards.composition3-cards
   (:require
     ["react-dom" :as react-dom]
-    [nubank.workspaces.model :as wsm]
-    [nubank.workspaces.card-types.react :as ct.react]
-    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
-    [nubank.workspaces.core :as ws]
-
     [cljs.core.async :as async]
-    [com.fulcrologic.fulcro.dom :as dom :refer [div p input button h2 label]]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.raw.application :as rapp]
-    [com.fulcrologic.fulcro.react.hooks :as hooks]
-    [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [com.wsscode.pathom.core :as p]
-    [com.wsscode.pathom.connect :as pc]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.dom.events :as evt]))
+    [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
+    [com.fulcrologic.fulcro.application :as app]
+
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.dom :as dom :refer [button div h2 input label p]]
+    [com.fulcrologic.fulcro.dom.events :as evt]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.fulcro.react.hooks :as hooks]
+    [com.wsscode.pathom.connect :as pc]
+    [com.wsscode.pathom.core :as p]
+    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
+    [nubank.workspaces.card-types.react :as ct.react]
+    [nubank.workspaces.core :as ws]
+    [nubank.workspaces.model :as wsm]
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mock Server and database, in Fulcro client format for ease of use in demo

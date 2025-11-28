@@ -3,8 +3,7 @@
     [com.fulcrologic.fulcro.algorithms.tx-processing.batched-processing :as btxn]
     [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as sync]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.networking.http-remote :as http]
-    [com.fulcrologic.fulcro.react.version18 :refer [with-react18]]))
+    [com.fulcrologic.fulcro.networking.http-remote :as http]))
 
 (defonce remote #_(fws/fulcro-websocket-remote {:auto-retry?        true
                                                 :request-timeout-ms 10000}) (http/fulcro-http-remote {}))

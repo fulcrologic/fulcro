@@ -2,9 +2,9 @@
   "Functions for dealing with normalizing Fulcro databases. In particular `tree->db`."
   (:require
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [com.fulcrologic.fulcro.raw.components :as rc :refer [get-ident get-query has-ident?]]
     [edn-query-language.core :as eql]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.raw.components :as rc :refer [has-ident? get-ident get-query]]))
+    [taoensso.timbre :as log]))
 
 (defn- upsert-ident
   "Insert or merge a data entity into a state table under the given `ident`.

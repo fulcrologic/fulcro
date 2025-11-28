@@ -6,7 +6,7 @@
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [fulcro-spec.core :refer [assertions behavior component specification when-mocking => =1x=> =fn=>]]))
+    [fulcro-spec.core :refer [=1x=> => =fn=> assertions behavior component specification when-mocking]]))
 
 (defsc MMChild [_ _]
   {:query         [:db/id]

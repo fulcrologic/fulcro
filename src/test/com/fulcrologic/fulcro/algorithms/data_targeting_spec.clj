@@ -3,7 +3,7 @@
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.components :refer [defsc]]
     [fulcro-spec.core :refer
-     [specification behavior assertions provided component when-mocking]]))
+     [assertions component specification]]))
 
 (defsc A [_ _])
 

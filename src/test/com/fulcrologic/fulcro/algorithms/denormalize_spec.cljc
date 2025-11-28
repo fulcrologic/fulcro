@@ -142,7 +142,7 @@
 
     "ident query with `false` value"
     (verify-db->tree [{:entry [[:point 456]]}]
-                     {:entry {:data "foo"}}
+      {:entry {:data "foo"}}
       {:point {456 false}})
     => {:entry {[:point 456] false}}
 

@@ -147,36 +147,45 @@
   "Wrap a block of code that will only run if Inspect is enabled.  Code in these blocks will also be removed via
   DCE in Closure.
 
-  This macro emits nothing when run in clj, and will output code that
-  should be completely removed by the Closure compiler if both
+  In CLJS: output code that should be completely removed by the Closure compiler if both
   goog.DEBUG and com.fulcrologic.fulcro.inspect.inspect-client/INSPECT are false.
+
+  In CLJ: code runs if the system property com.fulcrologic.fulcro.inspect is set to \"true\".
 
   This allows you to enable inspect messages in production by adding the following to
   your compiler config:
 
   :closure-defines {\"com.fulcrologic.fulcro.inspect.inspect_client.INSPECT\" true}
+
+  Or for CLJ, use the JVM option: -Dcom.fulcrologic.fulcro.inspect=true
   "
   [& body]
-  (when (cljs? &env)
+  (if (cljs? &env)
     `(when (and (or ~'goog.DEBUG INSPECT) (not= "disabled" INSPECT))
        (try
          ~@body
-         (catch :default ~'e)))))
+         (catch :default ~'e)))
+    `(when (= "true" INSPECT)
+       (try
+         ~@body
+         (catch Exception ~'_e)))))
 
 (defmacro ilet
   "Like `clojure.core/let`, but elides the block if Inspect isn't enabled.
 
-  This macro emits nothing when run in clj, and will output code that
-  should be completely removed by the Closure compiler if both
+  In CLJS: output code that should be completely removed by the Closure compiler if both
   goog.DEBUG and com.fulcrologic.fulcro.inspect.inspect-client/INSPECT are false.
+
+  In CLJ: code runs if the system property com.fulcrologic.fulcro.inspect is set to \"true\".
 
   This allows you to enable inspect messages in production by adding the following to
   your compiler config:
 
   :closure-defines {\"com.fulcrologic.fulcro.inspect.inspect_client.INSPECT\" true}
+
+  Or for CLJ, use the JVM option: -Dcom.fulcrologic.fulcro.inspect=true
   "
   [bindings & body]
-  (when (cljs? &env)
-    `(ido
-       (let ~bindings
-         ~@body))))
+  `(ido
+     (let ~bindings
+       ~@body)))

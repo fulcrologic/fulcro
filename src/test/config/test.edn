@@ -1,7 +1,7 @@
-{:datomic {:dbs {:protocol-support {:url            "datomic:mem://protocol-support"
-                                    :schema         "migrations"
-                                    :auto-migrate   true
-                                    :auto-drop      true}
+{:datomic {:dbs {:protocol-support   {:url          "datomic:mem://protocol-support"
+                                      :schema       "migrations"
+                                      :auto-migrate true
+                                      :auto-drop    true}
                  :protocol-support-2 {:url          "datomic:mem://protocol-support-2"
                                       :schema       "migrations"
                                       :auto-migrate true

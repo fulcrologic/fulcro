@@ -2,10 +2,10 @@
   "An implementation of a DurableEDNStore that uses Browser local storage to save/load the EDN."
   (:require
     [clojure.core.async :as async]
-    [com.fulcrologic.fulcro.offline.durable-edn-store :as des]
+    [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.transit :as transit]
-    [taoensso.timbre :as log]
-    [clojure.string :as str]))
+    [com.fulcrologic.fulcro.offline.durable-edn-store :as des]
+    [taoensso.timbre :as log]))
 
 (declare id-of key-of)
 

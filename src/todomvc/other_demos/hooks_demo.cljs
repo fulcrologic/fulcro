@@ -1,11 +1,10 @@
 (ns other-demos.hooks-demo
   (:require
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as m]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.react.hooks :as hooks]))
 
 (declare AltRootPlainClass app)

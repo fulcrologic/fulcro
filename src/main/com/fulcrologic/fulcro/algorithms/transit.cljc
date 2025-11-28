@@ -92,9 +92,9 @@
                               (and write-meta (not (false? (:metadata? opts)))) (assoc :transform write-meta))]
      #?(:cljs (t/write (writer opts) data)
         :clj
-              (with-open [out (java.io.ByteArrayOutputStream.)]
-                (t/write (writer out opts) data)
-                (.toString out "UTF-8"))))))
+        (with-open [out (java.io.ByteArrayOutputStream.)]
+          (t/write (writer out opts) data)
+          (.toString out "UTF-8"))))))
 
 (defn transit-str->clj
   "Use transit to decode a string into a clj data structure. Useful for decoding initial app state

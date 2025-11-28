@@ -1,9 +1,9 @@
 (ns com.fulcrologic.fulcro.algorithms.server-render
   (:require
-    [com.fulcrologic.fulcro.algorithms.transit :as transit]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :refer [base64-decode base64-encode]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalize :refer [tree->db]]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :refer [base64-encode base64-decode]]))
+    [com.fulcrologic.fulcro.algorithms.transit :as transit]))
 
 (defn initial-state->script-tag
   "Returns a *string* containing an HTML script tag that that sets js/window.INITIAL_APP_STATE to a transit-encoded string version of initial-state.

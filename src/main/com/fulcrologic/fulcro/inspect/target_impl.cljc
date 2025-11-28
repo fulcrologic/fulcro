@@ -5,13 +5,12 @@
     [com.fulcrologic.devtools.common.message-keys :as mk]
     [com.fulcrologic.devtools.common.protocols :as dp]
     [com.fulcrologic.devtools.common.resolvers :refer [defmutation defresolver]]
-    [com.fulcrologic.devtools.common.utils :refer [strip-lambdas]]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.inspect.devtool-api :as devtool]
     [com.fulcrologic.fulcro.inspect.diff :as diff]
     [com.fulcrologic.fulcro.inspect.inspect-client
-     :refer [app-state app-uuid app-uuid-key get-history-entry
-             record-history-entry! remotes runtime-atom send-failed! send-finished! send-started! state-atom]]
+     :refer [app-uuid app-uuid-key get-history-entry
+             record-history-entry! remotes send-failed! send-finished! send-started! state-atom]]
     [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.wsscode.pathom.connect :as pc]

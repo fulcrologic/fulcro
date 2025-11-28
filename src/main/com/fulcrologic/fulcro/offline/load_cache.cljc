@@ -25,18 +25,18 @@
   (:require
     [clojure.core.async :as async]
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.guardrails.core :refer [>defn => ?]]
-    [com.fulcrologic.fulcro.offline.durable-edn-store :as des]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as dnu]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.scheduling :as scheduling]
-    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.offline.durable-edn-store :as des]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.raw.application :as rapp]))
+    [com.fulcrologic.guardrails.core :refer [=> >defn ?]]
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]))
 
 (defn- now-ms [] (inst-ms #?(:cljs (js/Date.) :clj (java.util.Date.))))
 
@@ -76,7 +76,7 @@
     (let [data (async/<! (cached-value env params))
           env  (assoc env :result {:body        data
                                    :transaction (eql/ast->query (ast-of-load params))}
-                 :transmitted-ast (ast-of-load params))]
+                          :transmitted-ast (ast-of-load params))]
       (when-let [mutation (some-> env ::txn/options ::on-cached-load m/mutation-symbol)]
         (rc/transact! app [(list mutation (select-keys params [:query :target :remote :marker]))]))
       (log/debug "Completing load with value from cache.")

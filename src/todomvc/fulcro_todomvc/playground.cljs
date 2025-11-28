@@ -2,11 +2,10 @@
   (:require
     ["react" :as react :refer [useState useEffect]]
     ["react-dom" :as react-dom]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.dom :as dom]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [taoensso.timbre :as log]))
 
 (def ^:dynamic *reconciler* nil)
 
@@ -229,8 +228,8 @@
 
           )))
 
-    (defn ui-todo-list [props]
-      (dom/create-element TodoList #js {:fp props}))
+        (defn ui-todo-list [props]
+          (dom/create-element TodoList #js {:fp props}))
 
 ;(defonce client (atom (fc/make-fulcro-client {})))
 ;(swap! client fc/mount Root "app")

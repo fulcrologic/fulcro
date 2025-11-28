@@ -1,23 +1,19 @@
 (ns com.fulcrologic.fulcro.algorithms.tx-processing-spec
   (:require
-    [clojure.string :as str]
-    [com.fulcrologic.fulcro.specs :as s+]
-    [fulcro-spec.core :refer [specification provided! when-mocking! assertions behavior when-mocking component]]
     [clojure.spec.alpha :as s]
-    [clojure.pprint :refer [pprint]]
-    [com.fulcrologic.fulcro.algorithms.tempid :refer [uuid]]
-    [com.fulcrologic.guardrails.core :refer [>defn =>]]
-    [com.fulcrologic.fulcro.raw.application :as rapp]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [clojure.test :as test]
     [com.fulcrologic.fulcro.algorithms.scheduling :as sched]
+    [com.fulcrologic.fulcro.algorithms.tempid :refer [uuid]]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.application :as app :refer [fulcro-app]]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.guardrails.core :refer [=> >defn]]
     [edn-query-language.core :as eql]
-    [clojure.test :as test :refer [is are deftest]]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.lookup :as ah]))
+    [fulcro-spec.core :refer [assertions behavior component provided! specification when-mocking when-mocking!]]
+    [taoensso.timbre :as log]))
 
 (test/use-fixtures :once
   ;; NOTE: This makes submission processing immediate

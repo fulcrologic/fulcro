@@ -1,9 +1,7 @@
 (ns fulcro-todomvc.server
   (:require
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [clojure.core.async :as async]
-    [com.wsscode.pathom.core :as p]
     [com.wsscode.pathom.connect :as pc]
+    [com.wsscode.pathom.core :as p]
     [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

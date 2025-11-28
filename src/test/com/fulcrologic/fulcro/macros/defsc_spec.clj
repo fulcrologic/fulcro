@@ -1,9 +1,9 @@
 (ns com.fulcrologic.fulcro.macros.defsc-spec
   (:require
-    [com.fulcrologic.fulcro.components :as defsc]
-    [fulcro-spec.core :refer [assertions specification component]]
     [clojure.test :refer [deftest is]]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as util])
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    [com.fulcrologic.fulcro.components :as defsc]
+    [fulcro-spec.core :refer [assertions component]])
   (:import (clojure.lang ExceptionInfo)))
 
 (declare =>)
@@ -13,13 +13,13 @@
     "Finds the correct keys for arbitrary destructuring"
     (util/destructured-keys '{:keys [a b]}) => #{:a :b}
     (util/destructured-keys '{:some-ns/keys [a b]}) => #{:some-ns/a :some-ns/b}
-    (util/destructured-keys '{:x/keys  [a b]
-                               :y/keys [n m]}) => #{:x/a :x/b :y/n :y/m}
+    (util/destructured-keys '{:x/keys [a b]
+                              :y/keys [n m]}) => #{:x/a :x/b :y/n :y/m}
     (util/destructured-keys '{:y/keys [n m]
-                               boo    :gobble/that}) => #{:y/n :y/m :gobble/that}
-    (util/destructured-keys '{:keys   [:a.b/n db/id]
-                               ::keys [x]
-                               }) => #{:a.b/n :db/id ::x}))
+                              boo     :gobble/that}) => #{:y/n :y/m :gobble/that}
+    (util/destructured-keys '{:keys  [:a.b/n db/id]
+                              ::keys [x]
+                              }) => #{:a.b/n :db/id ::x}))
 
 (deftest defsc-macro-helpers-test
   (component "build-render form"
@@ -56,7 +56,7 @@
     (is (thrown-with-msg? ExceptionInfo #"defsc X: `get-query` calls in :query can only be inside a join value.*"
           (#'defsc/build-query-forms nil 'X 'this '{:keys [db/id person/job]}
             {:template '[:db/id :person/job (defsc/get-query Job)]}))
-        "Verifies the propargs matches queries data when not a symbol")
+      "Verifies the propargs matches queries data when not a symbol")
     (assertions
       "Support a method form"
       (#'defsc/build-query-forms nil 'X 'this 'props {:method '(fn [] [:db/id])})

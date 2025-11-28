@@ -1,9 +1,8 @@
 (ns com.fulcrologic.fulcro.routing.legacy-ui-routers-spec
   (:require
-    [fulcro-spec.core :refer [specification assertions component]]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.routing.legacy-ui-routers :as fr]
-    [com.fulcrologic.fulcro.algorithms.normalize :refer [tree->db]]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [fulcro-spec.core :refer [assertions component specification]]))
 
 (comp/defsc SimpleTarget [_ {:PAGE/keys [ident id]}]
   {:query         [:PAGE/id

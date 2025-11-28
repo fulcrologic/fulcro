@@ -3,7 +3,7 @@
   (:require
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.guardrails.core :as gw :refer [>defn => >def]]
+    [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
@@ -155,9 +155,9 @@
                          state-map))))]
      (cond-> (process-target-impl state-map source-path target)
        (and remove-source?
-            (keyword? source-path))
+         (keyword? source-path))
        (dissoc source-path)
        (and remove-source?
-           (not (eql/ident? source-path))
-           (vector? source-path))
+         (not (eql/ident? source-path))
+         (vector? source-path))
        (enc/dissoc-in source-path)))))

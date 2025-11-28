@@ -1,16 +1,15 @@
 (ns fulcro-todomvc.websocket-server
   (:require
-    [com.fulcrologic.fulcro.server.api-middleware :refer [not-found-handler]]
     [com.fulcrologic.fulcro.networking.websockets :as fws]
+    [com.fulcrologic.fulcro.server.api-middleware :refer [not-found-handler]]
     [fulcro-todomvc.custom-types :as custom-types]
-    [immutant.web :as web]
     [fulcro-todomvc.server :refer [parser]]
+    [immutant.web :as web]
     [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.not-modified :refer [wrap-not-modified]]
-    [ring.middleware.resource :refer [wrap-resource]]
-    [ring.middleware.params :refer [wrap-params]]
     [ring.middleware.keyword-params :refer [wrap-keyword-params]]
-    [ring.util.response :refer [response file-response resource-response]]
+    [ring.middleware.not-modified :refer [wrap-not-modified]]
+    [ring.middleware.params :refer [wrap-params]]
+    [ring.middleware.resource :refer [wrap-resource]]
     [taoensso.sente.server-adapters.immutant :refer [get-sch-adapter]]))
 
 (def server (atom nil))

@@ -2,10 +2,9 @@
   "Client-side middleware that can be used with HTTP remotes so that mutations can attach file uploads to mutation
    parameters."
   (:require
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.guardrails.core :refer [>defn => >def]]
     [com.fulcrologic.fulcro.algorithms.transit :as t]
     [com.fulcrologic.fulcro.networking.http-remote :as http]
+    [edn-query-language.core :as eql]
     [taoensso.timbre :as log]))
 
 (defn new-upload

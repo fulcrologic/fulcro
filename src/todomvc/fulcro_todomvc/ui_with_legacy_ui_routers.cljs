@@ -1,7 +1,6 @@
 (ns fulcro-todomvc.ui-with-legacy-ui-routers
   (:require
     [com.fulcrologic.fulcro.algorithms.tempid :as tmp]
-    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as mut :refer [defmutation]]
@@ -30,7 +29,7 @@
    :componentDidUpdate (fn [this prev-props _]
                          ;; Code adapted from React TodoMVC implementation
                          (when (and (not (:editing prev-props)) (:editing (comp/props this)))
-                           (let [input-field (gobj/get this "input-ref")
+                           (let [input-field        (gobj/get this "input-ref")
                                  input-field-length (when input-field (.. input-field -value -length))]
                              (when input-field
                                (.focus input-field)
@@ -117,17 +116,17 @@
   {:initial-state {:list/id 1 :ui/new-item-text "" :list/items [] :list/title "main" :list/filter :list.filter/none}
    :ident         :list/id
    :query         [:list/id :ui/new-item-text {:list/items (comp/get-query TodoItem)} :list/title :list/filter]}
-  (let [num-todos (count items)
+  (let [num-todos       (count items)
         completed-todos (filterv :item/complete items)
-        num-completed (count completed-todos)
-        all-completed? (= num-completed num-todos)
-        filtered-todos (case filter
-                         :list.filter/active (filterv (comp not :item/complete) items)
-                         :list.filter/completed completed-todos
-                         items)
-        delete-item (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
-        check (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
-        uncheck (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
+        num-completed   (count completed-todos)
+        all-completed?  (= num-completed num-todos)
+        filtered-todos  (case filter
+                          :list.filter/active (filterv (comp not :item/complete) items)
+                          :list.filter/completed completed-todos
+                          items)
+        delete-item     (fn [item-id] (comp/transact! this `[(api/todo-delete-item ~{:list-id id :id item-id})]))
+        check           (fn [item-id] (comp/transact! this `[(api/todo-check ~{:id item-id})]))
+        uncheck         (fn [item-id] (comp/transact! this `[(api/todo-uncheck ~{:id item-id})]))]
     (log/info "Shared" (comp/shared this))
     (dom/div {}
       (dom/section :.todoapp {}
@@ -154,7 +153,7 @@
 
 (defsc Application [this {:keys [todos] :as props}]
   {:initial-state (fn [c p] {:route :application
-                           :todos (comp/get-initial-state TodoList {})})
+                             :todos (comp/get-initial-state TodoList {})})
    :ident         (fn [] [:application :root])
    :query         [:route {:todos (comp/get-query TodoList)}]}
   (dom/div {}

@@ -67,17 +67,17 @@
 (defn react-raw-instance [node]
   #?(:cljs
      (if-let [instance-key (->> (gobj/getKeys node)
-                                (filter #(or (str/starts-with? % "__reactInternalInstance$")
-                                             (str/starts-with? % "__reactFiber$")))
-                                (first))]
+                             (filter #(or (str/starts-with? % "__reactInternalInstance$")
+                                        (str/starts-with? % "__reactFiber$")))
+                             (first))]
        (gobj/get node instance-key))))
 
 (defn react-instance [node]
   #?(:cljs
      (if-let [raw (react-raw-instance node)]
        (let [instance (or (gobj/getValueByKeys raw "_currentElement" "_owner" "_instance") ; react < 16
-                       (gobj/getValueByKeys raw "return" "stateNode") ; react >= 16
-                       )]
+                        (gobj/getValueByKeys raw "return" "stateNode") ; react >= 16
+                        )]
          ;; (React >= 16): If component body is wrapped in eb/error-boundary then we need to reach 2 levels deeper,
          ;; through eb/BodyContainer and eb/ErrorBoundary to get at the actual component
          (if (and (nil? instance) (= (gobj/getValueByKeys raw "return" "type") eb/BodyContainer))
@@ -158,19 +158,19 @@
   []
   (log/info "Installing Inspect Element Picker")
   #_(reset! inspect/run-picker
-    (fn [data]
-      (let [{:fulcro.inspect.core/keys [app-uuid]} data]
-        (pick-element
-          {:fulcro.inspect.core/app-uuid
-           app-uuid
-           :on-pick
-           (fn [comp]
-             (if comp
-               (let [details (inspect-component comp)]
+      (fn [data]
+        (let [{:fulcro.inspect.core/keys [app-uuid]} data]
+          (pick-element
+            {:fulcro.inspect.core/app-uuid
+             app-uuid
+             :on-pick
+             (fn [comp]
+               (if comp
+                 (let [details (inspect-component comp)]
+                   (inspect/transact-inspector! [:fulcro.inspect.ui.element/panel-id
+                                                 [:fulcro.inspect.core/app-uuid app-uuid]]
+                     [`(fulcro.inspect.ui.element/set-element ~details)]))
                  (inspect/transact-inspector! [:fulcro.inspect.ui.element/panel-id
                                                [:fulcro.inspect.core/app-uuid app-uuid]]
-                   [`(fulcro.inspect.ui.element/set-element ~details)]))
-               (inspect/transact-inspector! [:fulcro.inspect.ui.element/panel-id
-                                             [:fulcro.inspect.core/app-uuid app-uuid]]
-                 [`(fulcro.client.mutations/set-props {:ui/picking? false})])))}))))
+                   [`(fulcro.client.mutations/set-props {:ui/picking? false})])))}))))
   true)

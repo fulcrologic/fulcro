@@ -1,8 +1,8 @@
 (ns com.fulcrologic.fulcro.algorithms.scheduling
   "Algorithms for delaying some action by a particular amount of time."
   (:require
-    [com.fulcrologic.guardrails.core :refer [>fdef =>]]
     [clojure.core.async :as async]
+    [com.fulcrologic.guardrails.core :refer [=>]]
     [taoensso.timbre :as log]))
 
 #?(:cljs
@@ -26,7 +26,7 @@
        "Schedule f to run in `tm` ms."
        [f tm]
        (let [active (volatile! true)
-             cancel (fn [] (reset! active false))]
+             cancel (fn [] (vreset! active false))]
          (async/go
            (async/<! (async/timeout tm))
            (async/>! timeout-queue {:active active

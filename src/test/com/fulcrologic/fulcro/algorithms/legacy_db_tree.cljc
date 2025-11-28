@@ -1,7 +1,6 @@
 (ns com.fulcrologic.fulcro.algorithms.legacy-db-tree
   (:require
-    [clojure.zip :as zip]
-    [taoensso.timbre :as log]))
+    [clojure.zip :as zip]))
 
 (declare focus-query*)
 

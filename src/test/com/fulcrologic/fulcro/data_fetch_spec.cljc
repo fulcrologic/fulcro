@@ -1,11 +1,9 @@
 (ns com.fulcrologic.fulcro.data-fetch-spec
   (:require
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [clojure.test :refer [is are]]
-    [fulcro-spec.core :refer [specification behavior assertions provided component when-mocking]]
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [fulcro-spec.core :refer [assertions behavior specification]]))
 
 
 (defsc Person [this props]
@@ -32,12 +30,12 @@
 
 (defsc UnionComponent [this props]
   {:initial-state (fn [params] {:a/id 1 :a/name "Alice"})
-   :ident (fn [] (cond
-                   (:a/id props) [:a/id (:a/id props)]
-                   (:b/id props) [:b/id (:b/id props)]
-                   :else nil))
-   :query (fn [] {:a/id [:a/id :a/name]
-                  :b/id [:b/id :b/another-prop]})})
+   :ident         (fn [] (cond
+                           (:a/id props) [:a/id (:a/id props)]
+                           (:b/id props) [:b/id (:b/id props)]
+                           :else nil))
+   :query         (fn [] {:a/id [:a/id :a/name]
+                          :b/id [:b/id :b/another-prop]})})
 
 (def app (app/fulcro-app))
 
@@ -45,7 +43,7 @@
   (let [
         query-with-params       (:query (df/load-params* app :prop Person {:params {:n 1}}))
         ident-query-with-params (:query (df/load-params* app [:person/by-id 1] Person {:params {:n 1}}))
-        union-query (:query (df/load-params* app :prop UnionComponent {:without #{}}))]
+        union-query             (:query (df/load-params* app :prop UnionComponent {:without #{}}))]
     (assertions
       "Accepts nil for subquery and params"
       (:query (df/load-params* app [:person/by-id 1] nil {})) => [[:person/by-id 1]]

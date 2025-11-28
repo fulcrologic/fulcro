@@ -1,15 +1,14 @@
 (ns com.fulcrologic.fulcro.algorithms.form-state-spec
   (:require
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
-    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
-    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
-    [fulcro-spec.core :refer [behavior specification assertions component when-mocking provided]]
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [fulcro-spec.core :refer [assertions behavior component specification]]))
 
 (declare =>)
 
@@ -52,13 +51,13 @@
    :ident [:ntop :id]})
 
 (defsc FormMissingFields [this props]
-  {:query [:id :x fs/form-config-join]
-   :ident [:ntop :id]
+  {:query       [:id :x fs/form-config-join]
+   :ident       [:ntop :id]
    :form-fields #{:id :y}})
 
 (defsc ASubForm [this props]
-  {:query [:id :sub-prop fs/form-config-join]
-   :ident [:sub-form :id]
+  {:query       [:id :sub-prop fs/form-config-join]
+   :ident       [:sub-form :id]
    :form-fields #{:id :sub-prop}})
 
 (defsc FormWithSubForm [this props]

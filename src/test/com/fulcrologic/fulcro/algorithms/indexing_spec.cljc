@@ -1,10 +1,10 @@
 (ns com.fulcrologic.fulcro.algorithms.indexing-spec
   (:require
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.algorithms.indexing :as idx]
-    [fulcro-spec.core :refer [specification assertions behavior component when-mocking]]
-    [edn-query-language.core :as eql]))
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [edn-query-language.core :as eql]
+    [fulcro-spec.core :refer [assertions specification]]))
 
 (declare => =throws=>)
 

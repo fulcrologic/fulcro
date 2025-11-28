@@ -1,12 +1,12 @@
 (ns com.fulcrologic.fulcro.issues.issue431-computed-sync-tx-cards
   (:require
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :refer [b button div p h3 li p ul]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
     [nubank.workspaces.core :as ws]
-    [com.fulcrologic.fulcro.dom :refer [div ul li p h3 button b p]]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [taoensso.timbre :as log]))
 
 (defsc Item
@@ -40,4 +40,4 @@
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? false
      ::ct.fulcro/root       Root
-     ::ct.fulcro/app {:optimized-render! ior/render!}}))
+     ::ct.fulcro/app        {:optimized-render! ior/render!}}))

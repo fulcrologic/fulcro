@@ -16,6 +16,7 @@
     [clojure.spec.alpha :as s]
     [clojure.zip :as zip]
     [com.fulcrologic.fulcro.algorithms.indexing :as indexing]
+    [com.fulcrologic.fulcro.algorithms.lambda :refer [->arity-tolerant]]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.application :as app]
@@ -59,7 +60,7 @@
   [class route-params]
   (when-let [f (get-route-cancelled class)]
     (binding [*target-class* class]
-      (f route-params))))
+      ((->arity-tolerant f) route-params))))
 
 (defn get-will-enter
   "Returns the function that is called before a route target is activated (if the route segment of interest has changed and the
@@ -83,7 +84,7 @@
   [class app params]
   (when-let [will-enter (get-will-enter class)]
     (binding [*target-class* class]
-      (will-enter app params))))
+      ((->arity-tolerant will-enter) app params))))
 
 (defn route-target? [component] (boolean (rc/component-options component :route-segment)))
 
@@ -98,7 +99,7 @@
 (defn will-leave [c props]
   (when-let [f (get-will-leave c)]
     (binding [*target-class* (rc/isoget c :type)]
-      (f c props))))
+      ((->arity-tolerant f) c props))))
 
 (defn get-allow-route-change?
   "Returns the function of a route target to be called with the current component and props.
@@ -117,7 +118,7 @@
   (try
     (when-let [f (get-allow-route-change? c)]
       (binding [*target-class* (rc/isoget c :type)]
-        (f c)))
+        ((->arity-tolerant f) c)))
     (catch #?(:clj Exception :cljs :default) e
       (log/error "Cannot evaluate route change. Assuming ok. Exception message: " (ex-message e) "See https://book.fulcrologic.com/#err-dr-cant-eval-route-chng")
       true)))
@@ -361,7 +362,6 @@
       (and (live-router? component) ast-node)
       (some #(and (live-router? (:component %)) %) children)
       (some #(ast-node-for-live-router app %) children))))
-
 
 (defmutation apply-route
   "Mutation: Indicate that a given route is ready and should show the result.
@@ -1017,7 +1017,6 @@
                         []
                         nodes))]
     (get-routers children)))
-
 
 (defn initialize!
   "Initialize the routing system.  This ensures that all routers have state machines in app state."

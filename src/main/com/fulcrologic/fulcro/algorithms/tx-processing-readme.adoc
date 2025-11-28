@@ -18,7 +18,7 @@ Combines send nodes with a common tx ID into a single send node so that as much 
 Put writes first, enable customization like "tx priorities"
 3. Merge the queue (optional, requires enabling on client and server): For a given remote it is possible for us to encode a "multi-send", where the send nodes from (1/2) are combined into a data structure that allows the lower-level networking to send the entire queue in one network round-trip.
 Something like a vector of maps?
-   `[{::id id ::tx tx} {::id id2 ::tx tx}]`, where the server returns `{id result id2 result ...}`.
+`[{::id id ::tx tx} {::id id2 ::tx tx}]`, where the server returns `{id result id2 result ...}`.
 
 [source,clojure]
 -----

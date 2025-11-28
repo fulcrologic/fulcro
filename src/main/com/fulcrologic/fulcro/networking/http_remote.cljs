@@ -4,14 +4,14 @@
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
     [cognitect.transit :as ct]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.transit :as t]
     [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
     [edn-query-language.core :as eql]
-    [com.fulcrologic.guardrails.core :refer [>defn => >def]]
     [goog.events :as events]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil])
-  (:import [goog.net XhrIo EventType ErrorCode]))
+    [taoensso.timbre :as log])
+  (:import (goog.net ErrorCode EventType XhrIo)))
 
 (>def ::method #{:post :get :delete :put :head :connect :options :trace :patch})
 (>def ::url string?)

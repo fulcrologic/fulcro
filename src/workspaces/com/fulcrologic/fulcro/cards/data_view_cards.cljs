@@ -20,7 +20,7 @@
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.dom :refer [table td th tr thead tbody div h2 input button]]
+    [com.fulcrologic.fulcro.dom :refer [button div h2 input table tbody td th thead tr]]
     [com.fulcrologic.fulcro.dom.events :as evt]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]

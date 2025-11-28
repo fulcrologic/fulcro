@@ -8,13 +8,13 @@
   (ns my.ui
     (:require
       [com.fulcrologic.fulcro.dom.html-entities :as ent]))
-      
+
   ...
      (dom/div ent/nbsp ent/copy)
   ...
   ```
   "
-  (:refer-clojure :exclude [quot divide and or not empty int]))
+  (:refer-clojure :exclude [and divide empty int not or quot]))
 
 (def AElig "\u00C6")
 (def Aacute "\u00C1")

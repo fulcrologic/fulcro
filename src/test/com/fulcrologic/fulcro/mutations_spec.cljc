@@ -1,9 +1,9 @@
 (ns com.fulcrologic.fulcro.mutations-spec
   (:require
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.raw.components :as rc]
     [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [fulcro-spec.core :refer [specification assertions behavior component =>]]))
+    [fulcro-spec.core :refer [=> assertions behavior specification]]))
 
 (specification "returning"
   (behavior "adds a component query to the AST of the given mutation node"

@@ -25,16 +25,16 @@
   See the Developer's Guide for more information.
   "
   (:require
-    [clojure.spec.alpha :as s]
     [clojure.set :as set]
-    [taoensso.timbre :as log]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.guardrails.core :refer [>def >defn >defn- => ?]]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.guardrails.core :refer [=> >def >defn >defn-]]
+    [edn-query-language.core :as eql]
+    [taoensso.timbre :as log]))
 
 (def ident-generator #(s/gen #{[:table 1] [:other/by-id 9]}))
 

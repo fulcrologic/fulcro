@@ -1,10 +1,10 @@
 (ns com.fulcrologic.fulcro.networking.file-upload
-  (:require [edn-query-language.core :as eql]
-            [taoensso.timbre :as log]
-            [taoensso.encore :as enc]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.tools.reader.edn :as edn]
-            [com.fulcrologic.fulcro.algorithms.transit :as transit]))
+            [com.fulcrologic.fulcro.algorithms.transit :as transit]
+            [edn-query-language.core :as eql]
+            [taoensso.encore :as enc]
+            [taoensso.timbre :as log]))
 
 (defn- upload-transaction
   [req]

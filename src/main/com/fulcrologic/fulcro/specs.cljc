@@ -1,8 +1,8 @@
 (ns com.fulcrologic.fulcro.specs
   (:require
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.guardrails.core :refer [>def]]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
+    [com.fulcrologic.guardrails.core :refer [>def]]
     [edn-query-language.core :as eql]))
 
 ;; ================================================================================

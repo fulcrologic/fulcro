@@ -1,14 +1,14 @@
 (ns com.fulcrologic.fulcro.application-spec
   (:require
-    [fulcro-spec.core :refer [specification provided! when-mocking! assertions behavior when-mocking component =>]]
     [clojure.spec.alpha :as s]
-    [edn-query-language.core :as eql]
-    [com.fulcrologic.fulcro.specs]
+    [clojure.test :refer [are deftest]]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
+    [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
-    [com.fulcrologic.fulcro.application :as app :refer [fulcro-app]]
-    [clojure.test :refer [is are deftest]]))
+    [edn-query-language.core :as eql]
+    [fulcro-spec.core :refer [=> assertions behavior specification]]))
 
 (deftest application-constructor
   (let [app (app/fulcro-app)]

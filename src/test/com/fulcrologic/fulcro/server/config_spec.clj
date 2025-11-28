@@ -1,8 +1,7 @@
 (ns com.fulcrologic.fulcro.server.config-spec
   (:require
-    [clojure.test :as t :refer [are is]]
-    [fulcro-spec.core :refer [specification assertions provided component behavior when-mocking]]
-    [com.fulcrologic.fulcro.server.config :as server])
+    [com.fulcrologic.fulcro.server.config :as server]
+    [fulcro-spec.core :refer [assertions behavior component specification when-mocking]])
   (:import (java.io File)))
 
 (declare =>)

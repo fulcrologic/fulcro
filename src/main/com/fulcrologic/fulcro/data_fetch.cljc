@@ -6,18 +6,17 @@
   to study the concepts of Fulcro idents and query composition carefully."
   (:refer-clojure :exclude [load])
   (:require
-    [clojure.walk :refer [walk prewalk]]
-    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
-    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.mutations :as m]
     [clojure.spec.alpha :as s]
-    [com.fulcrologic.guardrails.core :refer [>defn =>]]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
+    [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
+    [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [com.fulcrologic.guardrails.core :refer [=> >defn]]
     [edn-query-language.core :as eql]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.algorithms.lookup :as ah]))
+    [taoensso.timbre :as log]))
 
 (>defn data-state?
   "Is the given parameter a load marker?"
@@ -71,11 +70,11 @@
    a set as a predicate to elide specific well-known UI-only paths."
   [query node-predicate]
   (-> query
-      (as-> <> [{::temp-root <>}])
-      eql/query->ast
-      (elide-ast-nodes node-predicate)
-      eql/ast->query
-      (get-in [0 ::temp-root])))
+    (as-> <> [{::temp-root <>}])
+    eql/query->ast
+    (elide-ast-nodes node-predicate)
+    eql/ast->query
+    (get-in [0 ::temp-root])))
 
 (defn load-params*
   "Internal function to validate and process the parameters of `load` and `load-action`."
@@ -161,8 +160,8 @@
         (log/debug "Skipping default merge and calling user-supplied ok-action.")
         (ok-action env))
       (let [{:keys [body transaction]} result
-            mark-query  (or transaction (futil/ast->query transmitted-ast))
-            body        (merge/mark-missing body mark-query)
+            mark-query (or transaction (futil/ast->query transmitted-ast))
+            body       (merge/mark-missing body mark-query)
             {:com.fulcrologic.fulcro.application/keys [state-atom]} app]
         (swap! state-atom (fn [s]
                             (cond-> (merge/merge* s query body)

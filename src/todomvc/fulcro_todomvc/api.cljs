@@ -1,14 +1,8 @@
 (ns fulcro-todomvc.api
   (:require
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.data-targeting :as dt]
-    [edn-query-language.core :as eql]
-    [taoensso.timbre :as log]
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [clojure.string :as str]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]))
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Client-side API

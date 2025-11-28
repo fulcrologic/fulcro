@@ -31,8 +31,8 @@
 
   See the development_preload.cljs and shadow-cljs.edn files in the latest Fulcro 3 template for an example.
   "
-(:require
-  [clojure.string :as str]))
+  (:require
+    [clojure.string :as str]))
 
 ;; Taken mostly from timbre itself.  Modified to output better results from ex-info exceptions (e.g. to improve expound
 ;; experience)

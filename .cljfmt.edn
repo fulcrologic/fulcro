@@ -1,0 +1,26 @@
+{;; Formatting options matching IntelliJ/Cursive settings
+ 
+ ;; Always use 2 spaces for indentation (equivalent to "Default to Only Indent")
+ ;; This applies [:inner 0] to all forms, giving consistent 2-space indentation
+ :indents ^:replace {#".*" [[:inner 0]]}
+ 
+ ;; Align map keys and values in columns (experimental feature)
+ ;; Example: {:key-one   value-1
+ ;;           :key-two   value-2}
+ :align-map-columns? true
+ 
+ ;; Standard formatting options
+ :indentation?                    true
+ :remove-surrounding-whitespace?  true
+ :remove-trailing-whitespace?     true
+ :insert-missing-whitespace?      true
+ :remove-consecutive-blank-lines? false
+ 
+ ;; Note: For binding alignment in let/binding forms, there is an :align-associative?
+ ;; option, but it uses an older fork of cljfmt and has known bugs. If you need this
+ ;; feature, you can add:
+ ;; :align-associative? true
+ ;; However, this may cause issues with some forms and lacks recent cljfmt updates.
+ 
+ ;; Reader conditionals (#?) are formatted automatically by cljfmt
+}

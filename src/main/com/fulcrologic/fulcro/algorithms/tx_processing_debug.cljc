@@ -2,8 +2,8 @@
   "Helper functions for debugging tx processing.  Uses pprint, which adds
   a lot to build size, so it is in a separate ns to keep it out of prod builds."
   (:require
-    [clojure.string :as str]
-    [clojure.pprint :refer [pprint]]))
+    [clojure.pprint :refer [pprint]]
+    [clojure.string :as str]))
 
 (defn tx-status!
   "Debugging function. Shows the current transaction queues with a summary of their content."

@@ -1,11 +1,10 @@
 (ns com.fulcrologic.fulcro.macros.defmutation-spec
   (:require
-    [com.fulcrologic.fulcro.mutations :as m]
-    [fulcro-spec.core :refer [specification assertions component]]
     [clojure.test :refer :all]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.raw.components :as rc]))
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.raw.components :as rc]
+    [fulcro-spec.core :refer [assertions component specification]]))
 
 (declare =>)
 
