@@ -382,7 +382,7 @@
     Returns `:unchecked` if any field is not yet been interacted with.
 
     Fields are marked as having been interacted with by programmatic action on your part via
-    the validate* mutation helper can be used in a mutation to mark fields ready for validation.
+    the `mark-complete*` mutation helper can be used in a mutation to mark fields ready for validation.
 
     If given a field then it checks just that field."
     ([form] (spec-validator form))
