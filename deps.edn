@@ -28,8 +28,9 @@
                            :main-opts   ["-m" "kaocha.runner"]
                            :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}
 
-           :dev           {:extra-paths ["src/dev" "resources" "src/todomvc"]
+           :dev           {:extra-paths ["src/dev" "resources" "src/todomvc" "src/todomvc-pure"]
                            :extra-deps  {thheller/shadow-cljs              {:mvn/version "3.1.1"}
+                                         no.cjohansen/replicant            {:mvn/version "2025.12.1"}
                                          com.wsscode/pathom                {:mvn/version "2.4.0"}
                                          com.fulcrologic/fulcro-websockets {:mvn/version "3.4.0"
                                                                             :exclusions  [com.fulcrologic/fulcro]}

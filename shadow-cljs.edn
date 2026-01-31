@@ -12,6 +12,14 @@
                        :devtools   {:preloads   [com.fulcrologic.devtools.chrome-preload]
                                     :after-load fulcro-todomvc.main/refresh!}}
 
+            :todomvc-pure  {:target     :browser
+                       :output-dir "resources/public/js/todomvc"
+                       :asset-path "/js/todomvc"
+                       :dev        {:compiler-options {:external-config {:guardrails {}}}}
+                       :modules    {:main {:entries [todomvc-pure.app]}}
+                       :devtools   {:preloads   [com.fulcrologic.devtools.chrome-preload]
+                                    :after-load todomvc-pure.app/refresh!}}
+
             :test     {:target           :browser-test
                        :test-dir         "resources/public/js/test"
                        :ns-regexp        "-(test|spec)$"
