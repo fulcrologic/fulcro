@@ -23,7 +23,9 @@
   (:require
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.lambda :as lambda]
-    [com.fulcrologic.fulcro.dom-server :as dom]))
+    [com.fulcrologic.fulcro.dom-server :as dom])
+  (:import (clojure.lang PersistentVector)
+           (com.fulcrologic.fulcro.dom_server Element)))
 
 ;; =============================================================================
 ;; Hiccup Conversion from dom-server Elements
@@ -32,6 +34,12 @@
 (defprotocol IHiccupConvertible
   "Protocol for converting dom-server elements to hiccup format."
   (to-hiccup* [this] "Convert this element to hiccup."))
+
+(extend-protocol IHiccupConvertible
+  PersistentVector
+  (to-hiccup* [v]
+    (mapv (fn [ele]
+            (to-hiccup* ele)) v)))
 
 (defn- wrap-fn-attrs
   "Wrap any fn? values in attrs with arity-tolerant wrappers.
@@ -47,7 +55,7 @@
         attrs))))
 
 (extend-protocol IHiccupConvertible
-  com.fulcrologic.fulcro.dom_server.Element
+  Element
   (to-hiccup* [{:keys [tag attrs children]}]
     (let [wrapped-attrs      (wrap-fn-attrs attrs)
           converted-children (reduce

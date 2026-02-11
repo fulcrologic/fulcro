@@ -240,7 +240,8 @@
   ([handler] (wrap-fulcro-request handler nil))
   ([handler transit-handlers]
    (fn [{:keys [body] :as request}]
-     (let [encoded-body (transit/transit-clj->str body (when transit-handlers
+     (let [encoded-body (transit/transit-clj->str body (cond-> {:metadata? false}
+                                                         transit-handlers
                                                          {:handlers transit-handlers}))]
        (handler (-> request
                   (assoc :body encoded-body)
