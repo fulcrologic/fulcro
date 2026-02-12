@@ -56,7 +56,7 @@
     (get (swap! ra update ::seq (fnil inc 0)) ::seq)))
 
 (defn- add-event! [app event]
-  (let [ra        (runtime-atom app)
+  (let [ra         (runtime-atom app)
         max-events (or (::max-events @ra) 200)]
     (swap! ra update ::event-log
       (fn [log]
@@ -68,12 +68,11 @@
 
 (defn- uism-tx?
   "Returns the UISM params map if tx is a UISM trigger, else nil.
-   tx looks like: [(trigger-state-machine-event {::uism/asm-id ... ::uism/event-id ...})]"
+   tx is a mutation call form like (trigger-state-machine-event {::uism/asm-id ... ::uism/event-id ...})"
   [tx]
   (when (and (sequential? tx) (seq tx))
-    (let [form (first tx)]
-      (when (and (sequential? form) (= (first form) uism-trigger-sym))
-        (second form)))))
+    (when (= (first tx) uism-trigger-sym)
+      (second tx))))
 
 (defn- categorize-and-store! [app event]
   (let [event-type (:type event)
@@ -90,12 +89,12 @@
           (add-event! app
             (merge base
               {:repl-tool/category :uism
-               :uism/asm-id       (get uism-params :com.fulcrologic.fulcro.ui-state-machines/asm-id)
-               :uism/event-id     (get uism-params :com.fulcrologic.fulcro.ui-state-machines/event-id)
-               :uism/event-data   (get uism-params :com.fulcrologic.fulcro.ui-state-machines/event-data)
-               :tx                tx
-               :component         (:component event)
-               :ident             (:ident-ref event)}))
+               :uism/asm-id        (get uism-params :com.fulcrologic.fulcro.ui-state-machines/asm-id)
+               :uism/event-id      (get uism-params :com.fulcrologic.fulcro.ui-state-machines/event-id)
+               :uism/event-data    (get uism-params :com.fulcrologic.fulcro.ui-state-machines/event-data)
+               :tx                 tx
+               :component          (:component event)
+               :ident              (:ident-ref event)}))
           ;; Regular transaction
           (add-event! app
             (merge base
@@ -146,11 +145,11 @@
       (= event-type statechart-event-type)
       (add-event! app
         (merge base
-          {:repl-tool/category          :statechart
-           :statechart/session-id       (:com.fulcrologic.statecharts/session-id event)
-           :statechart/event            (:event event)
-           :statechart/data             (:data event)
-           :statechart/configuration    (:com.fulcrologic.statecharts/configuration event)})))))
+          {:repl-tool/category       :statechart
+           :statechart/session-id    (:com.fulcrologic.statecharts/session-id event)
+           :statechart/event         (:event event)
+           :statechart/data          (:data event)
+           :statechart/configuration (:com.fulcrologic.statecharts/configuration event)})))))
 
 ;; =============================================================================
 ;; Setup
@@ -203,11 +202,11 @@
      (events nil app-or-opts)
      (events app-or-opts {})))
   ([app {:keys [category since last]}]
-   (let [app  (resolve-app app)
-         log  (or (::event-log @(runtime-atom app)) [])
-         log  (cond->> log
-                category (filterv #(= category (:repl-tool/category %)))
-                since    (filterv #(> (:repl-tool/timestamp %) since)))]
+   (let [app (resolve-app app)
+         log (or (::event-log @(runtime-atom app)) [])
+         log (cond->> log
+               category (filterv #(= category (:repl-tool/category %)))
+               since (filterv #(> (:repl-tool/timestamp %) since)))]
      (if last
        (vec (take-last last log))
        log))))
@@ -229,24 +228,24 @@
   [net-events]
   (let [grouped (group-by :request-id net-events)]
     (mapv (fn [[request-id evts]]
-            (let [started  (first (filter #(= :started (:net/phase %)) evts))
-                  finished (first (filter #(= :finished (:net/phase %)) evts))
-                  failed   (first (filter #(= :failed (:net/phase %)) evts))
-                  status   (cond finished :finished, failed :failed, :else :pending)
+            (let [started     (first (filter #(= :started (:net/phase %)) evts))
+                  finished    (first (filter #(= :finished (:net/phase %)) evts))
+                  failed      (first (filter #(= :failed (:net/phase %)) evts))
+                  status      (cond finished :finished, failed :failed, :else :pending)
                   started-at  (:started-at started)
                   finished-at (or (:finished-at finished) (:finished-at failed))
                   duration-ms (when (and started-at finished-at)
                                 #?(:clj  (- (.getTime ^java.util.Date finished-at)
-                                            (.getTime ^java.util.Date started-at))
+                                           (.getTime ^java.util.Date started-at))
                                    :cljs (- (.getTime finished-at)
-                                            (.getTime started-at))))]
+                                           (.getTime started-at))))]
               (cond-> {:request-id  request-id
                        :remote      (:remote started)
                        :status      status
                        :request-edn (:request-edn started)}
-                finished    (assoc :response-edn (:response-edn finished))
-                failed      (assoc :error (:error failed))
-                started-at  (assoc :started-at started-at)
+                finished (assoc :response-edn (:response-edn finished))
+                failed (assoc :error (:error failed))
+                started-at (assoc :started-at started-at)
                 finished-at (assoc :finished-at finished-at)
                 duration-ms (assoc :duration-ms duration-ms))))
       grouped)))
@@ -331,9 +330,9 @@
 
       :transactions
       (mapv (fn [e]
-              (cond-> {:mutation (when (sequential? (:tx e)) (ffirst (:tx e)))}
+              (cond-> {:mutation (when (sequential? (:tx e)) (first (:tx e)))}
                 (:tx e) (assoc :params (when (sequential? (:tx e))
-                                         (second (first (:tx e)))))
+                                         (second (:tx e))))
                 (:component e) (assoc :component (:component e))
                 (:ident e) (assoc :ident (:ident e))
                 (:remotes e) (assoc :remotes (:remotes e))))
@@ -351,9 +350,9 @@
 
       :statecharts
       (mapv (fn [e]
-              (cond-> {:session-id    (:statechart/session-id e)
-                       :event         (:statechart/event e)}
-                (:statechart/data e)          (assoc :data (:statechart/data e))
+              (cond-> {:session-id (:statechart/session-id e)
+                       :event      (:statechart/event e)}
+                (:statechart/data e) (assoc :data (:statechart/data e))
                 (:statechart/configuration e) (assoc :configuration (:statechart/configuration e))))
         sc-events)
 

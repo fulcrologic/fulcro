@@ -35,7 +35,7 @@
                     (clear-list-input-field* list-id))))
   (error-action [{:keys [state ast]}]
     (swap! state fns/remove-entity [:item/id id])
-    (js/alert "Failed to add item to server!"))
+    (log/error "Failed to add item to server!"))
   (remote [_] true))
 
 (defmutation store-point
