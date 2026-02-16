@@ -38,8 +38,7 @@
 (extend-protocol IHiccupConvertible
   PersistentVector
   (to-hiccup* [v]
-    (mapv (fn [ele]
-            (to-hiccup* ele)) v)))
+    (into [] (keep to-hiccup*) v)))
 
 (defn- wrap-fn-attrs
   "Wrap any fn? values in attrs with arity-tolerant wrappers.

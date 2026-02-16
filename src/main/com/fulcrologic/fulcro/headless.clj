@@ -782,6 +782,20 @@
   (some-> (hiccup-frame app) (hic/find-by-id element-id) (hic/invoke-handler! handler-key event))
   nil)
 
+(defn invoke-labeled-handler!
+  "Invoke an arbitrary handler on an input by ID.
+   Use this for handlers not covered by the convenience functions.
+
+   Example:
+   ```clojure
+   (invoke-handler! app \"my-element\" :onMouseEnter {})
+   (invoke-handler! app \"draggable\" :onDragStart {:dataTransfer ...})
+   ```"
+  [app label-pattern handler-key event]
+  (some-> (hiccup-frame app) (hic/find-nth-input-for-label label-pattern 0)
+    (hic/invoke-handler! handler-key event) )
+  nil)
+
 ;; =============================================================================
 ;; UI Inspection (with optional frame offset)
 ;; =============================================================================
