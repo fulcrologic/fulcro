@@ -132,47 +132,68 @@
   (let [tag (.-tagName element)]
     (and tag (form-elements? (str/lower-case tag)))))
 
-(defn update-value! [js-props value-field input-ref set-cached-props! new-value]
-  (let [new-props      (gobj/clone js-props)
-        user-on-change (gobj/get js-props "onChange")]
-    (gobj/set new-props "ref" input-ref)
-    (gobj/set new-props value-field new-value)
-    (gobj/set new-props "onChange" (fn [^js evt]
-                                     (let [new-value (some->> evt (.-target) (.-value))]
-                                       (update-value! js-props value-field input-ref set-cached-props! new-value))
-                                     (when user-on-change
-                                       (user-on-change evt))))
-    (set-cached-props! new-props)))
-
 (defn wrap-form-element [input-type]
   (let [element (react/forwardRef
                   (fn [^js props ^js ref]
-                    (let [checkbox?         (= "checkbox" (gobj/get props "type"))
-                          value-field       (if checkbox? "checked" "value")
-                          props-value       (or (gobj/get props value-field) "")
-                          local-state-value (react/useState props)
-                          local-value       (aget local-state-value 0)
-                          set-local-value!  (aget local-state-value 1)]
-                      (react/useEffect
+                    (let [checkbox?        (= "checkbox" (gobj/get props "type"))
+                          value-field      (if checkbox? "checked" "value")
+                          props-value      (or (gobj/get props value-field) "")
+                          state            (react/useState props-value)
+                          local-value      (aget state 0)
+                          set-local-value! (aget state 1)
+                          cursor-ref       (react/useRef nil)
+                          pending-ref      (react/useRef #js [])
+                          prev-props-ref   (react/useRef props-value)
+                          our-ref          (react/useRef nil)
+                          merged-ref-fn    (react/useCallback
+                                             (fn [el]
+                                               (set! (.-current our-ref) el)
+                                               (when ref
+                                                 (if (fn? ref)
+                                                   (ref el)
+                                                   (set! (.-current ref) el))))
+                                             #js [ref])]
+                      ;; Detect props changes during render (React-blessed getDerivedStateFromProps pattern)
+                      (when (not= props-value (.-current prev-props-ref))
+                        (set! (.-current prev-props-ref) props-value)
+                        (let [pending (.-current pending-ref)
+                              idx     (.indexOf pending props-value)]
+                          (if (>= idx 0)
+                            ;; Catch-up from typing — drop matched and older entries
+                            (set! (.-current pending-ref) (.slice pending (inc idx)))
+                            ;; External update — accept it
+                            (do
+                              (set! (.-current pending-ref) #js [])
+                              (set-local-value! props-value)))))
+                      ;; Restore cursor position after React commits DOM (before paint)
+                      (react/useLayoutEffect
                         (fn []
-                          (when (not= props-value local-value)
-                            (set-local-value! props-value))
-                          js/undefined)
-                        #js [props-value])
+                          (when-let [pos (.-current cursor-ref)]
+                            (set! (.-current cursor-ref) nil)
+                            (when-let [el (.-current our-ref)]
+                              (try
+                                (.setSelectionRange el pos pos)
+                                (catch :default _))))
+                          js/undefined))
                       (if (gobj/containsKey props value-field)
                         (let [new-props      (gobj/clone props)
                               user-on-change (gobj/get props "onChange")
                               on-change      (fn [^js evt]
-                                               (set-local-value! (gobj/getValueByKeys "target" "value"))
-                                               (when user-on-change
-                                                 (user-on-change evt)))]
+                                               (let [el (.-target evt)
+                                                     v  (gobj/get el value-field)]
+                                                 ;; Save cursor for text inputs
+                                                 (when-not checkbox?
+                                                   (set! (.-current cursor-ref)
+                                                     (.-selectionStart el)))
+                                                 (.push (.-current pending-ref) v)
+                                                 (set-local-value! v)
+                                                 (when user-on-change
+                                                   (user-on-change evt))))]
                           (gobj/set new-props "value" local-value)
                           (gobj/set new-props "onChange" on-change)
-                          ;; Forward the ref to the actual input element
-                          (when ref
-                            (gobj/set new-props "ref" ref))
+                          (gobj/set new-props "ref" merged-ref-fn)
                           (create-element input-type new-props))
-                        ;; No value field - pass through props and ref
+                        ;; No value field — pass through props and ref
                         (let [final-props (if ref
                                             (doto (gobj/clone props)
                                               (gobj/set "ref" ref))
