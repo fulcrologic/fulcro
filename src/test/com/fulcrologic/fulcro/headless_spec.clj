@@ -1981,237 +1981,241 @@
 ;; Routing Tests
 
 (specification "Simple route changes"
-  (component "basic navigation"
-    (let [app (build-routing-app)]
-      (behavior "can route to home"
-        (dr/change-route! app ["home"])
-        (assertions
-          "route path is correct"
-          (current-route-path app) => ["home"]
-          "router is in :routed state"
-          (router-state app) => :routed))
-
-      (behavior "can route to about"
-        (dr/change-route! app ["about"])
-        (assertions
-          "route path changed"
-          (current-route-path app) => ["about"]
-          "router is in :routed state"
-          (router-state app) => :routed))
-
-      (behavior "can route to contact"
-        (dr/change-route! app ["contact"])
-        (assertions
-          "route path is correct"
-          (current-route-path app) => ["contact"]))))
-
-  (component "multiple route changes"
-    (let [app (build-routing-app)]
-      (behavior "routes change sequentially"
-        (dr/change-route! app ["home"])
-        (dr/change-route! app ["about"])
-        (dr/change-route! app ["contact"])
-        (dr/change-route! app ["home"])
-        (assertions
-          "final route is correct"
-          (current-route-path app) => ["home"]))))
-
-  (component "routing to same route"
-    (let [app (build-routing-app)]
-      (dr/change-route! app ["home"])
-      (behavior "returns :already-there for same route"
-        (let [result (dr/change-route! app ["home"])]
+  (timers/with-mock-timers
+    (component "basic navigation"
+      (let [app (build-routing-app)]
+        (behavior "can route to home"
+          (dr/change-route! app ["home"])
           (assertions
-            "returns :already-there"
-            result => :already-there
-            "route unchanged"
-            (current-route-path app) => ["home"]))))))
+            "route path is correct"
+            (current-route-path app) => ["home"]
+            "router is in :routed state"
+            (router-state app) => :routed))
+
+        (behavior "can route to about"
+          (dr/change-route! app ["about"])
+          (assertions
+            "route path changed"
+            (current-route-path app) => ["about"]
+            "router is in :routed state"
+            (router-state app) => :routed))
+
+        (behavior "can route to contact"
+          (dr/change-route! app ["contact"])
+          (assertions
+            "route path is correct"
+            (current-route-path app) => ["contact"]))))
+
+    (component "multiple route changes"
+      (let [app (build-routing-app)]
+        (behavior "routes change sequentially"
+          (dr/change-route! app ["home"])
+          (dr/change-route! app ["about"])
+          (dr/change-route! app ["contact"])
+          (dr/change-route! app ["home"])
+          (assertions
+            "final route is correct"
+            (current-route-path app) => ["home"]))))
+
+    (component "routing to same route"
+      (let [app (build-routing-app)]
+        (dr/change-route! app ["home"])
+        (behavior "returns :already-there for same route"
+          (let [result (dr/change-route! app ["home"])]
+            (assertions
+              "returns :already-there"
+              result => :already-there
+              "route unchanged"
+              (current-route-path app) => ["home"])))))))
 
 (specification "Rendered output verification"
-  (component "simple routes render correct component data"
-    (let [app (build-routing-app)]
-      (behavior "home route renders home message"
-        (dr/change-route! app ["home"])
-        (let [props (rendered-router-props app)]
-          (assertions
-            "home message is rendered"
-            (:home/message props) => "Welcome Home"
-            "home id is correct"
-            (:home/id props) => :singleton)))
-
-      (behavior "about route renders about content"
-        (dr/change-route! app ["about"])
-        (let [props (rendered-router-props app)]
-          (assertions
-            "about content is rendered"
-            (:about/content props) => "About Us")))
-
-      (behavior "contact route renders email"
-        (dr/change-route! app ["contact"])
-        (let [props (rendered-router-props app)]
-          (assertions
-            "contact email is rendered"
-            (:contact/email props) => "test@example.com")))))
-
-  (component "parameterized routes render correct entity"
-    (let [app (build-routing-app)]
-      (swap! (::app/state-atom app) merge
-        {:user/id {1 {:user/id 1 :user/name "Alice"}
-                   2 {:user/id 2 :user/name "Bob"}}
-         :post/id {100 {:post/id 100 :post/title "Hello World" :post/content "First post!"}}})
-
-      (behavior "user 1 renders with name Alice"
-        (dr/change-route! app ["user" "1"])
-        (let [props (rendered-router-props app)]
-          (assertions
-            "user id is 1"
-            (:user/id props) => 1
-            "user name is Alice"
-            (:user/name props) => "Alice")))
-
-      (behavior "user 2 renders with name Bob"
-        (dr/change-route! app ["user" "2"])
-        (let [props (rendered-router-props app)]
-          (assertions
-            "user id is 2"
-            (:user/id props) => 2
-            "user name is Bob"
-            (:user/name props) => "Bob")))
-
-      (behavior "post renders with title and content"
-        (dr/change-route! app ["post" "100"])
-        (let [props (rendered-router-props app)]
-          (assertions
-            "post title is correct"
-            (:post/title props) => "Hello World"
-            "post content is correct"
-            (:post/content props) => "First post!")))))
-
-  (component "deferred routes render correctly after completion"
-    (binding [*deferred-callbacks* (atom {})]
+  (timers/with-mock-timers
+    (component "simple routes render correct component data"
       (let [app (build-routing-app)]
-        (behavior "deferred route renders initial state before completion"
-          (dr/change-route! app ["slow"])
+        (behavior "home route renders home message"
+          (dr/change-route! app ["home"])
           (let [props (rendered-router-props app)]
             (assertions
-              "rendered but not yet loaded"
-              (or (nil? (:slow/loaded? props))
-                (false? (:slow/loaded? props))) => true)))
+              "home message is rendered"
+              (:home/message props) => "Welcome Home"
+              "home id is correct"
+              (:home/id props) => :singleton)))
 
-        (behavior "deferred route renders loaded data after completion"
-          (complete-deferred! :slow-page)
+        (behavior "about route renders about content"
+          (dr/change-route! app ["about"])
           (let [props (rendered-router-props app)]
             (assertions
-              "slow page shows loaded data"
-              (:slow/data props) => "Loaded!"
-              "slow page marked as loaded"
-              (:slow/loaded? props) => true))))))
+              "about content is rendered"
+              (:about/content props) => "About Us")))
 
-  (component "async user deferred route renders user data"
-    (binding [*deferred-callbacks* (atom {})]
+        (behavior "contact route renders email"
+          (dr/change-route! app ["contact"])
+          (let [props (rendered-router-props app)]
+            (assertions
+              "contact email is rendered"
+              (:contact/email props) => "test@example.com")))))
+
+    (component "parameterized routes render correct entity"
       (let [app (build-routing-app)]
-        (behavior "async user 42 renders correctly after loading"
-          (dr/change-route! app ["async-user" "42"])
-          (complete-deferred! [:async-user 42])
+        (swap! (::app/state-atom app) merge
+          {:user/id {1 {:user/id 1 :user/name "Alice"}
+                     2 {:user/id 2 :user/name "Bob"}}
+           :post/id {100 {:post/id 100 :post/title "Hello World" :post/content "First post!"}}})
+
+        (behavior "user 1 renders with name Alice"
+          (dr/change-route! app ["user" "1"])
           (let [props (rendered-router-props app)]
             (assertions
-              "user id is 42"
-              (:async-user/id props) => 42
-              "user name is rendered"
-              (:async-user/name props) => "User 42"
-              "user email is rendered"
-              (:async-user/email props) => "user42@example.com")))))))
+              "user id is 1"
+              (:user/id props) => 1
+              "user name is Alice"
+              (:user/name props) => "Alice")))
+
+        (behavior "user 2 renders with name Bob"
+          (dr/change-route! app ["user" "2"])
+          (let [props (rendered-router-props app)]
+            (assertions
+              "user id is 2"
+              (:user/id props) => 2
+              "user name is Bob"
+              (:user/name props) => "Bob")))
+
+        (behavior "post renders with title and content"
+          (dr/change-route! app ["post" "100"])
+          (let [props (rendered-router-props app)]
+            (assertions
+              "post title is correct"
+              (:post/title props) => "Hello World"
+              "post content is correct"
+              (:post/content props) => "First post!")))))
+
+    (component "deferred routes render correctly after completion"
+      (binding [*deferred-callbacks* (atom {})]
+        (let [app (build-routing-app)]
+          (behavior "deferred route renders initial state before completion"
+            (dr/change-route! app ["slow"])
+            (let [props (rendered-router-props app)]
+              (assertions
+                "rendered but not yet loaded"
+                (or (nil? (:slow/loaded? props))
+                  (false? (:slow/loaded? props))) => true)))
+
+          (behavior "deferred route renders loaded data after completion"
+            (complete-deferred! :slow-page)
+            (let [props (rendered-router-props app)]
+              (assertions
+                "slow page shows loaded data"
+                (:slow/data props) => "Loaded!"
+                "slow page marked as loaded"
+                (:slow/loaded? props) => true))))))
+
+    (component "async user deferred route renders user data"
+      (binding [*deferred-callbacks* (atom {})]
+        (let [app (build-routing-app)]
+          (behavior "async user 42 renders correctly after loading"
+            (dr/change-route! app ["async-user" "42"])
+            (complete-deferred! [:async-user 42])
+            (let [props (rendered-router-props app)]
+              (assertions
+                "user id is 42"
+                (:async-user/id props) => 42
+                "user name is rendered"
+                (:async-user/name props) => "User 42"
+                "user email is rendered"
+                (:async-user/email props) => "user42@example.com"))))))))
 
 (specification "Route parameters"
-  (component "single parameter"
-    (let [app (build-routing-app)]
-      (swap! (::app/state-atom app) assoc-in [:user/id 123]
-        {:user/id 123 :user/name "John Doe"})
+  (timers/with-mock-timers
+    (component "single parameter"
+      (let [app (build-routing-app)]
+        (swap! (::app/state-atom app) assoc-in [:user/id 123]
+          {:user/id 123 :user/name "John Doe"})
 
-      (behavior "routes with user-id parameter"
-        (dr/change-route! app ["user" "123"])
-        (assertions
-          "route path includes parameter"
-          (current-route-path app) => ["user" "123"]
-          "router is routed"
-          (router-state app) => :routed))))
+        (behavior "routes with user-id parameter"
+          (dr/change-route! app ["user" "123"])
+          (assertions
+            "route path includes parameter"
+            (current-route-path app) => ["user" "123"]
+            "router is routed"
+            (router-state app) => :routed))))
 
-  (component "different parameter values"
-    (let [app (build-routing-app)]
-      (swap! (::app/state-atom app) merge
-        {:user/id {1 {:user/id 1 :user/name "Alice"}
-                   2 {:user/id 2 :user/name "Bob"}
-                   3 {:user/id 3 :user/name "Charlie"}}})
+    (component "different parameter values"
+      (let [app (build-routing-app)]
+        (swap! (::app/state-atom app) merge
+          {:user/id {1 {:user/id 1 :user/name "Alice"}
+                     2 {:user/id 2 :user/name "Bob"}
+                     3 {:user/id 3 :user/name "Charlie"}}})
 
-      (behavior "can route to different users"
-        (dr/change-route! app ["user" "1"])
-        (assertions
-          "routed to user 1"
-          (current-route-path app) => ["user" "1"])
+        (behavior "can route to different users"
+          (dr/change-route! app ["user" "1"])
+          (assertions
+            "routed to user 1"
+            (current-route-path app) => ["user" "1"])
 
-        (dr/change-route! app ["user" "2"])
-        (assertions
-          "routed to user 2"
-          (current-route-path app) => ["user" "2"])
+          (dr/change-route! app ["user" "2"])
+          (assertions
+            "routed to user 2"
+            (current-route-path app) => ["user" "2"])
 
-        (dr/change-route! app ["user" "3"])
-        (assertions
-          "routed to user 3"
-          (current-route-path app) => ["user" "3"]))))
+          (dr/change-route! app ["user" "3"])
+          (assertions
+            "routed to user 3"
+            (current-route-path app) => ["user" "3"]))))
 
-  (component "post with id parameter"
-    (let [app (build-routing-app)]
-      (swap! (::app/state-atom app) assoc-in [:post/id 42]
-        {:post/id 42 :post/title "Test Post" :post/content "Content"})
+    (component "post with id parameter"
+      (let [app (build-routing-app)]
+        (swap! (::app/state-atom app) assoc-in [:post/id 42]
+          {:post/id 42 :post/title "Test Post" :post/content "Content"})
 
-      (behavior "routes to post with id"
-        (dr/change-route! app ["post" "42"])
-        (assertions
-          "route path is correct"
-          (current-route-path app) => ["post" "42"])))))
+        (behavior "routes to post with id"
+          (dr/change-route! app ["post" "42"])
+          (assertions
+            "route path is correct"
+            (current-route-path app) => ["post" "42"]))))))
 
 (specification "Deferred routes"
-  (component "deferred route completion"
-    (binding [*deferred-callbacks* (atom {})]
-      (let [app (build-routing-app)]
-        (behavior "starts in deferred state"
-          (dr/change-route! app ["slow"])
-          (assertions
-            "router is in deferred or pending state"
-            (contains? #{:deferred :pending} (router-state app)) => true
-            "callback was registered"
-            (contains? @*deferred-callbacks* :slow-page) => true))
+  (timers/with-mock-timers
+    (component "deferred route completion"
+      (binding [*deferred-callbacks* (atom {})]
+        (let [app (build-routing-app)]
+          (behavior "starts in deferred state"
+            (dr/change-route! app ["slow"])
+            (assertions
+              "router is in deferred or pending state"
+              (contains? #{:deferred :pending} (router-state app)) => true
+              "callback was registered"
+              (contains? @*deferred-callbacks* :slow-page) => true))
 
-        (behavior "completes when target-ready! called"
-          (complete-deferred! :slow-page)
-          (assertions
-            "router is now routed"
-            (router-state app) => :routed
-            "route path is correct"
-            (current-route-path app) => ["slow"]
-            "data was loaded"
-            (get-in (rapp/current-state app) [:slow/id :singleton :slow/loaded?]) => true)))))
+          (behavior "completes when target-ready! called"
+            (complete-deferred! :slow-page)
+            (assertions
+              "router is now routed"
+              (router-state app) => :routed
+              "route path is correct"
+              (current-route-path app) => ["slow"]
+              "data was loaded"
+              (get-in (rapp/current-state app) [:slow/id :singleton :slow/loaded?]) => true)))))
 
-  (component "deferred route with parameters"
-    (binding [*deferred-callbacks* (atom {})]
-      (let [app (build-routing-app)]
-        (behavior "routes to async user"
-          (dr/change-route! app ["async-user" "42"])
-          (assertions
-            "router is deferred or pending"
-            (contains? #{:deferred :pending} (router-state app)) => true
-            "callback registered with correct key"
-            (contains? @*deferred-callbacks* [:async-user 42]) => true))
+    (component "deferred route with parameters"
+      (binding [*deferred-callbacks* (atom {})]
+        (let [app (build-routing-app)]
+          (behavior "routes to async user"
+            (dr/change-route! app ["async-user" "42"])
+            (assertions
+              "router is deferred or pending"
+              (contains? #{:deferred :pending} (router-state app)) => true
+              "callback registered with correct key"
+              (contains? @*deferred-callbacks* [:async-user 42]) => true))
 
-        (behavior "completes with user data"
-          (complete-deferred! [:async-user 42])
-          (assertions
-            "router is routed"
-            (router-state app) => :routed
-            "route path is correct"
-            (current-route-path app) => ["async-user" "42"]
-            "user data was loaded"
-            (get-in (rapp/current-state app) [:async-user/id 42 :async-user/name]) => "User 42"))))))
+          (behavior "completes with user data"
+            (complete-deferred! [:async-user 42])
+            (assertions
+              "router is routed"
+              (router-state app) => :routed
+              "route path is correct"
+              (current-route-path app) => ["async-user" "42"]
+              "user data was loaded"
+              (get-in (rapp/current-state app) [:async-user/id 42 :async-user/name]) => "User 42")))))))
 
 (specification "Routing timeout handling"
   (component "deferred timeout transitions to pending"
@@ -2294,77 +2298,80 @@
               (router-state app) => :routed)))))))
 
 (specification "Nested routing"
-  (component "routing to parent"
-    (let [app (build-routing-app)]
-      (behavior "routes to settings (parent with nested router)"
-        (dr/change-route! app ["settings"])
-        (assertions
-          "main router is routed"
-          (router-state app) => :routed
-          "settings is the current route at top level"
-          (first (current-route-path app)) => "settings"))))
+  (timers/with-mock-timers
+    (component "routing to parent"
+      (let [app (build-routing-app)]
+        (behavior "routes to settings (parent with nested router)"
+          (dr/change-route! app ["settings"])
+          (assertions
+            "main router is routed"
+            (router-state app) => :routed
+            "settings is the current route at top level"
+            (first (current-route-path app)) => "settings"))))
 
-  (component "routing to nested child"
-    (let [app (build-routing-app)]
-      (behavior "routes to settings with nested target"
-        (dr/change-route! app ["settings" "general"])
-        (assertions
-          "top level route is settings"
-          (first (current-route-path app)) => "settings"
-          "main router is routed"
-          (router-state app) => :routed))
+    (component "routing to nested child"
+      (let [app (build-routing-app)]
+        (behavior "routes to settings with nested target"
+          (dr/change-route! app ["settings" "general"])
+          (assertions
+            "top level route is settings"
+            (first (current-route-path app)) => "settings"
+            "main router is routed"
+            (router-state app) => :routed))
 
-      (behavior "can route to different nested targets"
-        (dr/change-route! app ["settings" "privacy"])
-        (dr/change-route! app ["settings" "notifications"])
-        (assertions
-          "still at settings"
-          (first (current-route-path app)) => "settings"))))
+        (behavior "can route to different nested targets"
+          (dr/change-route! app ["settings" "privacy"])
+          (dr/change-route! app ["settings" "notifications"])
+          (assertions
+            "still at settings"
+            (first (current-route-path app)) => "settings"))))
 
-  (component "routing from nested to top-level"
-    (let [app (build-routing-app)]
-      (behavior "can route from nested back to top-level"
-        (dr/change-route! app ["settings" "privacy"])
-        (dr/change-route! app ["home"])
-        (assertions
-          "route changed to top-level"
-          (current-route-path app) => ["home"])))))
+    (component "routing from nested to top-level"
+      (let [app (build-routing-app)]
+        (behavior "can route from nested back to top-level"
+          (dr/change-route! app ["settings" "privacy"])
+          (dr/change-route! app ["home"])
+          (assertions
+            "route changed to top-level"
+            (current-route-path app) => ["home"]))))))
 
 (specification "Route blocking"
-  (component "clean form allows routing"
-    (let [app (build-routing-app)]
-      (behavior "can route to and from edit form"
-        (dr/change-route! app ["edit"])
-        (assertions
-          "routed to edit"
-          (current-route-path app) => ["edit"])
+  (timers/with-mock-timers
+    (component "clean form allows routing"
+      (let [app (build-routing-app)]
+        (behavior "can route to and from edit form"
+          (dr/change-route! app ["edit"])
+          (assertions
+            "routed to edit"
+            (current-route-path app) => ["edit"])
 
-        (dr/change-route! app ["home"])
-        (assertions
-          "routed away successfully"
-          (current-route-path app) => ["home"]))))
+          (dr/change-route! app ["home"])
+          (assertions
+            "routed away successfully"
+            (current-route-path app) => ["home"]))))
 
-  (component "routing to edit form works"
-    (let [app (build-routing-app)]
-      (behavior "edit form is a valid route target"
-        (dr/change-route! app ["edit"])
-        (assertions
-          "router is routed"
-          (router-state app) => :routed
-          "at edit route"
-          (current-route-path app) => ["edit"])))))
+    (component "routing to edit form works"
+      (let [app (build-routing-app)]
+        (behavior "edit form is a valid route target"
+          (dr/change-route! app ["edit"])
+          (assertions
+            "router is routed"
+            (router-state app) => :routed
+            "at edit route"
+            (current-route-path app) => ["edit"]))))))
 
 (specification "Invalid routes"
-  (component "non-existent route"
-    (let [app (build-routing-app)]
-      (dr/change-route! app ["home"])
-      (behavior "rejects invalid route"
-        (let [result (dr/change-route! app ["nonexistent" "route"])]
-          (assertions
-            "returns :invalid"
-            result => :invalid
-            "stays on previous route"
-            (current-route-path app) => ["home"]))))))
+  (timers/with-mock-timers
+    (component "non-existent route"
+      (let [app (build-routing-app)]
+        (dr/change-route! app ["home"])
+        (behavior "rejects invalid route"
+          (let [result (dr/change-route! app ["nonexistent" "route"])]
+            (assertions
+              "returns :invalid"
+              result => :invalid
+              "stays on previous route"
+              (current-route-path app) => ["home"])))))))
 
 (specification "Routing integration: Complex scenario"
   (timers/with-mock-timers
@@ -2760,7 +2767,7 @@
           (count (ct/captured-transactions app)) => 1)))))
 
 (specification "Event Capture - Network Events"
-  (let [mock-handler (fn [eql] {:result "mock-response"})
+  (let [mock-handler (fn [_] {:result "mock-response"})
         app          (ct/build-test-app
                        {:root-class SimpleRenderingRoot
                         :remotes    {:remote (ctr/sync-remote mock-handler)}})]
