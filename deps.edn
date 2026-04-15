@@ -3,18 +3,19 @@
            ;; see https://github.com/clj-kondo/clj-kondo/blob/master/doc/config.md#exporting-and-importing-configuration
            "src/clj-kondo"]
 
- :deps    {edn-query-language/eql         {:mvn/version "1.0.2"}
-           com.taoensso/timbre            {:mvn/version "6.6.1"}
-           com.taoensso/encore            {:mvn/version "3.133.0"}
+ :deps    {edn-query-language/eql           {:mvn/version "1.0.2"}
+           com.taoensso/timbre              {:mvn/version "6.6.1"}
+           com.taoensso/encore              {:mvn/version "3.133.0"}
 
-           com.cognitect/transit-clj      {:mvn/version "1.0.333"}
-           com.cognitect/transit-cljs     {:mvn/version "0.8.280"}
-           com.fulcrologic/guardrails     {:mvn/version "1.2.9"}
-           com.fulcrologic/fulcro-inspect {:mvn/version "1.0.5"}
+           com.cognitect/transit-clj        {:mvn/version "1.0.333"}
+           com.cognitect/transit-cljs       {:mvn/version "0.8.280"}
+           com.fulcrologic/guardrails       {:mvn/version "1.2.9"}
+           com.fulcrologic/fulcro-inspect   {:mvn/version "1.0.5"}
+           com.yetanalytics/colossal-squuid {:mvn/version "0.1.5"}
 
-           org.clojure/clojure            {:mvn/version "1.12.0" :scope "provided"}
-           org.clojure/clojurescript      {:mvn/version "1.12.42" :scope "provided"}
-           org.clojure/core.async         {:mvn/version "1.8.741"}}
+           org.clojure/clojure              {:mvn/version "1.12.0" :scope "provided"}
+           org.clojure/clojurescript        {:mvn/version "1.12.42" :scope "provided"}
+           org.clojure/core.async           {:mvn/version "1.8.741"}}
 
  :aliases {:test          {:extra-paths ["src/test"]
                            :extra-deps  {org.clojure/test.check  {:mvn/version "1.1.1"}

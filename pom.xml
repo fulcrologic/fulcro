@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
@@ -95,6 +96,11 @@
             <groupId>org.clojure</groupId>
             <artifactId>clojurescript</artifactId>
             <version>1.12.42</version>
+        </dependency>
+        <dependency>
+            <groupId>com.yetanalytics</groupId>
+            <artifactId>colossal-squuid</artifactId>
+            <version>0.1.5</version>
         </dependency>
         <dependency>
             <groupId>com.taoensso</groupId>
