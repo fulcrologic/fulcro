@@ -122,10 +122,10 @@
                                                   (doseq [{::txn/keys [update-handler]} to-send]
                                                     (when update-handler
                                                       (update-handler combined-result))))
-                           ::txn/result-handler (fn [{:keys [body] :as combined-result}]
+                           ::txn/result-handler (fn [{:keys [body status-code] :as combined-result}]
                                                   (remove! app remote-name combined-node-id combined-node-idx)
                                                   (doseq [{::txn/keys [ast result-handler]} to-send]
-                                                    (let [new-body (if (map? body)
+                                                    (let [new-body (if (and (map? body) (= 200 status-code))
                                                                      (select-keys body (top-keys ast))
                                                                      body)
                                                           result   (assoc combined-result :body new-body)]
@@ -189,25 +189,32 @@
                         ::txn/options        (or (::txn/options prime-leader) {})
                         ::txn/batch          batch
                         ::txn/update-handler (fn [combined-result]
-                                               (loop [{::txn/keys [update-handler]} (first batch)
-                                                      more-batch  (next batch)
-                                                      result      (first combined-result)
-                                                      more-result (next combined-result)]
-                                                 (when update-handler
-                                                   (update-handler result))
-                                                 (when (and (seq more-batch) (seq more-result))
-                                                   (recur (first more-batch) (next more-batch)
-                                                     (first more-result) (next more-result)))))
+                                               (if (sequential? combined-result)
+                                                 (loop [{::txn/keys [update-handler]} (first batch)
+                                                        more-batch  (next batch)
+                                                        result      (first combined-result)
+                                                        more-result (next combined-result)]
+                                                   (when update-handler
+                                                     (update-handler result))
+                                                   (when (and (seq more-batch) (seq more-result))
+                                                     (recur (first more-batch) (next more-batch)
+                                                       (first more-result) (next more-result))))
+                                                 (doseq [{::txn/keys [update-handler]} batch]
+                                                   (when update-handler
+                                                     (update-handler combined-result)))))
                         ::txn/result-handler (fn [{:keys [body] :as batch-result}]
                                                (remove! app remote-name batch-node-id batch-node-idx)
-                                               (loop [{::txn/keys [result-handler]} (first batch)
-                                                      more-batch  (next batch)
-                                                      result      (first body)
-                                                      more-result (next body)]
-                                                 (result-handler (assoc batch-result :body result))
-                                                 (when (and (seq more-batch) (seq more-result))
-                                                   (recur (first more-batch) (next more-batch)
-                                                     (first more-result) (next more-result)))))
+                                               (if (sequential? body)
+                                                 (loop [{::txn/keys [result-handler]} (first batch)
+                                                        more-batch  (next batch)
+                                                        result      (first body)
+                                                        more-result (next body)]
+                                                   (result-handler (assoc batch-result :body result))
+                                                   (when (and (seq more-batch) (seq more-result))
+                                                     (recur (first more-batch) (next more-batch)
+                                                       (first more-result) (next more-result))))
+                                                 (doseq [{::txn/keys [result-handler]} batch]
+                                                   (result-handler batch-result))))
                         ::txn/active?        true}]
     (when (> (count batch) 1) (log/debug "Batched:" (count batch)))
     {::txn/send-node  batch-node
