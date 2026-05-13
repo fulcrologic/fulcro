@@ -9,7 +9,7 @@
 
            com.cognitect/transit-clj        {:mvn/version "1.0.333"}
            com.cognitect/transit-cljs       {:mvn/version "0.8.280"}
-           com.fulcrologic/guardrails       {:mvn/version "1.2.9"}
+           com.fulcrologic/guardrails       {:mvn/version "1.3.1"}
            com.fulcrologic/fulcro-inspect   {:mvn/version "1.0.5"}
            com.yetanalytics/colossal-squuid {:mvn/version "0.1.5"}
 
@@ -20,7 +20,7 @@
  :aliases {:test          {:extra-paths ["src/test"]
                            :extra-deps  {org.clojure/test.check  {:mvn/version "1.1.1"}
                                          com.wsscode/pathom      {:mvn/version "2.4.0"}
-                                         fulcrologic/fulcro-spec {:mvn/version "3.1.12"
+                                         fulcrologic/fulcro-spec {:mvn/version "3.2.8"
                                                                   :exclusions  [com.fulcrologic/fulcro]}
                                          ring/ring-core          {:mvn/version "1.13.0"}}}
 
