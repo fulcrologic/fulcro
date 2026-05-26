@@ -42,7 +42,11 @@
   "
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.mutations :refer [defmutation]]))
   (:require
-    #?(:clj [cljs.analyzer :as ana])
+    ;; cljs.analyzer is only used (in CLJ) to report nice macro-syntax errors when compiling
+    ;; ClojureScript. Babashka can't load the cljs compiler, so the :bb branch omits it and the
+    ;; `ana/error` call site below falls back to a plain ex-info under :bb.
+    #?@(:bb  []
+        :clj [[cljs.analyzer :as ana]])
     [com.fulcrologic.fulcro.raw.components :as rc]
     [com.fulcrologic.fulcro.dom.events :as evt]
     [com.fulcrologic.guardrails.core :refer [>def >defn =>]]
@@ -62,7 +66,21 @@
 (>def ::env (s/keys :req-un [:com.fulcrologic.fulcro.application/app]))
 (>def ::returning rc/component-class?)
 
-#?(:clj
+;; The Mutation type is a callable that, when invoked, returns the EQL mutation expression
+;; `(sym args)`. babashka's SCI cannot create a deftype implementing clojure.lang.IFn, so under
+;; :bb we use a closure carrying the symbol in metadata; the :clj/:cljs deftypes are untouched.
+#?(:bb
+   (do
+     (defn ->Mutation
+       "babashka analog of the `Mutation` type: a callable carrying the mutation `sym` in metadata.
+        Invoking it returns the mutation expression, exactly like the :clj/:cljs `Mutation`."
+       [sym]
+       (with-meta
+         (fn ([] (list sym {}))
+           ([args] (list sym args)))
+         {::mutation true ::mutation-sym sym}))
+     (defn mutation-declaration? [expr] (boolean (some-> expr meta ::mutation))))
+   :clj
    (deftype Mutation [sym]
      IFn
      (invoke [this]
@@ -203,7 +221,8 @@
     (trigger-global-error-action!)
     (dispatch-ok-error-actions!)))
 
-(defn mutation-declaration? [expr] (= Mutation (type expr)))
+;; :bb defines mutation-declaration? alongside its closure-based ->Mutation (above).
+#?(:bb nil :default (defn mutation-declaration? [expr] (= Mutation (type expr))))
 
 (defn mutation-symbol
   "Return the real symbol (for mutation dispatch) of `mutation`, which can be a symbol (this function is then identity)
@@ -416,7 +435,9 @@
    (defn defmutation* [macro-env args]
      (let [conform!       (fn [element spec value]
                             (when-not (s/valid? spec value)
-                              (throw (ana/error macro-env (str "Syntax error in " element ": " (s/explain-str spec value)))))
+                              (let [msg (str "Syntax error in " element ": " (s/explain-str spec value))]
+                                (throw #?(:bb  (ex-info msg {:env macro-env})
+                                          :clj (ana/error macro-env msg)))))
                             (s/conform spec value))
            {:keys [sym doc arglist sections]} (conform! "defmutation" ::mutation-args args)
            fqsym          (if (namespace sym)

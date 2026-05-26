@@ -10,7 +10,9 @@
   be easy to integrate with HTML5 history and URL control."
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
-    #?@(:clj  [[cljs.analyzer :as ana]]
+    ;; babashka can't load the cljs compiler; :bb omits cljs.analyzer (error site below falls back to ex-info).
+    #?@(:bb   []
+        :clj  [[cljs.analyzer :as ana]]
         :cljs [[cljs.loader :as loader]
                [goog.object :as gobj]])
     [clojure.spec.alpha :as s]
@@ -843,7 +845,10 @@
 
 (def change-route change-route!)
 
-#?(:clj
+#?(:bb
+   (defn compile-error [env form message]
+     (throw (ex-info message (merge env (some-> form meta)))))
+   :clj
    (defn compile-error [env form message]
      (throw (ana/error (merge env (some-> form meta)) message))))
 

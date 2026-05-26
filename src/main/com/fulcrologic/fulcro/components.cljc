@@ -1,7 +1,10 @@
 (ns com.fulcrologic.fulcro.components
   #?(:cljs (:require-macros com.fulcrologic.fulcro.components))
   (:require
-    #?@(:clj
+    ;; babashka can't load the cljs compiler; the :bb branch omits cljs.analyzer/cljs.env and the
+    ;; defsc error/config call sites below fall back to plain ex-info / nil. :clj and :cljs unchanged.
+    #?@(:bb []
+        :clj
         [[cljs.analyzer :as ana]
          [cljs.env :as cljs-env]]
         :cljs
@@ -13,6 +16,10 @@
     [clojure.walk :refer [prewalk]]
     [clojure.string :as str]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
+    ;; :cljs uses :as-alias so the `::ms/...` spec keywords (used in the :clj defsc* code) resolve at
+    ;; read time during cljs compilation, without loading the clj-only macro-support ns into cljs.
+    #?(:clj  [com.fulcrologic.fulcro.algorithms.macro-support :as ms]
+       :cljs [com.fulcrologic.fulcro.algorithms.macro-support :as-alias ms])
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.mutations :as m]
@@ -23,7 +30,9 @@
      (:import
        [clojure.lang Associative IDeref APersistentMap])))
 
-#?(:clj
+#?(:bb
+   (defn current-config [] nil)
+   :clj
    (defn current-config []
      (let [config (some-> cljs-env/*compiler* deref (get-in [:options :external-config :fulcro]))]
        config)))
@@ -575,11 +584,14 @@
   Get the declared :initial-state value for a component."
   rc/get-initial-state)
 
-(defn computed-initial-state?
-  "Returns true if the given initial state was returned from a call to get-initial-state. This is used by internal
+(def computed-initial-state?
+  "[s]
+
+  See com.fulcrologic.fulcro.raw.components/computed-initial-state?.
+
+  Returns true if the given initial state was returned from a call to get-initial-state. This is used by internal
   algorithms when interpreting initial state shorthand in `defsc`."
-  [s]
-  (and (map? s) (some-> s meta :computed)))
+  rc/computed-initial-state?)
 
 (def get-ident
   "
@@ -629,52 +641,18 @@
   ([class-or-factory state-map]
    (rc/get-query class-or-factory state-map)))
 
-(defn make-state-map
-  "Build a component's initial state using the defsc initial-state-data from
+(def make-state-map
+  "[initial-state children-by-query-key params]
+
+  See com.fulcrologic.fulcro.raw.components/make-state-map.
+
+  Build a component's initial state using the defsc initial-state-data from
   options, the children from options, and the params from the invocation of get-initial-state."
-  [initial-state children-by-query-key params]
-  (let [join-keys (set (keys children-by-query-key))
-        init-keys (set (keys initial-state))
-        is-child? (fn [k] (contains? join-keys k))
-        value-of  (fn value-of* [[isk isv]]
-                    (let [param-name    (fn [v] (and (keyword? v) (= "param" (namespace v)) (keyword (name v))))
-                          substitute    (fn [ele] (if-let [k (param-name ele)]
-                                                    (get params k)
-                                                    ele))
-                          param-key     (param-name isv)
-                          param-exists? (contains? params param-key)
-                          param-value   (get params param-key)
-                          child-class   (get children-by-query-key isk)]
-                      (cond
-                        ; parameterized lookup with no value
-                        (and param-key (not param-exists?)) nil
+  rc/make-state-map)
 
-                        ; to-one join, where initial state is a map to be used as child initial state *parameters* (enforced by defsc macro)
-                        ; and which may *contain* parameters
-                        (and (map? isv) (is-child? isk)) [isk (get-initial-state child-class (into {} (keep value-of* isv)))]
-
-                        ; not a join. Map is literal initial value.
-                        (map? isv) [isk (into {} (keep value-of* isv))]
-
-                        ; to-many join. elements MUST be parameters (enforced by defsc macro)
-                        (and (vector? isv) (is-child? isk)) [isk (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) isv)]
-
-                        ; to-many join. elements might be parameter maps or already-obtained initial-state
-                        (and (vector? param-value) (is-child? isk)) [isk (mapv (fn [params]
-                                                                                 (if (computed-initial-state? params)
-                                                                                   params
-                                                                                   (get-initial-state child-class params))) param-value)]
-
-                        ; vector of non-children
-                        (vector? isv) [isk (mapv (fn [ele] (substitute ele)) isv)]
-
-                        ; to-one join with parameter. value might be params, or an already-obtained initial-state
-                        (and param-key (is-child? isk) param-exists?) [isk (if (computed-initial-state? param-value)
-                                                                             param-value
-                                                                             (get-initial-state child-class param-value))]
-                        param-key [isk param-value]
-                        :else [isk isv])))]
-    (into {} (keep value-of initial-state))))
+;; Backwards-compatibility pointer: `-legal-keys` was a public (clj-only) macro helper here before it
+;; was extracted to algorithms.macro-support. Re-exported so existing references keep resolving.
+#?(:clj (def -legal-keys ms/-legal-keys))
 
 (defn wrapped-render
   "Run `real-render`, possibly through :render-middleware configured on your app."
@@ -1104,152 +1082,6 @@
      (boolean (:ns env))))
 
 #?(:clj
-   (defn- is-link?
-     "Returns true if the given query element is a link query like [:x '_]."
-     [query-element] (and (vector? query-element)
-                       (keyword? (first query-element))
-                       ; need the double-quote because when in a macro we'll get the literal quote.
-                       (#{''_ '_} (second query-element)))))
-
-#?(:clj
-   (defn -legal-keys
-     "PRIVATE. Find the legal keys in a query. NOTE: This is at compile time, so the get-query calls are still embedded (thus cannot
-     use the AST)"
-     [query]
-     (letfn [(keeper [ele]
-               (cond
-                 (list? ele) (recur (first ele))
-                 (keyword? ele) ele
-                 (is-link? ele) (first ele)
-                 (and (map? ele) (keyword? (ffirst ele))) (ffirst ele)
-                 (and (map? ele) (is-link? (ffirst ele))) (first (ffirst ele))
-                 :else nil))]
-       (set (keep keeper query)))))
-
-#?(:clj
-   (defn- children-by-prop
-     "Part of Defsc macro implementation. Calculates a map from join key to class (symbol)."
-     [query]
-     (into {}
-       (keep #(if (and (map? %) (or (is-link? (ffirst %)) (keyword? (ffirst %))))
-                (let [k   (if (vector? (ffirst %))
-                            (first (ffirst %))
-                            (ffirst %))
-                      cls (-> % first second second)]
-                  [k cls])
-                nil) query))))
-
-#?(:clj
-   (defn- replace-and-validate-fn
-     "Replace the first sym in a list (the function name) with the given symbol.
-
-     env - the macro &env
-     sym - The symbol that the lambda should have
-     external-args - A sequence of arguments that the user should not include, but that you want to be inserted in the external-args by this function.
-     user-arity - The number of external-args the user should supply (resulting user-arity is (count external-args) + user-arity).
-     fn-form - The form to rewrite
-     sym - The symbol to report in the error message (in case the rewrite uses a different target that the user knows)."
-     ([env sym external-args user-arity fn-form] (replace-and-validate-fn env sym external-args user-arity fn-form sym))
-     ([env sym external-args user-arity fn-form user-known-sym]
-      (when-not (<= user-arity (count (second fn-form)))
-        (throw (ana/error (merge env (meta fn-form)) (str "Invalid arity for " user-known-sym ". Expected " user-arity " or more."))))
-      (let [user-args    (second fn-form)
-            updated-args (into (vec (or external-args [])) user-args)
-            body-forms   (drop 2 fn-form)]
-        (->> body-forms
-          (cons updated-args)
-          (cons sym)
-          (cons 'fn))))))
-
-#?(:clj
-   (defn- component-query [query-part]
-     (and (list? query-part)
-       (symbol? (first query-part))
-       (= "get-query" (name (first query-part)))
-       query-part)))
-
-#?(:clj
-   (defn- compile-time-query->checkable
-     "Try to simplify the compile-time query (as seen by the macro)
-     to something that EQL can check (`(get-query ..)` => a made-up vector).
-     Returns nil if this is not possible."
-     [query]
-     (try
-       (prewalk
-         (fn [form]
-           (cond
-             (component-query form)
-             [(keyword (str "subquery-of-" (some-> form second name)))]
-
-             ;; Replace idents with idents that contain only keywords, so syms don't trip us up
-             (and (vector? form) (= 2 (count form)))
-             (mapv #(if (symbol? %) :placeholder %) form)
-
-             (symbol? form)
-             (throw (ex-info "Cannot proceed, the query contains a symbol" {:sym form}))
-
-             :else
-             form))
-         query)
-       (catch Throwable _
-         nil))))
-
-#?(:clj
-   (defn- check-query-looks-valid [err-env comp-class compile-time-query]
-     (let [checkable-query (compile-time-query->checkable compile-time-query)]
-       (when (false? (some->> checkable-query (s/valid? ::eql/query)))
-         (let [{:clojure.spec.alpha/keys [problems]} (s/explain-data ::eql/query checkable-query)
-               {:keys [in]} (first problems)]
-           (when (vector? in)
-             (throw (ana/error err-env (str "The element '" (get-in compile-time-query in) "' of the query of " comp-class " is not valid EQL")))))))))
-
-#?(:clj
-   (defn- build-query-forms
-     "Validate that the property destructuring and query make sense with each other."
-     [env class thissym propargs {:keys [template method]}]
-     (cond
-       template
-       (do
-         (assert (or (symbol? propargs) (map? propargs)) "Property args must be a symbol or destructuring expression.")
-         (let [to-keyword            (fn [s] (cond
-                                               (nil? s) nil
-                                               (keyword? s) s
-                                               :otherwise (let [nspc (namespace s)
-                                                                nm   (name s)]
-                                                            (keyword nspc nm))))
-               destructured-keywords (when (map? propargs) (util/destructured-keys propargs))
-               queried-keywords      (-legal-keys template)
-               has-wildcard?         (some #{'*} template)
-               to-sym                (fn [k] (symbol (namespace k) (name k)))
-               illegal-syms          (mapv to-sym (set/difference destructured-keywords queried-keywords))
-               err-env               (merge env (meta template))]
-           (when-let [child-query (some component-query template)]
-             (throw (ana/error err-env (str "defsc " class ": `get-query` calls in :query can only be inside a join value, i.e. `{:some/key " child-query "}`"))))
-           (when (and (not has-wildcard?) (seq illegal-syms))
-             (throw (ana/error err-env (str "defsc " class ": " illegal-syms " was destructured in props, but does not appear in the :query!"))))
-           `(~'fn ~'query* [~thissym] ~template)))
-       method
-       (replace-and-validate-fn env 'query* [thissym] 0 method))))
-
-#?(:clj
-   (defn- build-ident
-     "Builds the ident form. If ident is a vector, then it generates the function and validates that the ID is
-     in the query. Otherwise, if ident is of the form (ident [this props] ...) it simply generates the correct
-     entry in defsc without error checking."
-     [env thissym propsarg {:keys [method template keyword]} is-legal-key?]
-     (cond
-       keyword (if (is-legal-key? keyword)
-                 `(~'fn ~'ident* [~'_ ~'props] [~keyword (~keyword ~'props)])
-                 (throw (ana/error (merge env (meta template)) (str "The table/id " keyword " of :ident does not appear in your :query"))))
-       method (replace-and-validate-fn env 'ident* [thissym propsarg] 0 method)
-       template (let [table   (first template)
-                      id-prop (or (second template) :db/id)]
-                  (cond
-                    (nil? table) (throw (ana/error (merge env (meta template)) "TABLE part of ident template was nil" {}))
-                    (not (is-legal-key? id-prop)) (throw (ana/error (merge env (meta template)) (str "The ID property " id-prop " of :ident does not appear in your :query")))
-                    :otherwise `(~'fn ~'ident* [~'this ~'props] [~table (~id-prop ~'props)]))))))
-
-#?(:clj
    (defn- build-render [classsym thissym propsym compsym extended-args-sym body]
      (let [computed-bindings (when compsym `[~compsym (com.fulcrologic.fulcro.components/get-computed ~thissym)])
            extended-bindings (when extended-args-sym `[~extended-args-sym (com.fulcrologic.fulcro.components/get-extra-props ~thissym)])
@@ -1277,82 +1109,6 @@
                       ~@extended-bindings]
                   ~@body))))))))
 
-#?(:clj
-   (defn- build-and-validate-initial-state-map [env sym initial-state legal-keys children-by-query-key]
-     (let [env           (merge env (meta initial-state))
-           join-keys     (set (keys children-by-query-key))
-           init-keys     (set (keys initial-state))
-           illegal-keys  (if (set? legal-keys) (set/difference init-keys legal-keys) #{})
-           is-child?     (fn [k] (contains? join-keys k))
-           param-expr    (fn [v]
-                           (if-let [kw (and (keyword? v) (= "param" (namespace v))
-                                         (keyword (name v)))]
-                             `(~kw ~'params)
-                             v))
-           parameterized (fn [init-map] (into {} (map (fn [[k v]] (if-let [expr (param-expr v)] [k expr] [k v])) init-map)))
-           child-state   (fn [k]
-                           (let [state-params    (get initial-state k)
-                                 to-one?         (map? state-params)
-                                 to-many?        (and (vector? state-params) (every? map? state-params))
-                                 code?           (list? state-params)
-                                 from-parameter? (and (keyword? state-params) (= "param" (namespace state-params)))
-                                 child-class     (get children-by-query-key k)]
-                             (when code?
-                               (throw (ana/error env (str "defsc " sym ": Illegal parameters to :initial-state " state-params ". Use a lambda if you want to write code for initial state. Template mode for initial state requires simple maps (or vectors of maps) as parameters to children. See Developer's Guide."))))
-                             (cond
-                               (not (or from-parameter? to-many? to-one?)) (throw (ana/error env (str "Initial value for a child (" k ") must be a map or vector of maps!")))
-                               to-one? `(com.fulcrologic.fulcro.components/get-initial-state ~child-class ~(parameterized state-params))
-                               to-many? (mapv (fn [params]
-                                                `(com.fulcrologic.fulcro.components/get-initial-state ~child-class ~(parameterized params)))
-                                          state-params)
-                               from-parameter? `(com.fulcrologic.fulcro.components/get-initial-state ~child-class ~(param-expr state-params))
-                               :otherwise nil)))
-           kv-pairs      (map (fn [k]
-                                [k (if (is-child? k)
-                                     (child-state k)
-                                     (param-expr (get initial-state k)))]) init-keys)
-           state-map     (into {} kv-pairs)]
-       (when (seq illegal-keys)
-         (throw (ana/error env (str "Initial state includes keys " illegal-keys ", but they are not in your query."))))
-       `(~'fn ~'build-initial-state* [~'params] (com.fulcrologic.fulcro.components/make-state-map ~initial-state ~children-by-query-key ~'params)))))
-
-#?(:clj
-   (defn- build-raw-initial-state
-     "Given an initial state form that is a list (function-form), simple copy it into the form needed by defsc."
-     [env method]
-     (replace-and-validate-fn env 'build-raw-initial-state* [] 1 method)))
-
-#?(:clj
-   (defn- build-initial-state [env sym {:keys [template method]} legal-keys query-template-or-method]
-     (when (and template (contains? query-template-or-method :method))
-       (throw (ana/error (merge env (meta template)) (str "When query is a method, initial state MUST be as well."))))
-     (cond
-       method (build-raw-initial-state env method)
-       template (let [query    (:template query-template-or-method)
-                      children (or (children-by-prop query) {})]
-                  (build-and-validate-initial-state-map env sym template legal-keys children)))))
-
-#?(:clj
-   (s/def ::ident (s/or :template (s/and vector? #(= 2 (count %))) :method list? :keyword keyword?)))
-#?(:clj
-   ;; NOTE: We cannot reuse ::eql/query because we have the raw input *form* inside a macro,
-   ;; not the actual *data* that will be there at runtime (i.e. it may contain raw fn calls etc.)
-   (s/def ::query (s/or :template vector? :method list?)))
-#?(:clj
-   (s/def ::initial-state (s/or :template map? :method list?)))
-#?(:clj
-   (s/def ::options (s/keys :opt-un [::query
-                                     ::ident
-                                     ::initial-state])))
-
-#?(:clj
-   (s/def ::args (s/cat
-                   :sym symbol?
-                   :doc (s/? string?)
-                   :arglist (s/and vector? #(<= 2 (count %) 5))
-                   :options (s/? map?)
-                   :body (s/* any?))))
-
 (defn react-constructor
   "Mainly for internal use and for use with `configure-component!`. Returns a constructor function which is usable
    as the React Class for `configure-component!`. E.g.:
@@ -1379,75 +1135,78 @@
 #?(:clj
    (defn defsc*
      [env args]
-     (when-not (s/valid? ::args args)
-       (throw (ana/error env (str "Invalid arguments. " (-> (s/explain-data ::args args)
-                                                          ::s/problems
-                                                          first
-                                                          :path) " is invalid."))))
-     (let [{:keys [sym doc arglist options body]} (s/conform ::args args)
-           [thissym propsym computedsym extra-args] arglist
-           _                                (when (and options (not (s/valid? ::options options)))
-                                              (let [path    (-> (s/explain-data ::options options) ::s/problems first :path)
-                                                    message (cond
-                                                              (= path [:query :template]) "The query template only supports vectors as queries. Unions or expression require the lambda form."
-                                                              (= :ident (first path)) "The ident must be a keyword, 2-vector, or lambda of no arguments."
-                                                              :else "Invalid component options. Please check to make\nsure your query, ident, and initial state are correct.")]
-                                                (throw (ana/error env message))))
-           {:keys [ident query initial-state]} (s/conform ::options options)
-           body                             (or body ['nil])
-           ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
-           initial-state-template-or-method (into {} [initial-state])
-           query-template-or-method         (into {} [query])
-           validate-query?                  (and (:template query-template-or-method) (not (some #{'*} (:template query-template-or-method))))
-           legal-key-checker                (if validate-query?
-                                              (or (-legal-keys (:template query-template-or-method)) #{})
-                                              (complement #{}))
-           ident-form                       (build-ident env thissym propsym ident-template-or-method legal-key-checker)
-           state-form                       (build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
-           query-form                       (build-query-forms env sym thissym propsym query-template-or-method)
-           _                                (when validate-query?
-                                              ;; after build-query-forms as it also does some useful checks
-                                              (check-query-looks-valid env sym (:template query-template-or-method)))
-           hooks?                           (and (cljs? env) (:use-hooks? options))
-           memoize?                         (= :pure hooks?)
-           render-form                      (if hooks?
-                                              (build-hooks-render sym thissym propsym computedsym extra-args body)
-                                              (build-render sym thissym propsym computedsym extra-args body))
-           nspc                             (if (cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
-           fqkw                             (keyword (str nspc) (name sym))
-           options-map                      (cond-> options
-                                              state-form (assoc :initial-state state-form)
-                                              ident-form (assoc :ident ident-form)
-                                              query-form (assoc :query query-form)
-                                              hooks? (assoc :componentName fqkw)
-                                              render-form (assoc :render render-form))]
-       (cond
-         hooks? (let [component-form `(fn [js-props#]
-                                        (let [render# (:render (component-options ~sym))
-                                              [this# props#] (use-fulcro js-props# ~sym)]
-                                          (render# this# props#)))]
-                  (if memoize?
-                    `(do
-                       (defonce ~sym (com.fulcrologic.fulcro.components/memo ~component-form))
-                       (add-hook-options! ~sym ~options-map))
-                    `(do
-                       (defonce ~sym ~component-form)
-                       (add-hook-options! ~sym ~options-map))))
+     (binding [ms/*macro-error* (fn [e msg] #?(:bb (ms/default-macro-error e msg) :clj (ana/error e msg)))]
+       (when-not (s/valid? ::ms/args args)
+         (throw #?(:bb  (ms/macro-error env (str "Invalid arguments. " (-> (s/explain-data ::ms/args args)
+                                                                         ::s/problems first :path) " is invalid."))
+                   :clj (ana/error env (str "Invalid arguments. " (-> (s/explain-data ::ms/args args)
+                                                            ::s/problems
+                                                            first
+                                                            :path) " is invalid.")))))
+       (let [{:keys [sym doc arglist options body]} (s/conform ::ms/args args)
+             [thissym propsym computedsym extra-args] arglist
+             _                                (when (and options (not (s/valid? ::ms/options options)))
+                                                (let [path    (-> (s/explain-data ::ms/options options) ::s/problems first :path)
+                                                      message (cond
+                                                                (= path [:query :template]) "The query template only supports vectors as queries. Unions or expression require the lambda form."
+                                                                (= :ident (first path)) "The ident must be a keyword, 2-vector, or lambda of no arguments."
+                                                                :else "Invalid component options. Please check to make\nsure your query, ident, and initial state are correct.")]
+                                                  (throw #?(:bb (ms/macro-error env message) :clj (ana/error env message)))))
+             {:keys [ident query initial-state]} (s/conform ::ms/options options)
+             body                             (or body ['nil])
+             ident-template-or-method         (into {} [ident]) ;clojure spec returns a map entry as a vector
+             initial-state-template-or-method (into {} [initial-state])
+             query-template-or-method         (into {} [query])
+             validate-query?                  (and (:template query-template-or-method) (not (some #{'*} (:template query-template-or-method))))
+             legal-key-checker                (if validate-query?
+                                                (or (ms/-legal-keys (:template query-template-or-method)) #{})
+                                                (complement #{}))
+             ident-form                       (ms/build-ident env thissym propsym ident-template-or-method legal-key-checker)
+             state-form                       (ms/build-initial-state env sym initial-state-template-or-method legal-key-checker query-template-or-method)
+             query-form                       (ms/build-query-forms env sym thissym propsym query-template-or-method)
+             _                                (when validate-query?
+                                                ;; after build-query-forms as it also does some useful checks
+                                                (ms/check-query-looks-valid env sym (:template query-template-or-method)))
+             hooks?                           (and (cljs? env) (:use-hooks? options))
+             memoize?                         (= :pure hooks?)
+             render-form                      (if hooks?
+                                                (build-hooks-render sym thissym propsym computedsym extra-args body)
+                                                (build-render sym thissym propsym computedsym extra-args body))
+             nspc                             (if (cljs? env) (-> env :ns :name str) (name (ns-name *ns*)))
+             fqkw                             (keyword (str nspc) (name sym))
+             options-map                      (cond-> options
+                                                state-form (assoc :initial-state state-form)
+                                                ident-form (assoc :ident ident-form)
+                                                query-form (assoc :query query-form)
+                                                hooks? (assoc :componentName fqkw)
+                                                render-form (assoc :render render-form))]
+         (cond
+           hooks? (let [component-form `(fn [js-props#]
+                                          (let [render# (:render (component-options ~sym))
+                                                [this# props#] (use-fulcro js-props# ~sym)]
+                                            (render# this# props#)))]
+                    (if memoize?
+                      `(do
+                         (defonce ~sym (com.fulcrologic.fulcro.components/memo ~component-form))
+                         (add-hook-options! ~sym ~options-map))
+                      `(do
+                         (defonce ~sym ~component-form)
+                         (add-hook-options! ~sym ~options-map))))
 
-         (cljs? env)
-         `(do
-            (declare ~sym)
-            (let [options# ~options-map]
-              (defonce ~(vary-meta sym assoc :doc doc :jsdoc ["@constructor"])
-                (react-constructor (get options# :initLocalState)))
-              (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
+           (cljs? env)
+           `(do
+              (declare ~sym)
+              (let [options# ~options-map]
+                (defonce ~(vary-meta sym assoc :doc doc :jsdoc ["@constructor"])
+                  (react-constructor (get options# :initLocalState)))
+                (com.fulcrologic.fulcro.components/configure-component! ~sym ~fqkw options#)))
 
-         :else
-         `(do
-            (declare ~sym)
-            (let [options# ~options-map]
-              (def ~(vary-meta sym assoc :doc doc :once true)
-                (com.fulcrologic.fulcro.components/configure-component! ~(str sym) ~fqkw options#))))))))
+           :else
+           `(do
+              (declare ~sym)
+              (let [options# ~options-map]
+                (def ~(vary-meta sym assoc :doc doc :once true)
+                  (com.fulcrologic.fulcro.components/configure-component! ~(str sym) ~fqkw options#)))))))))
 
 (let [hot-reload-cache (volatile! {})]
   (defn sc
@@ -1582,7 +1341,8 @@
        (catch Exception e
          (if (contains? (ex-data e) :tag)
            (throw e)
-           (throw (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e)))))))
+           (throw #?(:bb  (ms/macro-error &env "Unexpected internal error while processing defsc. Please check your syntax.")
+                     :clj (ana/error &env "Unexpected internal error while processing defsc. Please check your syntax." e))))))))
 
 (def external-config rc/external-config)
 

@@ -62,3 +62,4 @@ resources/public/workspaces
 lsp
 .clj-kondo/com.wsscode
 .clj-kondo
+.code-intelligence

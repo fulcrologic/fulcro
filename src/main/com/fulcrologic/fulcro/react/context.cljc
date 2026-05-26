@@ -2,7 +2,9 @@
   #?(:cljs (:require
              ["react" :as react]
              [goog.object :as gobj]))
-  #?(:clj (:import (cljs.tagged_literals JSValue))))
+  ;; babashka cannot resolve the cljs compiler's JSValue class; :clj (real JVM Clojure, used as the
+  ;; cljs macro host) still imports it. :bb omits the import (the #js literal is cljs-only anyway).
+  #?@(:bb [] :clj [(:import (cljs.tagged_literals JSValue))]))
 
 (defn create-context
   "Wrapper for React createContext. Returns a map containing `:ui-consumer` and `:ui-provider` factories, along

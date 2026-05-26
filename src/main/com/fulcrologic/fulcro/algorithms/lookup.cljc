@@ -4,7 +4,8 @@
   to something like `app` for easy access to keyword aliasing, but in Clojure this leads
   to circular references. This namespace exists simply to save typing and hassle with
   respect to that. It includes `app-algorithm` which can look up a plug-in algorithm on
-  an app using a simple keyword without having to require the application ns.")
+  an app using a simple keyword without having to require the application ns."
+  #?@(:bb [(:require [com.fulcrologic.fulcro.algorithms.bb-support])]))
 
 (defn app-algorithm
   "Get the current value of a particular Fulcro plugin algorithm.  These are set by default and can be overridden

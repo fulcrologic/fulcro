@@ -25,7 +25,9 @@
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.application :as app])
-  #?(:clj (:import (cljs.tagged_literals JSValue))))
+  ;; babashka can't resolve the cljs compiler's JSValue class; :bb omits the import (it's only used
+  ;; to emit #js in cljs macros). :bb must precede :clj since babashka also matches :clj.
+  #?@(:bb [] :clj [(:import (cljs.tagged_literals JSValue))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLJ Headless Hooks Emulation
@@ -63,27 +65,9 @@
        "Atom collecting all component paths rendered in this frame (for cleanup)."
        nil)
 
-     ;; ==========================================================================
-     ;; HeadlessRef - mimics React ref with mutable .-current property
-     ;; Uses an atom internally because deftype mutable fields can't be set
-     ;; from outside the type's own methods in Clojure.
-     ;; ==========================================================================
-     (deftype HeadlessRef [current-atom]
-       clojure.lang.IDeref
-       (deref [_] @current-atom)
-       clojure.lang.ILookup
-       (valAt [_ k] (when (= k :current) @current-atom))
-       (valAt [_ k not-found] (if (= k :current) @current-atom not-found))
-       Object
-       (toString [_] (str "#<HeadlessRef " @current-atom ">")))
-
-     (defn- get-ref-atom
-       "Get the internal atom of a HeadlessRef."
-       [^HeadlessRef ref]
-       (.-current-atom ref))
-
-     (defn- make-ref [initial]
-       (HeadlessRef. (atom initial)))
+     ;; HeadlessRef + get-ref-atom + make-ref are defined just below this do-block (as their own
+     ;; reader-conditional form) so babashka can use a deftype variant without clojure.lang.ILookup,
+     ;; which SCI's deftype does not support.
 
      ;; ==========================================================================
      ;; Hook Registry Access - stored in app's runtime-atom under ::hook-registry
@@ -322,6 +306,34 @@
              (run-pending-effects!)
              result))))))
 
+;; HeadlessRef and its helpers live outside the big #?(:clj (do ...)) block so babashka can use a
+;; deftype variant without clojure.lang.ILookup (SCI's deftype doesn't support it). The :clj branch
+;; is identical to the original; cljs has no HeadlessRef (it uses real React refs). The :clj/:bb hook
+;; code reads refs via deref / get-ref-atom (never :current), so IDeref suffices under bb.
+#?(:bb
+   (do
+     (deftype HeadlessRef [current-atom]
+       clojure.lang.IDeref
+       (deref [_] @current-atom))
+     (defn- get-ref-atom [ref] (.-current-atom ref))
+     (defn- make-ref [initial] (HeadlessRef. (atom initial))))
+   :clj
+   (do
+     (deftype HeadlessRef [current-atom]
+       clojure.lang.IDeref
+       (deref [_] @current-atom)
+       clojure.lang.ILookup
+       (valAt [_ k] (when (= k :current) @current-atom))
+       (valAt [_ k not-found] (if (= k :current) @current-atom not-found))
+       Object
+       (toString [_] (str "#<HeadlessRef " @current-atom ">")))
+     (defn- get-ref-atom
+       "Get the internal atom of a HeadlessRef."
+       [^HeadlessRef ref]
+       (.-current-atom ref))
+     (defn- make-ref [initial]
+       (HeadlessRef. (atom initial)))))
+
 #?(:clj
    (defmacro with-rendering-context
      "Macro for convenient isolated component rendering with hooks support.
@@ -455,7 +467,14 @@
                 (when (and prev-effect (not should-run?))
                   (set-effect! path idx (assoc prev-effect :deps deps-vec))))))))
 
-#?(:clj
+;; :bb variant skips the cljs-compilation path (which references JSValue, unresolvable in SCI);
+;; babashka never compiles ClojureScript. :clj is unchanged and still serves cljs compilation.
+#?(:bb
+   (defmacro use-effect
+     "babashka variant of `use-effect` (no cljs js-array conversion)."
+     ([f] `(useEffect ~f))
+     ([f dependencies] `(useEffect ~f ~dependencies)))
+   :clj
    (defmacro use-effect
      "A simple macro wrapper around React/useEffect that does compile-time conversion of `dependencies` to a js-array
      for convenience without affecting performance.
@@ -603,7 +622,10 @@
      (ref-current my-ref))  ;; => 42
    ```"
   [ref value]
-  #?(:cljs (set! (.-current ref) value)
+  ;; Under bb every ref is a HeadlessRef (atom-backed); route through the atom (SCI can't analyze
+  ;; set! on a field). :cljs/:clj unchanged.
+  #?(:bb   (reset! (get-ref-atom ref) value)
+     :cljs (set! (.-current ref) value)
      :clj  (if (instance? HeadlessRef ref)
              (reset! (get-ref-atom ref) value)
              (set! (.-current ref) value))))
@@ -831,13 +853,16 @@
         [current-props set-props!] (use-state (fn []
                                                 (rapp/maybe-merge-new-root! app root-key component options)
                                                 (let [initial-props (get-props)]
-                                                  (set! (.-current prior-props-ref) initial-props)
+                                                  ;; :bb can't set! a field; route through the ref's atom
+                                                  #?(:bb      (set-ref-current! prior-props-ref initial-props)
+                                                     :default (set! (.-current prior-props-ref) initial-props))
                                                   initial-props)))]
     (use-lifecycle
       (fn [] (rapp/add-render-listener! app root-key (fn use-root-render-listener* [app _]
                                                        (let [props (get-props)]
                                                          (when-not (identical? (.-current prior-props-ref) props)
-                                                           (set! (.-current prior-props-ref) props)
+                                                           #?(:bb      (set-ref-current! prior-props-ref props)
+                                                              :default (set! (.-current prior-props-ref) props))
                                                            (set-props! props))))))
       (fn use-tree-remove-render-listener* [] (rapp/remove-root! app root-key)))
     (get current-props root-key)))

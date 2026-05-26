@@ -1,7 +1,10 @@
 (ns com.fulcrologic.fulcro.algorithms.react-interop
   (:require
     [com.fulcrologic.fulcro.components :as comp]
-    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
+    ;; :bb -> stubs (dom-server uses definterface, unsupported by SCI; the React fns below are
+    ;; never needed under bb). :bb must precede :clj since babashka also matches :clj.
+    #?(:bb   [com.fulcrologic.fulcro.algorithms.bb-support :as dom]
+       :cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])
     [taoensso.timbre :as log]))
 

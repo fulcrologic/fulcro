@@ -13,6 +13,8 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
+    ;; bb-only: installs encore fns that babashka's built-in encore lacks (no-op under clj/cljs)
+    #?@(:bb [[com.fulcrologic.fulcro.algorithms.bb-support]])
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
     [taoensso.timbre :as log])
@@ -281,6 +283,59 @@
    (some-> (initial-state class {}) (with-meta {:computed true})))
   ([class params]
    (some-> (initial-state class params) (with-meta {:computed true}))))
+
+(defn computed-initial-state?
+  "Returns true if the given initial state was returned from a call to get-initial-state. This is used by internal
+  algorithms when interpreting initial state shorthand in `defsc`."
+  [s]
+  (and (map? s) (some-> s meta :computed)))
+
+(defn make-state-map
+  "Build a component's initial state using the defsc initial-state-data from
+  options, the children from options, and the params from the invocation of get-initial-state."
+  [initial-state children-by-query-key params]
+  (let [join-keys (set (keys children-by-query-key))
+        init-keys (set (keys initial-state))
+        is-child? (fn [k] (contains? join-keys k))
+        value-of  (fn value-of* [[isk isv]]
+                    (let [param-name    (fn [v] (and (keyword? v) (= "param" (namespace v)) (keyword (name v))))
+                          substitute    (fn [ele] (if-let [k (param-name ele)]
+                                                    (get params k)
+                                                    ele))
+                          param-key     (param-name isv)
+                          param-exists? (contains? params param-key)
+                          param-value   (get params param-key)
+                          child-class   (get children-by-query-key isk)]
+                      (cond
+                        ; parameterized lookup with no value
+                        (and param-key (not param-exists?)) nil
+
+                        ; to-one join, where initial state is a map to be used as child initial state *parameters* (enforced by defsc macro)
+                        ; and which may *contain* parameters
+                        (and (map? isv) (is-child? isk)) [isk (get-initial-state child-class (into {} (keep value-of* isv)))]
+
+                        ; not a join. Map is literal initial value.
+                        (map? isv) [isk (into {} (keep value-of* isv))]
+
+                        ; to-many join. elements MUST be parameters (enforced by defsc macro)
+                        (and (vector? isv) (is-child? isk)) [isk (mapv (fn [m] (get-initial-state child-class (into {} (keep value-of* m)))) isv)]
+
+                        ; to-many join. elements might be parameter maps or already-obtained initial-state
+                        (and (vector? param-value) (is-child? isk)) [isk (mapv (fn [params]
+                                                                                 (if (computed-initial-state? params)
+                                                                                   params
+                                                                                   (get-initial-state child-class params))) param-value)]
+
+                        ; vector of non-children
+                        (vector? isv) [isk (mapv (fn [ele] (substitute ele)) isv)]
+
+                        ; to-one join with parameter. value might be params, or an already-obtained initial-state
+                        (and param-key (is-child? isk) param-exists?) [isk (if (computed-initial-state? param-value)
+                                                                             param-value
+                                                                             (get-initial-state child-class param-value))]
+                        param-key [isk param-value]
+                        :else [isk isv])))]
+    (into {} (keep value-of initial-state))))
 
 (defn get-ident
   "Get the ident for a mounted component OR using a component class.

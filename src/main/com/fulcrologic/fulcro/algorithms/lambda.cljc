@@ -11,7 +11,15 @@
    wrap time) to discover the function's supported arities and creates a wrapper
    that dispatches to the best matching arity.")
 
-#?(:clj
+;; babashka's SCI cannot resolve clojure.lang.RestFn, so the reflection-based arity discovery
+;; is unavailable. Under :bb we report functions as variadic, which makes `->arity-tolerant`
+;; pass them through unchanged (the same behavior CLJS uses). :clj is untouched.
+#?(:bb
+   (defn fn-arities
+     "babashka stub: reports `f` as variadic (arity discovery via reflection is unavailable under bb)."
+     [f]
+     {:variadic? true})
+   :clj
    (defn fn-arities
      "Discover the arities of a function via reflection.
 
@@ -63,7 +71,8 @@
    (multi 1 2 3 4)   ;; => :two (uses arity-2, drops extras)
    ```"
   [f]
-  #?(:cljs f
+  #?(:bb f
+     :cljs f
      :clj
      (if (nil? f)
        nil

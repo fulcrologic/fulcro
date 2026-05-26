@@ -4,6 +4,8 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
+    ;; bb-only: installs encore fns that babashka's built-in encore lacks (no-op under clj/cljs)
+    #?@(:bb [[com.fulcrologic.fulcro.algorithms.bb-support]])
     [edn-query-language.core :as eql]
     [taoensso.encore :as enc]
     [taoensso.timbre :as log]))

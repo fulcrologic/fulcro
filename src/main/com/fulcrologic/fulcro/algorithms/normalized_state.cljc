@@ -12,6 +12,8 @@
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    ;; bb-only: installs encore fns that babashka's built-in encore lacks (no-op under clj/cljs)
+    #?@(:bb [[com.fulcrologic.fulcro.algorithms.bb-support]])
     [taoensso.encore :as enc]))
 
 (def integrate-ident
