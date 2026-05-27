@@ -15,7 +15,7 @@
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.guardrails.core :refer [=> >defn ?]]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log]))
 
 (declare schedule-activation! process-queue!)
@@ -241,7 +241,7 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::txn/send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote    (get (app->remotes app) remote-name)
+  (core/if-let [remote    (get (app->remotes app) remote-name)
                transmit! (get remote :transmit!)]
     (try
       (inspect/ido

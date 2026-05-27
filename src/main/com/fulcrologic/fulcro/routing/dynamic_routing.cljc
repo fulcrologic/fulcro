@@ -29,7 +29,7 @@
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log]))
 
 (def ^:dynamic *target-class*
@@ -141,13 +141,13 @@
               (or rc/*query-state* {}))]
      (get-targets router sm)))
   ([router state-map]
-   (enc/when-let [[router router-ident] (cond
+   (core/when-let [[router router-ident] (cond
                                           (rc/component-class? router) [router (rc/get-ident router {})]
                                           (rc/component-instance? router) (let [p (rc/props router)]
                                                                             ;; in case it isn't mounted yet, props could be nil
                                                                             [router (rc/get-ident router (or p {}))])
                                           (eql/ident? router) [(rc/registry-key->class (second router)) router]
-                                          (rc/legal-registry-lookup-key? router) (enc/when-let [cls (some-> router (rc/registry-key->class))]
+                                          (rc/legal-registry-lookup-key? router) (core/when-let [cls (some-> router (rc/registry-key->class))]
                                                                                    [cls (rc/get-ident cls {})]))
                   static-router-targets (set (rc/component-options router :router-targets))
                   router-targets        (into static-router-targets
@@ -1392,7 +1392,7 @@
   ([app-ish RouteTarget route-params]
    (absolute-path app-ish RouteTarget route-params {})))
 
-(defn- loaded? [k] #?(:cljs (or (nil? k) (enc/catching (loader/loaded? k))) :clj true))
+(defn- loaded? [k] #?(:cljs (or (nil? k) (core/catching (loader/loaded? k))) :clj true))
 
 (defn route-to!
   "Route to a specific `target` of the given `Router`. This is different from `change-route!` in that it makes the

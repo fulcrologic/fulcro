@@ -5,7 +5,7 @@
   #?(:cljs (:require-macros com.fulcrologic.fulcro.react.error-boundaries))
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log]))
 
 (def ^:dynamic *render-error*
@@ -87,6 +87,6 @@
      ```
      "
      [& body]
-     (if (enc/compiling-cljs?)
+     (if (core/compiling-cljs?)
        (error-boundary* body)
        (error-boundary-clj body))))

@@ -71,7 +71,20 @@
    (multi 1 2 3 4)   ;; => :two (uses arity-2, drops extras)
    ```"
   [f]
-  #?(:bb f
+  #?(:bb
+     ;; babashka/SCI cannot introspect fn arity (no clojure.lang.RestFn / reflection), and — unlike
+     ;; CLJS — SCI fixed-arity fns throw on extra args rather than ignoring them, so `f` cannot just
+     ;; be passed through. Adapt at call time: try the call with all args, and on an ArityException
+     ;; retry with one fewer, down to zero. (Caveat: an ArityException thrown from *inside* a
+     ;; correct-arity `f` would trigger a spurious retry; RAD handlers don't do this.)
+     (when (some? f)
+       (fn [& args]
+         (loop [n (count args)]
+           (if (neg? n)
+             (throw (ex-info "No suitable arity for function" {:arg-count (count args)}))
+             (let [[ok? v] (try [true (apply f (take n args))]
+                                (catch clojure.lang.ArityException _ [false nil]))]
+               (if ok? v (recur (dec n))))))))
      :cljs f
      :clj
      (if (nil? f)

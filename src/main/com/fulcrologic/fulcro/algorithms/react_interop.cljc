@@ -3,7 +3,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     ;; :bb -> stubs (dom-server uses definterface, unsupported by SCI; the React fns below are
     ;; never needed under bb). :bb must precede :clj since babashka also matches :clj.
-    #?(:bb   [com.fulcrologic.fulcro.algorithms.bb-support :as dom]
+    #?(:bb   [com.fulcrologic.fulcro.algorithms.core :as dom]
        :cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])
     [taoensso.timbre :as log]))

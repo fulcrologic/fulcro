@@ -12,9 +12,7 @@
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    ;; bb-only: installs encore fns that babashka's built-in encore lacks (no-op under clj/cljs)
-    #?@(:bb [[com.fulcrologic.fulcro.algorithms.bb-support]])
-    [taoensso.encore :as enc]))
+    [com.fulcrologic.fulcro.algorithms.core :as core]))
 
 (def integrate-ident
   "[state ident & named-parameters]
@@ -182,7 +180,7 @@
                                     (walk/prewalk
                                       (fn [ele]
                                         (cond
-                                          (map? ele) (enc/remove-vals #(= ident %) ele)
+                                          (map? ele) (core/remove-vals #(= ident %) ele)
                                           (vector? ele) (with-meta
                                                           (filterv #(not= ident %) ele)
                                                           (meta ele))

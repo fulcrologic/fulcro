@@ -22,7 +22,7 @@
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as fns]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro.application :as app])
   ;; babashka can't resolve the cljs compiler's JSValue class; :bb omits the import (it's only used
@@ -483,7 +483,7 @@
      ([f]
       `(useEffect ~f))
      ([f dependencies]
-      (if (enc/compiling-cljs?)
+      (if (core/compiling-cljs?)
         (let [deps (cond
                      (nil? dependencies) nil
                      (instance? JSValue dependencies) dependencies
@@ -715,7 +715,7 @@
      ([setup teardown]
       (cond
         (and setup teardown) `(use-effect (fn [] (~setup) ~teardown) [])
-        setup `(use-effect (fn [] (~setup) ~(when (enc/compiling-cljs?) 'js/undefined)) [])
+        setup `(use-effect (fn [] (~setup) ~(when (core/compiling-cljs?) 'js/undefined)) [])
         teardown `(use-effect (fn [] ~teardown) [])))))
 
 (let [id (fn [] (tempid/uuid))]

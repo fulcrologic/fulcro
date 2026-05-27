@@ -52,7 +52,7 @@
     [com.fulcrologic.guardrails.core :refer [>def >defn =>]]
     [edn-query-language.core :as eql]
     [taoensso.timbre :as log]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
@@ -126,7 +126,7 @@
   [env]
   [::env => ::env]
   (let [{:keys [app result]} env]
-    (enc/when-let [global-error-action (ah/app-algorithm app :global-error-action)
+    (core/when-let [global-error-action (ah/app-algorithm app :global-error-action)
                    remote-error?       (ah/app-algorithm app :remote-error?)
                    _                   (remote-error? result)]
       (global-error-action env))

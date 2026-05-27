@@ -13,10 +13,8 @@
     [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-    ;; bb-only: installs encore fns that babashka's built-in encore lacks (no-op under clj/cljs)
-    #?@(:bb [[com.fulcrologic.fulcro.algorithms.bb-support]])
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
     [taoensso.timbre :as log])
   #?(:clj
      (:import (clojure.lang IDeref))))
@@ -123,7 +121,7 @@
   #?(:cljs {:tag boolean})
   [x]
   #?(:clj  (boolean (and (map? x) (:com.fulcrologic.fulcro.components/component-class? x)))
-     :cljs (boolean (enc/catching (gobj/containsKey x "fulcro$class")))))
+     :cljs (boolean (core/catching (gobj/containsKey x "fulcro$class")))))
 
 (defn component-name
   "Returns a string version of the given react component's name. Works on component instances and classes."
@@ -578,7 +576,7 @@
   (let [metadata (meta query)]
     (if (map? query)
       (with-meta
-        (enc/map-vals (fn [ele] (let [{:keys [queryid]} (meta ele)] queryid)) query)
+        (core/map-vals (fn [ele] (let [{:keys [queryid]} (meta ele)] queryid)) query)
         metadata)
       (with-meta
         (mapv link-element query)
@@ -784,7 +782,7 @@
                                          :fulcro/warnings? false}
                                         top-component-options
                                         {:query  (fn [& args]
-                                                   (enc/map-vals get-query component-map))
+                                                   (core/map-vals get-query component-map))
                                          "props" {"fulcro$queryid" :anonymous}})
                                       {:query-id :anonymous})
                               (not ident) (assoc :ident
