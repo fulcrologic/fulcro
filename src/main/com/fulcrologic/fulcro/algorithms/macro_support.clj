@@ -234,3 +234,13 @@
                 :arglist (s/and vector? #(<= 2 (count %) 5))
                 :options (s/? map?)
                 :body (s/* any?)))
+
+(defn misplaced-docstring?
+  "Returns true if the raw `args` of a `defsc` contain the top-level sequence: literal vector, literal string,
+   literal map. Since the options map is optional, such a form is legal but almost certainly a mistake: the
+   docstring was written *after* the argument list, which makes the string and the options map part of the render
+   body, silently producing a component with no query/ident/initial state."
+  [args]
+  (boolean
+    (some (fn [[a b c]] (and (vector? a) (string? b) (map? c)))
+      (partition 3 1 args))))

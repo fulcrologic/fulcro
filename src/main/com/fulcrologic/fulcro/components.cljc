@@ -1136,6 +1136,10 @@
    (defn defsc*
      [env args]
      (binding [ms/*macro-error* (fn [e msg] #?(:bb (ms/default-macro-error e msg) :clj (ana/error e msg)))]
+       (when (ms/misplaced-docstring? args)
+         (let [message (str "Docstring is in the wrong position. It must come before the argument list, as in "
+                         "`(defsc " (first args) " \"docstring\" [this props] {:query ...} ...)`.")]
+           (throw #?(:bb (ms/macro-error env message) :clj (ana/error env message)))))
        (when-not (s/valid? ::ms/args args)
          (throw #?(:bb  (ms/macro-error env (str "Invalid arguments. " (-> (s/explain-data ::ms/args args)
                                                                          ::s/problems first :path) " is invalid."))

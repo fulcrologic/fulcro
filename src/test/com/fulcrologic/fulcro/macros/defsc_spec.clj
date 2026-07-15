@@ -22,6 +22,22 @@
                               ::keys [x]
                               }) => #{:a.b/n :db/id ::x}))
 
+(deftest misplaced-docstring-test
+  (assertions
+    "Detects a docstring that was placed after the argument list, followed by an options map"
+    (ms/misplaced-docstring? '(Foo [_ _] "asdasd" {:query [:x]} (dom/div nil "hi"))) => true
+    (ms/misplaced-docstring? '(Foo [_ _] "asdasd" {:query [:x]})) => true
+    "Is not fooled by a correctly-placed docstring"
+    (ms/misplaced-docstring? '(Foo "docstring" [_ _] {:query [:x]} (dom/div nil "hi"))) => false
+    "Allows a body that has no options map"
+    (ms/misplaced-docstring? '(Foo [_ _] (dom/div nil "hi"))) => false
+    (ms/misplaced-docstring? '(Foo [_ _] "just a string body")) => false
+    "Allows a body that returns a literal map"
+    (ms/misplaced-docstring? '(Foo [_ _] {:query [:x]} {:some :map})) => false)
+  (is (thrown-with-msg? ExceptionInfo #"Docstring is in the wrong position"
+        (#'defsc/defsc* nil '(Foo [this props] "asdasd" {:query [:x]} (dom/div nil "hi"))))
+    "defsc* refuses to compile a component whose docstring would swallow the options map"))
+
 (deftest defsc-macro-helpers-test
   (component "build-render form"
     (assertions
