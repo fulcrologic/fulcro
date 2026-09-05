@@ -200,7 +200,7 @@
                                             props)]
                           (create-element input-type final-props))))))]
     (fn [^js props & children]
-      (create-element element props children))))
+      (apply create-element element props children))))
 
 
 (def wrapped-input "Low-level form input, with no syntactic sugar. Used internally by DOM macros" (wrap-form-element "input"))
