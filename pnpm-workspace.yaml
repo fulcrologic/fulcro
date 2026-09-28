@@ -2,3 +2,5 @@ saveExact: true
 minimumReleaseAge: 10080   # minutes = 7 days
 allowBuilds:
   fsevents: false
+# shadow-cljs resolves its node polyfills (e.g. `process`) from the top of node_modules
+shamefullyHoist: true
