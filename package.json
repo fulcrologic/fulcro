@@ -4,8 +4,11 @@
   "description": "Testing",
   "main": "index.js",
   "packageManager": "pnpm@11.21.0",
-  "scripts": {
-    "preinstall": "npx only-allow@1.2.2 pnpm"
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.21.0"
+    }
   },
   "directories": {},
   "devDependencies": {
