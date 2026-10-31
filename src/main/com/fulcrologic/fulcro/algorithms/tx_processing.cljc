@@ -6,6 +6,7 @@
   (:require
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as futil]
     [com.fulcrologic.fulcro.algorithms.lookup :as ah]
     [com.fulcrologic.fulcro.algorithms.scheduling :refer [schedule!]]
@@ -16,7 +17,6 @@
     [com.fulcrologic.fulcro.specs]
     [com.fulcrologic.guardrails.core :refer [=>]]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
 (declare schedule-activation! process-queue! remove-send!)
@@ -142,8 +142,8 @@
   if the remote itself throws exceptions."
   [app send-node remote-name]
   [:com.fulcrologic.fulcro.application/app ::send-node :com.fulcrologic.fulcro.application/remote-name => any?]
-  (enc/if-let [remote    (get (app->remotes app) remote-name)
-               transmit! (get remote :transmit!)]
+  (core/if-let [remote (get (app->remotes app) remote-name)
+                transmit! (get remote :transmit!)]
     (try
       (inspect/ilet [tx (futil/ast->query (::ast send-node))]
         (inspect/send-started! app remote-name (::id send-node) tx))

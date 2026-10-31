@@ -4,7 +4,7 @@
     <groupId>com.fulcrologic</groupId>
     <artifactId>fulcro</artifactId>
     <packaging>jar</packaging>
-    <version>3.9.5-SNAPSHOT</version>
+    <version>3.10.1-SNAPSHOT</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -74,7 +74,7 @@
         <dependency>
             <groupId>com.fulcrologic</groupId>
             <artifactId>guardrails</artifactId>
-            <version>1.2.9</version>
+            <version>1.3.1</version>
         </dependency>
         <dependency>
             <groupId>edn-query-language</groupId>
@@ -97,6 +97,11 @@
             <version>1.12.42</version>
         </dependency>
         <dependency>
+            <groupId>com.yetanalytics</groupId>
+            <artifactId>colossal-squuid</artifactId>
+            <version>0.1.5</version>
+        </dependency>
+        <dependency>
             <groupId>com.taoensso</groupId>
             <artifactId>timbre</artifactId>
             <version>6.6.1</version>
@@ -115,6 +120,12 @@
             <groupId>org.clojure</groupId>
             <artifactId>core.async</artifactId>
             <version>1.8.741</version>
+        </dependency>
+        <dependency>
+            <groupId>http-kit</groupId>
+            <artifactId>http-kit</artifactId>
+            <version>2.8.1</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>

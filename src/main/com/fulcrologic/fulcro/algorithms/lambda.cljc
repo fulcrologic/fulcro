@@ -11,7 +11,15 @@
    wrap time) to discover the function's supported arities and creates a wrapper
    that dispatches to the best matching arity.")
 
-#?(:clj
+;; babashka's SCI cannot resolve clojure.lang.RestFn, so the reflection-based arity discovery
+;; is unavailable. Under :bb we report functions as variadic, which makes `->arity-tolerant`
+;; pass them through unchanged (the same behavior CLJS uses). :clj is untouched.
+#?(:bb
+   (defn fn-arities
+     "babashka stub: reports `f` as variadic (arity discovery via reflection is unavailable under bb)."
+     [f]
+     {:variadic? true})
+   :clj
    (defn fn-arities
      "Discover the arities of a function via reflection.
 
@@ -63,7 +71,21 @@
    (multi 1 2 3 4)   ;; => :two (uses arity-2, drops extras)
    ```"
   [f]
-  #?(:cljs f
+  #?(:bb
+     ;; babashka/SCI cannot introspect fn arity (no clojure.lang.RestFn / reflection), and — unlike
+     ;; CLJS — SCI fixed-arity fns throw on extra args rather than ignoring them, so `f` cannot just
+     ;; be passed through. Adapt at call time: try the call with all args, and on an ArityException
+     ;; retry with one fewer, down to zero. (Caveat: an ArityException thrown from *inside* a
+     ;; correct-arity `f` would trigger a spurious retry; RAD handlers don't do this.)
+     (when (some? f)
+       (fn [& args]
+         (loop [n (count args)]
+           (if (neg? n)
+             (throw (ex-info "No suitable arity for function" {:arg-count (count args)}))
+             (let [[ok? v] (try [true (apply f (take n args))]
+                                (catch clojure.lang.ArityException _ [false nil]))]
+               (if ok? v (recur (dec n))))))))
+     :cljs f
      :clj
      (if (nil? f)
        nil

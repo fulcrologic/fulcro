@@ -14,7 +14,7 @@
     [com.fulcrologic.fulcro.dom-common :as cdom]
     [com.fulcrologic.fulcro.raw.components :as rc :refer [component-instance?]]
     [com.fulcrologic.fulcro.react.hooks-context :as hooks-ctx]
-    [taoensso.encore :as encore]))
+    [com.fulcrologic.fulcro.algorithms.core :as core]))
 
 (definterface IReactDOMElement
   (^StringBuilder renderToString [react-id ^StringBuilder sb]))
@@ -259,7 +259,7 @@
 (defn- render-component [c]
   (if (or (nil? c) (element? c))
     c
-    (encore/when-let [render (rc/component-options c :render)
+    (core/when-let [render (rc/component-options c :render)
                       output (render c)]
       (if (vector? output)
         (mapv render-component output)

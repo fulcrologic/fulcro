@@ -8,10 +8,13 @@
     [com.fulcrologic.guardrails.core :refer [>defn =>]]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid #?@(:cljs [:refer [TempId]])])
-  #?(:clj
-     (:import [com.cognitect.transit
-               TransitFactory WriteHandler ReadHandler]
-              [com.fulcrologic.fulcro.algorithms.tempid TempId])))
+  ;; babashka has cognitect.transit (Clojure API) but cannot import the com.cognitect.transit Java
+  ;; classes (which this ns never actually references) nor the TempId record class. :bb omits the
+  ;; whole import; :clj is unchanged. :bb must precede :clj since babashka also matches :clj.
+  #?@(:bb  []
+      :clj [(:import [com.cognitect.transit
+                      TransitFactory WriteHandler ReadHandler]
+                     [com.fulcrologic.fulcro.algorithms.tempid TempId])]))
 
 
 (defonce transit-handlers
@@ -19,15 +22,41 @@
     {:writers {}
      :readers {}}))
 
+;; babashka collapses every record to one class (sci.impl.records.SciRecord) and every deftype to
+;; one class (sci.impl.deftype.SciType), so transit's class-based write-handler dispatch cannot key
+;; on individual types. These two runtime classes are the dispatch keys for the :bb writer (see
+;; `write-handlers`). They can't be named as literals/Class-forName under SCI, so obtain them from
+;; instances. Defined only under :bb.
+#?(:bb
+   (do
+     (def ^:private sci-record-class (class (tempid/tempid)))
+     (deftype ^:private BBTypeProbe [])
+     (def ^:private sci-type-class (class (->BBTypeProbe)))))
+
 (defn read-handlers
   "Returns a map that can be used for the :handlers key of a transit reader, taken from the current type handler registry."
   []
   (get @transit-handlers :readers {}))
 
-(defn write-handlers
-  "Returns a map that can be used for the :handlers key of a transit writer, taken from the current type handler registry."
-  []
-  (get @transit-handlers :writers {}))
+#?(:bb
+   (defn write-handlers
+     "Returns a map for the :handlers key of a transit writer. Under babashka, type-keyed dispatch is
+      impossible (all records/deftypes collapse to one SCI class each), so this returns a single
+      dispatcher write-handler per SCI class that looks up the concrete `(type obj)` in the registry
+      (whose :writers slot holds raw {:tag :rep} maps under :bb) and delegates."
+     []
+     (let [dispatch (t/write-handler
+                      (fn [obj] (get-in @transit-handlers [:writers (type obj) :tag]))
+                      (fn [obj] ((get-in @transit-handlers [:writers (type obj) :rep]) obj))
+                      (fn [obj] (str (get-in @transit-handlers [:writers (type obj) :tag]) "#"
+                                  ((get-in @transit-handlers [:writers (type obj) :rep]) obj))))]
+       {sci-record-class dispatch
+        sci-type-class   dispatch}))
+   :default
+   (defn write-handlers
+     "Returns a map that can be used for the :handlers key of a transit writer, taken from the current type handler registry."
+     []
+     (get @transit-handlers :writers {})))
 
 
 #?(:cljs
@@ -68,7 +97,12 @@
   "Checks to see that the value in question can be serialized by the default fulcro writer by actually attempting to
   serialize it.  This is *not* an efficient check."
   [v]
-  #?(:clj  (try
+  #?(:bb   (try
+             ;; bb's transit writer has no .write interop; use the t/write Clojure API.
+             (t/write (writer (java.io.ByteArrayOutputStream.)) v)
+             true
+             (catch Exception e false))
+     :clj  (try
              (.write (writer (java.io.ByteArrayOutputStream.)) v)
              true
              (catch Exception e false))
@@ -122,10 +156,14 @@
    See also `install-type-handler!` for adding this to Fulcro's registry of type support."
   [type tag type->ground ground->type]
   [any? string? fn? fn? => (s/keys :req-un [::reader ::writer])]
-  {:writer {type (t/write-handler
-                   (fn [_] tag)
-                   (fn [t] (type->ground t))
-                   (fn [r] (str tag "#" r)))}
+  ;; Under :bb the writer slot holds raw {:tag :rep} (no t/write-handler object), because bb cannot
+  ;; dispatch handlers by individual type; `write-handlers` builds a per-SCI-class dispatcher from
+  ;; these raw entries. The reader slot is identical on every platform (dispatch is by wire tag).
+  {:writer {type #?(:bb  {:tag tag :rep type->ground}
+                    :default (t/write-handler
+                               (fn [_] tag)
+                               (fn [t] (type->ground t))
+                               (fn [r] (str tag "#" r))))}
    :reader {tag (t/read-handler ground->type)}})
 
 (>defn install-type-handler!
@@ -140,7 +178,16 @@
                               (update :writers merge (:writer t)))))
   nil)
 
-(defonce install-tempid-handler
-  (install-type-handler! (type-handler TempId tempid/tag
-                           (fn [^TempId tid] (.-id tid))
-                           (fn [uuid] (tempid/tempid uuid)))))
+;; :bb keys the handler by (type (tempid/tempid)) because the TempId record class can't be referenced
+;; cross-ns under SCI, and drops the ^TempId hint (SCI can't resolve hint classes). :clj/:cljs use the
+;; imported/referred TempId, unchanged.
+#?(:bb
+   (defonce install-tempid-handler
+     (install-type-handler! (type-handler (type (tempid/tempid)) tempid/tag
+                              (fn [tid] (.-id tid))
+                              (fn [uuid] (tempid/tempid uuid)))))
+   :default
+   (defonce install-tempid-handler
+     (install-type-handler! (type-handler TempId tempid/tag
+                              (fn [^TempId tid] (.-id tid))
+                              (fn [uuid] (tempid/tempid uuid))))))

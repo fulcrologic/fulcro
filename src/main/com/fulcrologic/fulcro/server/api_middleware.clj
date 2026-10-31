@@ -76,12 +76,10 @@
                                (async-query-processor query)
 
                                (and (map? query) (contains? query :queries))
-                               (let [{:keys [queries]} query
-                                     result (->> queries
-                                              (map (fn [query] (async-query-processor query)))
-                                              (async/merge)
-                                              (async/reduce conj []))]
-                                 result)
+                               (let [{:keys [queries]} query]
+                                 (if (seq queries)
+                                   (async/map vector (mapv async-query-processor queries))
+                                   (async/go [])))
 
                                :else (async/go (ex-info "Invalid query from client" {:query query})))
                              (catch Exception e

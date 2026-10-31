@@ -9,7 +9,8 @@
   needed (see the `transit` ns in this package)."
   (:refer-clojure :exclude [uuid])
   (:require
-    [clojure.walk :refer [prewalk-replace]])
+    [clojure.walk :refer [prewalk-replace]]
+    [com.yetanalytics.squuid :refer [generate-squuid]])
   #?(:clj (:import [java.io Writer]
                    (java.util UUID))))
 
@@ -38,9 +39,10 @@
 
 #?(:cljs
    (defn tempid
-     "Create a new tempid."
+     "Create a new tempid. With no args, generates a SQUUID (sequential UUID) for
+      better database indexing when downstream users \"raise\" the tempid to a real ID."
      ([]
-      (tempid (random-uuid)))
+      (tempid (generate-squuid)))
      ([id]
       (TempId. id nil))))
 
@@ -59,9 +61,10 @@
 
 #?(:clj
    (defn tempid
-     "Create a new tempid."
+     "Create a new tempid. With no args, generates a SQUUID (sequential UUID) for
+      better database indexing when downstream users \"raise\" the tempid to a real ID."
      ([]
-      (tempid (UUID/randomUUID)))
+      (tempid (generate-squuid)))
      ([uuid]
       (TempId. uuid))))
 

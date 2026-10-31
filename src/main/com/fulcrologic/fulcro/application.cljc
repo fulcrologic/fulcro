@@ -20,7 +20,7 @@
                ["react-dom/client" :as dom-client]
                [goog.functions :refer [debounce]]
                [goog.dom :as gdom]])
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log])
   #?(:clj (:import (clojure.lang IDeref))))
 
@@ -388,7 +388,7 @@
   "Removes the app from its mount point. If you want to re-mount a running app, then you should pass
    `:initialize-state? false` when you re-mount it and also consider the `:disable-client-did-mount?` option."
   [app]
-  (enc/if-let [unmount (ah/app-algorithm app :unmount-root!)
+  (core/if-let [unmount (ah/app-algorithm app :unmount-root!)
                node    (some-> app ::runtime-atom deref ::mount-node)]
     (do
       (unmount node)

@@ -16,7 +16,7 @@
     [com.wsscode.pathom.connect :as pc]
     [edn-query-language.core :as eql]
     [fulcro.inspect.api.target-api :as target]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log]))
 
 (defonce apps* (atom {}))
@@ -65,7 +65,7 @@
 (defmutation reset-app [{:fulcro/keys [app]} {:history/keys [version]}]
   {::pc/sym `target/reset-app}
   (let [render! (ah/app-algorithm app :schedule-render!)]
-    (enc/if-let [value (and version (:value (get-history-entry app version)))]
+    (core/if-let [value (and version (:value (get-history-entry app version)))]
       (do
         (reset! (state-atom app) value)
         (render! app {:force-root? true}))
@@ -82,7 +82,7 @@
   (let [[app-uuid desired-version] id
         params (:query-params env)
         {:keys [based-on]} params]
-    (enc/if-let [app   (get @apps* app-uuid)
+    (core/if-let [app   (get @apps* app-uuid)
                  value (:value (get-history-entry app desired-version))]
       (let [{prior-state :value} (get-history-entry app based-on)
             diff  (when prior-state (diff/diff prior-state value))
@@ -111,7 +111,7 @@
          :keys       [eql]} params
         app-uuid       (mk/target-id params)
         result-channel (async/chan)]
-    (enc/if-let [app   (get @apps* app-uuid)
+    (core/if-let [app   (get @apps* app-uuid)
                  {:keys [transmit!] :as remote} (rapp/get-remote app remote-name)
                  ast   (eql/query->ast eql)
                  tx-id (random-uuid)]
@@ -123,7 +123,7 @@
                            :com.fulcrologic.fulcro.algorithms.tx-processing/options        {}
                            :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler identity
                            :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler (fn [{:keys [body] :as result}]
-                                                                                             (enc/catching
+                                                                                             (core/catching
                                                                                                (let [error? (ah/app-algorithm app :remote-error?)]
                                                                                                  (if (error? result)
                                                                                                    (send-failed! app remote-name tx-id result)

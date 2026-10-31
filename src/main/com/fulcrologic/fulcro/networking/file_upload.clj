@@ -3,7 +3,7 @@
             [clojure.tools.reader.edn :as edn]
             [com.fulcrologic.fulcro.algorithms.transit :as transit]
             [edn-query-language.core :as eql]
-            [taoensso.encore :as enc]
+            [com.fulcrologic.fulcro.algorithms.core :as core]
             [taoensso.timbre :as log]))
 
 (defn- upload-transaction
@@ -30,7 +30,7 @@
   (try
     (let [ast             (eql/query->ast txn)
           mutation->files (reduce (fn [result {:keys [filename] :as file}]
-                                    (enc/if-let [[mutation-name filename] (some-> filename (str/split #"[%]"))
+                                    (core/if-let [[mutation-name filename] (some-> filename (str/split #"[%]"))
                                                  mutation-sym (some-> mutation-name (edn/read-string))]
                                       (update result mutation-sym (fnil conj []) (assoc file :filename filename))
                                       (do

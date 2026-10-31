@@ -10,7 +10,9 @@
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
     [com.fulcrologic.fulcro.algorithms.do-not-use :as util]
-    #?@(:clj  [[cljs.analyzer :as ana]]
+    ;; babashka can't load the cljs compiler; :bb omits cljs.analyzer (error site below falls back to ex-info).
+    #?@(:bb   []
+        :clj  [[cljs.analyzer :as ana]]
         :cljs [["react" :as react]
                [goog.async.Deferred]
                [cljs.loader :as loader]])
@@ -423,7 +425,10 @@
       (catch #?(:clj Throwable :cljs :default) t
         (log/error "Routing failed!" t "See https://book.fulcrologic.com/#err-lur-routing-failed")))))
 
-#?(:clj
+#?(:bb
+   (defn compile-error [env form message ex]
+     (throw (ex-info message (merge env (some-> form meta)) ex)))
+   :clj
    (defn compile-error [env form message ex]
      (throw (ana/error (merge env (some-> form meta)) message ex))))
 

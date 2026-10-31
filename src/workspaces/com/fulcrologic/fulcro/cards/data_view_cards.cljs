@@ -28,7 +28,7 @@
     [com.wsscode.pathom.core :as p]
     [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
     [nubank.workspaces.core :as ws]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log]))
 
 (def apartments [{:apartment/id       1
@@ -118,7 +118,7 @@
       (input {:value    (str v)                             ; DOM is always strings
               ;; synchronous transactions (using double !) will re-render ONLY the component
               ;; whose ident matches `this`. This prevents render from root altogether.
-              :onChange (fn [evt] (let [new-value (enc/catching (js/parseInt (evt/target-value evt)))]
+              :onChange (fn [evt] (let [new-value (core/catching (js/parseInt (evt/target-value evt)))]
                                     (comp/transact!! this [(update-apartment {:apartment/id id
                                                                               :attribute    attribute
                                                                               :value        new-value})])))}))))

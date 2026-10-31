@@ -10,7 +10,9 @@
   be easy to integrate with HTML5 history and URL control."
   #?(:cljs (:require-macros [com.fulcrologic.fulcro.routing.dynamic-routing]))
   (:require
-    #?@(:clj  [[cljs.analyzer :as ana]]
+    ;; babashka can't load the cljs compiler; :bb omits cljs.analyzer (error site below falls back to ex-info).
+    #?@(:bb   []
+        :clj  [[cljs.analyzer :as ana]]
         :cljs [[cljs.loader :as loader]
                [goog.object :as gobj]])
     [clojure.spec.alpha :as s]
@@ -27,7 +29,7 @@
     [com.fulcrologic.fulcro.ui-state-machines :as uism :refer [defstatemachine]]
     [com.fulcrologic.guardrails.core :refer [>fdef => ?]]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [taoensso.timbre :as log]))
 
 (def ^:dynamic *target-class*
@@ -139,13 +141,13 @@
               (or rc/*query-state* {}))]
      (get-targets router sm)))
   ([router state-map]
-   (enc/when-let [[router router-ident] (cond
+   (core/when-let [[router router-ident] (cond
                                           (rc/component-class? router) [router (rc/get-ident router {})]
                                           (rc/component-instance? router) (let [p (rc/props router)]
                                                                             ;; in case it isn't mounted yet, props could be nil
                                                                             [router (rc/get-ident router (or p {}))])
                                           (eql/ident? router) [(rc/registry-key->class (second router)) router]
-                                          (rc/legal-registry-lookup-key? router) (enc/when-let [cls (some-> router (rc/registry-key->class))]
+                                          (rc/legal-registry-lookup-key? router) (core/when-let [cls (some-> router (rc/registry-key->class))]
                                                                                    [cls (rc/get-ident cls {})]))
                   static-router-targets (set (rc/component-options router :router-targets))
                   router-targets        (into static-router-targets
@@ -843,7 +845,10 @@
 
 (def change-route change-route!)
 
-#?(:clj
+#?(:bb
+   (defn compile-error [env form message]
+     (throw (ex-info message (merge env (some-> form meta)))))
+   :clj
    (defn compile-error [env form message]
      (throw (ana/error (merge env (some-> form meta)) message))))
 
@@ -1387,7 +1392,7 @@
   ([app-ish RouteTarget route-params]
    (absolute-path app-ish RouteTarget route-params {})))
 
-(defn- loaded? [k] #?(:cljs (or (nil? k) (enc/catching (loader/loaded? k))) :clj true))
+(defn- loaded? [k] #?(:cljs (or (nil? k) (core/catching (loader/loaded? k))) :clj true))
 
 (defn route-to!
   "Route to a specific `target` of the given `Router`. This is different from `change-route!` in that it makes the

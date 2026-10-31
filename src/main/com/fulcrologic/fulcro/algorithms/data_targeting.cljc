@@ -4,8 +4,8 @@
     [clojure.set :as set]
     [clojure.spec.alpha :as s]
     [com.fulcrologic.guardrails.core :refer [=> >def >defn]]
+    [com.fulcrologic.fulcro.algorithms.core :as core]
     [edn-query-language.core :as eql]
-    [taoensso.encore :as enc]
     [taoensso.timbre :as log]))
 
 (>def ::target vector?)
@@ -160,4 +160,4 @@
        (and remove-source?
          (not (eql/ident? source-path))
          (vector? source-path))
-       (enc/dissoc-in source-path)))))
+       (core/dissoc-in source-path)))))
